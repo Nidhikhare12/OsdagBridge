@@ -2,11 +2,15 @@ import numpy as np
 import plotly.graph_objects as go
 import openseespy.opensees as ops
 
+
 FORCE_MAP = {
     "Fx": ("Vx_i", "Vx_j"),
     "Fy": ("Vy_i", "Vy_j"),
+    "Vy": ("Vy_i", "Vy_j"), 
     "Fz": ("Vz_i", "Vz_j"),
+    "Vz": ("Vz_i", "Vz_j"), 
     "Mx": ("Mx_i", "Mx_j"),
+    "Tx": ("Mx_i", "Mx_j"), 
     "My": ("My_i", "My_j"),
     "Mz": ("Mz_i", "Mz_j"),
 }
@@ -14,30 +18,30 @@ FORCE_MAP = {
 # ============================================================
 # UNIFIED SCENE & CAMERA CONFIGURATION
 # ============================================================
-# Used by all 3 plots so the camera never jumps when switching dropdowns
+
 SHARED_SCENE = dict(
     camera=dict(
         up=dict(x=0, y=1, z=0),
         center=dict(x=0, y=0, z=0),
-        eye=dict(x=0, y=0.1, z=2.5) # Perfect front elevation
-    ),
+        eye=dict(x=0, y=0.1, z=2.5)
+    ), 
     xaxis=dict(
         title=dict(text="<b>Span Length</b>", font=dict(size=12, color="black")),
-        showbackground=False, showgrid=True, gridcolor="rgba(100, 100, 100, 0.15)",
+        showbackground=False, showgrid= False , gridcolor="rgba(100, 100, 100, 0.15)",
         zeroline=False, showline=True, linecolor="black", linewidth=2,
         ticks="outside", tickfont=dict(size=11, color="black"),
         visible=True, showspikes=False
     ),
     zaxis=dict(
         title=dict(text="<b>Bridge Width</b>", font=dict(size=12, color="black")),
-        showbackground=False, showgrid=True, gridcolor="rgba(100, 100, 100, 0.15)",
+        showbackground=False, showgrid= False, gridcolor="rgba(100, 100, 100, 0.15)",
         zeroline=False, showline=True, linecolor="black", linewidth=2,
         ticks="outside", tickfont=dict(size=11, color="black"),
         autorange="reversed", visible=True, showspikes=False
     ),
     yaxis=dict(
         showbackground=False, showgrid=False, zeroline=False,
-        visible=False, showspikes=False
+        visible=True, showspikes=False
     ),
     aspectmode='data',
 )
@@ -111,7 +115,7 @@ def add_coordinate_triad(fig, nodes, scale=0.10):
 # ============================================================
 # SFD
 # ============================================================
-def build_figure_sfd(ds, force_key, nodes, members):
+def build_figure_sfd(ds, force_key, nodes, members, user_scale = 0.25 , grid_on=True, selected_girder=None):
     def find_component(name):
         for c in ds["Component"].values:
             if c.lower() == name.lower():
@@ -123,7 +127,12 @@ def build_figure_sfd(ds, force_key, nodes, members):
     comp_j = find_component(comp_j_name)
 
     def get_force(elem, comp):
-        return float(ds["forces"].sel(Element=elem, Component=comp).values)
+        try:
+            
+            return float(ds["forces"].sel(Element=elem, Component=comp).values)
+        except (KeyError, ValueError, IndexError):
+           
+            return 0.0
 
     Z_TOL = 3
     node_z = {}
@@ -145,16 +154,19 @@ def build_figure_sfd(ds, force_key, nodes, members):
         for e in elem_list:
             n1, n2 = members[e]
             x1, y1, z1 = nodes[n1]
+            force_val = get_force(e, comp_i)
             xs.append(x1); ys.append(y1); zs.append(z1)
-            vals.append(round(get_force(e, comp_i), 3))
+            vals.append(force_val)
             node_ids.append(n1)
 
         last_e = elem_list[-1]
         n1, n2 = members[last_e]
         x2, y2, z2 = nodes[n2]
+        force_val = get_force(e, comp_j)
         xs.append(x2); ys.append(y2); zs.append(z2)
-        vals.append(round(get_force(last_e, comp_j), 3))
+        vals.append(force_val)
         node_ids.append(n2)
+
         return np.array(xs), np.array(ys), np.array(zs), np.array(vals), node_ids
 
     fig_sfd = go.Figure()
@@ -170,25 +182,56 @@ def build_figure_sfd(ds, force_key, nodes, members):
     sorted_girders = sorted(girders.items(), key=lambda item: item[0])
     for i, (z_val, elems) in enumerate(sorted_girders):
         girder_name = f"G{i+1}"
+        if selected_girder:
+            clean_selected = str(selected_girder).replace("Girder ", "G").strip()
+            if girder_name != clean_selected:
+                continue
         xs, ys, zs, vy, node_ids = build_polyline(elems, comp_i, comp_j)
         Vy = vy.astype(float)
         z_base = np.mean(zs)
 
         if max(Vy) - min(Vy) == 0:
-            shear_scale = 1.0 if max(Vy) == 0 else 0.25 * abs((max(xs) - min(xs)) / max(Vy))
+            shear_scale = 10.0 if max(Vy) == 0 else user_scale * abs((max(xs) - min(xs)) / max(Vy))
         else:
-            shear_scale = 0.25 * abs((max(xs) - min(xs)) / (max(Vy) - min(Vy)))
+            shear_scale = user_scale * abs((max(xs) - min(xs)) / (max(Vy) - min(Vy)))
 
         x_step = np.repeat(xs, 2)[1:-1]
-        Vy_step = np.repeat(Vy[:-1], 2)
-        y_step = Vy_step * shear_scale
-        z_step = [z_base] * len(y_step)
+        f_step = np.repeat(Vy[:-1], 2) 
+        
+       
+        is_vertical = force_key in ["Fz", "Vz", "My", "V<sub>z</sub>", "M<sub>y</sub>", "Mz", "M<sub>z</sub>"]
 
+        if is_vertical:
+            # GROW ON Z-AXIS (Vertical Plane)
+            print("--- DRAWING VERTICAL (Z-AXIS) ---")
+            y_step = np.zeros(len(x_step))           # Y stays on the beam
+            z_step = z_base + (f_step * shear_scale) # Z grows with the force
+            
+        
+            y_surf_base = [np.zeros(len(x_step)), np.zeros(len(x_step))]
+            z_surf_base = [np.full(len(x_step), z_base), z_step]
+        else:
+            # GROW ON Y-AXIS (Horizontal Plane)
+            print("--- DRAWING HORIZONTAL (Y-AXIS) ---")
+            y_step = f_step * shear_scale            
+            z_step = np.full(len(x_step), z_base)    
+            
+            y_surf_base = [np.zeros(len(x_step)), y_step]
+            z_surf_base = [np.full(len(x_step), z_base), np.full(len(x_step), z_base)]
+            
         fig_sfd.add_trace(go.Surface(
-            x=[x_step, x_step], y=[np.zeros(len(y_step)), y_step], z=[z_step, z_step],
-            surfacecolor=[[1]*len(y_step), [1]*len(y_step)], colorscale=[[0, 'blue'], [1, 'blue']],
-            opacity=0.2, showscale=False, hoverinfo="skip"
-        ))
+            x=[x_step, x_step], 
+            y=y_surf_base,       # <--- Use the dynamic variable from your 'if' block
+            z=z_surf_base,       # <--- Use the dynamic variable from your 'if' block
+            surfacecolor=[f_step, f_step], 
+            colorscale="Viridis",           
+            opacity=0.4, 
+            showscale=True, 
+            hoverinfo="skip", 
+            showlegend=True, 
+            name=f"{girder_name} SFD"
+            ))
+
 
         master_base_x.extend(list(xs) + [None])
         master_base_y.extend([0] * len(xs) + [None])
@@ -199,13 +242,19 @@ def build_figure_sfd(ds, force_key, nodes, members):
         master_shear_z.extend(list(z_step) + [None])
 
         hover_strings = [f"<br>Node {nid}<br>X = {x:.2f}<br>{force_key} = {v:.2f}"
-                         for x, v, nid in zip(x_step, Vy_step, np.repeat(node_ids, 2)[1:-1])]
+                         for x, v, nid in zip(x_step, f_step, np.repeat(node_ids, 2)[1:-1])]
         master_hover_text.extend(hover_strings + [None])
 
-        for xi, vyi in zip(xs, Vy):
+        for xi, zi, vyi in zip(xs, zs, Vy):
             master_cliff_x.extend([xi, xi, None])
-            master_cliff_z.extend([z_base, z_base, None])
-            master_cliff_y.extend([0, -vyi * shear_scale if xi == xs[-1] else vyi * shear_scale, None])
+            if is_vertical:
+                # Grow vertically on Z
+                master_cliff_y.extend([0, 0, None])
+                master_cliff_z.extend([z_base, z_base + (vyi * shear_scale), None])
+            else:
+                # Grow horizontally on Y
+                master_cliff_z.extend([z_base, z_base, None])
+                master_cliff_y.extend([0, vyi * shear_scale, None])
 
         master_label_x.append(xs[0])
         master_label_y.append(0)
@@ -231,19 +280,29 @@ def build_figure_sfd(ds, force_key, nodes, members):
     ))
 
     fig_sfd.update_layout(
-        uirevision="constant_view",
+        uirevision= force_key,
         hoverlabel=dict(bgcolor="#E6F2FF", font_size=12, font_color="#2C3E50", bordercolor="#BBD6EE", namelength=-1),
         scene=SHARED_SCENE,
         margin=dict(l=0, r=0, t=40, b=0),
         paper_bgcolor="white", plot_bgcolor="white"
     )
+
+
+   
+    # --- TASK-1: GRID TOGGLE LOGIC ---
+    fig_sfd.update_scenes(
+        xaxis=dict(showgrid=grid_on, zeroline=grid_on),
+        yaxis=dict(showgrid=grid_on, zeroline=grid_on),
+        zaxis=dict(showgrid=grid_on, zeroline=grid_on)
+    )
     return fig_sfd.to_json()
+
 
 
 # ============================================================
 # BMD
 # ============================================================
-def build_figure_bmd(ds, force_key, nodes, members):
+def build_figure_bmd(ds, force_key, nodes, members, user_scale = 0.25, grid_on=True, selected_girder=None):
     def find_component(name):
         for c in ds["Component"].values:
             if c.lower() == name.lower():
@@ -301,27 +360,50 @@ def build_figure_bmd(ds, force_key, nodes, members):
 
     summary_data = {}
 
+    # --- PLANE SELECTION LOGIC ---
+    is_vertical = force_key in ["My", "My_i", "Fz", "Vz", "M<sub>y</sub>"]
+
     sorted_girders = sorted(girders.items(), key=lambda item: item[0])
     for i, (gid, elems) in enumerate(sorted_girders):
         girder_name = f"G{i+1}"
+        if selected_girder:
+            clean_selected = str(selected_girder).replace("Girder ", "G").strip()
+            if girder_name != clean_selected:
+                continue
         xs, ys, zs, mz, node_ids = build_polyline(elems, comp_i, comp_j)
+        z_base = np.mean(zs)
 
         if max(mz) - min(mz) == 0:
-            factormz = 1.0 if max(mz) == 0 else 0.1 * abs((max(xs) - min(xs)) / max(mz))
+            factormz = 1.0 if max(mz) == 0 else user_scale * abs((max(xs) - min(xs)) / max(mz))
         else:
-            factormz = 0.1 * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
+            factormz = user_scale * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
 
-        y_plot = mz * factormz
+        # --- DYNAMIC COORDINATES ---
+        if is_vertical:
+            
+            y_plot = np.zeros(len(xs))
+            z_plot = zs + (mz * factormz)
+            y_surf_base = [np.zeros(len(xs)), np.zeros(len(xs))]
+            z_surf_base = [zs, z_plot]
+        else:
+           
+            y_plot = mz * factormz
+            z_plot = zs
+            y_surf_base = [np.zeros(len(xs)), y_plot]
+            z_surf_base = [zs, zs]
 
         fig_bmd.add_trace(go.Surface(
-            x=[xs, xs], y=[np.zeros(len(xs)), y_plot], z=[zs, zs],
-            surfacecolor=[[1]*len(xs), [1]*len(xs)], colorscale=[[0, 'red'], [1, 'red']],
+            x=[xs, xs], 
+            y=y_surf_base, 
+            z=z_surf_base,
+            surfacecolor=[[1]*len(xs), [1]*len(xs)], 
+            colorscale=[[0, 'red'], [1, 'red']],
             opacity=0.2, showscale=False, hoverinfo="skip"
         ))
 
         master_line_x.extend(list(xs) + [None])
         master_line_y.extend(list(y_plot) + [None])
-        master_line_z.extend(list(zs) + [None])
+        master_line_z.extend(list(z_plot) + [None])
 
         hover_text = [f"Node {nid}<br>X = {x:.2f}<br>{force_key} = {v:.2f}<br>Z = {z:.2f}" for nid, x, v, z in zip(node_ids, xs, mz, zs)]
         master_hover_text.extend(hover_text + [None])
@@ -335,28 +417,35 @@ def build_figure_bmd(ds, force_key, nodes, members):
         master_label_z.append(zs[0])
         master_label_text.append(girder_name)
 
+       
         idx_max, max_val = np.argmax(mz), max(mz)
         master_max_x.extend([xs[idx_max], xs[idx_max], None])
-        master_max_y.extend([0, max_val * factormz, None])
-        master_max_z.extend([zs[0], zs[0], None])
+        if is_vertical:
+            master_max_y.extend([0, 0, None])
+            master_max_z.extend([zs[idx_max], zs[idx_max] + (max_val * factormz), None])
+        else:
+            master_max_y.extend([0, max_val * factormz, None])
+            master_max_z.extend([zs[idx_max], zs[idx_max], None])
 
         idx_min, min_val = np.argmin(mz), min(mz)
         master_min_x.extend([xs[idx_min], xs[idx_min], None])
-        master_min_y.extend([0, min_val * factormz, None])
-        master_min_z.extend([zs[0], zs[0], None])
+        if is_vertical:
+            master_min_y.extend([0, 0, None])
+            master_min_z.extend([zs[idx_min], zs[idx_min] + (min_val * factormz), None])
+        else:
+            master_min_y.extend([0, min_val * factormz, None])
+            master_min_z.extend([zs[idx_min], zs[idx_min], None])
 
         summary_data[girder_name] = {"max": max_val, "min": min_val}
 
     # =========================================================
-    # HUD GENERATOR
+    # HUD GENERATOR (KEEP SAME)
     # =========================================================
     hud_text = "<b>Extreme Values (N mm)</b><br>"
     hud_text += "-" * 44 + "<br>"
-
     h_girder = "Girder".ljust(6).replace(" ", "&nbsp;")
     h_max = "Max".rjust(14).replace(" ", "&nbsp;")
     h_min = "Min".rjust(14).replace(" ", "&nbsp;")
-
     hud_text += f"<b>{h_girder}</b> | <span style='color: #FF4136;'><b>{h_max}</b></span> | <span style='color: #0074D9;'><b>{h_min}</b></span><br>"
     hud_text += "-" * 44 + "<br>"
 
@@ -366,29 +455,33 @@ def build_figure_bmd(ds, force_key, nodes, members):
         min_str = f"{vals['min']:.2f}".rjust(14).replace(" ", "&nbsp;")
         hud_text += f"<b>{g_str}</b> | {max_str} | {min_str}<br>"
 
+    # ---SCATTER TRACES ---
     fig_bmd.add_trace(go.Scatter3d(
-        x=master_line_x, y=master_line_y, z=master_line_z, mode='lines', line=dict(color="red", width=4),
-        showlegend=False, text=master_hover_text, hoverinfo="text"
+        x=master_line_x, y=master_line_y, z=master_line_z, mode='lines', 
+        line=dict(color="red", width=4),
+        showlegend=True, name="BMD Curve", text=master_hover_text, hoverinfo="text"
     ))
     fig_bmd.add_trace(go.Scatter3d(
         x=master_base_x, y=master_base_y, z=master_base_z, mode='lines',
-        line=dict(color="green", width=3, dash='solid'), showlegend=False, hoverinfo='skip'
+        line=dict(color="green", width=3, dash='solid'), showlegend=True, name="Base Line", hoverinfo='skip'
     ))
     fig_bmd.add_trace(go.Scatter3d(
         x=master_label_x, y=master_label_y, z=master_label_z, mode="text", text=master_label_text,
         textposition="middle left", textfont=dict(size=11, color="black"), showlegend=False, hoverinfo="skip"
     ))
     fig_bmd.add_trace(go.Scatter3d(
-        x=master_max_x, y=master_max_y, z=master_max_z, mode="lines", line=dict(color="black", width=3),
-        legendgroup="max_lines", showlegend=False, visible=False, hoverinfo="skip"
+        x=master_max_x, y=master_max_y, z=master_max_z, mode="lines", 
+        line=dict(color="black", width=3), legendgroup="max_lines", 
+        showlegend=True, name="Max Values", visible=False, hoverinfo="skip"
     ))
     fig_bmd.add_trace(go.Scatter3d(
-        x=master_min_x, y=master_min_y, z=master_min_z, mode="lines", line=dict(color="black", width=3),
-        legendgroup="min_lines", showlegend=False, visible=False, hoverinfo="skip"
+        x=master_min_x, y=master_min_y, z=master_min_z, mode="lines", 
+        line=dict(color="black", width=3), legendgroup="min_lines", 
+        showlegend=True, name="Min Values", visible=False, hoverinfo="skip"
     ))
 
     fig_bmd.update_layout(
-        uirevision="constant_view",
+        uirevision=force_key,
         annotations=[
             dict(
                 x=0.02, y=0.98, xref="paper", yref="paper", text=hud_text, showarrow=False,
@@ -412,13 +505,20 @@ def build_figure_bmd(ds, force_key, nodes, members):
         scene=SHARED_SCENE,
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0)
     )
-    return fig_bmd.to_json(), summary_data
 
+    # --- GRID TOGGLE LOGIC ---
+    fig_bmd.update_scenes(
+        xaxis=dict(showgrid=grid_on, zeroline=grid_on),
+        yaxis=dict(showgrid=grid_on, zeroline=grid_on),
+        zaxis=dict(showgrid=grid_on, zeroline=grid_on)
+    )
+
+    return fig_bmd.to_json(), summary_data
 
 # ============================================================
 # BMD CONTOUR
 # ============================================================
-def build_figure_bmd_contour(ds, force_key, nodes, members):
+def build_figure_bmd_contour(ds, force_key, nodes, members, user_scale = 0.25, grid_on=True, selected_girder=None):
     def find_component(name):
         for c in ds["Component"].values:
             if c.lower() == name.lower():
@@ -480,12 +580,16 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
     sorted_girders = sorted(girders.items(), key=lambda item: item[0])
     for i, (gid, elems) in enumerate(sorted_girders):
         girder_name = f"G{i+1}"
+        if selected_girder:
+            clean_selected = str(selected_girder).replace("Girder ", "G").strip()
+            if girder_name != clean_selected:
+                continue
         xs, ys, zs, mz, node_ids = build_polyline(elems, comp_i, comp_j)
 
         if max(mz) - min(mz) == 0:
-            moment_scale = 1.0 if max(mz) == 0 else 0.1 * abs((max(xs) - min(xs)) / max(mz))
+            moment_scale = 1.0 if max(mz) == 0 else user_scale * abs((max(xs) - min(xs)) / max(mz))
         else:
-            moment_scale = 0.1 * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
+            moment_scale = user_scale * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
 
         y_plot = mz * moment_scale
 
@@ -499,14 +603,15 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
             x=xs, y=y_plot, z=zs, mode="lines+markers",
             line=dict(width=6, color=mz, colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull)),
             marker=dict(size=12, opacity=0),
-            showlegend=False, text=[f"Node {nid}<br>X={x:.2f}<br>{force_key}={v:.2f}" for nid, x, v in zip(node_ids, xs, mz)],
+            showlegend=True, name=f"{girder_name} SFD",
+            text=[f"Node {nid}<br>X={x:.2f}<br>{force_key}={v:.2f}" for nid, x, v in zip(node_ids, xs, mz)],
             hoverinfo="text"
         ))
 
         fig.add_trace(go.Scatter3d(
             x=[xs[0]], y=[0], z=[zs[0]], mode="text", text=[f"<b>{girder_name}</b>"],
             textposition="middle left", textfont=dict(size=14, color="black"),
-            showlegend=False, hoverinfo="skip"
+            showlegend= True , name=f"{girder_name} SFD", hoverinfo="skip"
         ))
 
         master_base_x.extend([xs[0], xs[-1], None])
@@ -523,12 +628,12 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
 
     fig.add_trace(go.Scatter3d(
         x=master_base_x, y=master_base_y, z=master_base_z, mode="lines",
-        line=dict(color="green", width=3), hoverinfo="skip", showlegend=False
+        line=dict(color="green", width=3), hoverinfo="skip", showlegend= True , name=f"{girder_name} SFD"
     ))
     fig.add_trace(go.Scatter3d(
         x=master_drop_x, y=master_drop_y, z=master_drop_z, mode="lines+markers",
         line=dict(width=4, color=master_drop_color, colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull)),
-        marker=dict(size=12, opacity=0), showlegend=False, text=master_drop_text, hoverinfo="text"
+        marker=dict(size=12, opacity=0), showlegend= True , name=f"{girder_name} SFD", text=master_drop_text, hoverinfo="text"
     ))
 
     fig.update_layout(
@@ -536,6 +641,12 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
         hoverlabel=dict(bgcolor="rgba(15, 23, 42, 0.95)", font_size=12, font_color="#F8F9FA", bordercolor="#0EA5E9", namelength=-1),
         scene=SHARED_SCENE,
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0)
+    )
+
+    fig.update_scenes(
+        xaxis_showgrid=grid_on,
+        zaxis_showgrid=grid_on,
+        yaxis_showgrid=grid_on
     )
 
     return fig.to_json()
