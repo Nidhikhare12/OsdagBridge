@@ -165,6 +165,10 @@ class OutputDock(QWidget):
 
         self._build_field_loop(root_layout)
 
+        # Connect the analysis checkboxes/combos to the plot widget
+        # so selections in the output dock drive plot updates.
+        self._wire_plot_controls()
+
         root_layout.addStretch()
         self.scroll_area.setWidget(self.output_widget)
         return self.scroll_area
@@ -413,19 +417,18 @@ class OutputDock(QWidget):
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(8)
+        grid.setHorizontalSpacing(16)
         grid.setVerticalSpacing(4)
-
-        # Set equal stretch on every column so they fill the width evenly
-        for c in range(num_cols):
-            grid.setColumnStretch(c, 1)
 
         # Fill row by row: row index = position within column
         num_rows = max((len(col) for col in columns), default=0)
         for row in range(num_rows):
             for col, col_items in enumerate(columns):
                 if row < len(col_items):
-                    cb = RichCheckBox(str(col_items[row]))
+                    # RichCheckBox paints HTML via QTextDocument, which doesn't
+                    # inherit Qt stylesheet colors. Wrap with explicit color.
+                    html_text = f"<span style='color:#1a1a2e'>{col_items[row]}</span>"
+                    cb = RichCheckBox(html_text)
                     all_cbs.append(cb)
                     grid.addWidget(cb, row, col, alignment=Qt.AlignCenter)
 
@@ -507,3 +510,65 @@ class OutputDock(QWidget):
     def open_deck_design(self):
         from osdagbridge.desktop.ui.dialogs.deck_design import DeckDesign
         DeckDesign(parent=self.parent).exec()
+
+    # ── Plot integration (Task 2) ─────────────────────────────────────────────
+    # The output dock drives the plot widget by forwarding checkbox/combo
+    # selections to PlotWidget.set_force() and PlotWidget.set_loadcase().
+
+    # Map from checkbox HTML labels (RichCheckBox text) to backend force keys.
+    # The grid shows abbreviated names with HTML subscripts; the backend
+    # expects the short key strings used by FORCE_MAP in plots_widget.py.
+    _FORCE_LABEL_MAP = {
+        "F<sub>x</sub>": "Fx",
+        "V<sub>y</sub>": "Fy",
+        "V<sub>z</sub>": "Fz",
+        "T<sub>x</sub>": "Mx",
+        "M<sub>y</sub>": "My",
+        "M<sub>z</sub>": "Mz",
+    }
+
+    def _wire_plot_controls(self):
+        """
+        Connect the Analysis Results widgets to the plot widget.
+        Called once after _build_field_loop has created all the UI.
+        """
+        plot_widget = getattr(self.parent, "plots_widget", None)
+        if plot_widget is None:
+            return
+
+        # 1) Wire the force checkbox grid - each checkbox drives set_force()
+        #    The checkboxes are RichCheckBox instances inside the output_widget.
+        #    We find them by iterating all RichCheckBox children.
+        for cb in self.output_widget.findChildren(RichCheckBox):
+            label_text = cb.text()
+            # Match by checking if the HTML label contains one of our keys.
+            # The text may be wrapped in a color span, so use substring match.
+            for pattern, force_key in self._FORCE_LABEL_MAP.items():
+                if pattern in label_text:
+                    cb.clicked.connect(
+                        lambda checked, fk=force_key: (
+                            plot_widget.set_force(fk) if checked else None
+                        )
+                    )
+                    break  # matched, move to next checkbox
+
+        # 2) Wire the load combination combobox
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_LOAD_COMBINATION
+        lc_combo = self._w(KEY_ANALYSIS_LOAD_COMBINATION)
+        if lc_combo is not None:
+            lc_combo.currentTextChanged.connect(plot_widget.set_loadcase)
+
+    def populate_loadcases(self, loadcase_list):
+        """
+        Fill the Load Combination combobox with actual loadcase names
+        from the analysis results. Called after design() completes.
+        """
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_LOAD_COMBINATION
+        lc_combo = self._w(KEY_ANALYSIS_LOAD_COMBINATION)
+        if lc_combo is None:
+            return
+
+        lc_combo.blockSignals(True)
+        lc_combo.clear()
+        lc_combo.addItems(loadcase_list)
+        lc_combo.blockSignals(False)

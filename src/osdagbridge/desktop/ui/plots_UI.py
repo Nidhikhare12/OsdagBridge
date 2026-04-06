@@ -256,22 +256,8 @@ class PlotWidget(QWidget):
                                           background: #4a90d9; border-radius: 7px; }
         """)
 
-        # ---------- LOADCASE ----------
-        top.addWidget(QLabel("Load case:"))
-        self.combo = QComboBox()
-        self.combo.currentTextChanged.connect(self.update_plot)
-        top.addWidget(self.combo)
-
-        # ---------- FORCE ----------
-        top.addWidget(QLabel("Force:"))
-        self.force_combo = QComboBox()
-        self.force_combo.addItems(list(FORCE_MAP.keys()))
-        self.force_combo.setCurrentText("Vy")
-        self.force_combo.currentTextChanged.connect(self.update_plot)
-        top.addWidget(self.force_combo)
-
         # ---------- CONTOUR CHECKBOX ----------
-        # Now supports Fy shear contour in addition to moments
+        # Supports Fy shear contour in addition to moments
         self.contour = QCheckBox("Contour")
         self.contour.stateChanged.connect(self.update_plot)
         top.addWidget(self.contour)
@@ -329,16 +315,23 @@ class PlotWidget(QWidget):
     def setup(self, ds_all, loadcases, nodes, members):
         """Populate the widget with bridge analysis results. Call after design() completes."""
         self._ds_all = ds_all
+        self._loadcases = loadcases
         self._nodes = nodes
         self._members = members
 
-        self.combo.blockSignals(True)
-        self.combo.clear()
-        self.combo.addItems(loadcases)
-        self.combo.blockSignals(False)
+        # Default to first loadcase and Fy force
+        self._current_loadcase = loadcases[0] if loadcases else ""
+        self._current_force = "Fy"
 
         # Populate the girder isolation dropdown based on the model
         self._populate_girder_combo()
+
+        # Push loadcase names to the output dock's Load Combination combobox
+        # so users can switch loadcases from the output panel.
+        # self.window() reaches the CustomWindow (top-level), not just the splitter.
+        main_window = self.window()
+        if main_window and hasattr(main_window, "output_dock") and main_window.output_dock:
+            main_window.output_dock.populate_loadcases(loadcases)
 
     def _populate_girder_combo(self):
         """Fill the girder combobox with names derived from the model geometry."""
@@ -389,14 +382,32 @@ class PlotWidget(QWidget):
         top_left_corner = self.web.mapToGlobal(QPoint(15, 15))
         self.summary_dialog.move(top_left_corner)
 
+    # ---- Public setters (called by output dock) ----
+
+    def set_loadcase(self, loadcase_name):
+        """Set the active load case and refresh the plot."""
+        if loadcase_name and loadcase_name != self._current_loadcase:
+            self._current_loadcase = loadcase_name
+            self.update_plot()
+
+    def set_force(self, force_key):
+        """Set the active force component and refresh the plot."""
+        if force_key and force_key != self._current_force:
+            self._current_force = force_key
+            self.update_plot()
+
     # ---- Main plot update ----
 
     def update_plot(self):
         if self._ds_all is None:
             return
 
-        loadcase = self.combo.currentText()
-        force_key = self.force_combo.currentText()
+        loadcase = self._current_loadcase
+        force_key = self._current_force
+
+        if not loadcase or loadcase not in self._ds_all.Loadcase.values:
+            return
+
         ds = self._ds_all.sel(Loadcase=loadcase)
 
         is_force = force_key.startswith("F") 
@@ -439,10 +450,9 @@ class PlotWidget(QWidget):
                     self.summary_dialog.update_data(self.stats_dict)
 
         else:
-            raise ValueError(f"Unsupported force: {force_key}")
+            return  # unsupported force key, just skip
 
-        # -------- INJECT PLOT VIA QWEBCHANNEL --------
-        # Emits the raw JSON string perfectly without double-encoding it
+        # Emits the raw JSON string to the web view via QWebChannel
         self.backend.newPlotData.emit(plot_json)
 
         # Reset the girder isolator to "All" so the new plot shows everything
