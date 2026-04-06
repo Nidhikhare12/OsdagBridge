@@ -17,7 +17,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QCheckBox, QTableWidget, QTableWidgetItem, 
-    QHeaderView, QPushButton, QDialog
+    QHeaderView, QPushButton, QDialog, QSlider
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
@@ -29,6 +29,7 @@ from osdagbridge.core.bridge_types.plate_girder.plots_widget import (
     build_figure_sfd,
     build_figure_bmd,
     build_figure_bmd_contour,
+    build_figure_sfd_contour,
     FORCE_MAP,
 )
 
@@ -73,6 +74,9 @@ HTML_TEMPLATE = """
                 var targetDiv = document.getElementById('plot_div');
                 Plotly.Plots.resize(targetDiv);
 
+                // Reset cached aspect ratio when a new plot is loaded
+                targetDiv._baseAspect = null;
+
                 if (!targetDiv.hasRelayoutListener) {
                     targetDiv.on('plotly_relayout', function(eventdata) {
                         var eventString = JSON.stringify(eventdata);
@@ -84,9 +88,88 @@ HTML_TEMPLATE = """
                             }, 100);
                         }
                     });
+
+                    // Custom legend click handler - Plotly's built-in toggle
+                    // doesn't always work for Surface traces in a legendgroup,
+                    // so we manually set visibility for all traces in the group.
+                    targetDiv.on('plotly_legendclick', function(eventdata) {
+                        var clickedGroup = eventdata.data[eventdata.curveNumber].legendgroup;
+                        if (!clickedGroup) return true;  // let Plotly handle non-grouped traces
+
+                        var plotDiv = document.getElementById('plot_div');
+                        var isCurrentlyVisible = (eventdata.data[eventdata.curveNumber].visible !== 'legendonly');
+
+                        // Toggle all traces sharing this legendgroup
+                        var update = {};
+                        var indices = [];
+                        for (var i = 0; i < plotDiv.data.length; i++) {
+                            if (plotDiv.data[i].legendgroup === clickedGroup) {
+                                indices.push(i);
+                            }
+                        }
+                        var newVis = isCurrentlyVisible ? 'legendonly' : true;
+                        Plotly.restyle('plot_div', {'visible': newVis}, indices);
+
+                        return false;  // prevent Plotly's default legend click
+                    });
+
                     targetDiv.hasRelayoutListener = true;
                 }
             });
+        }
+
+        // ---- Grid visibility toggle ----
+        function toggleGrid(show) {
+            Plotly.relayout('plot_div', {
+                'scene.xaxis.showgrid': show,
+                'scene.zaxis.showgrid': show
+            });
+        }
+
+        // ---- Scale adjustment via aspect ratio ----
+        // Captures the initial data-driven aspect ratio on first call,
+        // then scales the Y axis relative to that baseline.
+        function setScale(factor) {
+            var plotDiv = document.getElementById('plot_div');
+            if (!plotDiv._fullLayout || !plotDiv._fullLayout.scene) return;
+
+            if (!plotDiv._baseAspect) {
+                var scene = plotDiv._fullLayout.scene;
+                plotDiv._baseAspect = {
+                    x: scene.aspectratio.x,
+                    y: scene.aspectratio.y,
+                    z: scene.aspectratio.z
+                };
+            }
+
+            Plotly.relayout('plot_div', {
+                'scene.aspectmode': 'manual',
+                'scene.aspectratio.x': plotDiv._baseAspect.x,
+                'scene.aspectratio.y': plotDiv._baseAspect.y * factor,
+                'scene.aspectratio.z': plotDiv._baseAspect.z
+            });
+        }
+
+        // ---- Isolate a single girder by legendgroup ----
+        // "All" restores every trace; otherwise only traces matching
+        // the given girder name stay visible.
+        function isolateGirder(girderName) {
+            var plotDiv = document.getElementById('plot_div');
+            if (!plotDiv.data) return;
+
+            var visibility = [];
+            for (var i = 0; i < plotDiv.data.length; i++) {
+                var trace = plotDiv.data[i];
+                // Shared traces (grillage background, triad) have no legendgroup
+                if (!trace.legendgroup) {
+                    visibility.push(true);
+                } else if (girderName === 'All') {
+                    visibility.push(true);
+                } else {
+                    visibility.push(trace.legendgroup === girderName);
+                }
+            }
+            Plotly.restyle('plot_div', {'visible': visibility});
         }
     </script>
 </body>
@@ -160,6 +243,19 @@ class PlotWidget(QWidget):
         layout = QVBoxLayout(self)
         top = QHBoxLayout()
 
+        # Force black text on all plot controls - the parent window's stylesheet
+        # sets a global background that can leave text invisible without this.
+        self.setStyleSheet("""
+            QLabel { color: #1a1a2e; font-size: 12px; }
+            QComboBox { color: #1a1a2e; background: #f5f5f5; border: 1px solid #ccc;
+                        padding: 2px 6px; min-width: 80px; }
+            QComboBox QAbstractItemView { color: #1a1a2e; background: white; }
+            QCheckBox { color: #1a1a2e; spacing: 4px; }
+            QSlider::groove:horizontal { height: 6px; background: #ddd; border-radius: 3px; }
+            QSlider::handle:horizontal { width: 14px; margin: -4px 0;
+                                          background: #4a90d9; border-radius: 7px; }
+        """)
+
         # ---------- LOADCASE ----------
         top.addWidget(QLabel("Load case:"))
         self.combo = QComboBox()
@@ -175,10 +271,33 @@ class PlotWidget(QWidget):
         top.addWidget(self.force_combo)
 
         # ---------- CONTOUR CHECKBOX ----------
-        self.contour = QCheckBox("Contour (Moments only)")
+        # Now supports Fy shear contour in addition to moments
+        self.contour = QCheckBox("Contour")
         self.contour.stateChanged.connect(self.update_plot)
         top.addWidget(self.contour)
-        
+
+        # ---------- GRID VISIBILITY ----------
+        self.grid_cb = QCheckBox("Grid")
+        self.grid_cb.setChecked(True)
+        self.grid_cb.stateChanged.connect(self._toggle_grid)
+        top.addWidget(self.grid_cb)
+
+        # ---------- SCALE SLIDER ----------
+        top.addWidget(QLabel("Scale:"))
+        self.scale_slider = QSlider(Qt.Horizontal)
+        self.scale_slider.setRange(1, 20)
+        self.scale_slider.setValue(10)          # 10 = 1.0x (default)
+        self.scale_slider.setFixedWidth(100)
+        self.scale_slider.valueChanged.connect(self._set_scale)
+        top.addWidget(self.scale_slider)
+
+        # ---------- ISOLATE GIRDER ----------
+        top.addWidget(QLabel("Girder:"))
+        self.girder_combo = QComboBox()
+        self.girder_combo.addItem("All")
+        self.girder_combo.currentTextChanged.connect(self._isolate_girder)
+        top.addWidget(self.girder_combo)
+
         top.addStretch()
         layout.addLayout(top)
 
@@ -218,6 +337,44 @@ class PlotWidget(QWidget):
         self.combo.addItems(loadcases)
         self.combo.blockSignals(False)
 
+        # Populate the girder isolation dropdown based on the model
+        self._populate_girder_combo()
+
+    def _populate_girder_combo(self):
+        """Fill the girder combobox with names derived from the model geometry."""
+        # Count longitudinal members (same Z for both end nodes) to find girders
+        z_vals = set()
+        for ele_tag, (n1, n2) in self._members.items():
+            z1 = round(self._nodes[n1][2], 3)
+            z2 = round(self._nodes[n2][2], 3)
+            if z1 == z2:
+                z_vals.add(z1)
+
+        self.girder_combo.blockSignals(True)
+        self.girder_combo.clear()
+        self.girder_combo.addItem("All")
+        for i in range(len(sorted(z_vals))):
+            self.girder_combo.addItem(f"G{i+1}")
+        self.girder_combo.blockSignals(False)
+
+    # ---- JS-driven controls (no figure rebuild needed) ----
+
+    def _toggle_grid(self, state):
+        """Show or hide grid lines on the 3D plot axes."""
+        show = "true" if state else "false"
+        self.web.page().runJavaScript(f"toggleGrid({show})")
+
+    def _set_scale(self, value):
+        """Scale the force diagram height. Slider 1-20 maps to 0.1x - 2.0x."""
+        factor = value / 10.0
+        self.web.page().runJavaScript(f"setScale({factor})")
+
+    def _isolate_girder(self, girder_name):
+        """Show only the selected girder, or 'All' to restore everything."""
+        self.web.page().runJavaScript(f"isolateGirder('{girder_name}')")
+
+    # ---- Summary dialog ----
+
     def show_summary_dialog(self):
         """Pops up the dialog perfectly in the top-left corner of the web view."""
         if not self.stats_dict:
@@ -232,6 +389,8 @@ class PlotWidget(QWidget):
         top_left_corner = self.web.mapToGlobal(QPoint(15, 15))
         self.summary_dialog.move(top_left_corner)
 
+    # ---- Main plot update ----
+
     def update_plot(self):
         if self._ds_all is None:
             return
@@ -243,14 +402,29 @@ class PlotWidget(QWidget):
         is_force = force_key.startswith("F") 
         is_moment = force_key.startswith("M") 
 
+        # Contour is available for Fy (shear) and all moments
+        contour_allowed = (force_key == "Fy") or is_moment
+
         if is_force:
-            self.contour.blockSignals(True)
-            self.contour.setChecked(False)
-            self.contour.setEnabled(False)
-            self.contour.blockSignals(False)
-            
-            self.stats_dict = {}
-            plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
+            if force_key == "Fy":
+                # Fy supports contour mode - keep checkbox enabled
+                self.contour.setEnabled(True)
+
+                if self.contour.isChecked():
+                    plot_json = build_figure_sfd_contour(ds, force_key, self._nodes, self._members)
+                    self.stats_dict = {}
+                else:
+                    self.stats_dict = {}
+                    plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
+            else:
+                # Other forces (Fx, Fz) - no contour support
+                self.contour.blockSignals(True)
+                self.contour.setChecked(False)
+                self.contour.setEnabled(False)
+                self.contour.blockSignals(False)
+
+                self.stats_dict = {}
+                plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
 
         elif is_moment:
             self.contour.setEnabled(True)
@@ -270,6 +444,16 @@ class PlotWidget(QWidget):
         # -------- INJECT PLOT VIA QWEBCHANNEL --------
         # Emits the raw JSON string perfectly without double-encoding it
         self.backend.newPlotData.emit(plot_json)
+
+        # Reset the girder isolator to "All" so the new plot shows everything
+        self.girder_combo.blockSignals(True)
+        self.girder_combo.setCurrentText("All")
+        self.girder_combo.blockSignals(False)
+
+        # Reset the scale slider to default (1.0x)
+        self.scale_slider.blockSignals(True)
+        self.scale_slider.setValue(10)
+        self.scale_slider.blockSignals(False)
 
 
 # ======================= MAIN
