@@ -100,7 +100,6 @@ HTML_TEMPLATE = """
                         var isCurrentlyVisible = (eventdata.data[eventdata.curveNumber].visible !== 'legendonly');
 
                         // Toggle all traces sharing this legendgroup
-                        var update = {};
                         var indices = [];
                         for (var i = 0; i < plotDiv.data.length; i++) {
                             if (plotDiv.data[i].legendgroup === clickedGroup) {
@@ -411,10 +410,7 @@ class PlotWidget(QWidget):
         ds = self._ds_all.sel(Loadcase=loadcase)
 
         is_force = force_key.startswith("F") 
-        is_moment = force_key.startswith("M") 
-
-        # Contour is available for Fy (shear) and all moments
-        contour_allowed = (force_key == "Fy") or is_moment
+        is_moment = force_key.startswith("M")
 
         if is_force:
             if force_key == "Fy":
