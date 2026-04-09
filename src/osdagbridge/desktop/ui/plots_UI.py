@@ -74,7 +74,7 @@ HTML_TEMPLATE = """
                 var targetDiv = document.getElementById('plot_div');
                 Plotly.Plots.resize(targetDiv);
 
-                // Reset cached aspect ratio when a new plot is loaded
+                // reset previously cached aspect ratio
                 targetDiv._baseAspect = null;
 
                 if (!targetDiv.hasRelayoutListener) {
@@ -89,27 +89,25 @@ HTML_TEMPLATE = """
                         }
                     });
 
-                    // Custom legend click handler - Plotly's built-in toggle
-                    // doesn't always work for Surface traces in a legendgroup,
+                    // Custom legend click handler: Plotly's built-in toggle doesn't always work for Surface traces in a legendgroup,
                     // so we manually set visibility for all traces in the group.
                     targetDiv.on('plotly_legendclick', function(eventdata) {
-                        var clickedGroup = eventdata.data[eventdata.curveNumber].legendgroup;
-                        if (!clickedGroup) return true;  // let Plotly handle non-grouped traces
+                        var grp = eventdata.data[eventdata.curveNumber].legendgroup;
+                        if (!grp) return true;
 
-                        var plotDiv = document.getElementById('plot_div');
-                        var isCurrentlyVisible = (eventdata.data[eventdata.curveNumber].visible !== 'legendonly');
+                        var plot = document.getElementById('plot_div');
+                        var isVisible = (eventdata.data[eventdata.curveNumber].visible !== 'legendonly');
 
-                        // Toggle all traces sharing this legendgroup
                         var indices = [];
-                        for (var i = 0; i < plotDiv.data.length; i++) {
-                            if (plotDiv.data[i].legendgroup === clickedGroup) {
+                        for (var i = 0; i < plot.data.length; i++) {
+                            if (plot.data[i].legendgroup === grp) {
                                 indices.push(i);
                             }
                         }
-                        var newVis = isCurrentlyVisible ? 'legendonly' : true;
-                        Plotly.restyle('plot_div', {'visible': newVis}, indices);
+                        var nextVis = isVisible ? 'legendonly' : true;
+                        Plotly.restyle('plot_div', {'visible': nextVis}, indices);
 
-                        return false;  // prevent Plotly's default legend click
+                        return false;
                     });
 
                     targetDiv.hasRelayoutListener = true;
@@ -117,13 +115,13 @@ HTML_TEMPLATE = """
             });
         }
 
-        // ---- Max/Min visibility toggle ----
+        // --- Max/min visibility toggle ---
         function toggleMaxMin(group, show) {
-            var plotDiv = document.getElementById('plot_div');
-            if (!plotDiv.data) return;
+            var plot = document.getElementById('plot_div');
+            if (!plot.data) return;
             var indices = [];
-            for (var i = 0; i < plotDiv.data.length; i++) {
-                if (plotDiv.data[i].legendgroup === group) {
+            for (var i = 0; i < plot.data.length; i++) {
+                if (plot.data[i].legendgroup === group) {
                     indices.push(i);
                 }
             }
@@ -132,7 +130,7 @@ HTML_TEMPLATE = """
             }
         }
 
-        // ---- Grid visibility toggle ----
+        // grid toggle
         function toggleGrid(show) {
             Plotly.relayout('plot_div', {
                 'scene.xaxis.showgrid': show,
@@ -141,15 +139,15 @@ HTML_TEMPLATE = """
         }
 
         // ---- Scale adjustment via aspect ratio ----
-        // Captures the initial data-driven aspect ratio on first call,
-        // then scales the Y axis relative to that baseline.
+        // captures the initial aspect ratio on first call,
+        // and then scales the Y axis relative to that.
         function setScale(factor) {
-            var plotDiv = document.getElementById('plot_div');
-            if (!plotDiv._fullLayout || !plotDiv._fullLayout.scene) return;
+            var plot = document.getElementById('plot_div');
+            if (!plot._fullLayout || !plot._fullLayout.scene) return;
 
-            if (!plotDiv._baseAspect) {
-                var scene = plotDiv._fullLayout.scene;
-                plotDiv._baseAspect = {
+            if (!plot._baseAspect) {
+                var scene = plot._fullLayout.scene;
+                plot._baseAspect = {
                     x: scene.aspectratio.x,
                     y: scene.aspectratio.y,
                     z: scene.aspectratio.z
@@ -158,23 +156,21 @@ HTML_TEMPLATE = """
 
             Plotly.relayout('plot_div', {
                 'scene.aspectmode': 'manual',
-                'scene.aspectratio.x': plotDiv._baseAspect.x,
-                'scene.aspectratio.y': plotDiv._baseAspect.y * factor,
-                'scene.aspectratio.z': plotDiv._baseAspect.z
+                'scene.aspectratio.x': plot._baseAspect.x,
+                'scene.aspectratio.y': plot._baseAspect.y * factor,
+                'scene.aspectratio.z': plot._baseAspect.z
             });
         }
 
         // ---- Isolate a single girder by legendgroup ----
-        // "All" restores every trace; otherwise only traces matching
-        // the given girder name stay visible.
+        // 'All' restores every trace- otherwise only traces matching
         function isolateGirder(girderName) {
-            var plotDiv = document.getElementById('plot_div');
-            if (!plotDiv.data) return;
+            var plot = document.getElementById('plot_div');
+            if (!plot.data) return;
 
             var visibility = [];
-            for (var i = 0; i < plotDiv.data.length; i++) {
-                var trace = plotDiv.data[i];
-                // Shared traces (grillage background, triad) have no legendgroup
+            for (var i = 0; i < plot.data.length; i++) {
+                var trace = plot.data[i];
                 if (!trace.legendgroup) {
                     visibility.push(true);
                 } else if (girderName === 'All') {
@@ -259,8 +255,6 @@ class PlotWidget(QWidget):
         layout = QVBoxLayout(self)
         top = QHBoxLayout()
 
-        # Force black text on all plot controls - the parent window's stylesheet
-        # sets a global background that can leave text invisible without this.
         self.setStyleSheet("""
             QLabel { color: #1a1a2e; font-size: 12px; }
             QComboBox { color: #1a1a2e; background: #f5f5f5; border: 1px solid #ccc;
@@ -288,7 +282,7 @@ class PlotWidget(QWidget):
         top.addWidget(QLabel("Scale:"))
         self.scale_slider = QSlider(Qt.Horizontal)
         self.scale_slider.setRange(1, 20)
-        self.scale_slider.setValue(10)          # 10 = 1.0x (default)
+        self.scale_slider.setValue(10)
         self.scale_slider.setFixedWidth(100)
         self.scale_slider.valueChanged.connect(self._set_scale)
         top.addWidget(self.scale_slider)
@@ -342,19 +336,16 @@ class PlotWidget(QWidget):
         # Populate the girder isolation dropdown based on the model
         self._populate_girder_combo()
 
-        # Push loadcase names to the output dock's Load Combination combobox
-        # so users can switch loadcases from the output panel.
-        # self.window() reaches the CustomWindow (top-level), not just the splitter.
+        # Push loadcase names to the output dock's Load combination combobox
+        # so users can switch the loadcase from the output panel
         main_window = self.window()
         if main_window and hasattr(main_window, "output_dock") and main_window.output_dock:
             main_window.output_dock.populate_loadcases(loadcases)
 
-        # Triggering initial render
         self.update_plot()
 
     def _populate_girder_combo(self):
         """Fill the girder combobox with names derived from the model geometry."""
-        # Count longitudinal members (same Z for both end nodes) to find girders
         z_vals = set()
         for ele_tag, (n1, n2) in self._members.items():
             z1 = round(self._nodes[n1][2], 3)
@@ -369,7 +360,6 @@ class PlotWidget(QWidget):
             self.girder_combo.addItem(f"G{i+1}")
         self.girder_combo.blockSignals(False)
 
-    # ---- JS-driven controls (no figure rebuild needed) ----
 
     def _toggle_grid(self, state):
         """Show or hide grid lines on the 3D plot axes."""
@@ -385,7 +375,6 @@ class PlotWidget(QWidget):
         """Show only the selected girder, or 'All' to restore everything."""
         self.web.page().runJavaScript(f"isolateGirder('{girder_name}')")
 
-    # ---- Summary dialog ----
 
     def show_summary_dialog(self):
         """Pops up the dialog perfectly in the top-left corner of the web view."""
@@ -401,7 +390,7 @@ class PlotWidget(QWidget):
         top_left_corner = self.web.mapToGlobal(QPoint(15, 15))
         self.summary_dialog.move(top_left_corner)
 
-    # ---- Public setters (called by output dock) ----
+    # Public setters
 
     def toggle_max(self, state):
         """Show or hide max indicator lines on the BMD plot."""
@@ -427,7 +416,7 @@ class PlotWidget(QWidget):
             self._current_force = force_key
             self.update_plot()
 
-    # ---- Main plot update ----
+    # Main plot update
 
     def update_plot(self):
         if self._ds_all is None:
@@ -446,7 +435,6 @@ class PlotWidget(QWidget):
 
         if is_force:
             if force_key == "Fy":
-                # Fy supports contour mode - keep checkbox enabled
                 self.contour.setEnabled(True)
 
                 if self.contour.isChecked():
@@ -456,7 +444,6 @@ class PlotWidget(QWidget):
                     self.stats_dict = {}
                     plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
             else:
-                # Other forces (Fx, Fz) - no contour support
                 self.contour.blockSignals(True)
                 self.contour.setChecked(False)
                 self.contour.setEnabled(False)
@@ -481,17 +468,16 @@ class PlotWidget(QWidget):
                     self.summary_dialog.update_data(self.stats_dict)
 
         else:
-            return  # unsupported force key, just skip
+            return
 
-        # Emits the raw JSON string to the web view via QWebChannel
+        # outputs raw JSON string to web
         self.backend.newPlotData.emit(plot_json)
 
-        # Reset the girder isolator to "All" so the new plot shows everything
+        # default values
         self.girder_combo.blockSignals(True)
         self.girder_combo.setCurrentText("All")
         self.girder_combo.blockSignals(False)
 
-        # Reset the scale slider to default (1.0x)
         self.scale_slider.blockSignals(True)
         self.scale_slider.setValue(10)
         self.scale_slider.blockSignals(False)

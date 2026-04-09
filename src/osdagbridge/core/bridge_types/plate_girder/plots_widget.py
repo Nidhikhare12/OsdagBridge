@@ -161,8 +161,8 @@ def build_figure_sfd(ds, force_key, nodes, members):
     add_grillage_background(fig_sfd, nodes, members)
     add_coordinate_triad(fig_sfd, nodes)
 
-    # Each girder gets its own set of traces with a shared legendgroup,
-    # so clicking a legend entry toggles all traces for that girder.
+    # each girder is having its own set of traces
+    # so clicking that entry will toggle all traces for that girder
     sorted_girders = sorted(girders.items(), key=lambda item: item[0])
     for i, (z_val, elems) in enumerate(sorted_girders):
         girder_name = f"G{i+1}"
@@ -180,22 +180,19 @@ def build_figure_sfd(ds, force_key, nodes, members):
         y_step = Vy_step * shear_scale
         z_step = [z_base] * len(y_step)
 
-        # Filled surface area under the shear curve
         fig_sfd.add_trace(go.Surface(
             x=[x_step, x_step], y=[np.zeros(len(y_step)), y_step], z=[z_step, z_step],
             surfacecolor=[[1]*len(y_step), [1]*len(y_step)], colorscale=[[0, 'blue'], [1, 'blue']],
-            opacity=0.2, showscale=False, hoverinfo="skip",
-            legendgroup=girder_name, showlegend=False
+            opacity=0.2, showscale=False, hoverinfo="skip", legendgroup=girder_name, showlegend=False
         ))
 
-        # Base line (zero axis) for this girder
+        # Zero axis - base line for the girder
         fig_sfd.add_trace(go.Scatter3d(
-            x=list(xs), y=[0]*len(xs), z=list(zs), mode="lines",
-            line=dict(color="green", width=3), hoverinfo="skip",
-            legendgroup=girder_name, showlegend=False
+            x=list(xs), y=[0]*len(xs), z=list(zs), mode="lines", line=dict(color="green", width=3), 
+            hoverinfo="skip", legendgroup=girder_name, showlegend=False
         ))
 
-        # Shear force line - this trace carries the legend entry
+        # shear force line
         hover_strings = [f"<br>Node {nid}<br>X = {x:.2f}<br>{force_key} = {v:.2f}"
                          for x, v, nid in zip(x_step, Vy_step, np.repeat(node_ids, 2)[1:-1])]
         fig_sfd.add_trace(go.Scatter3d(
@@ -204,7 +201,7 @@ def build_figure_sfd(ds, force_key, nodes, members):
             legendgroup=girder_name, name=girder_name, showlegend=True
         ))
 
-        # Vertical drop lines connecting shear curve to the base
+        # vertical drop lines connecting shear curve to base
         cliff_x, cliff_y, cliff_z = [], [], []
         for xi, vyi in zip(xs, Vy):
             cliff_x.extend([xi, xi, None])
@@ -216,12 +213,10 @@ def build_figure_sfd(ds, force_key, nodes, members):
             legendgroup=girder_name, showlegend=False
         ))
 
-        # Girder label at the start of each girder
+        # girder label
         fig_sfd.add_trace(go.Scatter3d(
-            x=[xs[0]], y=[0], z=[zs[0]], mode="text",
-            text=[girder_name], textposition="middle left",
-            textfont=dict(size=11, color="black"),
-            hoverinfo="skip", legendgroup=girder_name, showlegend=False
+            x=[xs[0]], y=[0], z=[zs[0]], mode="text", text=[girder_name], textposition="middle left",
+            textfont=dict(size=11, color="black"), hoverinfo="skip", legendgroup=girder_name, showlegend=False
         ))
 
     fig_sfd.update_layout(
@@ -230,7 +225,6 @@ def build_figure_sfd(ds, force_key, nodes, members):
         scene=SHARED_SCENE,
         margin=dict(l=0, r=0, t=40, b=0),
         paper_bgcolor="white", plot_bgcolor="white",
-        # Horizontal legend at the top - click entries to toggle girder visibility
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
     )
     return fig_sfd.to_json()
@@ -289,7 +283,6 @@ def build_figure_bmd(ds, force_key, nodes, members, show_max=False, show_min=Fal
     add_grillage_background(fig_bmd, nodes, members)
     add_coordinate_triad(fig_bmd, nodes)
 
-    # Max/min indicator lines stay as master traces (controlled by MAX/MIN buttons)
     master_max_x, master_max_y, master_max_z = [], [], []
     master_min_x, master_min_y, master_min_z = [], [], []
 
@@ -307,21 +300,18 @@ def build_figure_bmd(ds, force_key, nodes, members, show_max=False, show_min=Fal
 
         y_plot = mz * factormz
 
-        # Filled surface under the moment curve
+        # filled surface for moment curve
         fig_bmd.add_trace(go.Surface(
             x=[xs, xs], y=[np.zeros(len(xs)), y_plot], z=[zs, zs],
             surfacecolor=[[1]*len(xs), [1]*len(xs)], colorscale=[[0, 'red'], [1, 'red']],
-            opacity=0.2, showscale=False, hoverinfo="skip",
-            legendgroup=girder_name, showlegend=False
+            opacity=0.2, showscale=False, hoverinfo="skip", legendgroup=girder_name, showlegend=False
         ))
 
-        # Moment line - this trace carries the legend entry
+        # moment line
         hover_text = [f"Node {nid}<br>X = {x:.2f}<br>{force_key} = {v:.2f}<br>Z = {z:.2f}" for nid, x, v, z in zip(node_ids, xs, mz, zs)]
         fig_bmd.add_trace(go.Scatter3d(
-            x=list(xs), y=list(y_plot), z=list(zs), mode='lines',
-            line=dict(color="red", width=4),
-            text=hover_text, hoverinfo="text",
-            legendgroup=girder_name, name=girder_name, showlegend=True
+            x=list(xs), y=list(y_plot), z=list(zs), mode='lines', line=dict(color="red", width=4),
+            text=hover_text, hoverinfo="text", legendgroup=girder_name, name=girder_name, showlegend=True
         ))
 
         # Base line (zero axis) for this girder
@@ -338,7 +328,7 @@ def build_figure_bmd(ds, force_key, nodes, members, show_max=False, show_min=Fal
             hoverinfo="skip", legendgroup=girder_name, showlegend=False
         ))
 
-        # Collect max/min data for the indicator lines and summary table
+        # max/min data for indicator lines and summary table
         idx_max, max_val = np.argmax(mz), max(mz)
         master_max_x.extend([xs[idx_max], xs[idx_max], None])
         master_max_y.extend([0, max_val * factormz, None])
@@ -370,7 +360,7 @@ def build_figure_bmd(ds, force_key, nodes, members, show_max=False, show_min=Fal
         min_str = f"{vals['min']:.2f}".rjust(14).replace(" ", "&nbsp;")
         hud_text += f"<b>{g_str}</b> | {max_str} | {min_str}<br>"
 
-    # Max/min indicator lines - default visibility driven by kwargs
+    # max/min indicator lines
     fig_bmd.add_trace(go.Scatter3d(
         x=master_max_x, y=master_max_y, z=master_max_z, mode="lines", line=dict(color="black", width=3),
         legendgroup="max_lines", showlegend=False, visible=show_max, hoverinfo="skip"
@@ -402,7 +392,6 @@ def build_figure_bmd(ds, force_key, nodes, members, show_max=False, show_min=Fal
         ],
         scene=SHARED_SCENE,
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0),
-        # Horizontal legend at the top - click entries to toggle girder visibility
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
     )
     return fig_bmd.to_json(), summary_data
@@ -479,22 +468,20 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
 
         y_plot = mz * moment_scale
 
-        # Jet-colored surface fill
+        # surface filling
         fig.add_trace(go.Surface(
             x=[xs, xs], y=[np.zeros(len(xs)), y_plot], z=[zs, zs],
             surfacecolor=[mz, mz], colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull),
-            opacity=0.4, showscale=False, hoverinfo="skip",
-            legendgroup=girder_name, showlegend=False
+            opacity=0.4, showscale=False, hoverinfo="skip", legendgroup=girder_name, showlegend=False
         ))
 
-        # Jet-colored moment line - carries the legend entry
+        # jet colored moment line
         fig.add_trace(go.Scatter3d(
             x=xs, y=y_plot, z=zs, mode="lines+markers",
             line=dict(width=6, color=mz, colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull)),
             marker=dict(size=12, opacity=0),
             text=[f"Node {nid}<br>X={x:.2f}<br>{force_key}={v:.2f}" for nid, x, v in zip(node_ids, xs, mz)],
-            hoverinfo="text",
-            legendgroup=girder_name, name=girder_name, showlegend=True
+            hoverinfo="text", legendgroup=girder_name, name=girder_name, showlegend=True
         ))
 
         # Girder label
@@ -504,30 +491,27 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
             hoverinfo="skip", legendgroup=girder_name, showlegend=False
         ))
 
-        # Base line (zero axis) for this girder
+        # Base line (zero axis) for the girder
         fig.add_trace(go.Scatter3d(
             x=[xs[0], xs[-1]], y=[0, 0], z=[zs[0], zs[0]], mode="lines",
             line=dict(color="green", width=3), hoverinfo="skip",
             legendgroup=girder_name, showlegend=False
         ))
 
-        # Vertical drop lines colored by moment magnitude
+        # vertical drop lines
         for xi, zi, mzi, nid in zip(xs, zs, mz, node_ids):
             htext = f"Node {nid}<br>X={xi:.2f}<br>{force_key}={mzi:.2f}"
             fig.add_trace(go.Scatter3d(
-                x=[xi, xi], y=[0, mzi * moment_scale], z=[zi, zi],
-                mode="lines+markers",
+                x=[xi, xi], y=[0, mzi * moment_scale], z=[zi, zi], mode="lines+markers",
                 line=dict(width=4, color=[mzi, mzi], colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull)),
-                marker=dict(size=12, opacity=0),
-                text=[htext, htext], hoverinfo="text",
+                marker=dict(size=12, opacity=0), text=[htext, htext], hoverinfo="text",
                 legendgroup=girder_name, showlegend=False
             ))
 
     fig.update_layout(
         uirevision="constant_view",
         hoverlabel=dict(bgcolor="rgba(15, 23, 42, 0.95)", font_size=12, font_color="#F8F9FA", bordercolor="#0EA5E9", namelength=-1),
-        scene=SHARED_SCENE,
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0),
+        scene=SHARED_SCENE, paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
     )
 
@@ -535,10 +519,10 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
 
 
 # ============================================================
-# SFD CONTOUR - colors shear force lines by magnitude
+##### SFD CONTOUR - colors shear force lines by magnitude ######
 # ============================================================
 def build_figure_sfd_contour(ds, force_key, nodes, members):
-    """SFD with Jet colorscale - same visual approach as build_figure_bmd_contour."""
+    """SFD with Jet colorscale: same visual approach as build_figure_bmd_contour"""
     def find_component(name):
         for c in ds["Component"].values:
             if c.lower() == name.lower():
@@ -584,7 +568,7 @@ def build_figure_sfd_contour(ds, force_key, nodes, members):
         node_ids.append(n2)
         return np.array(xs), np.array(ys), np.array(zs), np.array(vals), node_ids
 
-    # Collect global shear range for a consistent colorscale across all girders
+    # collecting global shear range from all girders
     vy_all = []
     for elems in girders.values():
         xs, ys, zs, vy, _ = build_polyline(elems, comp_i, comp_j)
@@ -607,13 +591,13 @@ def build_figure_sfd_contour(ds, force_key, nodes, members):
         else:
             shear_scale = 0.25 * abs((max(xs) - min(xs)) / (max(Vy) - min(Vy)))
 
-        # Step function arrays (shear is constant between element nodes)
+        # step function arrays
         x_step = np.repeat(xs, 2)[1:-1]
         Vy_step = np.repeat(Vy[:-1], 2)
         y_step = Vy_step * shear_scale
         z_step = [z_base] * len(y_step)
 
-        # Jet-colored surface fill under the shear curve
+        # Jet colored surface fill for shear curve
         fig.add_trace(go.Surface(
             x=[x_step, x_step], y=[np.zeros(len(y_step)), y_step], z=[z_step, z_step],
             surfacecolor=[list(Vy_step), list(Vy_step)], colorscale="Jet",
@@ -622,7 +606,7 @@ def build_figure_sfd_contour(ds, force_key, nodes, members):
             legendgroup=girder_name, showlegend=False
         ))
 
-        # Jet-colored shear line - carries the legend entry
+        #  colored shear line
         hover_strings = [f"<br>Node {nid}<br>X = {x:.2f}<br>{force_key} = {v:.2f}"
                          for x, v, nid in zip(x_step, Vy_step, np.repeat(node_ids, 2)[1:-1])]
         fig.add_trace(go.Scatter3d(
@@ -640,7 +624,7 @@ def build_figure_sfd_contour(ds, force_key, nodes, members):
             legendgroup=girder_name, showlegend=False
         ))
 
-        # Vertical drop lines colored by shear magnitude
+        # vertical drop lines colored by shear magnitude
         for xi, vyi in zip(xs, Vy):
             fig.add_trace(go.Scatter3d(
                 x=[xi, xi], y=[0, vyi * shear_scale], z=[z_base, z_base],
@@ -650,7 +634,7 @@ def build_figure_sfd_contour(ds, force_key, nodes, members):
                 legendgroup=girder_name, showlegend=False
             ))
 
-        # Girder label
+        # girder label
         fig.add_trace(go.Scatter3d(
             x=[xs[0]], y=[0], z=[zs[0]], mode="text",
             text=[f"<b>{girder_name}</b>"], textposition="middle left",

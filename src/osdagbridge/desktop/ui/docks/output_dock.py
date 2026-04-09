@@ -165,8 +165,8 @@ class OutputDock(QWidget):
 
         self._build_field_loop(root_layout)
 
-        # Connect the analysis checkboxes/combos to the plot widget
-        # so selections in the output dock drive plot updates.
+        # connecting analysis checkboxes/combos to plot widget
+        # so selections in the output dock can drive the plot updates.
         self._wire_plot_controls()
 
         root_layout.addStretch()
@@ -425,8 +425,7 @@ class OutputDock(QWidget):
         for row in range(num_rows):
             for col, col_items in enumerate(columns):
                 if row < len(col_items):
-                    # RichCheckBox paints HTML via QTextDocument, which doesn't
-                    # inherit Qt stylesheet colors. Wrap with explicit color.
+                    # text coloring the checkbox labels
                     html_text = f"<span style='color:#1a1a2e'>{col_items[row]}</span>"
                     cb = RichCheckBox(html_text)
                     all_cbs.append(cb)
@@ -511,13 +510,12 @@ class OutputDock(QWidget):
         from osdagbridge.desktop.ui.dialogs.deck_design import DeckDesign
         DeckDesign(parent=self.parent).exec()
 
-    # ── Plot integration (Task 2) ─────────────────────────────────────────────
-    # The output dock drives the plot widget by forwarding checkbox/combo
+    ### ── Plot integration ─────────────────────────── ###
+    # The output dock drives the plot widget by forwarding the checkbox and combo
     # selections to PlotWidget.set_force() and PlotWidget.set_loadcase().
 
-    # Map from checkbox HTML labels (RichCheckBox text) to backend force keys.
-    # The grid shows abbreviated names with HTML subscripts; the backend
-    # expects the short key strings used by FORCE_MAP in plots_widget.py.
+    # Map from checkbox HTML labels to backend force keys.
+    # The grid shows names with HTML subscripts
     _FORCE_LABEL_MAP = {
         "F<sub>x</sub>": "Fx",
         "V<sub>y</sub>": "Fy",
@@ -536,13 +534,9 @@ class OutputDock(QWidget):
         if plot_widget is None:
             return
 
-        # 1) Wire the force checkbox grid - each checkbox drives set_force()
-        #    The checkboxes are RichCheckBox instances inside the output_widget.
-        #    We find them by iterating all RichCheckBox children.
+        # 1) Wiring the force checkbox grid
         for cb in self.output_widget.findChildren(RichCheckBox):
             label_text = cb.text()
-            # Match by checking if the HTML label contains one of our keys.
-            # The text may be wrapped in a color span, so use substring match.
             for pattern, force_key in self._FORCE_LABEL_MAP.items():
                 if pattern in label_text:
                     cb.clicked.connect(
@@ -550,15 +544,15 @@ class OutputDock(QWidget):
                             plot_widget.set_force(fk) if checked else None
                         )
                     )
-                    break  # matched, move to next checkbox
+                    break
 
-        # 2) Wire the load combination combobox
+        # 2) Wiring the load combination combo box
         from osdagbridge.core.utils.common import KEY_ANALYSIS_LOAD_COMBINATION
         lc_combo = self._w(KEY_ANALYSIS_LOAD_COMBINATION)
         if lc_combo is not None:
             lc_combo.currentTextChanged.connect(plot_widget.set_loadcase)
 
-        # 3) Wire Max/Min checkboxes from Display Options
+        # 3) Wiring max/min checkboxes from display options
         from PySide6.QtWidgets import QCheckBox
         for cb in self.output_widget.findChildren(QCheckBox):
             if cb.text() == "Max":
