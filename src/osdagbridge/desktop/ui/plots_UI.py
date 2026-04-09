@@ -117,6 +117,21 @@ HTML_TEMPLATE = """
             });
         }
 
+        // ---- Max/Min visibility toggle ----
+        function toggleMaxMin(group, show) {
+            var plotDiv = document.getElementById('plot_div');
+            if (!plotDiv.data) return;
+            var indices = [];
+            for (var i = 0; i < plotDiv.data.length; i++) {
+                if (plotDiv.data[i].legendgroup === group) {
+                    indices.push(i);
+                }
+            }
+            if (indices.length > 0) {
+                Plotly.restyle('plot_div', {'visible': show}, indices);
+            }
+        }
+
         // ---- Grid visibility toggle ----
         function toggleGrid(show) {
             Plotly.relayout('plot_div', {
@@ -233,6 +248,8 @@ class PlotWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Plate Girder Results")
+        self._max_visible = False
+        self._min_visible = False
 
         # Populated by setup() after bridge analysis completes
         self._ds_all = None
@@ -332,6 +349,9 @@ class PlotWidget(QWidget):
         if main_window and hasattr(main_window, "output_dock") and main_window.output_dock:
             main_window.output_dock.populate_loadcases(loadcases)
 
+        # Triggering initial render
+        self.update_plot()
+
     def _populate_girder_combo(self):
         """Fill the girder combobox with names derived from the model geometry."""
         # Count longitudinal members (same Z for both end nodes) to find girders
@@ -382,6 +402,18 @@ class PlotWidget(QWidget):
         self.summary_dialog.move(top_left_corner)
 
     # ---- Public setters (called by output dock) ----
+
+    def toggle_max(self, state):
+        """Show or hide max indicator lines on the BMD plot."""
+        self._max_visible = bool(state)
+        show = "true" if state else "false"
+        self.web.page().runJavaScript(f"toggleMaxMin('max_lines', {show})")
+
+    def toggle_min(self, state):
+        """Show or hide min indicator lines on the BMD plot."""
+        self._min_visible = bool(state)
+        show = "true" if state else "false"
+        self.web.page().runJavaScript(f"toggleMaxMin('min_lines', {show})")
 
     def set_loadcase(self, loadcase_name):
         """Set the active load case and refresh the plot."""
@@ -440,7 +472,10 @@ class PlotWidget(QWidget):
                 plot_json = build_figure_bmd_contour(ds, force_key, self._nodes, self._members)
                 self.stats_dict = {}
             else:
-                plot_json, self.stats_dict = build_figure_bmd(ds, force_key, self._nodes, self._members)
+                plot_json, self.stats_dict = build_figure_bmd(
+                    ds, force_key, self._nodes, self._members,
+                    show_max=self._max_visible, show_min=self._min_visible
+                )
                 
                 if self.summary_dialog.isVisible():
                     self.summary_dialog.update_data(self.stats_dict)

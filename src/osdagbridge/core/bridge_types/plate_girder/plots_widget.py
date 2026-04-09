@@ -239,7 +239,7 @@ def build_figure_sfd(ds, force_key, nodes, members):
 # ============================================================
 # BMD
 # ============================================================
-def build_figure_bmd(ds, force_key, nodes, members):
+def build_figure_bmd(ds, force_key, nodes, members, show_max=False, show_min=False):
     def find_component(name):
         for c in ds["Component"].values:
             if c.lower() == name.lower():
@@ -370,14 +370,14 @@ def build_figure_bmd(ds, force_key, nodes, members):
         min_str = f"{vals['min']:.2f}".rjust(14).replace(" ", "&nbsp;")
         hud_text += f"<b>{g_str}</b> | {max_str} | {min_str}<br>"
 
-    # Max/min indicator lines - hidden by default, toggled by buttons
+    # Max/min indicator lines - default visibility driven by kwargs
     fig_bmd.add_trace(go.Scatter3d(
         x=master_max_x, y=master_max_y, z=master_max_z, mode="lines", line=dict(color="black", width=3),
-        legendgroup="max_lines", showlegend=False, visible=False, hoverinfo="skip"
+        legendgroup="max_lines", showlegend=False, visible=show_max, hoverinfo="skip"
     ))
     fig_bmd.add_trace(go.Scatter3d(
         x=master_min_x, y=master_min_y, z=master_min_z, mode="lines", line=dict(color="black", width=3),
-        legendgroup="min_lines", showlegend=False, visible=False, hoverinfo="skip"
+        legendgroup="min_lines", showlegend=False, visible=show_min, hoverinfo="skip"
     ))
 
     fig_bmd.update_layout(
@@ -396,8 +396,6 @@ def build_figure_bmd(ds, force_key, nodes, members):
             dict(
                 type="buttons", direction="right", x=0.5, y=1.15, showactive=True, active=-1,
                 buttons=[
-                    dict(label="MAX", method="update", args=[{"visible": [True if t.legendgroup == "max_lines" else t.visible for t in fig_bmd.data]}], args2=[{"visible": [False if t.legendgroup == "max_lines" else t.visible for t in fig_bmd.data]}]),
-                    dict(label="MIN", method="update", args=[{"visible": [True if t.legendgroup == "min_lines" else t.visible for t in fig_bmd.data]}], args2=[{"visible": [False if t.legendgroup == "min_lines" else t.visible for t in fig_bmd.data]}]),
                     dict(label="SUMMARY", method="relayout", args=[{"annotations[0].visible": True}], args2=[{"annotations[0].visible": False}]),
                 ]
             )

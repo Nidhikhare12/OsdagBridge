@@ -558,6 +558,14 @@ class OutputDock(QWidget):
         if lc_combo is not None:
             lc_combo.currentTextChanged.connect(plot_widget.set_loadcase)
 
+        # 3) Wire Max/Min checkboxes from Display Options
+        from PySide6.QtWidgets import QCheckBox
+        for cb in self.output_widget.findChildren(QCheckBox):
+            if cb.text() == "Max":
+                cb.clicked.connect(plot_widget.toggle_max)
+            elif cb.text() == "Min":
+                cb.clicked.connect(plot_widget.toggle_min)
+
     def populate_loadcases(self, loadcase_list):
         """
         Fill the Load Combination combobox with actual loadcase names
