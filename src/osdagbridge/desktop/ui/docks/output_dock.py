@@ -24,6 +24,7 @@ ui_config_dict extra keys for analysis fields:
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy,
     QPushButton, QGroupBox, QCheckBox, QScrollArea, QFrame, QComboBox,
+    QDoubleSpinBox, QSlider,
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
@@ -31,6 +32,9 @@ from PySide6.QtGui import QIcon
 from osdagbridge.core.utils.common import (
     TYPE_TITLE, TYPE_BUTTON, TYPE_COMBOBOX,
     TYPE_CHECKBOX, TYPE_CHECKBOX_ROW, TYPE_CHECKBOX_GRID,
+    KEY_ANALYSIS_MEMBER, KEY_ANALYSIS_LOAD_COMBINATION,
+    KEY_ANALYSIS_FORCES, KEY_ANALYSIS_DISPLAY_OPTIONS,
+    KEY_ANALYSIS_UTILIZATION,
 )
 from osdagbridge.desktop.ui.utils.custom_buttons import DockCustomButton
 from osdagbridge.desktop.ui.docks.dock_utils import apply_field_style
@@ -77,6 +81,16 @@ class OutputDock(QWidget):
         super().__init__()
         self.parent  = parent
         self.backend = backend
+        self._plot_widget = getattr(parent, "plots_widget", None)
+        self._updating_scale_controls = False
+        self._load_combo = None
+        self._force_checkboxes = []
+        self._display_checkboxes = []
+        self._grid_checkbox = None
+        self._contour_checkbox = None
+        self._scale_slider = None
+        self._scale_spinbox = None
+        self._isolate_combo = None
         self.setStyleSheet("background: transparent;")
 
         self.main_layout = QHBoxLayout(self)
@@ -94,6 +108,9 @@ class OutputDock(QWidget):
         content_layout.addLayout(self._build_top_bar())
         content_layout.addWidget(self._build_scroll_area())
         content_layout.addLayout(self._build_bottom_buttons())
+
+        if self._plot_widget is not None and hasattr(self._plot_widget, "bind_output_dock"):
+            self._plot_widget.bind_output_dock(self)
 
         self.main_layout.addWidget(content_container)
 
@@ -164,6 +181,7 @@ class OutputDock(QWidget):
         root_layout.setSpacing(12)
 
         self._build_field_loop(root_layout)
+        root_layout.addWidget(self._build_plot_controls())
 
         root_layout.addStretch()
         self.scroll_area.setWidget(self.output_widget)
@@ -386,6 +404,9 @@ class OutputDock(QWidget):
         if default and str(default) in items:
             combo.setCurrentText(str(default))
         apply_field_style(combo)
+        if key == KEY_ANALYSIS_LOAD_COMBINATION:
+            self._load_combo = combo
+            combo.currentTextChanged.connect(self._emit_plot_state)
         row.addWidget(combo, 1)
         return row
 
@@ -427,12 +448,17 @@ class OutputDock(QWidget):
                 if row < len(col_items):
                     cb = RichCheckBox(str(col_items[row]))
                     all_cbs.append(cb)
+                    cb.stateChanged.connect(self._emit_plot_state)
                     grid.addWidget(cb, row, col, alignment=Qt.AlignCenter)
 
         outer.addLayout(grid)
 
         if meta.get("exclusive", False):
             self._wire_exclusive(all_cbs)
+
+        if key == KEY_ANALYSIS_FORCES:
+            self._force_checkboxes = all_cbs
+            self._set_force_default()
 
         return outer
 
@@ -457,6 +483,7 @@ class OutputDock(QWidget):
         for text in options:
             cb = QCheckBox(str(text))
             cbs.append(cb)
+            cb.stateChanged.connect(self._emit_plot_state)
             row.addWidget(cb)
 
         row.addStretch()
@@ -464,7 +491,178 @@ class OutputDock(QWidget):
         if meta.get("exclusive", False):
             self._wire_exclusive(cbs)
 
+        if key == KEY_ANALYSIS_DISPLAY_OPTIONS:
+            self._display_checkboxes = cbs
+
         return row
+
+    def _build_plot_controls(self) -> QGroupBox:
+        group = QGroupBox("Plot Controls")
+        group.setStyleSheet(GROUPBOX_STYLE)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+
+        self._grid_checkbox = QCheckBox("Show grid")
+        self._grid_checkbox.setChecked(True)
+        self._grid_checkbox.setToolTip("Toggle the 3D grid lines in the plot")
+        self._grid_checkbox.stateChanged.connect(self._emit_plot_state)
+        layout.addWidget(self._grid_checkbox)
+
+        contour_row = QHBoxLayout()
+        contour_lbl = QLabel("Fy contour:")
+        contour_lbl.setStyleSheet(LABEL_STYLE)
+        contour_row.addWidget(contour_lbl)
+        self._contour_checkbox = QCheckBox("Enable")
+        self._contour_checkbox.setToolTip("Show contour rendering for Fy diagrams")
+        self._contour_checkbox.stateChanged.connect(self._emit_plot_state)
+        contour_row.addWidget(self._contour_checkbox)
+        contour_row.addStretch()
+        layout.addLayout(contour_row)
+
+        scale_row = QHBoxLayout()
+        scale_lbl = QLabel("Scale:")
+        scale_lbl.setStyleSheet(LABEL_STYLE)
+        scale_row.addWidget(scale_lbl)
+
+        self._scale_slider = QSlider(Qt.Horizontal)
+        self._scale_slider.setRange(20, 500)
+        self._scale_slider.setValue(100)
+        self._scale_slider.setToolTip("Adjust diagram scale from 0.2x to 5.0x")
+        self._scale_slider.valueChanged.connect(self._sync_scale_from_slider)
+        scale_row.addWidget(self._scale_slider, 1)
+
+        self._scale_spinbox = QDoubleSpinBox()
+        self._scale_spinbox.setRange(0.2, 5.0)
+        self._scale_spinbox.setSingleStep(0.1)
+        self._scale_spinbox.setDecimals(2)
+        self._scale_spinbox.setValue(1.0)
+        self._scale_spinbox.setSuffix("x")
+        self._scale_spinbox.setToolTip("Adjust diagram scale from 0.2x to 5.0x")
+        self._scale_spinbox.valueChanged.connect(self._sync_scale_from_spinbox)
+        scale_row.addWidget(self._scale_spinbox)
+        layout.addLayout(scale_row)
+
+        isolate_row = QHBoxLayout()
+        isolate_lbl = QLabel("Girder:")
+        isolate_lbl.setStyleSheet(LABEL_STYLE)
+        isolate_row.addWidget(isolate_lbl)
+        self._isolate_combo = NoScrollComboBox()
+        self._isolate_combo.addItem("All")
+        self._isolate_combo.setToolTip("Show all girders or isolate a single girder")
+        self._isolate_combo.currentTextChanged.connect(self._emit_plot_state)
+        isolate_row.addWidget(self._isolate_combo, 1)
+        layout.addLayout(isolate_row)
+
+        return group
+
+    def _normalize_text(self, text: str) -> str:
+        import re
+
+        return re.sub(r"<[^>]+>", "", text or "").replace(" ", "").strip()
+
+    def _set_force_default(self):
+        for cb in self._force_checkboxes:
+            if self._normalize_text(cb.text()) == "Fy":
+                cb.setChecked(True)
+                break
+
+    def _selected_force_key(self) -> str:
+        for cb in self._force_checkboxes:
+            if cb.isChecked():
+                text = self._normalize_text(cb.text())
+                if text == "Tx":
+                    return "Mx"
+                if text in {"Fx", "Fy", "Fz", "Mx", "My", "Mz"}:
+                    return text
+        return "Fy"
+
+    def _selected_display_state(self) -> tuple[bool, bool]:
+        show_max = False
+        show_min = False
+        for cb in self._display_checkboxes:
+            text = self._normalize_text(cb.text()).lower()
+            if text == "max":
+                show_max = cb.isChecked()
+            elif text == "min":
+                show_min = cb.isChecked()
+        return show_max, show_min
+
+    def _sync_scale_from_slider(self, value: int):
+        if self._updating_scale_controls:
+            return
+        self._updating_scale_controls = True
+        self._scale_spinbox.setValue(value / 100.0)
+        self._updating_scale_controls = False
+        self._emit_plot_state()
+
+    def _sync_scale_from_spinbox(self, value: float):
+        if self._updating_scale_controls:
+            return
+        self._updating_scale_controls = True
+        self._scale_slider.setValue(int(round(value * 100)))
+        self._updating_scale_controls = False
+        self._emit_plot_state()
+
+    def _emit_plot_state(self, *_):
+        if self._plot_widget is None:
+            return
+        if hasattr(self._plot_widget, "apply_output_state"):
+            self._plot_widget.apply_output_state(self.get_plot_state())
+
+    def get_plot_state(self) -> dict:
+        force_key = self._selected_force_key()
+
+        contour_enabled = self._contour_checkbox.isChecked() if self._contour_checkbox else False
+        if force_key != "Fy" and contour_enabled:
+            if self._contour_checkbox:
+                self._contour_checkbox.blockSignals(True)
+                self._contour_checkbox.setChecked(False)
+                self._contour_checkbox.setEnabled(False)
+                self._contour_checkbox.blockSignals(False)
+            contour_enabled = False
+        elif self._contour_checkbox:
+            self._contour_checkbox.setEnabled(True)
+
+        show_max, show_min = self._selected_display_state()
+
+        return {
+            "loadcase": self._load_combo.currentText() if self._load_combo else "",
+            "force_key": force_key,
+            "show_grid": self._grid_checkbox.isChecked() if self._grid_checkbox else True,
+            "scale_factor": self._scale_spinbox.value() if self._scale_spinbox else 1.0,
+            "isolated_girder": self._isolate_combo.currentText() if self._isolate_combo else "All",
+            "show_contour": contour_enabled,
+            "show_max": show_max,
+            "show_min": show_min,
+        }
+
+    def update_plot_options(self, loadcases=None, girders=None):
+        if self._load_combo is not None:
+            current = self._load_combo.currentText()
+            self._load_combo.blockSignals(True)
+            self._load_combo.clear()
+            loadcase_items = list(loadcases or [])
+            self._load_combo.addItems(loadcase_items)
+            if current in loadcase_items:
+                self._load_combo.setCurrentText(current)
+            elif loadcase_items:
+                self._load_combo.setCurrentIndex(0)
+            self._load_combo.blockSignals(False)
+
+        if self._isolate_combo is not None:
+            current = self._isolate_combo.currentText()
+            self._isolate_combo.blockSignals(True)
+            self._isolate_combo.clear()
+            girder_items = ["All"] + [g for g in (girders or []) if g != "All"]
+            self._isolate_combo.addItems(girder_items)
+            if current in girder_items:
+                self._isolate_combo.setCurrentText(current)
+            else:
+                self._isolate_combo.setCurrentIndex(0)
+            self._isolate_combo.blockSignals(False)
+
+        self._emit_plot_state()
 
     # ── Exclusive checkbox wiring ─────────────────────────────────────────────
 

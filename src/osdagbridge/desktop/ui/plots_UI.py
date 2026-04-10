@@ -27,6 +27,7 @@ from PySide6.QtWebChannel import QWebChannel
 # --- IMPORT THE BACKEND LOGIC ---
 from osdagbridge.core.bridge_types.plate_girder.plots_widget import (
     build_figure_sfd,
+    build_figure_sfd_contour,
     build_figure_bmd,
     build_figure_bmd_contour,
     FORCE_MAP,
@@ -152,40 +153,49 @@ class PlotWidget(QWidget):
         super().__init__()
         self.setWindowTitle("Plate Girder Results")
 
-        # Populated by setup() after bridge analysis completes
         self._ds_all = None
         self._nodes = {}
         self._members = {}
+        self._available_loadcases = []
+        self._available_girders = ["All"]
+        self._output_dock = None
+        self._external_controls_bound = False
+        self._state = {
+            "loadcase": "",
+            "force_key": "Fy",
+            "show_grid": True,
+            "scale_factor": 1.0,
+            "isolated_girder": "All",
+            "show_contour": False,
+            "show_max": False,
+            "show_min": False,
+        }
 
         layout = QVBoxLayout(self)
-        top = QHBoxLayout()
+        self.control_panel = QWidget()
+        top = QHBoxLayout(self.control_panel)
+        top.setContentsMargins(0, 0, 0, 0)
 
-        # ---------- LOADCASE ----------
         top.addWidget(QLabel("Load case:"))
         self.combo = QComboBox()
-        self.combo.currentTextChanged.connect(self.update_plot)
+        self.combo.currentTextChanged.connect(self._on_internal_control_changed)
         top.addWidget(self.combo)
 
-        # ---------- FORCE ----------
         top.addWidget(QLabel("Force:"))
         self.force_combo = QComboBox()
         self.force_combo.addItems(list(FORCE_MAP.keys()))
-        self.force_combo.setCurrentText("Vy")
-        self.force_combo.currentTextChanged.connect(self.update_plot)
+        self.force_combo.setCurrentText("Fy")
+        self.force_combo.currentTextChanged.connect(self._on_internal_control_changed)
         top.addWidget(self.force_combo)
 
-        # ---------- CONTOUR CHECKBOX ----------
-        self.contour = QCheckBox("Contour (Moments only)")
-        self.contour.stateChanged.connect(self.update_plot)
+        self.contour = QCheckBox("Contour (Fy)")
+        self.contour.stateChanged.connect(self._on_internal_control_changed)
         top.addWidget(self.contour)
-        
-        top.addStretch()
-        layout.addLayout(top)
 
-        # ---------- MAIN BROWSER AREA ----------
+        top.addStretch()
+        layout.addWidget(self.control_panel)
+
         self.web = QWebEngineView()
-        
-        # Stops Qt from painting a blank background behind the web viewer
         self.web.setAttribute(Qt.WA_OpaquePaintEvent)
         self.web.setAttribute(Qt.WA_NoSystemBackground)
         self.web.page().setBackgroundColor(Qt.white)
@@ -194,29 +204,101 @@ class PlotWidget(QWidget):
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
         layout.addWidget(self.web)
 
-        # ---------- INITIALIZATION & QWEBCHANNEL ----------
-        self.stats_dict = {}  
+        self.stats_dict = {}
         self.summary_dialog = SummaryDialog(self)
 
         self.channel = QWebChannel()
         self.backend = BridgeBackend(self)
-        
         self.channel.registerObject("backend", self.backend)
         self.web.page().setWebChannel(self.channel)
-
-        # Inject HTML directly into memory
         self.web.setHtml(HTML_TEMPLATE, QUrl("qrc:/"))
+
+    def bind_output_dock(self, output_dock):
+        self._output_dock = output_dock
+        self._external_controls_bound = True
+        self.control_panel.setVisible(False)
+        self._sync_output_dock_options()
+
+    def _sync_output_dock_options(self):
+        if self._output_dock is not None:
+            self._output_dock.update_plot_options(
+                loadcases=self._available_loadcases,
+                girders=self._available_girders,
+            )
+
+    def _normalize_force_key(self, value: str) -> str:
+        aliases = {"Tx": "Mx", "Vx": "Fx", "Vy": "Fy", "Vz": "Fz"}
+        return aliases.get(value, value)
+
+    def _compute_available_girders(self):
+        if not self._nodes or not self._members:
+            return ["All"]
+
+        from collections import defaultdict
+
+        z_groups = defaultdict(list)
+        for _, (n1, n2) in self._members.items():
+            z1 = round(float(self._nodes[n1][2]), 3)
+            z2 = round(float(self._nodes[n2][2]), 3)
+            if z1 == z2:
+                z_groups[z1].append((n1, n2))
+
+        return ["All"] + [f"G{i + 1}" for i, _ in enumerate(sorted(z_groups.items(), key=lambda item: item[0]))]
+
+    def available_girders(self):
+        return list(self._available_girders)
 
     def setup(self, ds_all, loadcases, nodes, members):
         """Populate the widget with bridge analysis results. Call after design() completes."""
         self._ds_all = ds_all
         self._nodes = nodes
         self._members = members
+        self._available_loadcases = list(loadcases or [])
+        self._available_girders = self._compute_available_girders()
 
         self.combo.blockSignals(True)
         self.combo.clear()
-        self.combo.addItems(loadcases)
+        self.combo.addItems(self._available_loadcases)
+        if self._available_loadcases:
+            self.combo.setCurrentIndex(0)
         self.combo.blockSignals(False)
+
+        if self._output_dock is not None:
+            self._sync_output_dock_options()
+
+        self.update_plot()
+
+    def _on_internal_control_changed(self, *_):
+        if self._external_controls_bound:
+            return
+        self._state.update({
+            "loadcase": self.combo.currentText(),
+            "force_key": self._normalize_force_key(self.force_combo.currentText()),
+            "show_contour": self.contour.isChecked(),
+        })
+        self.update_plot()
+
+    def apply_output_state(self, state: dict):
+        self._state.update(state or {})
+
+        loadcase = self._state.get("loadcase", "")
+        if loadcase:
+            self.combo.blockSignals(True)
+            self.combo.setCurrentText(loadcase)
+            self.combo.blockSignals(False)
+
+        force_key = self._normalize_force_key(self._state.get("force_key", "Fy"))
+        self.force_combo.blockSignals(True)
+        self.force_combo.setCurrentText(force_key)
+        self.force_combo.blockSignals(False)
+
+        contour_enabled = force_key == "Fy" or force_key.startswith("M")
+        self.contour.blockSignals(True)
+        self.contour.setEnabled(contour_enabled)
+        self.contour.setChecked(bool(self._state.get("show_contour")) and contour_enabled)
+        self.contour.blockSignals(False)
+
+        self.update_plot()
 
     def show_summary_dialog(self):
         """Pops up the dialog perfectly in the top-left corner of the web view."""
@@ -228,47 +310,74 @@ class PlotWidget(QWidget):
         self.summary_dialog.raise_()
         self.summary_dialog.activateWindow()
 
-        # Calculate exactly where the top-left of the 3D plot is on the screen
         top_left_corner = self.web.mapToGlobal(QPoint(15, 15))
         self.summary_dialog.move(top_left_corner)
+
+    def _resolve_selected_state(self):
+        loadcase = self._state.get("loadcase") or self.combo.currentText()
+        force_key = self._normalize_force_key(self._state.get("force_key") or self.force_combo.currentText())
+        show_grid = bool(self._state.get("show_grid", True))
+        scale_factor = float(self._state.get("scale_factor", 1.0))
+        isolated_girder = self._state.get("isolated_girder", "All")
+        show_contour = bool(self._state.get("show_contour", False))
+        show_max = bool(self._state.get("show_max", False))
+        show_min = bool(self._state.get("show_min", False))
+
+        if self.contour.isEnabled():
+            show_contour = show_contour or self.contour.isChecked()
+
+        if not loadcase and self._available_loadcases:
+            loadcase = self._available_loadcases[0]
+
+        return loadcase, force_key, show_grid, scale_factor, isolated_girder, show_contour, show_max, show_min
 
     def update_plot(self):
         if self._ds_all is None:
             return
 
-        loadcase = self.combo.currentText()
-        force_key = self.force_combo.currentText()
+        loadcase, force_key, show_grid, scale_factor, isolated_girder, show_contour, show_max, show_min = self._resolve_selected_state()
+        if not loadcase:
+            return
+
         ds = self._ds_all.sel(Loadcase=loadcase)
+        include_controls = not self._external_controls_bound
 
-        is_force = force_key.startswith("F") 
-        is_moment = force_key.startswith("M") 
-
-        if is_force:
-            self.contour.blockSignals(True)
-            self.contour.setChecked(False)
-            self.contour.setEnabled(False)
-            self.contour.blockSignals(False)
-            
+        if force_key.startswith("F"):
             self.stats_dict = {}
-            plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
-
-        elif is_moment:
-            self.contour.setEnabled(True)
-
-            if self.contour.isChecked():
-                plot_json = build_figure_bmd_contour(ds, force_key, self._nodes, self._members)
-                self.stats_dict = {}
+            if force_key == "Fy" and show_contour:
+                plot_json = build_figure_sfd_contour(
+                    ds, force_key, self._nodes, self._members,
+                    show_grid=show_grid, scale_factor=scale_factor,
+                    isolated_girder=isolated_girder, include_controls=include_controls,
+                )
             else:
-                plot_json, self.stats_dict = build_figure_bmd(ds, force_key, self._nodes, self._members)
-                
+                plot_json = build_figure_sfd(
+                    ds, force_key, self._nodes, self._members,
+                    show_grid=show_grid, scale_factor=scale_factor,
+                    isolated_girder=isolated_girder, include_controls=include_controls,
+                )
+
+        elif force_key.startswith("M"):
+            if show_contour:
+                self.stats_dict = {}
+                plot_json = build_figure_bmd_contour(
+                    ds, force_key, self._nodes, self._members,
+                    show_grid=show_grid, scale_factor=scale_factor,
+                    isolated_girder=isolated_girder, include_controls=include_controls,
+                )
+            else:
+                plot_json, self.stats_dict = build_figure_bmd(
+                    ds, force_key, self._nodes, self._members,
+                    show_grid=show_grid, scale_factor=scale_factor,
+                    isolated_girder=isolated_girder, show_max=show_max, show_min=show_min,
+                    include_controls=include_controls,
+                )
+
                 if self.summary_dialog.isVisible():
                     self.summary_dialog.update_data(self.stats_dict)
-
         else:
             raise ValueError(f"Unsupported force: {force_key}")
 
-        # -------- INJECT PLOT VIA QWEBCHANNEL --------
-        # Emits the raw JSON string perfectly without double-encoding it
         self.backend.newPlotData.emit(plot_json)
 
 
