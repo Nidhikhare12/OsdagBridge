@@ -134,10 +134,6 @@ class CrossSectionLayout:
             add("footpath_right", self.footpath_width)
             add("railing_right", self.railing_width)
 
-        for c in self._components:
-            print(c.name, c.z_start, c.z_end)
-
-
         self.total_width = z
 
     def verify_bridge_width(self, num_long_grid: int, ext_to_int_dist: float, edge_beam_dist: float, tol: float = 1e-6,) -> bool:

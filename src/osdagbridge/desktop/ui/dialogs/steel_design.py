@@ -17,7 +17,6 @@ class SteelDesign(QDialog):
         self.setObjectName("SteelDesign")
         self.resize(1024, 720)
         self.setMinimumSize(900, 520)
-        self.setSizeGripEnabled(True)
         self.init_ui()
         self.setStyleSheet("""
             QDialog {
@@ -58,7 +57,7 @@ class SteelDesign(QDialog):
 
     
 
-        # ── Tabs ──────────────────────────────────────────────────────────────
+        # Setup tabs
         self.tabs = QTabWidget()
         self.tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.tabs.setDocumentMode(True)

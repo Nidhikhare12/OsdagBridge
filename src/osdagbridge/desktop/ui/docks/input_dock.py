@@ -501,9 +501,10 @@ class InputDock(QWidget):
 
         self.design_btn = design_btn
         try:
-            self.design_btn.clicked.connect(self._on_design_clicked)
+            self.design_btn.clicked.disconnect()
         except Exception:
             pass
+        self.design_btn.clicked.connect(self._on_design_clicked)
 
         panel_layout.addLayout(btn_button_layout)
 
@@ -720,24 +721,31 @@ class InputDock(QWidget):
         )
 
     def _on_design_clicked(self) -> None:
-        self._final_inputs_saved_list = self._collect_final_inputs_list()
-
+        if getattr(self, "_design_running", False):
+            return
+            
+        self._design_running = True
         try:
-            if hasattr(self.backend, "set_final_design_inputs"):
-                self.backend.set_final_design_inputs(self._final_inputs_saved_list)
-            elif hasattr(self.backend, "set_input_value"):
-                self.backend.set_input_value("final_design_inputs", self._final_inputs_saved_list)
-        except Exception:
-            pass
-
-        QMessageBox.information(
-            self,
-            "Design Input Ready",
-            "Final merged input payload is prepared (Basic + Additional).",
-        )
-
-        # Option 2: print merged inputs for quick verification.
-        self._debug_dump_final_inputs(self._final_inputs_saved_list)
+            self._final_inputs_saved_list = self._collect_final_inputs_list()
+    
+            try:
+                if hasattr(self.backend, "set_final_design_inputs"):
+                    self.backend.set_final_design_inputs(self._final_inputs_saved_list)
+                elif hasattr(self.backend, "set_input_value"):
+                    self.backend.set_input_value("final_design_inputs", self._final_inputs_saved_list)
+            except Exception:
+                pass
+    
+            QMessageBox.information(
+                self,
+                "Design Input Ready",
+                "Final merged input payload is prepared (Basic + Additional).",
+            )
+    
+            # Option 2: print merged inputs for quick verification.
+            self._debug_dump_final_inputs(self._final_inputs_saved_list)
+        finally:
+            self._design_running = False
     
     def _show_additional_inputs_dialog(self, target_tab_name=None):
         """Show Additional Inputs dialog and optionally focus a specific top-level tab."""

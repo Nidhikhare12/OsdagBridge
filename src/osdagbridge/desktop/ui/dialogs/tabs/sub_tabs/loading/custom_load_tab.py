@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
 from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
 from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import CUSTOM_LOAD_TAB_SCHEMA
+from osdagbridge.desktop.ui.widgets.custom_load_canvas import CustomLoadCanvas
 
 
 class CustomLoadTab(QWidget):
@@ -56,35 +57,31 @@ class CustomLoadTab(QWidget):
         page_layout.setContentsMargins(8, 8, 8, 8)
         page_layout.setSpacing(8)
 
-        content_row = QHBoxLayout()
-        content_row.setContentsMargins(0, 0, 0, 0)
-        content_row.setSpacing(12)
-
         label_style = "font-size: 11px; color: #2a2a2a; background: transparent; border: none;"
         heading_style = "font-size: 11px; font-weight: 700; color: #1a1a1a; background: transparent; border: none;"
         
         label_width = schema.get("label_width", 280)
         field_width = schema.get("field_width", 140)
 
-        left_column = QVBoxLayout()
-        left_column.setContentsMargins(0, 0, 0, 0)
-        left_column.setSpacing(8)
+        from PySide6.QtWidgets import QSplitter
+        
+        main_splitter = QSplitter(Qt.Vertical)
+        main_splitter.setHandleWidth(2)
 
         diagram = QFrame()
-        diagram.setMinimumSize(QSize(380, 130))
-        diagram.setMaximumHeight(130)
+        diagram.setMinimumSize(QSize(400, 300))
         diagram.setStyleSheet(
-            "QFrame { border: 1px solid #a0a0a0; border-radius: 4px; background-color: #d0d0d0; }"
+            "QFrame { border: 1px solid #a0a0a0; border-radius: 3px; background-color: #f8f9fa; }"
         )
         diagram_layout = QVBoxLayout(diagram)
-        diagram_layout.setContentsMargins(8, 8, 8, 8)
-        diagram_label = QLabel("Bridge Geometry\nDiagram")
-        diagram_label.setAlignment(Qt.AlignCenter)
-        diagram_label.setStyleSheet(
-            "font-size: 11px; font-weight: 600; color: #2a2a2a; background: transparent; border: none;"
-        )
-        diagram_layout.addWidget(diagram_label, 1)
-        left_column.addWidget(diagram)
+        diagram_layout.setContentsMargins(0, 0, 0, 0)
+        self.canvas = CustomLoadCanvas()
+        diagram_layout.addWidget(self.canvas, 1)
+        
+        main_splitter.addWidget(diagram)
+
+        bottom_splitter = QSplitter(Qt.Horizontal)
+        bottom_splitter.setHandleWidth(8)
 
         input_card = owner._create_card()
         input_card.setStyleSheet(
@@ -146,6 +143,23 @@ class CustomLoadTab(QWidget):
         load_type_row.addWidget(owner.custom_load_type_combo)
         load_type_row.addStretch()
         all_fields_layout.addLayout(load_type_row)
+
+        magnitude_row = QHBoxLayout()
+        magnitude_row.setSpacing(8)
+        
+        self.magnitude_label = QLabel("Magnitude (kN):")
+        self.magnitude_label.setStyleSheet(label_style)
+        self.magnitude_label.setFixedWidth(label_width)
+        
+        owner.custom_load_magnitude_input = QLineEdit()
+        owner.custom_load_magnitude_input.setFixedWidth(field_width * 2 + 8)
+        apply_field_style(owner.custom_load_magnitude_input)
+        self._apply_validator(owner.custom_load_magnitude_input, {"type": "double_range", "bottom": 0.0, "top": 100000.0, "decimals": 2})
+        
+        magnitude_row.addWidget(self.magnitude_label)
+        magnitude_row.addWidget(owner.custom_load_magnitude_input)
+        magnitude_row.addStretch()
+        all_fields_layout.addLayout(magnitude_row)
 
         input_layout.addLayout(all_fields_layout)
 
@@ -316,8 +330,7 @@ class CustomLoadTab(QWidget):
 
         input_layout.addLayout(save_row)
 
-
-        left_column.addWidget(input_card)
+        bottom_splitter.addWidget(input_card)
 
         list_card = owner._create_card()
         list_card.setStyleSheet(
@@ -361,7 +374,7 @@ class CustomLoadTab(QWidget):
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
         
-        self.custom_load_table = QTableWidget(0, 4)
+        self.custom_load_table = QTableWidget(0, 5)
     
         self.custom_load_table.setFrameStyle(QFrame.NoFrame)
         self.custom_load_table.setContentsMargins(0, 0, 0, 0)
@@ -371,6 +384,7 @@ class CustomLoadTab(QWidget):
         self.custom_load_table.setHorizontalHeaderLabels([
             "Load Case",
             "Load Type", 
+            "Magnitude",
             "Distance from Left (m)",
             "Distance from Bearing (m)"
         ])
@@ -379,6 +393,7 @@ class CustomLoadTab(QWidget):
         self.custom_load_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.custom_load_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.custom_load_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
+        self.custom_load_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
         self.custom_load_table.verticalHeader().setVisible(False)
         self.custom_load_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.custom_load_table.setSelectionMode(QTableWidget.SingleSelection)
@@ -425,35 +440,29 @@ class CustomLoadTab(QWidget):
         table_layout.addWidget(self.custom_load_table)
         list_layout.addWidget(table_frame)
 
-        left_column.addWidget(list_card)
-
-        right_card = owner._create_card()
-        right_card.setStyleSheet(
-            "QFrame { border: 1px solid #a0a0a0; border-radius: 4px; background-color: #d8d8d8; }"
-        )
-        right_card.setMinimumWidth(260)
-        right_card.setMinimumHeight(480)
-        right_layout = QVBoxLayout(right_card)
-        right_layout.setContentsMargins(12, 12, 12, 12)
-        right_layout.setSpacing(8)
-
-        desc_title = QLabel("Description Box")
-        desc_title.setAlignment(Qt.AlignCenter)
-        desc_title.setStyleSheet(
-            "font-size: 11px; font-weight: 700; color: #1a1a1a; background: transparent; border: none;"
-        )
-        right_layout.addWidget(desc_title)
-        right_layout.addStretch()
-
-        content_row.addLayout(left_column, 3)
-        content_row.addWidget(right_card, 2)
-        page_layout.addLayout(content_row)
+        bottom_splitter.addWidget(list_card)
+        bottom_splitter.setStretchFactor(0, 1) # Inputs
+        bottom_splitter.setStretchFactor(1, 2) # List
+        
+        main_splitter.addWidget(bottom_splitter)
+        main_splitter.setStretchFactor(0, 4) # Canvas (Primary)
+        main_splitter.setStretchFactor(1, 1) # Bottom controls
+        
+        page_layout.addWidget(main_splitter)
 
         scroll_area.setWidget(scroll_content)
         main_layout.addWidget(scroll_area)
 
         owner.custom_load_type_combo.currentTextChanged.connect(self._on_custom_load_type_changed)
         self._on_custom_load_type_changed(owner.custom_load_type_combo.currentText())
+
+        owner.custom_load_case_combo.currentTextChanged.connect(self._schedule_update)
+        owner.custom_load_case_name_input.textChanged.connect(self._schedule_update)
+        owner.custom_load_type_combo.currentTextChanged.connect(self._schedule_update)
+        owner.custom_load_magnitude_input.textChanged.connect(self._schedule_update)
+        owner.custom_point_left_input.textChanged.connect(self._schedule_update)
+        owner.custom_line_left_start.textChanged.connect(self._schedule_update)
+        owner.custom_line_left_end.textChanged.connect(self._schedule_update)
 
         save_btn.clicked.connect(self._on_save_custom_load)
         owner.custom_delete_btn.clicked.connect(self._on_delete_custom_load)
@@ -463,6 +472,7 @@ class CustomLoadTab(QWidget):
         )
 
         self._refresh_custom_load_table()
+        self._update_visualization()
 
     def _apply_validator(self, widget, validator_config):
         if not validator_config:
@@ -478,11 +488,72 @@ class CustomLoadTab(QWidget):
             validator.setNotation(QDoubleValidator.StandardNotation)
             widget.setValidator(validator)
 
+    def _schedule_update(self, *args):
+        QTimer.singleShot(100, self._update_visualization)
+
+    def _update_visualization(self, *args):
+        owner = self.owner
+        load_type = owner.custom_load_type_combo.currentText().lower()
+        
+        load_case = owner.custom_load_case_combo.currentText()
+        if load_case == "Custom":
+            load_name = owner.custom_load_case_name_input.text().strip() or "Custom"
+        else:
+            load_name = load_case
+            
+        load_data = {
+            "type": load_type, 
+            "x_start": 0.0, 
+            "x_end": 0.0,
+            "name": load_name,
+            "magnitude": owner.custom_load_magnitude_input.text().strip()
+        }
+        
+        try:
+            if load_type == "point":
+                val = owner.custom_point_left_input.text().strip()
+                if val:
+                    load_data["x_start"] = float(val)
+                    load_data["x_end"] = float(val)
+            else:
+                val_start = owner.custom_line_left_start.text().strip()
+                val_end = owner.custom_line_left_end.text().strip()
+                if val_start and val_end:
+                    load_data["x_start"] = float(val_start)
+                    load_data["x_end"] = float(val_end)
+                elif val_start:
+                    load_data["x_start"] = float(val_start)
+                    load_data["x_end"] = float(val_start)
+                elif val_end:
+                    load_data["x_start"] = float(val_end)
+                    load_data["x_end"] = float(val_end)
+        except ValueError:
+            pass
+            
+        bridge_width = 10.0
+        try:
+            if hasattr(owner, "cad_state") and isinstance(owner.cad_state, dict):
+                bw = owner.cad_state.get("overall_bridge_width_display")
+                if bw:
+                    bridge_width = float(bw)
+        except (ValueError, TypeError, KeyError):
+            pass
+            
+        self.canvas.set_load_data(load_data, bridge_width)
+
     def _on_custom_load_type_changed(self, text):
         if text == "Point":
             self.custom_load_stack.setCurrentIndex(0)
-        else: 
+            if hasattr(self, 'magnitude_label'):
+                self.magnitude_label.setText("Magnitude (kN):")
+        elif text == "Line": 
             self.custom_load_stack.setCurrentIndex(1)
+            if hasattr(self, 'magnitude_label'):
+                self.magnitude_label.setText("Magnitude (kN/m):")
+        elif text == "Area":
+            self.custom_load_stack.setCurrentIndex(1)
+            if hasattr(self, 'magnitude_label'):
+                self.magnitude_label.setText("Magnitude (kN/m²):")
 
     def _on_load_case_changed(self, text):
         is_custom = (text == "Custom")
@@ -511,6 +582,13 @@ class CustomLoadTab(QWidget):
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self.custom_load_table.setItem(row_idx, 1, item)
             
+            mag = load_data.get("magnitude", "")
+            unit = "kN" if load_type == "Point" else ("kN/m²" if load_type == "Area" else "kN/m")
+            mag_display = f"{mag} {unit}" if mag else ""
+            item = QTableWidgetItem(mag_display)
+            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            self.custom_load_table.setItem(row_idx, 2, item)
+            
             if load_type == "Point":
                 dist_left = load_data.get("point_left", "")
             else:
@@ -520,7 +598,7 @@ class CustomLoadTab(QWidget):
             
             item = QTableWidgetItem(dist_left)
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            self.custom_load_table.setItem(row_idx, 2, item)
+            self.custom_load_table.setItem(row_idx, 3, item)
             
             if load_type == "Point":
                 dist_bearing = load_data.get("point_bearing", "")
@@ -531,7 +609,7 @@ class CustomLoadTab(QWidget):
             
             item = QTableWidgetItem(dist_bearing)
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            self.custom_load_table.setItem(row_idx, 3, item)
+            self.custom_load_table.setItem(row_idx, 4, item)
 
     def _on_save_custom_load(self):
         owner = self.owner
@@ -539,7 +617,12 @@ class CustomLoadTab(QWidget):
         load_data = {
             "load_case": owner.custom_load_case_combo.currentText(),
             "load_type": owner.custom_load_type_combo.currentText(),
+            "magnitude": owner.custom_load_magnitude_input.text().strip(),
         }
+        
+        if not load_data["magnitude"]:
+            CustomMessageBox(title="Invalid Input", text="Please provide a magnitude.", buttons=["OK"], dialogType=MessageBoxType.Warning).exec()
+            return
         
         if owner.custom_load_case_combo.currentText() == "Custom":
             custom_name = owner.custom_load_case_name_input.text().strip()
@@ -625,6 +708,8 @@ class CustomLoadTab(QWidget):
         index = owner.custom_load_type_combo.findText(load_type)
         if index >= 0:
             owner.custom_load_type_combo.setCurrentIndex(index)
+            
+        owner.custom_load_magnitude_input.setText(load_data.get("magnitude", ""))
         
         if load_type == "Point":
             owner.custom_point_left_input.setText(load_data.get("point_left", ""))
@@ -657,6 +742,8 @@ class CustomLoadTab(QWidget):
         owner.custom_load_case_combo.setCurrentIndex(0)
         owner.custom_load_case_name_input.clear()
         owner.custom_load_type_combo.setCurrentIndex(0)
+        if hasattr(owner, 'custom_load_magnitude_input'):
+            owner.custom_load_magnitude_input.clear()
         owner.custom_point_left_input.clear()
         owner.custom_point_bearing_input.clear()
         owner.custom_line_left_start.clear()

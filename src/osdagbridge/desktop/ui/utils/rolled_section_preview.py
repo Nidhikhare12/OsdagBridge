@@ -211,9 +211,7 @@ class RolledSectionPreview(QWidget):
         if self._show_welds:
             self._draw_welds(painter, top_flange, web, bottom_flange)
 
-        font = QFont(self.font())
-        font.setFamily(self._brand_font_family)
-        font.setPointSizeF(max(9.0, font.pointSizeF()))
+        font = QFont(self._brand_font_family, 9)
         painter.setFont(font)
 
         tfw_color = self._set_dimension_pen(painter, "tfw")
@@ -487,9 +485,7 @@ class RolledSectionPreview(QWidget):
         painter.setPen(pen)
         painter.drawRect(self.rect().adjusted(12, 12, -12, -12))
         painter.setPen(QColor(CAD_PLACEHOLDER_TEXT))
-        font = QFont(self.font())
-        font.setFamily(self._brand_font_family)
-        font.setPointSizeF(max(font.pointSizeF(), 10.0))
+        font = QFont(self._brand_font_family, 10)
         painter.setFont(font)
         painter.drawText(self.rect(), Qt.AlignCenter, "Select a section to preview")
         painter.restore()
