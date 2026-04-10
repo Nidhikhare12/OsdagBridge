@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QFrame,
     QSizePolicy,
-    QTextEdit,
 )
 from PySide6.QtCore import Qt
 
@@ -16,6 +15,9 @@ from osdagbridge.desktop.ui.docks.output_dock import (
 )
 from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
 from osdagbridge.desktop.ui.utils.styled_scroll_area import StyledScrollArea
+from osdagbridge.core.utils.design_checks import run_all_checks
+from osdagbridge.desktop.ui.widgets.status_badge import StatusBadge
+from osdagbridge.desktop.ui.widgets.utilization_bar import UtilizationBar
 
 # From load_combination_tab.py defaults + output_dock
 LOAD_COMBINATIONS = [
@@ -42,7 +44,10 @@ DESIGN_CHECKS = [
 class SteelDesignCheckTab(QWidget):
 
     def __init__(self, parent=None):
-        self.check_outputs = {}   # key → QTextEdit for each check result
+        self.check_outputs = {}  # kept for backwards compat; no longer populated
+        self.check_eq_labels = {}
+        self.check_bars = {}
+        self.check_badges = {}
 
         super().__init__(parent)
 
@@ -188,12 +193,6 @@ class SteelDesignCheckTab(QWidget):
         return grid
 
     def _build_check_card(self, key, title):
-        """
-        Single check card:
-          - Rounded border matching the screenshot style
-          - Bold title at top
-          - Expanding QTextEdit output area below (readonly)
-        """
         card = QFrame()
         card.setObjectName("checkCard")
         card.setStyleSheet("""
@@ -209,7 +208,6 @@ class SteelDesignCheckTab(QWidget):
         card_layout.setContentsMargins(12, 10, 12, 10)
         card_layout.setSpacing(8)
 
-        # Title
         title_lbl = QLabel(title)
         title_lbl.setStyleSheet("""
             QLabel {
@@ -223,22 +221,20 @@ class SteelDesignCheckTab(QWidget):
         title_lbl.setWordWrap(True)
         card_layout.addWidget(title_lbl)
 
-        # Output area — readonly, expandable, shows check results
-        output = QTextEdit()
-        output.setReadOnly(True)
-        output.setFixedHeight(60)
-        output.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        output.setStyleSheet("""
-            QTextEdit {
-                background-color: white;
-                border: none;
-                font-size: 10px;
-                color: #333;
-            }
-        """)
-        card_layout.addWidget(output)
+        eq_label = QLabel()
+        eq_label.setStyleSheet("font-size: 10px; color: #555; background: transparent; border: none;")
+        eq_label.setWordWrap(True)
+        card_layout.addWidget(eq_label)
 
-        self.check_outputs[key] = output
+        bar = UtilizationBar()
+        card_layout.addWidget(bar)
+
+        badge = StatusBadge()
+        card_layout.addWidget(badge)
+
+        self.check_eq_labels[key] = eq_label
+        self.check_bars[key] = bar
+        self.check_badges[key] = badge
         return card
 
     # ── PUBLIC API ────────────────────────────────────────────────────────────
@@ -257,17 +253,25 @@ class SteelDesignCheckTab(QWidget):
         except (ValueError, TypeError):
             pass
 
-        # Populate check output areas if results are in cad_state
-        for key, output in self.check_outputs.items():
-            result = cad_state.get(f"check_{key}", "")
-            output.setPlainText(str(result) if result else "")
+        self.update_results(cad_state)
+
+    def update_results(self, bridge_data: dict):
+        self.design_results = run_all_checks(bridge_data)
+        for (key, _), result in zip(DESIGN_CHECKS, self.design_results):
+            if key not in self.check_badges:
+                continue
+            self.check_eq_labels[key].setText(result["equation"])
+            self.check_bars[key].set_ratio(result["ratio"])
+            if result["passed"]:
+                self.check_badges[key].set_pass()
+            else:
+                self.check_badges[key].set_fail()
 
     def set_check_result(self, key: str, text: str):
-        """Set result text for a specific check card."""
-        if key in self.check_outputs:
-            self.check_outputs[key].setPlainText(text)
+        """Legacy stub — no-op since QTextEdit output was replaced."""
 
     def clear_results(self):
-        """Clear all check output areas."""
-        for output in self.check_outputs.values():
-            output.clear()
+        for key in self.check_badges:
+            self.check_eq_labels[key].setText("")
+            self.check_bars[key].set_ratio(0)
+            self.check_badges[key].set_neutral()
