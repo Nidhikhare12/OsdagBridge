@@ -9,9 +9,10 @@ _GM0 = 1.10  # IS 800 Cl. 5.4.1
 
 
 def _get(d):
+    mod = float(d.get("_dynamic_modifier", 1.0))
     return (
-        float(d.get("Mu",   850)),
-        float(d.get("Vu",   350)),
+        float(d.get("Mu",   850)) * mod,
+        float(d.get("Vu",   350)) * mod,
         float(d.get("fy",   250)),
         float(d.get("fyw",  250)),
         float(d.get("Ze",  1200)),
@@ -119,7 +120,6 @@ def check_shear_connectors(bd):
         "passed": ok,
     }
 
-
 def check_fatigue(bd):
     Mu, _, _, _, Ze, _, _, _ = _get(bd)
 
@@ -152,7 +152,6 @@ def check_stress_limitation(bd):
         "ratio": round(r, 4),
         "passed": ok,
     }
-
 
 def check_deflection(bd):
     Mu, _, _, _, Ze, hw, _, span = _get(bd)

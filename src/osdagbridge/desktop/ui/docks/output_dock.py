@@ -258,7 +258,41 @@ class OutputDock(QWidget):
         """Open the Steel Design dialog."""
         from osdagbridge.desktop.ui.dialogs.steel_design import SteelDesign
         dlg = SteelDesign(parent=self.parent)
+        self.design_dialog = dlg
         dlg.exec()
+
+    def _update_design_checks(self):
+        if not hasattr(self, "design_dialog") or not self.design_dialog:
+            return
+
+        bridge_data = self._build_bridge_data()
+        if hasattr(self.design_dialog, "check_tab"):
+            self.design_dialog.check_tab.update_results(bridge_data)
+
+    def _build_bridge_data(self):
+        bridge_data = {}
+        if hasattr(self.parent, "input_dock"):
+            try:
+                bridge_data = self.parent.input_dock.get_all_input_values()
+            except Exception:
+                pass
+
+        member = self.member_combo.currentText() if hasattr(self, "member_combo") else "All"
+        load = self.load_combo.currentText() if hasattr(self, "load_combo") else "Envelope"
+
+        modifier = 1.0
+        if "Girder 1" in member:
+            modifier = 1.1
+        elif "Girder 2" in member:
+            modifier = 0.9
+
+        if "DL" in load and "LL" not in load:
+            modifier *= 0.6
+        elif "WL" in load:
+            modifier *= 0.8
+
+        bridge_data["_dynamic_modifier"] = modifier
+        return bridge_data
 
     def open_deck_design(self):
         """Open the Deck Design dialog."""
@@ -423,6 +457,13 @@ class OutputDock(QWidget):
             row.addWidget(label)
             row.addWidget(combo)
             layout.addLayout(row)
+
+            if cfg.get("label") == "Member:":
+                self.member_combo = combo
+                self.member_combo.currentTextChanged.connect(self._update_design_checks)
+            elif cfg.get("label") == "Load Combination:":
+                self.load_combo = combo
+                self.load_combo.currentTextChanged.connect(self._update_design_checks)
         elif field_type == "checkbox_grid":
             columns = cfg.get("columns") or cfg.get("values") or []
             grid = QHBoxLayout()

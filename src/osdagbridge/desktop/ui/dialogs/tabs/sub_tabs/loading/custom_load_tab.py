@@ -389,11 +389,7 @@ class CustomLoadTab(QWidget):
             "Distance from Bearing (m)"
         ])
         
-        self.custom_load_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.custom_load_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.custom_load_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-        self.custom_load_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
-        self.custom_load_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.custom_load_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.custom_load_table.verticalHeader().setVisible(False)
         self.custom_load_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.custom_load_table.setSelectionMode(QTableWidget.SingleSelection)

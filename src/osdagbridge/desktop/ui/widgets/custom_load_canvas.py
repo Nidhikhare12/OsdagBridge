@@ -85,21 +85,26 @@ class CustomLoadCanvas(QGraphicsView):
             deck_rect.setZValue(0)
             self.scene.addItem(deck_rect)
             
-            # x-axis markers
-            tick_pen = QPen(Qt.black, 1)
-            tick_font = QFont("Arial", 9)
+            # clear axis line under deck
+            axis_y = deck_bot + 60.0
+            axis_line = QGraphicsLineItem(px_left, axis_y, px_right, axis_y)
+            axis_line.setPen(QPen(Qt.black, 2))
+            axis_line.setZValue(0)
+            self.scene.addItem(axis_line)
+            
+            tick_font = QFont("Arial", 14, QFont.Bold)
             
             for ratio in (0.0, 0.5, 1.0):
                 tx = map_x(ratio * bw)
-                tick = QGraphicsLineItem(tx, deck_top, tx, deck_top - 8)
-                tick.setPen(tick_pen)
+                tick = QGraphicsLineItem(tx, axis_y - 8, tx, axis_y + 8)
+                tick.setPen(QPen(Qt.black, 2))
                 tick.setZValue(0)
                 self.scene.addItem(tick)
                 
-                lbl = "0" if ratio == 0.0 else f"{ratio * bw:.1f} m"
+                lbl = "0 m" if ratio == 0.0 else f"{ratio * bw:g} m"
                 txt = self.scene.addText(lbl, tick_font)
-                txt.setDefaultTextColor(QColor(50, 50, 50))
-                txt.setPos(tx - txt.boundingRect().width() / 2, deck_top - 24)
+                txt.setDefaultTextColor(QColor(0, 0, 0))
+                txt.setPos(tx - txt.boundingRect().width() / 2, axis_y + 10)
             
             # girders (approximate visual)
             g_w = max(20.0, deck_w * 0.04)
@@ -123,18 +128,18 @@ class CustomLoadCanvas(QGraphicsView):
             unit = {"line": "kN/m", "area": "kN/m²"}.get(load_type, "kN")
             mag_txt = f"{name} = {mag} {unit}" if mag else name
             
-            font = QFont("Arial", 12, QFont.Bold)
+            font = QFont("Arial", 16, QFont.Bold)
             
             def draw_arrow(x):
                 line = QGraphicsLineItem(x, y_start, x, y_end)
-                line.setPen(QPen(load_color, 3))
+                line.setPen(QPen(load_color, 6))
                 line.setZValue(1)
                 self.scene.addItem(line)
                 
                 head = QGraphicsPolygonItem(QPolygonF([
                     QPointF(x, y_end),
-                    QPointF(x - 6, y_end - 12),
-                    QPointF(x + 6, y_end - 12)
+                    QPointF(x - 10, y_end - 20),
+                    QPointF(x + 10, y_end - 20)
                 ]))
                 head.setBrush(QBrush(load_color))
                 head.setPen(QPen(Qt.NoPen))
@@ -166,7 +171,7 @@ class CustomLoadCanvas(QGraphicsView):
                         draw_arrow(px1 + dist * (i / (num_arrows - 1)))
                         
                     horiz = QGraphicsLineItem(px1, y_start, px2, y_start)
-                    horiz.setPen(QPen(load_color, 3))
+                    horiz.setPen(QPen(load_color, 6))
                     horiz.setZValue(1)
                     self.scene.addItem(horiz)
                     
@@ -191,7 +196,7 @@ class CustomLoadCanvas(QGraphicsView):
                 add_label(mag_txt, px1 + w_rect / 2.0)
                 
             rect = self.scene.itemsBoundingRect()
-            rect.adjust(-50, -50, 50, 50)
+            rect.adjust(-20, -20, 20, 20)
             self.scene.setSceneRect(rect)
             self.fitInView(rect, Qt.KeepAspectRatio)
 

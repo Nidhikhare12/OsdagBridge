@@ -91,6 +91,10 @@ class SteelDesign(QDialog):
 
         main_layout.addWidget(self.tabs)
 
-        if hasattr(self._main_window, "cad_state"):
+        if hasattr(self._main_window, "input_dock"):
+            cad_state = self._main_window.input_dock.get_all_input_values()
+            self.details_tab.load_data(cad_state)
+            self.check_tab.load_data(cad_state)
+        elif hasattr(self._main_window, "cad_state"):
             self.details_tab.load_data(self._main_window.cad_state)
             self.check_tab.load_data(self._main_window.cad_state)

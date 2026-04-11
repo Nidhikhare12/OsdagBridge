@@ -741,7 +741,7 @@ class InputDock(QWidget):
                 "Design Input Ready",
                 "Final merged input payload is prepared (Basic + Additional).",
             )
-    
+
             # Option 2: print merged inputs for quick verification.
             self._debug_dump_final_inputs(self._final_inputs_saved_list)
         finally:

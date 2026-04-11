@@ -10,6 +10,8 @@ class UtilizationBar(QWidget):
         self._fill = QWidget(self)
         self._fill.setFixedHeight(10)
         self._ratio = 0.0
+        self._fill.resize(0, 10)
+        self._update()
 
     def set_ratio(self, ratio: float):
         self._ratio = ratio
