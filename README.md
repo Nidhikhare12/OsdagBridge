@@ -13,6 +13,17 @@ Additional bridge types can be added through the plugin architecture.
 
 ## Key Features
 
+### Plate Girder Result Visualization (Recent Updates)
+The plate girder analysis visualization workflow has been expanded with tighter integration between the output panel and plot viewer.
+
+Recent additions include:
+- Unified plot controls in the output dock for load case, force selection, and display options
+- New plot controls for grid toggle, diagram scale (0.2x to 5.0x), and per-girder isolation (`All`, `G1`, `G2`, ...)
+- Fy contour rendering support for shear-force diagrams
+- Optional MAX/MIN marker overlays for bending-moment diagrams
+- Consistent force naming in UI (`Fx`, `Fy`, `Fz`, `Tx`, `My`, `Mz`) with internal mapping for torsion (`Tx -> Mx`)
+- Automatic synchronization between analysis results (available load cases/girders) and plotting controls
+
 ### Shared Core Architecture
 All numerical logic and I/O are implemented once in `osdagbridge.core`.  
 The desktop GUI, web app, and CLI all reuse the same core for consistent behavior.
