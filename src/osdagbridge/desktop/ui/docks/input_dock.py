@@ -114,6 +114,7 @@ class InputDock(QWidget):
         toggle_layout.addStretch()
         self.main_layout.addWidget(self.toggle_strip)
 
+
     def get_validator(self, validator):
         if validator == 'Int Validator':
             return QRegularExpressionValidator(QRegularExpression("^(0|[1-9]\\d*)(\\.\\d+)?$"))
@@ -500,11 +501,7 @@ class InputDock(QWidget):
         btn_button_layout.addWidget(design_btn)
 
         self.design_btn = design_btn
-        try:
-            self.design_btn.clicked.disconnect()
-        except Exception:
-            pass
-        self.design_btn.clicked.connect(self._on_design_clicked)
+        self.design_btn.clicked.connect(self._on_design_clicked, type=Qt.UniqueConnection)
 
         panel_layout.addLayout(btn_button_layout)
 

@@ -65,8 +65,16 @@ class CustomLoadTab(QWidget):
 
         from PySide6.QtWidgets import QSplitter
         
-        main_splitter = QSplitter(Qt.Vertical)
-        main_splitter.setHandleWidth(2)
+        
+        h_splitter = QSplitter(Qt.Horizontal)
+        h_splitter.setHandleWidth(8)
+        h_splitter.setChildrenCollapsible(False)
+
+        left_pane = QWidget()
+        left_pane.setStyleSheet("background: transparent;")
+        left_layout = QVBoxLayout(left_pane)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(10)
 
         diagram = QFrame()
         diagram.setMinimumSize(QSize(400, 300))
@@ -75,17 +83,257 @@ class CustomLoadTab(QWidget):
         )
         diagram_layout = QVBoxLayout(diagram)
         diagram_layout.setContentsMargins(0, 0, 0, 0)
-        self.canvas = CustomLoadCanvas()
-        diagram_layout.addWidget(self.canvas, 1)
         
-        main_splitter.addWidget(diagram)
+        # View Toggle Buttons
+        toggle_layout = QHBoxLayout()
+        toggle_layout.setContentsMargins(10, 10, 10, 0)
+        
+        self.btn_cross_section = QPushButton("Cross-Section")
+        self.btn_elevation = QPushButton("Elevation")
+        
+        self.btn_cross_section.setCheckable(True)
+        self.btn_elevation.setCheckable(True)
+        self.btn_cross_section.setChecked(True)
+        
+        from PySide6.QtWidgets import QButtonGroup
+        self.view_btn_group = QButtonGroup(self)
+        self.view_btn_group.addButton(self.btn_cross_section, 0)
+        self.view_btn_group.addButton(self.btn_elevation, 1)
+        
+        btn_style = """
+            QPushButton {
+                background: #ffffff;
+                border: 1px solid #a0a0a0;
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-size: 11px;
+                font-weight: 600;
+                color: #2a2a2a;
+            }
+            QPushButton:checked {
+                background: #90AF13;
+                border: 1px solid #90AF13;
+                color: #ffffff;
+            }
+        """
+        self.btn_cross_section.setStyleSheet(btn_style)
+        self.btn_elevation.setStyleSheet(btn_style)
 
-        bottom_splitter = QSplitter(Qt.Horizontal)
-        bottom_splitter.setHandleWidth(8)
+        # 3D View button 
+        self.btn_3d_view = QPushButton("3D View")
+        self.btn_3d_view.setCheckable(True)
+        self.btn_3d_view.setStyleSheet(btn_style)
+        self.view_btn_group.addButton(self.btn_3d_view, 2)
+        
+        toggle_layout.addWidget(self.btn_cross_section)
+        toggle_layout.addWidget(self.btn_elevation)
+        toggle_layout.addWidget(self.btn_3d_view)
+        toggle_layout.addStretch()
+        
+        diagram_layout.addLayout(toggle_layout)
+        
+        # Canvas stack — 0 = 2D, 1 = 3D
+        self.canvas_stack = QStackedWidget()
+        self.canvas_stack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # 2d view with zoom controls
+        canvas_container = QWidget()
+        canvas_container_layout = QGridLayout(canvas_container)
+        canvas_container_layout.setContentsMargins(0, 0, 0, 0)
+        canvas_container_layout.setSpacing(0)
+
+        self.canvas = CustomLoadCanvas()
+        canvas_container_layout.addWidget(self.canvas, 0, 0)
+
+    
+        self.zoom_overlay_2d = QWidget()
+        self.zoom_overlay_2d.setObjectName("zoomControls")
+        self.zoom_overlay_2d.setAttribute(Qt.WA_TranslucentBackground)
+        zoom_layout = QVBoxLayout(self.zoom_overlay_2d)
+        zoom_layout.setContentsMargins(0, 15, 15, 0) # Gap from top-right edge
+        zoom_layout.setSpacing(6)
+        zoom_layout.setAlignment(Qt.AlignTop | Qt.AlignRight)
+
+        self.btn_zoom_in = QPushButton("+")
+        self.btn_zoom_out = QPushButton("-")
+        self.btn_zoom_reset = QPushButton("Reset")
+
+        zoom_btn_style = """
+            QPushButton {
+                background: #ffffff;
+                border: 1px solid #c0c0c0;
+                border-radius: 4px;
+                min-width: 32px;
+                max-width: 60px;
+                padding: 6px;
+                font-size: 14px;
+                font-weight: bold;
+                color: #2a2a2a;
+            }
+            QPushButton:hover { background: #f8f9fa; border: 1px solid #90AF13; }
+            QPushButton:pressed { background: #e9ecef; }
+        """
+        self.btn_zoom_in.setStyleSheet(zoom_btn_style)
+        self.btn_zoom_out.setStyleSheet(zoom_btn_style)
+        self.btn_zoom_reset.setStyleSheet(zoom_btn_style.replace("14px", "11px"))
+
+        zoom_layout.addWidget(self.btn_zoom_in)
+        zoom_layout.addWidget(self.btn_zoom_out)
+        zoom_layout.addWidget(self.btn_zoom_reset)
+ 
+        canvas_container_layout.addWidget(self.zoom_overlay_2d, 0, 0, Qt.AlignTop | Qt.AlignRight)
+        self.canvas_stack.addWidget(canvas_container)   # index 0
+
+        # 3d view setup
+        canvas_3d_container = QWidget()
+        canvas_3d_layout = QGridLayout(canvas_3d_container)
+        canvas_3d_layout.setContentsMargins(0, 0, 0, 0)
+        canvas_3d_layout.setSpacing(0)
+
+        self.canvas_3d = None
+        try:
+            # Deferred import to prevent crash on module load if OpenGL drivers are broken
+            from osdagbridge.desktop.ui.widgets.custom_load_canvas_3d import CustomLoadCanvas3D
+            
+            self.canvas_3d = CustomLoadCanvas3D()
+            canvas_3d_layout.addWidget(self.canvas_3d, 0, 0)
+            
+            # camera control buttons
+            self.zoom_overlay_3d = QWidget()
+            self.zoom_overlay_3d.setAttribute(Qt.WA_TranslucentBackground)
+            v3d_layout = QVBoxLayout(self.zoom_overlay_3d)
+            v3d_layout.setContentsMargins(0, 15, 15, 0)
+            v3d_layout.setSpacing(6)
+            v3d_layout.setAlignment(Qt.AlignTop | Qt.AlignRight)
+
+            def create_3d_btn(txt, tooltip):
+                b = QPushButton(txt)
+                b.setToolTip(tooltip)
+                b.setStyleSheet(zoom_btn_style.replace("14px", "11px"))
+                b.setFixedWidth(75)
+                return b
+
+            self.btn_3d_zoom_in = create_3d_btn("+", "Zoom In")
+            self.btn_3d_zoom_out = create_3d_btn("-", "Zoom Out")
+            self.btn_3d_iso = create_3d_btn("ISO", "Isometric View")
+            self.btn_3d_top = create_3d_btn("Top", "Top View")
+            self.btn_3d_side = create_3d_btn("Side", "Side View")
+
+            v3d_layout.addWidget(self.btn_3d_zoom_in)
+            v3d_layout.addWidget(self.btn_3d_zoom_out)
+            v3d_layout.addSpacing(8)
+            v3d_layout.addWidget(self.btn_3d_iso)
+            v3d_layout.addWidget(self.btn_3d_top)
+            v3d_layout.addWidget(self.btn_3d_side)
+            
+            canvas_3d_layout.addWidget(self.zoom_overlay_3d, 0, 0, Qt.AlignTop | Qt.AlignRight)
+            self.zoom_overlay_3d.hide()
+        except Exception as e:
+            self.canvas_3d = None
+            msg = QLabel(f"3D View Unavailable\n({str(e)})")
+            msg.setWordWrap(True)
+            msg.setAlignment(Qt.AlignCenter)
+            msg.setStyleSheet("color: #666; font-size: 14px; font-weight: bold; background: #e9ecef; border: 1px dashed #adb5bd; border-radius: 8px;")
+            canvas_3d_layout.addWidget(msg, 0, 0)
+            self.btn_3d_view.setEnabled(False)
+            self.btn_3d_view.setToolTip("3D Acceleration requires compatible OpenGL hardware/drivers.")
+
+        self.canvas_stack.addWidget(canvas_3d_container) # index 1
+
+        diagram_layout.addWidget(self.canvas_stack, 1)
+        
+        # Save Diagram Button
+        save_diagram_layout = QHBoxLayout()
+        save_diagram_layout.setContentsMargins(10, 0, 10, 10)
+        self.btn_save_diagram = QPushButton("Save Diagram")
+        self.btn_save_diagram.setStyleSheet("""
+            QPushButton {
+                background: #ffffff;
+                border: 1px solid #a0a0a0;
+                border-radius: 3px;
+                padding: 4px 10px;
+                font-size: 11px;
+                color: #2a2a2a;
+            }
+            QPushButton:hover { background: #f0f0f0; }
+        """)
+        save_diagram_layout.addStretch()
+        save_diagram_layout.addWidget(self.btn_save_diagram)
+        
+        diagram_layout.addLayout(save_diagram_layout)
+        left_layout.addWidget(diagram)
+
+        # info box on the right
+        desc_box = QFrame()
+        desc_box.setMinimumWidth(260)
+        desc_box.setStyleSheet(
+            "QFrame { "
+            "   border: 1px solid #bcbcbc; "
+            "   border-radius: 4px; "
+            "   background-color: #ececec; "
+            "}"
+        )
+        desc_box_layout = QVBoxLayout(desc_box)
+        desc_box_layout.setContentsMargins(15, 15, 15, 15)
+        desc_box_layout.setSpacing(12)
+
+        desc_title = QLabel("Custom Load View & Configuration")
+        desc_title.setStyleSheet(
+            "font-size: 13px; font-weight: 700; color: #1a1a1a; "
+            "background: transparent; border: none; padding-bottom: 5px;"
+        )
+        desc_box_layout.addWidget(desc_title)
+
+        # Separator line
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Plain)
+        line.setStyleSheet("color: #bcbcbc; background: #bcbcbc; max-height: 1px; border: none;")
+        desc_box_layout.addWidget(line)
+
+        desc_text = QLabel(
+            "<div style='color: #2a2a2a; line-height: 1.5;'>"
+            "<p style='margin-bottom: 10px;'>This tab allows for the definition of user-specified loads. "
+            "The diagram and 3D view update instantly to show the correct load placement relative to the bridge geometry.</p>"
+            
+            "<b style='color: #90AF13;'>Available View Modes:</b>"
+            "<ul style='margin: 5px 0 12px 15px;'>"
+            "<li><b>Cross-Section:</b> Shows the transverse position of loads across the bridge width and girders.</li>"
+            "<li><b>Elevation:</b> Shows the longitudinal position of loads along the span length.</li>"
+            "<li><b>3D View:</b> Offers a full 3D perspective to verify the spatial arrangement of all loads.</li>"
+            "</ul>"
+
+            "<b style='color: #444444;'>How to add a load:</b>"
+            "<ol style='margin: 5px 0 12px 15px;'>"
+            "<li>Select the <b>Load Case</b> (Dead, Live, etc.) and enter a name.</li>"
+            "<li>Choose a <b>Load Type</b> (Point, Line, or Area) from the dropdown.</li>"
+            "<li>Enter the <b>Magnitude</b> and <b>Distances</b> from the reference edges.</li>"
+            "<li>Click <b>Save</b> to add the current load to the table below.</li>"
+            "</ol>"
+            
+            "<p style='margin-top: 5px; color: #555;'>"
+            "Saved loads can be modified using the <b>Edit</b> button or removed using the <b>Delete</b> button.</p>"
+            "</div>"
+        )
+        desc_text.setWordWrap(True)
+        desc_text.setTextFormat(Qt.RichText)
+        desc_text.setStyleSheet("font-size: 11px; background: transparent; border: none;")
+        desc_box_layout.addWidget(desc_text)
+        desc_box_layout.addStretch()
+
+        # Assembly into splitters
+        h_splitter.addWidget(left_pane)
+        h_splitter.addWidget(desc_box)
+        h_splitter.setStretchFactor(0, 3)
+        h_splitter.setStretchFactor(1, 1)
 
         input_card = owner._create_card()
         input_card.setStyleSheet(
-            "QFrame { border: 1px solid #a0a0a0; border-radius: 4px; background-color: #ffffff; }"
+            "QFrame { "
+            "   border: 1px solid #bcbcbc; "
+            "   border-radius: 4px; "
+            "   background-color: #ececec; "
+            "}"
         )
         input_layout = QVBoxLayout(input_card)
         input_layout.setContentsMargins(10, 10, 10, 10)
@@ -330,11 +578,15 @@ class CustomLoadTab(QWidget):
 
         input_layout.addLayout(save_row)
 
-        bottom_splitter.addWidget(input_card)
+        left_layout.addWidget(input_card)
 
         list_card = owner._create_card()
         list_card.setStyleSheet(
-            "QFrame { border: 1px solid #a0a0a0; border-radius: 4px; background-color: #ffffff; }"
+            "QFrame { "
+            "   border: 1px solid #bcbcbc; "
+            "   border-radius: 4px; "
+            "   background-color: #ececec; "
+            "}"
         )
         list_card.setMinimumHeight(250)
         list_layout = QVBoxLayout(list_card)
@@ -436,15 +688,10 @@ class CustomLoadTab(QWidget):
         table_layout.addWidget(self.custom_load_table)
         list_layout.addWidget(table_frame)
 
-        bottom_splitter.addWidget(list_card)
-        bottom_splitter.setStretchFactor(0, 1) # Inputs
-        bottom_splitter.setStretchFactor(1, 2) # List
-        
-        main_splitter.addWidget(bottom_splitter)
-        main_splitter.setStretchFactor(0, 4) # Canvas (Primary)
-        main_splitter.setStretchFactor(1, 1) # Bottom controls
-        
-        page_layout.addWidget(main_splitter)
+        left_layout.addWidget(list_card)
+        left_layout.addStretch()
+
+        page_layout.addWidget(h_splitter)
 
         scroll_area.setWidget(scroll_content)
         main_layout.addWidget(scroll_area)
@@ -457,8 +704,11 @@ class CustomLoadTab(QWidget):
         owner.custom_load_type_combo.currentTextChanged.connect(self._schedule_update)
         owner.custom_load_magnitude_input.textChanged.connect(self._schedule_update)
         owner.custom_point_left_input.textChanged.connect(self._schedule_update)
+        owner.custom_point_bearing_input.textChanged.connect(self._schedule_update)
         owner.custom_line_left_start.textChanged.connect(self._schedule_update)
         owner.custom_line_left_end.textChanged.connect(self._schedule_update)
+        owner.custom_line_bearing_start.textChanged.connect(self._schedule_update)
+        owner.custom_line_bearing_end.textChanged.connect(self._schedule_update)
 
         save_btn.clicked.connect(self._on_save_custom_load)
         owner.custom_delete_btn.clicked.connect(self._on_delete_custom_load)
@@ -466,6 +716,20 @@ class CustomLoadTab(QWidget):
         owner.custom_load_case_combo.currentTextChanged.connect(
             lambda t: self._on_load_case_changed(t)
         )
+        self.view_btn_group.buttonClicked.connect(self._on_view_toggled)
+        self.btn_save_diagram.clicked.connect(self._on_save_diagram)
+        
+        # Zoom actions
+        self.btn_zoom_in.clicked.connect(self.canvas.zoom_in)
+        self.btn_zoom_out.clicked.connect(self.canvas.zoom_out)
+        self.btn_zoom_reset.clicked.connect(self.canvas.reset_view)
+
+        if hasattr(self, 'canvas_3d'):
+            self.btn_3d_zoom_in.clicked.connect(lambda: self.canvas_3d.zoom(0.8))
+            self.btn_3d_zoom_out.clicked.connect(lambda: self.canvas_3d.zoom(1.2))
+            self.btn_3d_iso.clicked.connect(self.canvas_3d.reset_camera)
+            self.btn_3d_top.clicked.connect(lambda: self.canvas_3d.set_camera_view('top'))
+            self.btn_3d_side.clicked.connect(lambda: self.canvas_3d.set_camera_view('side'))
 
         self._refresh_custom_load_table()
         self._update_visualization()
@@ -499,43 +763,90 @@ class CustomLoadTab(QWidget):
             
         load_data = {
             "type": load_type, 
-            "x_start": 0.0, 
-            "x_end": 0.0,
+            "dist_left_start": 0.0, 
+            "dist_left_end": 0.0,
+            "dist_bear_start": 0.0,
+            "dist_bear_end": 0.0,
             "name": load_name,
             "magnitude": owner.custom_load_magnitude_input.text().strip()
         }
         
         try:
             if load_type == "point":
-                val = owner.custom_point_left_input.text().strip()
-                if val:
-                    load_data["x_start"] = float(val)
-                    load_data["x_end"] = float(val)
+                val_l = owner.custom_point_left_input.text().strip()
+                val_b = owner.custom_point_bearing_input.text().strip()
+                if val_l:
+                    load_data["dist_left_start"] = float(val_l)
+                    load_data["dist_left_end"] = float(val_l)
+                if val_b:
+                    load_data["dist_bear_start"] = float(val_b)
+                    load_data["dist_bear_end"] = float(val_b)
             else:
-                val_start = owner.custom_line_left_start.text().strip()
-                val_end = owner.custom_line_left_end.text().strip()
-                if val_start and val_end:
-                    load_data["x_start"] = float(val_start)
-                    load_data["x_end"] = float(val_end)
-                elif val_start:
-                    load_data["x_start"] = float(val_start)
-                    load_data["x_end"] = float(val_start)
-                elif val_end:
-                    load_data["x_start"] = float(val_end)
-                    load_data["x_end"] = float(val_end)
+                ls = owner.custom_line_left_start.text().strip()
+                le = owner.custom_line_left_end.text().strip()
+                bs = owner.custom_line_bearing_start.text().strip()
+                be = owner.custom_line_bearing_end.text().strip()
+                
+                if ls: load_data["dist_left_start"] = float(ls)
+                if le: load_data["dist_left_end"] = float(le)
+                if not le and ls: load_data["dist_left_end"] = float(ls)
+                if not ls and le: load_data["dist_left_start"] = float(le)
+                
+                if bs: load_data["dist_bear_start"] = float(bs)
+                if be: load_data["dist_bear_end"] = float(be)
+                if not be and bs: load_data["dist_bear_end"] = float(bs)
+                if not bs and be: load_data["dist_bear_start"] = float(be)
         except ValueError:
             pass
             
         bridge_width = 10.0
+        span_length = 20.0
         try:
             if hasattr(owner, "cad_state") and isinstance(owner.cad_state, dict):
                 bw = owner.cad_state.get("overall_bridge_width_display")
-                if bw:
-                    bridge_width = float(bw)
+                if bw: bridge_width = float(bw)
+                sp = owner.cad_state.get("bridge_span")
+                if sp: span_length = float(sp)
         except (ValueError, TypeError, KeyError):
             pass
             
-        self.canvas.set_load_data(load_data, bridge_width)
+        self.canvas.set_load_data(load_data, bridge_width, span_length)
+        # Also push to 3D canvas so it stays in sync
+        self.canvas_3d.set_load_data(load_data, bridge_width, span_length)
+
+    def _on_view_toggled(self, btn):
+        btn_id = self.view_btn_group.id(btn)
+        if btn_id == 0:
+            self.canvas_stack.setCurrentIndex(0)
+            self.canvas.set_view("cross_section")
+            if hasattr(self, 'zoom_overlay_2d'):
+                self.zoom_overlay_2d.show()
+                if hasattr(self, 'zoom_overlay_3d'):
+                    self.zoom_overlay_3d.hide()
+        elif btn_id == 1:
+            self.canvas_stack.setCurrentIndex(0)
+            self.canvas.set_view("elevation")
+            if hasattr(self, 'zoom_overlay_2d'):
+                self.zoom_overlay_2d.show()
+                if hasattr(self, 'zoom_overlay_3d'):
+                    self.zoom_overlay_3d.hide()
+        elif btn_id == 2:
+            self.canvas_stack.setCurrentIndex(1)
+            if hasattr(self, 'zoom_overlay_3d'):
+                self.zoom_overlay_3d.show()
+                if hasattr(self, 'zoom_overlay_2d'):
+                    self.zoom_overlay_2d.hide()
+            # 3D usually handles its own aspect via resize event, but refresh anyway
+            self._update_visualization()
+
+    def _on_save_diagram(self):
+        from PySide6.QtWidgets import QFileDialog
+        import os
+        path, _ = QFileDialog.getSaveFileName(self, "Save Diagram", "load_diagram.png", "Images (*.png)")
+        if path:
+            pixmap = self.canvas.grab()
+            pixmap.save(path, "PNG")
+            CustomMessageBox(title="Success", text=f"Saved: {os.path.basename(path)}", buttons=["OK"], dialogType=MessageBoxType.Success).exec()
 
     def _on_custom_load_type_changed(self, text):
         if text == "Point":
