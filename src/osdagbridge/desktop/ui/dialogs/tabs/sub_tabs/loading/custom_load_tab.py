@@ -1,5 +1,5 @@
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QDoubleValidator
+from PySide6.QtCore import Qt, QSize, QRectF
+from PySide6.QtGui import QDoubleValidator, QPen, QBrush, QColor, QPainter
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -17,11 +17,182 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QVBoxLayout,
     QWidget,
+    QGraphicsView,
+    QGraphicsScene,
+    QGraphicsLineItem,
+    QGraphicsRectItem,
+    QGraphicsSimpleTextItem,
 )
 
 from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
 from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
 from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import CUSTOM_LOAD_TAB_SCHEMA
+
+
+class LoadGraphicsView(QGraphicsView):
+    """Simple 2D bridge/load visualization using QGraphicsView."""
+
+    def __init__(self, span_length=30.0, parent=None):
+        super().__init__(parent)
+        self.setRenderHint(QPainter.Antialiasing, True)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        self.scene = QGraphicsScene(self)
+        self.setScene(self.scene)
+
+        self.span_length = span_length or 30.0
+        self.girder_count = 4
+        self.scene_width = 360.0
+        self.scene_height = 180.0
+        self.left_margin = 20.0
+        self.right_margin = 20.0
+        self.top_margin = 20.0
+        self.deck_y = 60.0
+        self.girder_height = 50.0
+
+        self.setMinimumSize(380, 160)
+        self.setSceneRect(QRectF(0, 0, self.scene_width, self.scene_height))
+        self.draw_bridge()
+
+    # ── Public API ───────────────────────────────────────────────────────
+    def update_visualization(self, load_type, inputs):
+        self.scene.clear()
+        self.draw_bridge()
+
+        load_type = (load_type or "").lower()
+        if load_type == "point":
+            self.draw_point_load(inputs.get("x"))
+        elif load_type == "line":
+            self.draw_line_load(inputs.get("x1"), inputs.get("x2"))
+        elif load_type == "area":
+            # Area load is full-span; inputs are ignored by design
+            self.draw_area_load(None, None)
+
+    # ── Drawing helpers ──────────────────────────────────────────────────
+    def draw_bridge(self):
+        deck_width = self.scene_width - self.left_margin - self.right_margin
+        deck_rect = QRectF(self.left_margin, self.deck_y, deck_width, 18)
+        deck_item = QGraphicsRectItem(deck_rect)
+        deck_item.setBrush(QBrush(QColor(180, 180, 180)))
+        deck_item.setPen(QPen(QColor(120, 120, 120), 1.2))
+        self.scene.addItem(deck_item)
+
+        spacing = deck_width / max(self.girder_count, 1)
+        for i in range(self.girder_count + 1):
+            x = self.left_margin + spacing * i
+            girder = QGraphicsLineItem(x, self.deck_y + 18, x, self.deck_y + 18 + self.girder_height)
+            girder.setPen(QPen(QColor(110, 110, 110), 2.0))
+            self.scene.addItem(girder)
+
+        span_label = QGraphicsSimpleTextItem(f"Span: {self.span_length} m")
+        span_label.setPos(self.left_margin, self.deck_y + self.girder_height + 24)
+        self.scene.addItem(span_label)
+
+    def _scale_x(self, value):
+        try:
+            span = float(self.span_length)
+            if span <= 0:
+                span = 30.0
+            usable = self.scene_width - self.left_margin - self.right_margin
+            return self.left_margin + (float(value) / span) * usable
+        except (TypeError, ValueError):
+            return self.left_margin
+
+    def _arrow(self, x, y_top, length=32, label=None):
+        pen = QPen(QColor(200, 40, 40), 2)
+        line = QGraphicsLineItem(x, y_top, x, y_top + length)
+        line.setPen(pen)
+        self.scene.addItem(line)
+
+        head = 6
+        left = QGraphicsLineItem(x, y_top + length, x - head, y_top + length - head)
+        right = QGraphicsLineItem(x, y_top + length, x + head, y_top + length - head)
+        for item in (left, right):
+            item.setPen(pen)
+            self.scene.addItem(item)
+
+        if label:
+            text = QGraphicsSimpleTextItem(label)
+            text.setBrush(QBrush(QColor(200, 40, 40)))
+            text.setPos(x - 8, y_top - 16)
+            self.scene.addItem(text)
+
+    def draw_point_load(self, x):
+        x_val = float(x) if self._is_number(x) else 10.0
+        px = self._scale_x(x_val)
+        self._arrow(px, self.deck_y - 30, length=36, label="P")
+        pos_label = QGraphicsSimpleTextItem(f"x = {x_val} m")
+        pos_label.setPos(px - 20, self.deck_y - 52)
+        self.scene.addItem(pos_label)
+
+    def draw_line_load(self, x1, x2):
+        x1_val = float(x1) if self._is_number(x1) else 5.0
+        x2_val = float(x2) if self._is_number(x2) else 20.0
+        if x2_val < x1_val:
+            x1_val, x2_val = x2_val, x1_val
+
+        p1 = self._scale_x(x1_val)
+        p2 = self._scale_x(x2_val)
+        y = self.deck_y - 28
+
+        baseline = QGraphicsLineItem(p1, y, p2, y)
+        baseline.setPen(QPen(QColor(200, 40, 40), 1.4))
+        self.scene.addItem(baseline)
+
+        arrow_count = max(3, int((x2_val - x1_val) / 3) + 1)
+        for i in range(arrow_count):
+            t = i / max(arrow_count - 1, 1)
+            x = p1 + (p2 - p1) * t
+            self._arrow(x, self.deck_y - 32, length=32)
+
+        label = QGraphicsSimpleTextItem("w (kN/m)")
+        label.setBrush(QBrush(QColor(200, 40, 40)))
+        label.setPos((p1 + p2) / 2 - 30, y - 18)
+        self.scene.addItem(label)
+
+        span_label = QGraphicsSimpleTextItem(f"x1 = {x1_val} m | x2 = {x2_val} m")
+        span_label.setPos(p1, y - 34)
+        self.scene.addItem(span_label)
+
+    def draw_area_load(self, x1, x2):
+        # Full-span area load per requirement: ignore x1/x2, cover entire deck span
+        start_x_val = 0.0
+        end_x_val = float(self.span_length) if self._is_number(self.span_length) else 30.0
+
+        p1 = self._scale_x(start_x_val)
+        p2 = self._scale_x(end_x_val)
+        top = self.deck_y - 44
+        height = 44
+
+        rect = QGraphicsRectItem(QRectF(p1, top, p2 - p1, height))
+        rect.setBrush(QBrush(QColor(200, 40, 40, 60)))
+        rect.setPen(QPen(QColor(200, 40, 40), 1.2, Qt.DashLine))
+        self.scene.addItem(rect)
+
+        num_arrows = 8
+        spacing = (p2 - p1) / (num_arrows + 1)
+        for i in range(1, num_arrows + 1):
+            x = p1 + i * spacing
+            self._arrow(x, top - 8, length=28)
+
+        label = QGraphicsSimpleTextItem("q (kN/m²)")
+        label.setBrush(QBrush(QColor(200, 40, 40)))
+        label.setPos((p1 + p2) / 2 - 32, top - 22)
+        self.scene.addItem(label)
+
+        span_label = QGraphicsSimpleTextItem(f"Full span: 0 - {end_x_val} m")
+        span_label.setPos(p1, top - 36)
+        self.scene.addItem(span_label)
+
+    @staticmethod
+    def _is_number(value):
+        try:
+            float(value)
+            return True
+        except (TypeError, ValueError):
+            return False
 
 
 class CustomLoadTab(QWidget):
@@ -70,21 +241,9 @@ class CustomLoadTab(QWidget):
         left_column.setContentsMargins(0, 0, 0, 0)
         left_column.setSpacing(8)
 
-        diagram = QFrame()
-        diagram.setMinimumSize(QSize(380, 130))
-        diagram.setMaximumHeight(130)
-        diagram.setStyleSheet(
-            "QFrame { border: 1px solid #a0a0a0; border-radius: 4px; background-color: #d0d0d0; }"
-        )
-        diagram_layout = QVBoxLayout(diagram)
-        diagram_layout.setContentsMargins(8, 8, 8, 8)
-        diagram_label = QLabel("Bridge Geometry\nDiagram")
-        diagram_label.setAlignment(Qt.AlignCenter)
-        diagram_label.setStyleSheet(
-            "font-size: 11px; font-weight: 600; color: #2a2a2a; background: transparent; border: none;"
-        )
-        diagram_layout.addWidget(diagram_label, 1)
-        left_column.addWidget(diagram)
+        self.load_view = LoadGraphicsView(span_length=30.0)
+        self.load_view.setStyleSheet("QGraphicsView { border: 1px solid #a0a0a0; border-radius: 4px; background: #f9f9f9; }")
+        left_column.addWidget(self.load_view)
 
         input_card = owner._create_card()
         input_card.setStyleSheet(
@@ -174,6 +333,7 @@ class CustomLoadTab(QWidget):
         owner.custom_point_left_input.setFixedWidth(field_width * 2 + 8)
         apply_field_style(owner.custom_point_left_input)
         self._apply_validator(owner.custom_point_left_input, point_left_field.get("validator"))
+        owner.custom_point_left_input.textChanged.connect(self._update_visualization)
         
         point_left_row.addWidget(lbl)
         point_left_row.addWidget(owner.custom_point_left_input)
@@ -192,6 +352,7 @@ class CustomLoadTab(QWidget):
         owner.custom_point_bearing_input.setFixedWidth(field_width * 2 + 8)
         apply_field_style(owner.custom_point_bearing_input)
         self._apply_validator(owner.custom_point_bearing_input, point_bearing_field.get("validator"))
+        owner.custom_point_bearing_input.textChanged.connect(self._update_visualization)
         
         point_bearing_row.addWidget(lbl)
         point_bearing_row.addWidget(owner.custom_point_bearing_input)
@@ -225,6 +386,7 @@ class CustomLoadTab(QWidget):
         owner.custom_line_left_start.setFixedWidth(field_width + 2)
         apply_field_style(owner.custom_line_left_start)
         self._apply_validator(owner.custom_line_left_start, line_left_start_field.get("validator"))
+        owner.custom_line_left_start.textChanged.connect(self._update_visualization)
         left_start_container.addWidget(left_start_lbl)
         left_start_container.addWidget(owner.custom_line_left_start)
         
@@ -237,6 +399,7 @@ class CustomLoadTab(QWidget):
         owner.custom_line_left_end.setFixedWidth(field_width + 2)
         apply_field_style(owner.custom_line_left_end)
         self._apply_validator(owner.custom_line_left_end, line_left_end_field.get("validator"))
+        owner.custom_line_left_end.textChanged.connect(self._update_visualization)
         left_end_container.addWidget(left_end_lbl)
         left_end_container.addWidget(owner.custom_line_left_end)
         
@@ -265,6 +428,7 @@ class CustomLoadTab(QWidget):
         owner.custom_line_bearing_start.setFixedWidth(field_width + 2)
         apply_field_style(owner.custom_line_bearing_start)
         self._apply_validator(owner.custom_line_bearing_start, line_bearing_start_field.get("validator"))
+        owner.custom_line_bearing_start.textChanged.connect(self._update_visualization)
         bearing_start_container.addWidget(bearing_start_lbl)
         bearing_start_container.addWidget(owner.custom_line_bearing_start)
         
@@ -277,6 +441,7 @@ class CustomLoadTab(QWidget):
         owner.custom_line_bearing_end.setFixedWidth(field_width + 2)
         apply_field_style(owner.custom_line_bearing_end)
         self._apply_validator(owner.custom_line_bearing_end, line_bearing_end_field.get("validator"))
+        owner.custom_line_bearing_end.textChanged.connect(self._update_visualization)
         bearing_end_container.addWidget(bearing_end_lbl)
         bearing_end_container.addWidget(owner.custom_line_bearing_end)
         
@@ -453,6 +618,7 @@ class CustomLoadTab(QWidget):
         main_layout.addWidget(scroll_area)
 
         owner.custom_load_type_combo.currentTextChanged.connect(self._on_custom_load_type_changed)
+        owner.custom_load_type_combo.currentTextChanged.connect(self._update_visualization)
         self._on_custom_load_type_changed(owner.custom_load_type_combo.currentText())
 
         save_btn.clicked.connect(self._on_save_custom_load)
@@ -461,6 +627,8 @@ class CustomLoadTab(QWidget):
         owner.custom_load_case_combo.currentTextChanged.connect(
             lambda t: self._on_load_case_changed(t)
         )
+
+        self._update_visualization()
 
         self._refresh_custom_load_table()
 
@@ -483,12 +651,14 @@ class CustomLoadTab(QWidget):
             self.custom_load_stack.setCurrentIndex(0)
         else: 
             self.custom_load_stack.setCurrentIndex(1)
+        self._update_visualization()
 
     def _on_load_case_changed(self, text):
         is_custom = (text == "Custom")
         self.owner.custom_load_case_name_input.setEnabled(is_custom)
         if not is_custom:
             self.owner.custom_load_case_name_input.clear()
+        self._update_visualization()
 
     def _refresh_custom_load_table(self):
         self.custom_load_table.setRowCount(0)
@@ -663,6 +833,7 @@ class CustomLoadTab(QWidget):
         owner.custom_line_left_end.clear()
         owner.custom_line_bearing_start.clear()
         owner.custom_line_bearing_end.clear()
+        self._update_visualization()
 
     def reset_defaults(self):
         self._clear_inputs()
@@ -671,3 +842,45 @@ class CustomLoadTab(QWidget):
         self._refresh_custom_load_table()
         if hasattr(self, '_editing_load_data'):
             self._editing_load_data = None
+        self._update_visualization()
+
+    # --- Visualization helpers -------------------------------------------------
+    def _gather_inputs(self):
+        # Defaults when user input is missing
+        defaults = {
+            "x": 10.0,
+            "x1": 5.0,
+            "x2": 20.0,
+        }
+
+        def _f(text, default):
+            try:
+                return float(text)
+            except (TypeError, ValueError):
+                return default
+
+        inputs = {
+            "x": _f(self.owner.custom_point_left_input.text(), defaults["x"]),
+            "x1": _f(self.owner.custom_line_left_start.text(), defaults["x1"]),
+            "x2": _f(self.owner.custom_line_left_end.text(), defaults["x2"]),
+        }
+
+        # Normalize ordering for x1, x2
+        if inputs["x2"] < inputs["x1"]:
+            inputs["x1"], inputs["x2"] = inputs["x2"], inputs["x1"]
+        return inputs
+
+    def _update_visualization(self):
+        if not hasattr(self, "load_view"):
+            return
+        load_type = self.owner.custom_load_type_combo.currentText()
+        inputs = self._gather_inputs()
+        # Map schema choices (Line/Area) to supported keywords
+        normalized_type = load_type
+        if load_type.lower() == "line":
+            normalized_type = "Line"
+        elif load_type.lower() == "area":
+            normalized_type = "Area"
+        elif load_type.lower() == "point":
+            normalized_type = "Point"
+        self.load_view.update_visualization(normalized_type, inputs)
