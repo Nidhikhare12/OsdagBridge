@@ -244,8 +244,18 @@ class FrontendData:
                 {"exclusive": False, "group_title": "Display Options"}),
 
             (KEY_ANALYSIS_UTILIZATION, "Controlling Utilization Ratio",
+                TYPE_CHECKBOX, None, True, "No Validator", {}),
+
+            (KEY_ANALYSIS_SCALE, "Plot Scale:",
+                TYPE_COMBOBOX, ["0.1", "0.25", "0.5", "1.0", "1.5", "2.0"],
+                True, "No Validator", {"default": "1.0", "group_title": "Plot Controls"}),
+
+            (KEY_ANALYSIS_ISOLATE, "Isolate Girder:",
+                TYPE_COMBOBOX, ["All"], True, "No Validator", {}),
+
+            (KEY_ANALYSIS_SHOW_GRID, "Show Grid",
                 TYPE_CHECKBOX, None, True, "No Validator",
-                {"group_end": True}),             # closes the Display Options box
+                {"default": True, "group_end": True}),
 
             # ── Superstructure ────────────────────────────────────────────────
             (KEY_SECTION_OUTPUT_SUPERSTRUCTURE, "Superstructure",

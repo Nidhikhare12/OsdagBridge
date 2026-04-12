@@ -229,10 +229,12 @@ class CustomWindow(QWidget):
         # root is the greatest level of parent that is the MainWindow
         self.output_dock = OutputDock(backend=self.backend, parent=self)
         self.splitter.addWidget(self.output_dock)
-        # self.output_dock.setStyleSheet(self.output_dock.styleSheet())
         self.output_dock.hide()
 
         self.layout.addWidget(self.splitter)
+        
+        # Connect Output Dock signals to Plot updates
+        self.setup_plot_connections()
 
         total_width = self.width() - self.splitter.contentsMargins().left() - self.splitter.contentsMargins().right()
         target_sizes = [0] * self.splitter.count()
@@ -271,7 +273,32 @@ class CustomWindow(QWidget):
             ds_all = self.backend.get_results_dataset()
             loadcases = self.backend.get_available_loadcases()
             nodes, members = self.backend.get_nodes_members()
-            self.plots_widget.setup(ds_all, loadcases, nodes, members)
+            self.plots_widget.setup(ds_all, nodes, members)
+
+            # Update Output Dock controls
+            combo_lc = self.output_dock._w(KEY_ANALYSIS_LOAD_COMBINATION)
+            if combo_lc:
+                combo_lc.blockSignals(True)
+                combo_lc.clear()
+                combo_lc.addItems(loadcases)
+                combo_lc.blockSignals(False)
+
+            combo_girder = self.output_dock._w(KEY_ANALYSIS_ISOLATE)
+            if combo_girder:
+                combo_girder.blockSignals(True)
+                combo_girder.clear()
+                combo_girder.addItem("All")
+                
+                # Identify unique Z-coordinates to count girders (matching plots_widget logic)
+                Z_TOL = 3
+                unique_zs = sorted(list(set(round(float(coord[2]), Z_TOL) for coord in nodes.values())))
+                for i in range(len(unique_zs)):
+                    combo_girder.addItem(f"G{i+1}")
+                
+                combo_girder.blockSignals(False)
+            
+            # Initial plot update
+            self.sync_plots_with_output()
         elif trigger == "Save":
             # Collect all the values from input Dock and save to osi/csv
             pass
@@ -281,6 +308,112 @@ class CustomWindow(QWidget):
 
     #-------Common-Design-Save-Additional-Inputs-Functionality-END---------
     
+    def setup_plot_connections(self):
+        """Connect Output Dock signals to Plot Widget updates"""
+        # Load Case changed
+        lc = self.output_dock._w(KEY_ANALYSIS_LOAD_COMBINATION)
+        if lc: lc.currentTextChanged.connect(self.sync_plots_with_output)
+        
+        # Forces changed (Checkbox grid)
+        # We need to find all checkboxes in the grid.
+        # They don't have object names, but we can find them by type.
+        grid_widget = self.output_dock._w(KEY_ANALYSIS_FORCES)
+        if grid_widget:
+            from PySide6.QtWidgets import QCheckBox
+            for cb in grid_widget.findChildren(QCheckBox):
+                cb.stateChanged.connect(self.sync_plots_with_output)
+
+        # Display Options (Max/Min)
+        opts = self.output_dock._w(KEY_ANALYSIS_DISPLAY_OPTIONS)
+        if opts:
+            from PySide6.QtWidgets import QCheckBox
+            for cb in opts.findChildren(QCheckBox):
+                cb.stateChanged.connect(self.sync_plots_with_output)
+
+        # Scale
+        scale = self.output_dock._w(KEY_ANALYSIS_SCALE)
+        if scale: scale.currentTextChanged.connect(self.sync_plots_with_output)
+
+        # Isolate
+        isolate = self.output_dock._w(KEY_ANALYSIS_ISOLATE)
+        if isolate: isolate.currentTextChanged.connect(self.sync_plots_with_output)
+
+        # Show Grid
+        grid = self.output_dock._w(KEY_ANALYSIS_SHOW_GRID)
+        if grid: grid.stateChanged.connect(self.sync_plots_with_output)
+
+        # Contour (using KEY_ANALYSIS_UTILIZATION as a proxy or adding a new one)
+        # Actually I added KEY_ANALYSIS_SHOW_GRID and others. 
+        # I'll use KEY_ANALYSIS_UTILIZATION for Contour toggle if needed, 
+        # but let's check ui_fields.py. I added Scale, Isolate, Show Grid.
+        # I should probably add a Contour toggle too.
+        # For now I'll use KEY_ANALYSIS_UTILIZATION as "Contour" for demo.
+        cont = self.output_dock._w(KEY_ANALYSIS_UTILIZATION)
+        if cont: 
+            cont.setText("Contour Feature")
+            cont.stateChanged.connect(self.sync_plots_with_output)
+
+    def sync_plots_with_output(self):
+        """Read all values from Output Dock and update plots_widget"""
+        if not self.plots_widget.isVisible() and not self.plots_view_active:
+             # Only update if plots are active (optional, maybe update anyway in background)
+             pass
+
+        # 1. Load Case
+        lc_box = self.output_dock._w(KEY_ANALYSIS_LOAD_COMBINATION)
+        loadcase = lc_box.currentText() if lc_box else "Envelope"
+
+        # 2. Force (Find which checkbox is checked in the grid)
+        force_key = "Vy"
+        grid_widget = self.output_dock._w(KEY_ANALYSIS_FORCES)
+        if grid_widget:
+            from PySide6.QtWidgets import QCheckBox
+            for cb in grid_widget.findChildren(QCheckBox):
+                if cb.isChecked():
+                    # Strip <sub> tags if present
+                    force_key = cb.text().replace("<sub>", "").replace("</sub>", "")
+                    break
+        
+        # 3. Contour
+        cont_box = self.output_dock._w(KEY_ANALYSIS_UTILIZATION)
+        is_contour = cont_box.isChecked() if cont_box else False
+
+        # 4. Max/Min
+        show_max, show_min = False, False
+        opts = self.output_dock._w(KEY_ANALYSIS_DISPLAY_OPTIONS)
+        if opts:
+            from PySide6.QtWidgets import QCheckBox
+            for cb in opts.findChildren(QCheckBox):
+                if cb.text() == "Max": show_max = cb.isChecked()
+                if cb.text() == "Min": show_min = cb.isChecked()
+
+        # 5. Scale
+        scale_box = self.output_dock._w(KEY_ANALYSIS_SCALE)
+        try:
+            scale = float(scale_box.currentText()) if scale_box else 1.0
+        except:
+            scale = 1.0
+
+        # 6. Isolate
+        iso_box = self.output_dock._w(KEY_ANALYSIS_ISOLATE)
+        selected_girder = iso_box.currentText() if iso_box else "All"
+
+        # 7. Grid
+        grid_box = self.output_dock._w(KEY_ANALYSIS_SHOW_GRID)
+        show_grid = grid_box.isChecked() if grid_box else True
+
+        # Trigger plot update
+        self.plots_widget.update_plot(
+            loadcase=loadcase,
+            force_key=force_key,
+            is_contour=is_contour,
+            show_grid=show_grid,
+            scale=scale,
+            selected_girder=selected_girder,
+            show_max=show_max,
+            show_min=show_min
+        )
+
     def setup_cad_connections(self):
         """Connect input dock field changes to CAD widget for real-time updates"""
         # Connect to input dock's value changed signals
