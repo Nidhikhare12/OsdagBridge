@@ -24,6 +24,7 @@ ui_config_dict extra keys for analysis fields:
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy,
     QPushButton, QGroupBox, QCheckBox, QScrollArea, QFrame, QComboBox,
+    QSlider,
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
@@ -92,6 +93,7 @@ class OutputDock(QWidget):
         content_layout.setSpacing(10)
 
         content_layout.addLayout(self._build_top_bar())
+        content_layout.addWidget(self._build_plot_controls())
         content_layout.addWidget(self._build_scroll_area())
         content_layout.addLayout(self._build_bottom_buttons())
 
@@ -139,6 +141,74 @@ class OutputDock(QWidget):
         top_bar.addWidget(title_btn)
         top_bar.addStretch()
         return top_bar
+
+    def _build_plot_controls(self) -> QGroupBox:
+        group = QGroupBox("Plot Controls")
+        group.setStyleSheet(GROUPBOX_STYLE)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+
+        self.plot_grid_cb = QCheckBox("Grid")
+        self.plot_grid_cb.setToolTip("Toggle plot grid visibility")
+        self.plot_grid_cb.setChecked(True)
+        self.plot_grid_cb.stateChanged.connect(self._apply_plot_controls)
+        layout.addWidget(self.plot_grid_cb)
+
+        scale_row = QHBoxLayout()
+        self.plot_scale_label = QLabel("Scale: 1.0x")
+        self.plot_scale_label.setStyleSheet(LABEL_STYLE)
+        scale_row.addWidget(self.plot_scale_label)
+
+        self.plot_scale_slider = QSlider(Qt.Horizontal)
+        self.plot_scale_slider.setRange(10, 100)
+        self.plot_scale_slider.setValue(10)
+        self.plot_scale_slider.setToolTip("Scale plotted force or moment values")
+        self.plot_scale_slider.valueChanged.connect(self._on_plot_scale_changed)
+        scale_row.addWidget(self.plot_scale_slider, 1)
+        layout.addLayout(scale_row)
+
+        girder_row = QHBoxLayout()
+        girder_label = QLabel("Girder")
+        girder_label.setStyleSheet(LABEL_STYLE)
+        girder_row.addWidget(girder_label)
+
+        self.plot_girder_combo = NoScrollComboBox()
+        self.plot_girder_combo.addItem("All", None)
+        self.plot_girder_combo.setToolTip("Show all girders or isolate one girder")
+        self.plot_girder_combo.currentIndexChanged.connect(self._apply_plot_controls)
+        apply_field_style(self.plot_girder_combo)
+        girder_row.addWidget(self.plot_girder_combo, 1)
+        layout.addLayout(girder_row)
+
+        return group
+
+    def _on_plot_scale_changed(self, value: int):
+        self.plot_scale_label.setText(f"Scale: {value / 10:.1f}x")
+        self._apply_plot_controls()
+
+    def sync_plot_controls(self):
+        plot_widget = getattr(self.parent, "plots_widget", None)
+        options = []
+        if plot_widget and hasattr(plot_widget, "available_girder_options"):
+            options = plot_widget.available_girder_options()
+
+        self.plot_girder_combo.blockSignals(True)
+        self.plot_girder_combo.clear()
+        for label, value in options or [("All", None)]:
+            self.plot_girder_combo.addItem(label, value)
+        self.plot_girder_combo.blockSignals(False)
+
+    def _apply_plot_controls(self, *_):
+        plot_widget = getattr(self.parent, "plots_widget", None)
+        if not plot_widget or not hasattr(plot_widget, "set_plot_controls"):
+            return
+
+        plot_widget.set_plot_controls(
+            show_grid=self.plot_grid_cb.isChecked(),
+            scale_factor=self.plot_scale_slider.value() / 10,
+            girder_index=self.plot_girder_combo.currentData(),
+        )
 
     # ── Scroll area ───────────────────────────────────────────────────────────
 

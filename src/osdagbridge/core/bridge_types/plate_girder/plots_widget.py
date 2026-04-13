@@ -1,6 +1,7 @@
 import numpy as np
 import plotly.graph_objects as go
 import openseespy.opensees as ops
+from copy import deepcopy
 
 FORCE_MAP = {
     "Fx": ("Vx_i", "Vx_j"),
@@ -10,6 +11,23 @@ FORCE_MAP = {
     "My": ("My_i", "My_j"),
     "Mz": ("Mz_i", "Mz_j"),
 }
+
+
+def _finite_float(value, fallback=0.0):
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return value if np.isfinite(value) else fallback
+
+
+def _finite_array(values, fallback=0.0):
+    return np.nan_to_num(
+        np.asarray(values, dtype=float),
+        nan=fallback,
+        posinf=fallback,
+        neginf=fallback,
+    )
 
 # ============================================================
 # UNIFIED SCENE & CAMERA CONFIGURATION
@@ -61,6 +79,10 @@ def add_grillage_background(fig, nodes_dict, members_dict):
     for ele_tag, (n1, n2) in members_dict.items():
         x1, _, z1 = nodes_dict[n1]
         x2, _, z2 = nodes_dict[n2]
+        x1 = _finite_float(x1)
+        x2 = _finite_float(x2)
+        z1 = _finite_float(z1)
+        z2 = _finite_float(z2)
         x_grill.extend([x1, x2, None])
         y_grill.extend([0, 0, None])
         z_grill.extend([z1, z2, None])
@@ -72,9 +94,9 @@ def add_grillage_background(fig, nodes_dict, members_dict):
     ))
 
 def add_coordinate_triad(fig, nodes, scale=0.10):
-    xs = [coord[0] for coord in nodes.values()]
-    ys = [coord[1] for coord in nodes.values()]
-    zs = [coord[2] for coord in nodes.values()]
+    xs = _finite_array([coord[0] for coord in nodes.values()])
+    ys = _finite_array([coord[1] for coord in nodes.values()])
+    zs = _finite_array([coord[2] for coord in nodes.values()])
 
     span_x = max(xs) - min(xs)
     span_z = max(zs) - min(zs)
@@ -108,10 +130,105 @@ def add_coordinate_triad(fig, nodes, scale=0.10):
         hoverinfo='skip', showlegend=False
     ))
 
+
+def _group_girders(nodes, members):
+    Z_TOL = 3
+    from collections import defaultdict
+    girders = defaultdict(list)
+
+    for ele, conn in members.items():
+        try:
+            n1, n2 = map(int, conn[:2])
+            z1 = round(_finite_float(nodes[n1][2]), Z_TOL)
+            z2 = round(_finite_float(nodes[n2][2]), Z_TOL)
+        except (KeyError, TypeError, ValueError, IndexError):
+            continue
+        if z1 == z2:
+            girders[z1].append(int(ele))
+
+    if girders:
+        return sorted(girders.items(), key=lambda item: item[0])
+
+    node_z = {}
+    for n in ops.getNodeTags():
+        z = _finite_float(ops.nodeCoord(n)[2])
+        node_z[int(n)] = round(z, Z_TOL)
+
+    for ele in ops.getEleTags():
+        n1, n2 = map(int, ops.eleNodes(ele))
+        z1, z2 = node_z[n1], node_z[n2]
+        if z1 == z2:
+            girders[z1].append(int(ele))
+
+    return sorted(girders.items(), key=lambda item: item[0])
+
+
+def _selected_girders(sorted_girders, girder_index=None):
+    if girder_index is None:
+        return sorted_girders
+
+    try:
+        index = int(girder_index)
+    except (TypeError, ValueError):
+        return sorted_girders
+
+    if index < 0 or index >= len(sorted_girders):
+        return sorted_girders
+
+    return [sorted_girders[index]]
+
+
+def _scene_layout(show_grid=True):
+    scene = deepcopy(SHARED_SCENE)
+    scene["xaxis"]["showgrid"] = show_grid
+    scene["zaxis"]["showgrid"] = show_grid
+    return scene
+
+
+def _apply_3d_layout(fig, show_grid=True, margin_top=40):
+    fig.update_layout(
+        uirevision="constant_view",
+        hoverlabel=dict(bgcolor="#E6F2FF", font_size=12, font_color="#2C3E50", bordercolor="#BBD6EE", namelength=-1),
+        scene=_scene_layout(show_grid),
+        margin=dict(l=0, r=0, t=margin_top, b=0),
+        paper_bgcolor="white", plot_bgcolor="white"
+    )
+
+
+def _apply_contour_layout(fig, show_grid=True):
+    fig.update_layout(
+        uirevision="constant_view",
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        margin=dict(l=0, r=0, t=40, b=0),
+        xaxis=dict(showgrid=show_grid, zeroline=False, showline=True, linecolor="black"),
+        yaxis=dict(showgrid=show_grid, zeroline=False, showline=True, linecolor="black"),
+    )
+
+
+def _build_polyline_for_girder(elem_list, nodes, members, comp_i, comp_j, force_getter):
+    xs, ys, zs, vals, node_ids = [], [], [], [], []
+    for e in elem_list:
+        n1, n2 = members[e]
+        x1, y1, z1 = (_finite_float(value) for value in nodes[n1])
+        xs.append(x1); ys.append(y1); zs.append(z1)
+        vals.append(round(_finite_float(force_getter(e, comp_i)), 3))
+        node_ids.append(n1)
+
+    last_e = elem_list[-1]
+    n1, n2 = members[last_e]
+    x2, y2, z2 = (_finite_float(value) for value in nodes[n2])
+    xs.append(x2); ys.append(y2); zs.append(z2)
+    vals.append(round(_finite_float(force_getter(last_e, comp_j)), 3))
+    node_ids.append(n2)
+    return _finite_array(xs), _finite_array(ys), _finite_array(zs), _finite_array(vals), node_ids
+
 # ============================================================
 # SFD
 # ============================================================
-def build_figure_sfd(ds, force_key, nodes, members):
+def build_figure_sfd(ds, force_key, nodes, members, show_grid=True, scale_factor=1.0, girder_index=None):
+    scale_factor = _finite_float(scale_factor, 1.0)
+
     def find_component(name):
         for c in ds["Component"].values:
             if c.lower() == name.lower():
@@ -125,37 +242,9 @@ def build_figure_sfd(ds, force_key, nodes, members):
     def get_force(elem, comp):
         return float(ds["forces"].sel(Element=elem, Component=comp).values)
 
-    Z_TOL = 3
-    node_z = {}
-    for n in ops.getNodeTags():
-        z = float(ops.nodeCoord(n)[2])
-        node_z[int(n)] = round(z, Z_TOL)
-
-    from collections import defaultdict
-    girders = defaultdict(list)
-
-    for ele in ops.getEleTags():
-        n1, n2 = map(int, ops.eleNodes(ele))
-        z1, z2 = node_z[n1], node_z[n2]
-        if z1 == z2:
-            girders[z1].append(int(ele))
-
-    def build_polyline(elem_list, comp_i, comp_j):
-        xs, ys, zs, vals, node_ids = [], [], [], [], []
-        for e in elem_list:
-            n1, n2 = members[e]
-            x1, y1, z1 = nodes[n1]
-            xs.append(x1); ys.append(y1); zs.append(z1)
-            vals.append(round(get_force(e, comp_i), 3))
-            node_ids.append(n1)
-
-        last_e = elem_list[-1]
-        n1, n2 = members[last_e]
-        x2, y2, z2 = nodes[n2]
-        xs.append(x2); ys.append(y2); zs.append(z2)
-        vals.append(round(get_force(last_e, comp_j), 3))
-        node_ids.append(n2)
-        return np.array(xs), np.array(ys), np.array(zs), np.array(vals), node_ids
+    girders = _selected_girders(_group_girders(nodes, members), girder_index)
+    if not girders:
+        return go.Figure().to_json()
 
     fig_sfd = go.Figure()
     add_grillage_background(fig_sfd, nodes, members)
@@ -167,10 +256,11 @@ def build_figure_sfd(ds, force_key, nodes, members):
     master_cliff_x, master_cliff_y, master_cliff_z = [], [], []
     master_label_x, master_label_y, master_label_z, master_label_text = [], [], [], []
 
-    sorted_girders = sorted(girders.items(), key=lambda item: item[0])
-    for i, (z_val, elems) in enumerate(sorted_girders):
+    for i, (z_val, elems) in enumerate(girders):
         girder_name = f"G{i+1}"
-        xs, ys, zs, vy, node_ids = build_polyline(elems, comp_i, comp_j)
+        xs, ys, zs, vy, node_ids = _build_polyline_for_girder(
+            elems, nodes, members, comp_i, comp_j, get_force
+        )
         Vy = vy.astype(float)
         z_base = np.mean(zs)
 
@@ -181,13 +271,14 @@ def build_figure_sfd(ds, force_key, nodes, members):
 
         x_step = np.repeat(xs, 2)[1:-1]
         Vy_step = np.repeat(Vy[:-1], 2)
-        y_step = Vy_step * shear_scale
+        y_step = Vy_step * shear_scale * scale_factor
         z_step = [z_base] * len(y_step)
 
         fig_sfd.add_trace(go.Surface(
             x=[x_step, x_step], y=[np.zeros(len(y_step)), y_step], z=[z_step, z_step],
             surfacecolor=[[1]*len(y_step), [1]*len(y_step)], colorscale=[[0, 'blue'], [1, 'blue']],
-            opacity=0.2, showscale=False, hoverinfo="skip"
+            opacity=0.2, showscale=False, hoverinfo="skip", name=girder_name,
+            legendgroup=girder_name, showlegend=True
         ))
 
         master_base_x.extend(list(xs) + [None])
@@ -205,7 +296,7 @@ def build_figure_sfd(ds, force_key, nodes, members):
         for xi, vyi in zip(xs, Vy):
             master_cliff_x.extend([xi, xi, None])
             master_cliff_z.extend([z_base, z_base, None])
-            master_cliff_y.extend([0, -vyi * shear_scale if xi == xs[-1] else vyi * shear_scale, None])
+            master_cliff_y.extend([0, (-vyi if xi == xs[-1] else vyi) * shear_scale * scale_factor, None])
 
         master_label_x.append(xs[0])
         master_label_y.append(0)
@@ -230,20 +321,16 @@ def build_figure_sfd(ds, force_key, nodes, members):
         showlegend=False, hoverinfo="skip"
     ))
 
-    fig_sfd.update_layout(
-        uirevision="constant_view",
-        hoverlabel=dict(bgcolor="#E6F2FF", font_size=12, font_color="#2C3E50", bordercolor="#BBD6EE", namelength=-1),
-        scene=SHARED_SCENE,
-        margin=dict(l=0, r=0, t=40, b=0),
-        paper_bgcolor="white", plot_bgcolor="white"
-    )
+    _apply_3d_layout(fig_sfd, show_grid=show_grid)
     return fig_sfd.to_json()
 
 
 # ============================================================
 # BMD
 # ============================================================
-def build_figure_bmd(ds, force_key, nodes, members):
+def build_figure_bmd(ds, force_key, nodes, members, show_grid=True, scale_factor=1.0, girder_index=None):
+    scale_factor = _finite_float(scale_factor, 1.0)
+
     def find_component(name):
         for c in ds["Component"].values:
             if c.lower() == name.lower():
@@ -257,37 +344,9 @@ def build_figure_bmd(ds, force_key, nodes, members):
     def get_force(elem, comp):
         return float(ds["forces"].sel(Element=elem, Component=comp).values)
 
-    Z_TOL = 3
-    node_z = {}
-    for n in ops.getNodeTags():
-        z = float(ops.nodeCoord(n)[2])
-        node_z[int(n)] = round(z, Z_TOL)
-
-    from collections import defaultdict
-    girders = defaultdict(list)
-
-    for ele in ops.getEleTags():
-        n1, n2 = map(int, ops.eleNodes(ele))
-        z1, z2 = node_z[n1], node_z[n2]
-        if z1 == z2:
-            girders[z1].append(int(ele))
-
-    def build_polyline(elem_list, comp_i, comp_j):
-        xs, ys, zs, vals, node_ids = [], [], [], [], []
-        for e in elem_list:
-            n1, n2 = members[e]
-            x1, y1, z1 = nodes[n1]
-            xs.append(x1); ys.append(y1); zs.append(z1)
-            vals.append(round(get_force(e, comp_i), 3))
-            node_ids.append(n1)
-
-        last_e = elem_list[-1]
-        n1, n2 = members[last_e]
-        x2, y2, z2 = nodes[n2]
-        xs.append(x2); ys.append(y2); zs.append(z2)
-        vals.append(round(get_force(last_e, comp_j), 3))
-        node_ids.append(n2)
-        return np.array(xs), np.array(ys), np.array(zs), np.array(vals), node_ids
+    girders = _selected_girders(_group_girders(nodes, members), girder_index)
+    if not girders:
+        return go.Figure().to_json(), {}
 
     fig_bmd = go.Figure()
     add_grillage_background(fig_bmd, nodes, members)
@@ -301,22 +360,24 @@ def build_figure_bmd(ds, force_key, nodes, members):
 
     summary_data = {}
 
-    sorted_girders = sorted(girders.items(), key=lambda item: item[0])
-    for i, (gid, elems) in enumerate(sorted_girders):
+    for i, (gid, elems) in enumerate(girders):
         girder_name = f"G{i+1}"
-        xs, ys, zs, mz, node_ids = build_polyline(elems, comp_i, comp_j)
+        xs, ys, zs, mz, node_ids = _build_polyline_for_girder(
+            elems, nodes, members, comp_i, comp_j, get_force
+        )
 
         if max(mz) - min(mz) == 0:
             factormz = 1.0 if max(mz) == 0 else 0.1 * abs((max(xs) - min(xs)) / max(mz))
         else:
             factormz = 0.1 * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
 
-        y_plot = mz * factormz
+        y_plot = mz * factormz * scale_factor
 
         fig_bmd.add_trace(go.Surface(
             x=[xs, xs], y=[np.zeros(len(xs)), y_plot], z=[zs, zs],
             surfacecolor=[[1]*len(xs), [1]*len(xs)], colorscale=[[0, 'red'], [1, 'red']],
-            opacity=0.2, showscale=False, hoverinfo="skip"
+            opacity=0.2, showscale=False, hoverinfo="skip", name=girder_name,
+            legendgroup=girder_name, showlegend=True
         ))
 
         master_line_x.extend(list(xs) + [None])
@@ -337,12 +398,12 @@ def build_figure_bmd(ds, force_key, nodes, members):
 
         idx_max, max_val = np.argmax(mz), max(mz)
         master_max_x.extend([xs[idx_max], xs[idx_max], None])
-        master_max_y.extend([0, max_val * factormz, None])
+        master_max_y.extend([0, max_val * factormz * scale_factor, None])
         master_max_z.extend([zs[0], zs[0], None])
 
         idx_min, min_val = np.argmin(mz), min(mz)
         master_min_x.extend([xs[idx_min], xs[idx_min], None])
-        master_min_y.extend([0, min_val * factormz, None])
+        master_min_y.extend([0, min_val * factormz * scale_factor, None])
         master_min_z.extend([zs[0], zs[0], None])
 
         summary_data[girder_name] = {"max": max_val, "min": min_val}
@@ -409,16 +470,239 @@ def build_figure_bmd(ds, force_key, nodes, members):
                 ]
             )
         ],
-        scene=SHARED_SCENE,
+        scene=_scene_layout(show_grid),
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0)
     )
     return fig_bmd.to_json(), summary_data
 
 
 # ============================================================
+# FORCE CONTOUR (Fy / Fx / Fz)
+# ============================================================
+def build_figure_force_contour(ds, force_key, nodes, members, show_grid=True, scale_factor=1.0, girder_index=None):
+    scale_factor = _finite_float(scale_factor, 1.0)
+
+    def empty_contour(message):
+        fig = go.Figure()
+        fig.update_layout(
+            annotations=[dict(text=message, x=0.5, y=0.5, xref="paper", yref="paper", showarrow=False)],
+            paper_bgcolor="white",
+            plot_bgcolor="white",
+        )
+        fig.update_xaxes(title_text="Span Length")
+        fig.update_yaxes(title_text="Girder")
+        _apply_contour_layout(fig, show_grid=show_grid)
+        return fig.to_json()
+
+    def find_component(name):
+        for c in ds["Component"].values:
+            if c.lower() == name.lower():
+                return c
+        return None
+
+    comp_i_name, comp_j_name = FORCE_MAP[force_key]
+    comp_i = find_component(comp_i_name)
+    comp_j = find_component(comp_j_name)
+    if comp_i is None or comp_j is None:
+        return empty_contour(f"No {force_key} contour component data")
+
+    def get_force_pair(elem):
+        values = []
+        for comp in (comp_i, comp_j):
+            try:
+                value = float(ds["forces"].sel(Element=elem, Component=comp).values)
+            except (KeyError, TypeError, ValueError):
+                value = np.nan
+            values.append(value if np.isfinite(value) else np.nan)
+        return values
+
+    all_girders = _group_girders(nodes, members)
+    girder_names = {
+        z_val: f"G{index + 1}"
+        for index, (z_val, _) in enumerate(all_girders)
+    }
+    girders = _selected_girders(all_girders, girder_index)
+    if not girders:
+        return empty_contour("No girder contour data")
+
+    rows = []
+    common_x = None
+
+    for z_val, elems in girders:
+        girder_name = girder_names.get(z_val, f"G{len(rows) + 1}")
+        points = []
+        for elem in elems:
+            try:
+                n1, _ = members[elem]
+            except (KeyError, TypeError, ValueError, IndexError):
+                continue
+            value_i, _ = get_force_pair(elem)
+            points.append((float(nodes[n1][0]), value_i))
+
+        if elems:
+            try:
+                last_elem = elems[-1]
+                _, n2 = members[last_elem]
+                _, value_j = get_force_pair(last_elem)
+                points.append((float(nodes[n2][0]), value_j))
+            except (KeyError, TypeError, ValueError, IndexError):
+                pass
+
+        if not points:
+            continue
+
+        xs = np.asarray([point[0] for point in points], dtype=float)
+        values = np.asarray([point[1] for point in points], dtype=float)
+        finite_x = np.isfinite(xs)
+        if finite_x.sum() < 2:
+            continue
+        xs = xs[finite_x]
+        values = values[finite_x]
+        order = np.argsort(xs)
+        xs = xs[order]
+        values = values[order]
+        xs, unique_indices = np.unique(xs, return_index=True)
+        values = values[unique_indices]
+        common_x = xs if common_x is None else np.union1d(common_x, xs)
+        rows.append((girder_name, xs, values.astype(float)))
+
+    if common_x is None or len(common_x) < 2 or not rows:
+        return empty_contour("No finite contour data")
+
+    contour_rows = []
+    row_labels = []
+    for girder_name, xs, values in rows:
+        finite_value = np.isfinite(values)
+        if finite_value.sum() == 0:
+            continue
+        if finite_value.sum() == 1:
+            interpolated = np.full(common_x.shape, values[finite_value][0], dtype=float)
+        else:
+            interpolated = np.interp(
+                common_x,
+                xs[finite_value],
+                values[finite_value],
+            )
+        contour_rows.append(interpolated * scale_factor)
+        row_labels.append(girder_name)
+
+    if not contour_rows:
+        return empty_contour("No finite contour data")
+
+    z_matrix = np.asarray(contour_rows, dtype=float)
+    finite_values = z_matrix[np.isfinite(z_matrix)]
+    if finite_values.size == 0:
+        return empty_contour("No finite contour data")
+
+    for row_index in range(z_matrix.shape[0]):
+        row = z_matrix[row_index]
+        valid = np.isfinite(row)
+        if valid.all():
+            continue
+        if valid.any():
+            z_matrix[row_index] = np.interp(
+                np.arange(len(row)),
+                np.where(valid)[0],
+                row[valid],
+            )
+        else:
+            z_matrix[row_index] = np.full(len(row), float(np.mean(finite_values)))
+
+    if z_matrix.shape[0] == 1:
+        z_matrix = np.vstack([z_matrix, z_matrix])
+        y_vals = np.array([0, 1])
+        y_labels = [row_labels[0], row_labels[0]]
+    else:
+        y_vals = np.arange(z_matrix.shape[0])
+        y_labels = row_labels
+
+    finite_x = np.isfinite(common_x)
+    if finite_x.sum() < 2:
+        return empty_contour("No finite contour span data")
+    if not finite_x.all():
+        common_x = common_x[finite_x]
+        z_matrix = z_matrix[:, finite_x]
+
+    if not np.isfinite(y_vals).all():
+        return empty_contour("No finite contour girder data")
+
+    finite_values = z_matrix[np.isfinite(z_matrix)]
+    if finite_values.size == 0:
+        return empty_contour("No finite contour data")
+    replacement = float(np.mean(finite_values))
+    z_matrix = np.nan_to_num(
+        z_matrix,
+        nan=replacement,
+        posinf=replacement,
+        neginf=replacement,
+    )
+    if z_matrix.shape != (len(y_vals), len(common_x)):
+        return empty_contour("Invalid contour grid shape")
+
+    finite_values = z_matrix[np.isfinite(z_matrix)]
+    z_min = float(np.min(finite_values))
+    z_max = float(np.max(finite_values))
+    fig = go.Figure()
+    if z_min == z_max:
+        fig.update_layout(
+            annotations=[
+                dict(
+                    text=f"No {force_key} contour variation",
+                    x=0.5,
+                    y=0.95,
+                    xref="paper",
+                    yref="paper",
+                    showarrow=False,
+                )
+            ]
+        )
+        z_min -= 1.0
+        z_max += 1.0
+
+    z_matrix = np.clip(z_matrix, z_min, z_max)
+    fig.add_trace(go.Contour(
+        x=common_x.tolist(),
+        y=y_vals.tolist(),
+        z=z_matrix.tolist(),
+        colorscale="Viridis",
+        zmin=z_min,
+        zmax=z_max,
+        contours=dict(coloring="heatmap", showlabels=True),
+        line_smoothing=0.85,
+        connectgaps=True,
+        colorbar=dict(title=force_key),
+        hovertemplate=f"X=%{{x:.2f}}<br>Girder=%{{y}}<br>{force_key}=%{{z:.2f}}<extra></extra>",
+        showlegend=False,
+    ))
+
+    fig.update_xaxes(title_text="Span Length")
+    fig.update_yaxes(
+        title_text="Girder",
+        tickmode="array",
+        tickvals=y_vals.tolist(),
+        ticktext=y_labels,
+    )
+    _apply_contour_layout(fig, show_grid=show_grid)
+    return fig.to_json()
+
+
+# ============================================================
 # BMD CONTOUR
 # ============================================================
-def build_figure_bmd_contour(ds, force_key, nodes, members):
+def build_figure_bmd_contour(ds, force_key, nodes, members, show_grid=True, scale_factor=1.0, girder_index=None):
+    scale_factor = _finite_float(scale_factor, 1.0)
+
+    if force_key.startswith("F"):
+        return build_figure_force_contour(
+            ds,
+            force_key,
+            nodes,
+            members,
+            show_grid=show_grid,
+            scale_factor=scale_factor,
+            girder_index=girder_index,
+        )
+
     def find_component(name):
         for c in ds["Component"].values:
             if c.lower() == name.lower():
@@ -432,41 +716,13 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
     def get_force(elem, comp):
         return float(ds["forces"].sel(Element=elem, Component=comp).values)
 
-    Z_TOL = 3
-    node_z = {}
-    for n in ops.getNodeTags():
-        z = float(ops.nodeCoord(n)[2])
-        node_z[int(n)] = round(z, Z_TOL)
-
-    from collections import defaultdict
-    girders = defaultdict(list)
-
-    for ele in ops.getEleTags():
-        n1, n2 = map(int, ops.eleNodes(ele))
-        z1, z2 = node_z[n1], node_z[n2]
-        if z1 == z2:
-            girders[z1].append(int(ele))
-
-    def build_polyline(elem_list, comp_i, comp_j):
-        xs, ys, zs, mz, node_ids = [], [], [], [], []
-        for e in elem_list:
-            n1, n2 = members[e]
-            x1, y1, z1 = nodes[n1]
-            xs.append(x1); ys.append(y1); zs.append(z1)
-            mz.append(round(get_force(e, comp_i), 3))
-            node_ids.append(n1)
-
-        last_e = elem_list[-1]
-        n1, n2 = members[last_e]
-        x2, y2, z2 = nodes[n2]
-        xs.append(x2); ys.append(y2); zs.append(z2)
-        mz.append(round(get_force(last_e, comp_j), 3))
-        node_ids.append(n2)
-        return np.array(xs), np.array(ys), np.array(zs), np.array(mz), node_ids
+    girders = _selected_girders(_group_girders(nodes, members), girder_index)
+    if not girders:
+        return go.Figure().to_json()
 
     xfull, mzfull = [], []
-    for elems in girders.values():
-        xs, ys, zs, mz, _ = build_polyline(elems, comp_i, comp_j)
+    for _, elems in girders:
+        xs, ys, zs, mz, _ = _build_polyline_for_girder(elems, nodes, members, comp_i, comp_j, get_force)
         xfull.extend(xs)
         mzfull.extend(mz)
 
@@ -477,22 +733,22 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
     master_drop_x, master_drop_y, master_drop_z, master_drop_color, master_drop_text = [], [], [], [], []
     master_base_x, master_base_y, master_base_z = [], [], []
 
-    sorted_girders = sorted(girders.items(), key=lambda item: item[0])
-    for i, (gid, elems) in enumerate(sorted_girders):
+    for i, (gid, elems) in enumerate(girders):
         girder_name = f"G{i+1}"
-        xs, ys, zs, mz, node_ids = build_polyline(elems, comp_i, comp_j)
+        xs, ys, zs, mz, node_ids = _build_polyline_for_girder(elems, nodes, members, comp_i, comp_j, get_force)
 
         if max(mz) - min(mz) == 0:
             moment_scale = 1.0 if max(mz) == 0 else 0.1 * abs((max(xs) - min(xs)) / max(mz))
         else:
             moment_scale = 0.1 * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
 
-        y_plot = mz * moment_scale
+        y_plot = mz * moment_scale * scale_factor
 
         fig.add_trace(go.Surface(
             x=[xs, xs], y=[np.zeros(len(xs)), y_plot], z=[zs, zs],
             surfacecolor=[mz, mz], colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull),
-            opacity=0.4, showscale=False, hoverinfo="skip"
+            opacity=0.4, showscale=False, hoverinfo="skip", name=girder_name,
+            legendgroup=girder_name, showlegend=True
         ))
 
         fig.add_trace(go.Scatter3d(
@@ -515,7 +771,7 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
 
         for xi, zi, mzi, nid in zip(xs, zs, mz, node_ids):
             master_drop_x.extend([xi, xi, None])
-            master_drop_y.extend([0, mzi * moment_scale, None])
+            master_drop_y.extend([0, mzi * moment_scale * scale_factor, None])
             master_drop_z.extend([zi, zi, None])
             master_drop_color.extend([mzi, mzi, mzi])
             htext = f"Node {nid}<br>X={xi:.2f}<br>{force_key}={mzi:.2f}"
@@ -534,7 +790,7 @@ def build_figure_bmd_contour(ds, force_key, nodes, members):
     fig.update_layout(
         uirevision="constant_view",
         hoverlabel=dict(bgcolor="rgba(15, 23, 42, 0.95)", font_size=12, font_color="#F8F9FA", bordercolor="#0EA5E9", namelength=-1),
-        scene=SHARED_SCENE,
+        scene=_scene_layout(show_grid),
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0)
     )
 
