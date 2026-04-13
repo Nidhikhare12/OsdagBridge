@@ -9,25 +9,22 @@ _GM0 = 1.10  # IS 800 Cl. 5.4.1
 
 
 def _get(d):
-    # Map UI geometry to structural parameters for DCR demo
     mod = float(d.get("_dynamic_modifier", 1.0))
-    
-   
     span_m = float(d.get("Span", d.get("bridge_span", 20.0)))
     span = span_m * 1000.0
 
+    hw = float(d.get("hw", 1200))
+    tw = float(d.get("tw", 12))
+
     Ze = float(d.get("Ze", 1200))
-    if "Girder Depth" in d:
-        Ze = Ze * (hw / 1200.0) ** 2
-    
     Zp = float(d.get("Zp", Ze * 1.15))
 
-    Mu = float(d.get("Mu", 850)) * (span_m / 20.0)**2 * mod
+    Mu = float(d.get("Mu", 850)) * (span_m / 20.0) ** 2 * mod
     Vu = float(d.get("Vu", 350)) * (span_m / 20.0) * mod
-    
-    fy  = float(d.get("fy", 250))
+
+    fy = float(d.get("fy", 250))
     fyw = float(d.get("fyw", 250))
-    
+
     return (Mu, Vu, fy, fyw, Ze, Zp, hw, tw, span)
 
 
@@ -149,12 +146,16 @@ def check_fatigue(bd):
 
 def check_stress_limitation(bd):
     Mu, _, fy, _, Ze, _, _, _, _ = _get(bd)
-    ft = (Mu / 1.5) * 1e6 / (Ze * 1000)
-    limit = 0.55 * fy
+
+    ft = Mu * 1e6 / (Ze * 1000)
+
+    limit = fy / _GM0
+
     r, ok = _check(ft, limit)
+
     return {
         "name": "Stress Limitation (Service)",
-        "equation": "ft = Ms·10⁶/(Ze·10³)  |  ft ≤ 0.55·fy  (IS 800 Cl. 7.1)",
+        "equation": "σ = Md·10⁶/(Ze·10³)  |  σ ≤ fy/γm0",
         "demand": round(ft, 3),
         "capacity": round(limit, 3),
         "ratio": round(r, 4),
@@ -183,15 +184,14 @@ def run_all_checks(bd):
     for check_func in ALL_CHECKS:
         try:
             results.append(check_func(bd))
-        except Exception as e:
-            # Maintain list length and provide error feedback
+        except Exception:
             results.append({
                 "name": "Check Error",
                 "passed": False,
                 "demand": 0.0,
                 "capacity": 0.0,
                 "ratio": 0.0,
-                "equation": f"Error: {str(e)}"
+                "equation": "Calculation unavailable"
             })
     return results
 

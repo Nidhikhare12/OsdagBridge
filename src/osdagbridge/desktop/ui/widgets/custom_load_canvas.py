@@ -208,7 +208,7 @@ class CustomLoadCanvas(QGraphicsView):
 
                     lbl = QGraphicsSimpleTextItem(label)
                     lbl.setFont(QFont("Arial", 14, QFont.Bold))
-                    lbl.setBrush(QBrush(QColor("#ffffff")))
+                    lbl.setBrush(QBrush(QColor("#1a1a1a")))
                     lbl.setZValue(1)
                     lbl_h = lbl.boundingRect().height()
                     lbl.setPos(gx + g_w / 2 - lbl.boundingRect().width() / 2,
@@ -307,7 +307,7 @@ class CustomLoadCanvas(QGraphicsView):
                 w_rect = max(dist, 2.0)
                 area = QGraphicsRectItem(px1, y_start, w_rect, y_end - y_start)
                 col = QColor(load_color)
-                col.setAlpha(35)
+                col.setAlpha(80)
                 area.setBrush(QBrush(col))
                 if dist < 40:
                     area.setPen(QPen(Qt.NoPen))
