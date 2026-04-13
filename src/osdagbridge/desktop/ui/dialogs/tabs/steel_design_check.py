@@ -65,6 +65,7 @@ class SteelDesignCheckTab(QWidget):
         self.summary_passed_label = None
         self.summary_failed_label = None
         self.summary_badge = None
+        self.design_results = []
 
         super().__init__(parent)
 
@@ -231,6 +232,7 @@ class SteelDesignCheckTab(QWidget):
         card_layout.addSpacing(4)
 
         eq_label = QLabel()
+        eq_label.setTextFormat(Qt.RichText)
         eq_label.setStyleSheet("""
             font-family: 'Cambria Math', 'Times New Roman', serif;
             font-size: 13px;
@@ -247,6 +249,7 @@ class SteelDesignCheckTab(QWidget):
         card_layout.addSpacing(6)
 
         val_label = QLabel()
+        val_label.setTextFormat(Qt.RichText)
         val_label.setStyleSheet("font-size: 13px; color: #222; background: transparent; border: none;")
         val_label.setWordWrap(True)
         card_layout.addWidget(val_label)
@@ -315,19 +318,10 @@ class SteelDesignCheckTab(QWidget):
         
     def update_results(self, bridge_data: dict):
         self.design_results = run_all_checks(bridge_data)
+        self.bridge_data = bridge_data 
 
-        result_mapping = {}
-        if len(self.design_results) >= 8:
-            result_mapping = {
-                "flexure": self.design_results[0],
-                "shear": self.design_results[1],
-                "interaction": self.design_results[2],
-                "ltb": self.design_results[3],
-                "shear_long_trans": self.design_results[4],
-                "fatigue": self.design_results[5],
-                "stress": self.design_results[6],
-                "deflection": self.design_results[7],
-            }
+        keys = ["flexure", "shear", "interaction", "ltb", "shear_long_trans", "fatigue", "stress", "deflection"]
+        result_mapping = {k: self.design_results[i] for i, k in enumerate(keys) if i < len(self.design_results)}
 
         render_map = {
             "flexure": {
@@ -339,7 +333,7 @@ class SteelDesignCheckTab(QWidget):
                 "dem_pfx": "<i>V<sub>d</sub></i>", "cap_pfx": "<i>V<sub>r</sub></i>", "unit": "kN"
             },
             "interaction": {
-                "eq": "<i>M<sub>d</sub></i> / <i>M<sub>r</sub></i> + <i>V<sub>d</sub></i> / <i>V<sub>r</sub></i> &le; 1.0",
+                "eq": "<i>M<sub>d</sub></i> / (<i>&beta;<sub>b</sub></i> &middot; <i>Z<sub>p</sub></i> &middot; <i>f<sub>y</sub></i> / <i>&gamma;<sub>m</sub></i>) + <i>V<sub>d</sub></i> / (<i>A<sub>v</sub></i> &middot; <i>f<sub>y</sub></i> / (&radic;3 &middot; <i>&gamma;<sub>m</sub></i>)) &le; 1.0",
                 "unit": ""
             },
             "ltb": {

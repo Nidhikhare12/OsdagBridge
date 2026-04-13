@@ -724,7 +724,7 @@ class CustomLoadTab(QWidget):
         self.btn_zoom_out.clicked.connect(self.canvas.zoom_out)
         self.btn_zoom_reset.clicked.connect(self.canvas.reset_view)
 
-        if hasattr(self, 'canvas_3d'):
+        if self.canvas_3d is not None:
             self.btn_3d_zoom_in.clicked.connect(lambda: self.canvas_3d.zoom(0.8))
             self.btn_3d_zoom_out.clicked.connect(lambda: self.canvas_3d.zoom(1.2))
             self.btn_3d_iso.clicked.connect(self.canvas_3d.reset_camera)
@@ -811,8 +811,9 @@ class CustomLoadTab(QWidget):
             pass
             
         self.canvas.set_load_data(load_data, bridge_width, span_length)
-        # Also push to 3D canvas so it stays in sync
-        self.canvas_3d.set_load_data(load_data, bridge_width, span_length)
+        # Also push to 3D canvas if it exists
+        if self.canvas_3d is not None:
+            self.canvas_3d.set_load_data(load_data, bridge_width, span_length)
 
     def _on_view_toggled(self, btn):
         btn_id = self.view_btn_group.id(btn)

@@ -262,7 +262,11 @@ class OutputDock(QWidget):
         dlg.exec()
 
     def _update_design_checks(self):
-        if not hasattr(self, "design_dialog") or not self.design_dialog:
+        if not hasattr(self, "design_dialog") or self.design_dialog is None:
+            return
+        
+        if not self.design_dialog.isVisible():
+            self.design_dialog = None
             return
 
         bridge_data = self._build_bridge_data()
