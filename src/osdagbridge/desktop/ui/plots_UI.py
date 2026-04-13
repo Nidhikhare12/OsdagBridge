@@ -15,9 +15,9 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
 )
 
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QComboBox, QCheckBox, QTableWidget, QTableWidgetItem, 
-    QHeaderView, QPushButton, QDialog
+    QApplication, QWidget, QVBoxLayout,
+    QTableWidget, QTableWidgetItem, 
+    QHeaderView, QDialog
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
@@ -35,7 +35,7 @@ from osdagbridge.core.bridge_types.plate_girder.plots_widget import (
 # =========================================================
 # THE RAM-ONLY FRONTEND
 # =========================================================
-HTML_TEMPLATE = """
+HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -52,16 +52,11 @@ HTML_TEMPLATE = """
     <script>
         var pyBackend = null;
 
-        // Initialize QWebChannel
         new QWebChannel(qt.webChannelTransport, function(channel) {
             pyBackend = channel.objects.backend;
-
-            // Listen for data from Python
             pyBackend.newPlotData.connect(function(jsonString) {
                 renderPlot(jsonString);
             });
-
-            // Tell Python the page is ready
             pyBackend.pageReady();
         });
 
@@ -72,31 +67,14 @@ HTML_TEMPLATE = """
             Plotly.react('plot_div', figure.data, figure.layout, config).then(function() {
                 var targetDiv = document.getElementById('plot_div');
                 Plotly.Plots.resize(targetDiv);
-
-                if (!targetDiv.hasRelayoutListener) {
-                    targetDiv.on('plotly_relayout', function(eventdata) {
-                        var eventString = JSON.stringify(eventdata);
-                        if (eventString && eventString.includes('SHOW_SUMMARY')) {
-                            // Call Python natively! No console hacks.
-                            pyBackend.requestSummaryDialog();
-                            setTimeout(function() {
-                                Plotly.relayout('plot_div', {meta: "CLEAR"});
-                            }, 100);
-                        }
-                    });
-                    targetDiv.hasRelayoutListener = true;
-                }
             });
         }
     </script>
 </body>
 </html>
-"""
+'''
 
 class BridgeBackend(QObject):
-    """The QWebChannel translator between Python and JavaScript."""
-    
-    # Signal: Python uses this to push JSON data to JavaScript
     newPlotData = Signal(str)
 
     def __init__(self, main_app):
@@ -105,17 +83,14 @@ class BridgeBackend(QObject):
 
     @Slot()
     def pageReady(self):
-        """JavaScript calls this when the page is fully loaded."""
-        self.main_app.update_plot()
+        # We start with nothing until the output dock sends signals.
+        pass
 
     @Slot()
     def requestSummaryDialog(self):
-        """JavaScript calls this when the 'SUMMARY' button is clicked."""
         self.main_app.show_summary_dialog()
 
-
 class SummaryDialog(QDialog):
-    """A floating tool palette that hovers over the main UI without disturbing it."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Extreme Values")
@@ -152,40 +127,15 @@ class PlotWidget(QWidget):
         super().__init__()
         self.setWindowTitle("Plate Girder Results")
 
-        # Populated by setup() after bridge analysis completes
         self._ds_all = None
         self._nodes = {}
         self._members = {}
 
         layout = QVBoxLayout(self)
-        top = QHBoxLayout()
 
-        # ---------- LOADCASE ----------
-        top.addWidget(QLabel("Load case:"))
-        self.combo = QComboBox()
-        self.combo.currentTextChanged.connect(self.update_plot)
-        top.addWidget(self.combo)
+        # Removed Top Layout logic with Load Case, Force, and Contour Checkbox as per Output Dock refactor
 
-        # ---------- FORCE ----------
-        top.addWidget(QLabel("Force:"))
-        self.force_combo = QComboBox()
-        self.force_combo.addItems(list(FORCE_MAP.keys()))
-        self.force_combo.setCurrentText("Vy")
-        self.force_combo.currentTextChanged.connect(self.update_plot)
-        top.addWidget(self.force_combo)
-
-        # ---------- CONTOUR CHECKBOX ----------
-        self.contour = QCheckBox("Contour (Moments only)")
-        self.contour.stateChanged.connect(self.update_plot)
-        top.addWidget(self.contour)
-        
-        top.addStretch()
-        layout.addLayout(top)
-
-        # ---------- MAIN BROWSER AREA ----------
         self.web = QWebEngineView()
-        
-        # Stops Qt from painting a blank background behind the web viewer
         self.web.setAttribute(Qt.WA_OpaquePaintEvent)
         self.web.setAttribute(Qt.WA_NoSystemBackground)
         self.web.page().setBackgroundColor(Qt.white)
@@ -194,7 +144,6 @@ class PlotWidget(QWidget):
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
         layout.addWidget(self.web)
 
-        # ---------- INITIALIZATION & QWEBCHANNEL ----------
         self.stats_dict = {}  
         self.summary_dialog = SummaryDialog(self)
 
@@ -204,73 +153,57 @@ class PlotWidget(QWidget):
         self.channel.registerObject("backend", self.backend)
         self.web.page().setWebChannel(self.channel)
 
-        # Inject HTML directly into memory
         self.web.setHtml(HTML_TEMPLATE, QUrl("qrc:/"))
 
     def setup(self, ds_all, loadcases, nodes, members):
-        """Populate the widget with bridge analysis results. Call after design() completes."""
         self._ds_all = ds_all
         self._nodes = nodes
         self._members = members
 
-        self.combo.blockSignals(True)
-        self.combo.clear()
-        self.combo.addItems(loadcases)
-        self.combo.blockSignals(False)
-
     def show_summary_dialog(self):
-        """Pops up the dialog perfectly in the top-left corner of the web view."""
         if not self.stats_dict:
             return
-
         self.summary_dialog.update_data(self.stats_dict)
         self.summary_dialog.show()
         self.summary_dialog.raise_()
         self.summary_dialog.activateWindow()
 
-        # Calculate exactly where the top-left of the 3D plot is on the screen
         top_left_corner = self.web.mapToGlobal(QPoint(15, 15))
         self.summary_dialog.move(top_left_corner)
 
-    def update_plot(self):
+    def update_plot_from_dock(self, loadcase, force_key, is_contour, show_max, show_min):
         if self._ds_all is None:
             return
 
-        loadcase = self.combo.currentText()
-        force_key = self.force_combo.currentText()
-        ds = self._ds_all.sel(Loadcase=loadcase)
+        try:
+            ds = self._ds_all.sel(Loadcase=loadcase)
+        except Exception:
+            return # safe fallback
 
-        is_force = force_key.startswith("F") 
-        is_moment = force_key.startswith("M") 
+        is_force = force_key[0] in ('F', 'V', 'D')
+        is_moment = force_key[0] in ('M', 'T')
 
         if is_force:
-            self.contour.blockSignals(True)
-            self.contour.setChecked(False)
-            self.contour.setEnabled(False)
-            self.contour.blockSignals(False)
-            
             self.stats_dict = {}
-            plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
+            if is_contour:
+                # Our implementation uses contour if it's force, we didn't write a separate function but
+                # we integrated surface coloring inside build_figure_sfd directly. It handles it.
+                pass
+            plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members, show_max, show_min)
 
         elif is_moment:
-            self.contour.setEnabled(True)
-
-            if self.contour.isChecked():
-                plot_json = build_figure_bmd_contour(ds, force_key, self._nodes, self._members)
-                self.stats_dict = {}
+            if is_contour:
+                plot_json, self.stats_dict = build_figure_bmd_contour(ds, force_key, self._nodes, self._members, show_max, show_min)
             else:
-                plot_json, self.stats_dict = build_figure_bmd(ds, force_key, self._nodes, self._members)
+                plot_json, self.stats_dict = build_figure_bmd(ds, force_key, self._nodes, self._members, show_max, show_min)
                 
-                if self.summary_dialog.isVisible():
-                    self.summary_dialog.update_data(self.stats_dict)
+            if self.summary_dialog.isVisible():
+                self.summary_dialog.update_data(self.stats_dict)
 
         else:
-            raise ValueError(f"Unsupported force: {force_key}")
+            return
 
-        # -------- INJECT PLOT VIA QWEBCHANNEL --------
-        # Emits the raw JSON string perfectly without double-encoding it
         self.backend.newPlotData.emit(plot_json)
-
 
 # ======================= MAIN
 if __name__ == "__main__":

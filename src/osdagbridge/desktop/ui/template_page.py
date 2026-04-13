@@ -272,6 +272,15 @@ class CustomWindow(QWidget):
             loadcases = self.backend.get_available_loadcases()
             nodes, members = self.backend.get_nodes_members()
             self.plots_widget.setup(ds_all, loadcases, nodes, members)
+            
+            # Repopulate Output Dock loadcase dropdown (filter out 100+ raw position steps for cleaner UI)
+            if hasattr(self, 'output_dock') and hasattr(self.output_dock, 'combo_loadcase') and self.output_dock.combo_loadcase:
+                clean_loadcases = [lc for lc in loadcases if not lc.startswith("Moving Case")]
+                
+                self.output_dock.combo_loadcase.blockSignals(True)
+                self.output_dock.combo_loadcase.clear()
+                self.output_dock.combo_loadcase.addItems(clean_loadcases)
+                self.output_dock.combo_loadcase.blockSignals(False)
         elif trigger == "Save":
             # Collect all the values from input Dock and save to osi/csv
             pass
