@@ -138,6 +138,15 @@ HTML_TEMPLATE = """
             });
         }
 
+        // axis toggle
+        function toggleAxis(show) {
+            Plotly.relayout('plot_div', {
+                'scene.xaxis.visible': show,
+                'scene.yaxis.visible': show,
+                'scene.zaxis.visible': show
+            });
+        }
+
         // ---- Scale adjustment via aspect ratio ----
         // captures the initial aspect ratio on first call,
         // and then scales the Y axis relative to that.
@@ -278,6 +287,12 @@ class PlotWidget(QWidget):
         self.grid_cb.stateChanged.connect(self._toggle_grid)
         top.addWidget(self.grid_cb)
 
+        # ---------- AXIS VISIBILITY ----------
+        self.axis_cb = QCheckBox("Axis")
+        self.axis_cb.setChecked(True)
+        self.axis_cb.stateChanged.connect(self._toggle_axis)
+        top.addWidget(self.axis_cb)
+
         # ---------- SCALE SLIDER ----------
         top.addWidget(QLabel("Scale:"))
         self.scale_slider = QSlider(Qt.Horizontal)
@@ -366,6 +381,11 @@ class PlotWidget(QWidget):
         show = "true" if state else "false"
         self.web.page().runJavaScript(f"toggleGrid({show})")
 
+    def _toggle_axis(self, state):
+        """Show or hide all axis lines, labels, and ticks on the 3D plot."""
+        show = "true" if state else "false"
+        self.web.page().runJavaScript(f"toggleAxis({show})")
+
     def _set_scale(self, value):
         """Scale the force diagram height. Slider 1-20 maps to 0.1x - 2.0x."""
         factor = value / 10.0
@@ -397,12 +417,19 @@ class PlotWidget(QWidget):
         self._max_visible = bool(state)
         show = "true" if state else "false"
         self.web.page().runJavaScript(f"toggleMaxMin('max_lines', {show})")
+        self._update_hud_visibility()
 
     def toggle_min(self, state):
         """Show or hide min indicator lines on the BMD plot."""
         self._min_visible = bool(state)
         show = "true" if state else "false"
         self.web.page().runJavaScript(f"toggleMaxMin('min_lines', {show})")
+        self._update_hud_visibility()
+
+    def _update_hud_visibility(self):
+        """Sync the HUD Extreme Values table natively on the plot with the Max/Min checkboxes."""
+        show_hud = "true" if (self._max_visible or self._min_visible) else "false"
+        self.web.page().runJavaScript(f"Plotly.relayout('plot_div', {{'annotations[0].visible': {show_hud}}})")
 
     def set_loadcase(self, loadcase_name):
         """Set the active load case and refresh the plot."""

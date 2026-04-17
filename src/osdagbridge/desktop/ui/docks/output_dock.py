@@ -361,14 +361,17 @@ class OutputDock(QWidget):
 
         btn = QPushButton(meta.get("button_label", "Here"))
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        btn.setMinimumWidth(80)
         btn.setStyleSheet(ACTION_BTN_STYLE)
         cb = getattr(self, meta.get("action", ""), None)
         if callable(cb):
             btn.clicked.connect(cb)
         else:
             btn.setEnabled(False)
-        row.addWidget(btn, 1)
+            
+        row.addWidget(btn)
+        row.addStretch()
         return row
 
     def _make_combobox_row(self, key: str, label: str, values, meta: dict) -> QHBoxLayout:
@@ -429,7 +432,7 @@ class OutputDock(QWidget):
                     html_text = f"<span style='color:#1a1a2e'>{col_items[row]}</span>"
                     cb = RichCheckBox(html_text)
                     all_cbs.append(cb)
-                    grid.addWidget(cb, row, col, alignment=Qt.AlignCenter)
+                    grid.addWidget(cb, row, col, alignment=Qt.AlignLeft)
 
         outer.addLayout(grid)
 
