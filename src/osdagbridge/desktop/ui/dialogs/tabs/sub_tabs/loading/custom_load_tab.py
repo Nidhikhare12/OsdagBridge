@@ -1,11 +1,15 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox,
-    QGraphicsView, QGraphicsScene
+    QGraphicsView, QGraphicsScene, QPushButton, QTableWidget,
+    QTableWidgetItem
 )
 from PySide6.QtGui import QPen, QBrush, QPainter
 from PySide6.QtCore import Qt
 
 
+# =========================
+# CANVAS
+# =========================
 class LoadCanvas(QGraphicsView):
     def __init__(self):
         super().__init__()
@@ -29,189 +33,161 @@ class LoadCanvas(QGraphicsView):
         self.scene.addLine(x, y_bottom, x - 5, y_bottom - 10, QPen(Qt.red, 2))
         self.scene.addLine(x, y_bottom, x + 5, y_bottom - 10, QPen(Qt.red, 2))
 
-    def draw_bridge(self):
+    # -------- PLAN --------
+    def draw_point_load(self, x=250, magnitude=10):
         self.clear_canvas()
+        self.scene.addText("Plan View").setPos(220, 0)
 
-        # Deck
-        self.scene.addRect(
-            self.offset, self.deck_y, self.deck_width, 20,
-            QPen(Qt.black), QBrush(Qt.lightGray)
-        )
-
-        # Girders (dynamic instead of hardcoded list)
-        spacing = self.deck_width // 5
-        for i in range(1, 6):
-            x = self.offset + i * spacing
-            self.scene.addRect(
-                x, self.deck_y + 20, 12, 60,
-                QPen(Qt.black), QBrush(Qt.darkGray)
-            )
-
-    def draw_point_load(self, x=250):
-        self.draw_bridge()
+        self.scene.addRect(self.offset, self.deck_y, self.deck_width, 20,
+                           QPen(Qt.black), QBrush(Qt.lightGray))
 
         x_canvas = self.offset + x
-
         self._draw_arrow(x_canvas, 30, 60)
 
-        
-        self.scene.addText(f"x = {x:.1f}").setPos(x_canvas - 20, 65)
-        self.scene.addText("P = 10 kN").setPos(x_canvas - 30, 10)
+        self.scene.addText(f"x = {int(x)}").setPos(x_canvas - 20, 65)
+        self.scene.addText(f"P = {int(magnitude)} kN").setPos(x_canvas - 30, 10)
 
-        self.fitInView(self.scene.itemsBoundingRect(), Qt.KeepAspectRatio)
+    # -------- ELEVATION --------
+    def draw_point_elevation(self, x, magnitude):
+        self.clear_canvas()
+        self.scene.addText("Elevation View").setPos(200, 0)
 
-    def draw_line_load(self, x1, x2):
-        self.draw_bridge()
+        self.scene.addLine(50, 100, 550, 100, QPen(Qt.black, 3))
 
-        x1_canvas = self.offset + x1
-        x2_canvas = self.offset + x2
-        y = 30
+        x_canvas = 50 + x
+        self._draw_arrow(x_canvas, 50, 100)
 
-        self.scene.addLine(x1_canvas, y, x2_canvas, y, QPen(Qt.red, 2))
+        self.scene.addText(f"P = {int(magnitude)} kN").setPos(x_canvas - 30, 20)
 
-        for x in range(int(x1_canvas), int(x2_canvas), 30):
-            self._draw_arrow(x, y, y + 20)
+    # -------- 3D --------
+    def draw_point_3d(self, x, magnitude):
+        self.clear_canvas()
+        self.scene.addText("3D View").setPos(220, 0)
 
-        
-        self.scene.addText(f"x1 = {x1:.1f}").setPos(x1_canvas, 65)
-        self.scene.addText(f"x2 = {x2:.1f}").setPos(x2_canvas - 40, 65)
-        self.scene.addText("w = 5 kN/m").setPos((x1_canvas + x2_canvas) / 2 - 30, 10)
+        self.scene.addLine(50, 100, 550, 100, QPen(Qt.black, 3))
+        self.scene.addLine(70, 80, 570, 80, QPen(Qt.gray, 2))
 
-        self.fitInView(self.scene.itemsBoundingRect(), Qt.KeepAspectRatio)
+        for i in range(5):
+            self.scene.addLine(50 + i * 100, 100, 70 + i * 100, 80, QPen(Qt.gray))
 
-    def draw_area_load(self, x1, x2):
-        self.draw_bridge()
+        x_canvas = 50 + x
+        self._draw_arrow(x_canvas, 40, 100)
 
-        x1_canvas = self.offset + x1
-        x2_canvas = self.offset + x2
-
-        width = x2_canvas - x1_canvas
-        y = 20
-        height = 20
-
-        self.scene.addRect(
-            x1_canvas, y, width, height,
-            QPen(Qt.red, 2),
-            QBrush(Qt.red, Qt.Dense4Pattern)
-        )
-
-        for x in range(int(x1_canvas), int(x2_canvas), 30):
-            self._draw_arrow(x, y + height, y + height + 20)
-
-       
-        self.scene.addText(f"x1 = {x1:.1f}").setPos(x1_canvas, 65)
-        self.scene.addText(f"x2 = {x2:.1f}").setPos(x2_canvas - 40, 65)
-        self.scene.addText("q = 8 kN/m²").setPos((x1_canvas + x2_canvas) / 2 - 40, 0)
-
-        self.fitInView(self.scene.itemsBoundingRect(), Qt.KeepAspectRatio)
+        self.scene.addText(f"P = {int(magnitude)} kN").setPos(x_canvas - 30, 10)
 
 
+# =========================
+# MAIN TAB
+# =========================
 class CustomLoadTab(QWidget):
     def __init__(self, owner=None):
         super().__init__(owner)
 
-        self.owner = owner
-
         main_layout = QVBoxLayout(self)
 
-        
+        # ✅ NEW CANVAS WRAPPER (FIXED)
+        canvas_layout = QVBoxLayout()
+
+        # Dropdown inside canvas area
+        self.view_combo = QComboBox()
+        self.view_combo.addItems(["Plan", "Elevation", "3D"])
+        self.view_combo.setMaximumWidth(150)
+
+        canvas_layout.addWidget(self.view_combo)
+
+        # Canvas
         self.canvas = LoadCanvas()
-        main_layout.addWidget(self.canvas)
+        canvas_layout.addWidget(self.canvas)
 
-        self.canvas.draw_point_load(250)
+        # Add to main layout
+        main_layout.addLayout(canvas_layout)
 
+        # FORM
         form_layout = QVBoxLayout()
 
-        # Load Type
-        type_row = QHBoxLayout()
         self.load_type_combo = QComboBox()
         self.load_type_combo.addItems(["Point", "Line", "Area"])
 
-        type_row.addWidget(QLabel("Load Type:"))
-        type_row.addWidget(self.load_type_combo)
-        form_layout.addLayout(type_row)
-
-        # Point Input
-        self.point_row = QHBoxLayout()
         self.point_input = QLineEdit()
-        self.point_input.setPlaceholderText("Enter x (0–500)")
-
-        self.point_row.addWidget(QLabel("Point Distance:"))
-        self.point_row.addWidget(self.point_input)
-        form_layout.addLayout(self.point_row)
-
-        # Line Inputs
-        self.line_row = QHBoxLayout()
         self.start_input = QLineEdit()
         self.end_input = QLineEdit()
+        self.magnitude_input = QLineEdit("10")
 
-        self.start_input.setPlaceholderText("Start x1")
-        self.end_input.setPlaceholderText("End x2")
+        form_layout.addWidget(QLabel("Load Type"))
+        form_layout.addWidget(self.load_type_combo)
+        form_layout.addWidget(self.point_input)
+        form_layout.addWidget(self.start_input)
+        form_layout.addWidget(self.end_input)
+        form_layout.addWidget(self.magnitude_input)
 
-        self.line_row.addWidget(QLabel("Start:"))
-        self.line_row.addWidget(self.start_input)
-        self.line_row.addWidget(QLabel("End:"))
-        self.line_row.addWidget(self.end_input)
-
-        form_layout.addLayout(self.line_row)
+        self.save_btn = QPushButton("Save Load")
+        form_layout.addWidget(self.save_btn)
 
         main_layout.addLayout(form_layout)
 
-       
-        self.load_type_combo.currentTextChanged.connect(self._on_type_change)
-        self.point_input.textChanged.connect(self._update_point)
-        self.start_input.textChanged.connect(self._update_line)
-        self.end_input.textChanged.connect(self._update_line)
+        # TABLE
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["Type", "Start", "End", "Magnitude"])
+        main_layout.addWidget(self.table)
 
-        self._on_type_change("Point")
+        # BUTTONS
+        btn_layout = QHBoxLayout()
+        self.edit_btn = QPushButton("Edit")
+        self.delete_btn = QPushButton("Delete")
+        btn_layout.addWidget(self.edit_btn)
+        btn_layout.addWidget(self.delete_btn)
+        main_layout.addLayout(btn_layout)
 
-  
-    def _clamp(self, value):
-        return max(0, min(500, value))
+        # SIGNALS
+        self.view_combo.currentTextChanged.connect(self._update_canvas)
+        self.load_type_combo.currentTextChanged.connect(self._update_canvas)
+
+        self.point_input.textChanged.connect(self._update_canvas)
+        self.start_input.textChanged.connect(self._update_canvas)
+        self.end_input.textChanged.connect(self._update_canvas)
+        self.magnitude_input.textChanged.connect(self._update_canvas)
+
+        self.save_btn.clicked.connect(self.save_load)
+        self.delete_btn.clicked.connect(self.delete_load)
+
+        self._update_canvas()
+
+    def save_load(self):
+        row = self.table.rowCount()
+        self.table.insertRow(row)
+
+        self.table.setItem(row, 0, QTableWidgetItem(self.load_type_combo.currentText()))
+        self.table.setItem(row, 1, QTableWidgetItem(self.point_input.text()))
+        self.table.setItem(row, 2, QTableWidgetItem(self.end_input.text()))
+        self.table.setItem(row, 3, QTableWidgetItem(self.magnitude_input.text()))
+
+    def delete_load(self):
+        row = self.table.currentRow()
+        if row >= 0:
+            self.table.removeRow(row)
 
     def _parse_input(self, text):
         try:
-            return self._clamp(float(text))
+            return float(text)
         except:
             return 0
 
-    
-    def _on_type_change(self, text):
-        is_point = text == "Point"
+    def _get_magnitude(self):
+        try:
+            return float(self.magnitude_input.text())
+        except:
+            return 10
 
-        # Show/hide inputs
-        for i in range(self.point_row.count()):
-            self.point_row.itemAt(i).widget().setVisible(is_point)
+    def _update_canvas(self):
+        print("VIEW =", self.view_combo.currentText())
 
-        for i in range(self.line_row.count()):
-            self.line_row.itemAt(i).widget().setVisible(not is_point)
+        mag = self._get_magnitude()
+        view = self.view_combo.currentText()
+        x = self._parse_input(self.point_input.text())
 
-        # Default rendering
-        if text == "Point":
-            self.canvas.draw_point_load(250)
-        elif text == "Line":
-            self.canvas.draw_line_load(100, 400)
+        if view == "Plan":
+            self.canvas.draw_point_load(x, mag)
+        elif view == "Elevation":
+            self.canvas.draw_point_elevation(x, mag)
         else:
-            self.canvas.draw_area_load(100, 400)
-
-    def _update_point(self, text):
-        if self.load_type_combo.currentText() != "Point":
-            return
-
-        x = self._parse_input(text)
-        self.canvas.draw_point_load(x)
-
-    def _update_line(self, text):
-        if self.load_type_combo.currentText() == "Point":
-            return
-
-        x1 = self._parse_input(self.start_input.text())
-        x2 = self._parse_input(self.end_input.text())
-
-        if x2 < x1:
-            x1, x2 = x2, x1  # swap
-
-        if self.load_type_combo.currentText() == "Line":
-            self.canvas.draw_line_load(x1, x2)
-        else:
-            self.canvas.draw_area_load(x1, x2)
+            self.canvas.draw_point_3d(x, mag)
