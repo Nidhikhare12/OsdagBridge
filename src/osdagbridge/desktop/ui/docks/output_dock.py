@@ -3,10 +3,12 @@ Output dock widget for Highway Bridge Design GUI.
 
 Task-2 changes (FOSSEE screening task):
   - Load Combination dropdown now drives the PlotWidget loadcase.
-  - Force checkboxes (Fx/Fy/Fz/Mx/My/Mz mapped as Vx/Vy/Vz/Tx/My/Mz)
+  - Force checkboxes (Fx/Fy/Fz/Mx/My/Mz mapped as Fx/Vy/Vz/Tx/My/Mz)
     replace the Force dropdown in the plot toolbar.
   - Max / Min checkboxes in Display Options are linked to the plot.
   - All linkage is done via plot_signals (no direct import of PlotWidget).
+  - Removed unused Steel Design / Deck Design "Here" buttons.
+  - Fixed force checkbox grid to include all 6 forces (Fx, Vy, Vz, Tx, My, Mz).
 """
 
 from PySide6.QtWidgets import (
@@ -39,6 +41,9 @@ except ImportError:
         "Mz": ("Mz_i", "Mz_j"),
     }
 
+  
+
+
 # ── Styles ─────────────────────────────────────────────────────────────────────
 GROUPBOX_STYLE = (
     "QGroupBox { border:1px solid #90AF13; border-radius:4px; background-color:white;"
@@ -62,11 +67,12 @@ LABEL_STYLE       = "QLabel { color:#000; font-size:12px; background:transparent
 SMALL_LABEL_STYLE = "QLabel { color:#333; font-size:10px; font-weight:normal; background:transparent; }"
 
 # Force label → FORCE_MAP key mapping (Task-2 spec)
+# UI label  →  internal FORCE_MAP key
 FORCE_LABEL_TO_KEY = {
     "Fx": "Fx",
     "Vy": "Fy",   # Fy in model = Vy in UI
-    "Vz": "Fz",
-    "Tx": "Mx",
+    "Vz": "Fz",   # Fz in model = Vz in UI
+    "Tx": "Mx",   # Mx in model = Tx in UI
     "My": "My",
     "Mz": "Mz",
 }
@@ -81,7 +87,7 @@ class NoScrollComboBox(QComboBox):
 class OutputDock(QWidget):
     """
     Output dock widget.
-    Task-2: Load Combination, Force checkboxes, and Max/Min are now
+    Task-2: Load Combination, Force checkboxes, Max/Min, and Hide Axis are now
     linked to the PlotWidget via plot_signals.
     """
 
@@ -177,10 +183,10 @@ class OutputDock(QWidget):
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(12)
 
-        # ── Task-2: Analysis Results section (replaces schema-driven one) ──
+        # ── Task-2: Analysis Results section ──────────────────────────────
         self._build_analysis_results_section(root_layout)
 
-        # ── Original schema-driven fields (design sections) ───────────────
+        # ── Original schema-driven fields (design sections only) ──────────
         self._build_field_loop(root_layout)
 
         root_layout.addStretch()
@@ -194,7 +200,7 @@ class OutputDock(QWidget):
           - Member dropdown
           - Load Combination dropdown  → drives PlotWidget loadcase
           - Force checkboxes (Fx, Vy, Vz, Tx, My, Mz) → drives PlotWidget force
-          - Display Options: Max / Min checkboxes → drives PlotWidget
+          - Display Options: Max / Min / Hide Axis checkboxes
         """
         group = QGroupBox("Analysis Results")
         group.setStyleSheet(GROUPBOX_STYLE)
@@ -202,7 +208,7 @@ class OutputDock(QWidget):
         g_layout.setContentsMargins(8, 8, 8, 8)
         g_layout.setSpacing(8)
 
-        # Member row
+        # ── Member row ─────────────────────────────────────────────────────
         member_row = QHBoxLayout()
         member_lbl = QLabel("Member:")
         member_lbl.setStyleSheet(LABEL_STYLE)
@@ -214,7 +220,7 @@ class OutputDock(QWidget):
         member_row.addWidget(self.member_combo, 1)
         g_layout.addLayout(member_row)
 
-        # Load Combination row  (Task-2: replaces Load case dropdown in toolbar)
+        # ── Load Combination row ───────────────────────────────────────────
         lc_row = QHBoxLayout()
         lc_lbl = QLabel("Load Combination:")
         lc_lbl.setStyleSheet(LABEL_STYLE)
@@ -223,34 +229,42 @@ class OutputDock(QWidget):
         self.load_combo = NoScrollComboBox()
         self.load_combo.setObjectName("load_combination")
         self.load_combo.addItem("Envelope")
+        self.load_combo.setToolTip("Select load combination to display in plot")
         apply_field_style(self.load_combo)
         self.load_combo.currentTextChanged.connect(self._on_load_combination_changed)
         lc_row.addWidget(self.load_combo, 1)
         g_layout.addLayout(lc_row)
 
-        # Force checkboxes (Task-2: replaces Force dropdown)
-        # Layout: 3 columns × 2 rows matching original output dock grid
-        # Row 0: Fx  |  Tx  |  Dx
-        # Row 1: Vy  |  My  |  Dy
-        # Row 2: Vz  |  Mz  |  Dz
+        # ── Force / Moment checkboxes ──────────────────────────────────────
+        # Grid layout: 2 cols × 3 rows
+        #   Col 0  |  Col 1
+        #   Fx     |  Tx
+        #   Vy     |  My
+        #   Vz     |  Mz
+        #
+        # Each maps to a FORCE_MAP key via FORCE_LABEL_TO_KEY.
+        # Behaves like a radio group (only one active at a time).
         force_group = QGroupBox("Force / Moment")
         force_group.setStyleSheet(SUBGROUP_STYLE)
+        force_group.setToolTip("Select the force/moment component to display in the plot")
         fg_layout = QGridLayout()
         fg_layout.setContentsMargins(4, 4, 4, 4)
-        fg_layout.setSpacing(4)
+        fg_layout.setHorizontalSpacing(40)
+        fg_layout.setVerticalSpacing(6)
 
-        # We only wire Fx, Vy, Vz, Tx, My, Mz (Task-2 spec)
+        # (label, row, col)  — all 6 components present
         force_labels = [
-            ("Fx", 0, 0), ("Tx", 0, 1),
+            ("Fx", 0, 0), ("Tx", 0, 1),   # Tx → Mx
             ("Vy", 1, 0), ("My", 1, 1),
             ("Vz", 2, 0), ("Mz", 2, 1),
         ]
-        self._force_checkboxes = {}   # label → QCheckBox
+        self._force_checkboxes: dict[str, QCheckBox] = {}
         for label, row, col in force_labels:
             cb = QCheckBox(label)
             cb.setStyleSheet("QCheckBox { font-size:11px; }")
+            cb.setToolTip(f"Show {label} ({FORCE_LABEL_TO_KEY.get(label, label)}) diagram")
             cb.clicked.connect(self._on_force_checkbox_clicked)
-            fg_layout.addWidget(cb, row, col, Qt.AlignCenter)
+            fg_layout.addWidget(cb, row, col, Qt.AlignLeft)    
             self._force_checkboxes[label] = cb
 
         # Default: Vy checked (matches original Fy default)
@@ -259,16 +273,19 @@ class OutputDock(QWidget):
         force_group.setLayout(fg_layout)
         g_layout.addWidget(force_group)
 
-        # Display Options: Max / Min
+        # ── Display Options ────────────────────────────────────────────────
         disp_group = QGroupBox("Display Options")
         disp_group.setStyleSheet(SUBGROUP_STYLE)
         dg_layout = QVBoxLayout()
         dg_layout.setContentsMargins(4, 4, 4, 4)
-        dg_layout.setSpacing(4)
+        dg_layout.setSpacing(6)
 
+        # Max / Min row
         maxmin_row = QHBoxLayout()
         self.max_cb = QCheckBox("Max")
+        self.max_cb.setToolTip("Highlight maximum value points on the diagram")
         self.min_cb = QCheckBox("Min")
+        self.min_cb.setToolTip("Highlight minimum value points on the diagram")
         self.max_cb.stateChanged.connect(self._on_max_changed)
         self.min_cb.stateChanged.connect(self._on_min_changed)
         maxmin_row.addWidget(self.max_cb)
@@ -276,6 +293,8 @@ class OutputDock(QWidget):
         maxmin_row.addStretch()
         dg_layout.addLayout(maxmin_row)
 
+
+        # Controlling Utilization Ratio (existing)
         ctrl_ratio_cb = QCheckBox("Controlling Utilization Ratio")
         ctrl_ratio_cb.setStyleSheet("QCheckBox { font-size:11px; }")
         dg_layout.addWidget(ctrl_ratio_cb)
@@ -287,14 +306,14 @@ class OutputDock(QWidget):
         parent_layout.addWidget(group)
 
     # ── Task-2: signal handlers ───────────────────────────────────────────────
-    def _on_load_combination_changed(self, text):
+    def _on_load_combination_changed(self, text: str):
         """Load Combination changed → tell PlotWidget to update."""
         if plot_signals is not None:
             plot_signals.loadcase_changed.emit(text)
 
     def _on_force_checkbox_clicked(self):
         """
-        Force checkbox clicked → ensure only one is active (radio behaviour),
+        Force checkbox clicked → enforce radio behaviour (only one active),
         then emit the corresponding FORCE_MAP key to PlotWidget.
         """
         sender = self.sender()
@@ -306,26 +325,31 @@ class OutputDock(QWidget):
             for label, cb in self._force_checkboxes.items():
                 if cb is not sender:
                     cb.setChecked(False)
-            # Emit the FORCE_MAP key
-            label = sender.text()
-            force_key = FORCE_LABEL_TO_KEY.get(label, label)
+            # Emit the internal FORCE_MAP key
+            force_key = FORCE_LABEL_TO_KEY.get(sender.text(), sender.text())
             if plot_signals is not None:
                 plot_signals.force_changed.emit(force_key)
         else:
-            # Prevent unchecking the last checkbox
+            # Prevent unchecking the last active checkbox (always keep one ticked)
             sender.setChecked(True)
 
-    def _on_max_changed(self, state):
+    def _on_max_changed(self, state: int):
         if plot_signals is not None:
             plot_signals.max_toggled.emit(state == Qt.Checked)
 
-    def _on_min_changed(self, state):
+    def _on_min_changed(self, state: int):
         if plot_signals is not None:
             plot_signals.min_toggled.emit(state == Qt.Checked)
 
+    def _on_hide_axis_changed(self, state: int):
+        """Hide Axis toggled → tell PlotWidget via shared signal."""
+        if plot_signals is not None:
+            # True = hide axes (show_axis = False)
+            plot_signals.axis_toggled.emit(state != Qt.Checked)
+
     @Slot(list)
-    def _on_loadcases_ready(self, loadcases):
-        """PlotWidget finished setup — populate Load Combination dropdown."""
+    def _on_loadcases_ready(self, loadcases: list):
+        """PlotWidget finished setup → populate Load Combination dropdown."""
         self.load_combo.blockSignals(True)
         self.load_combo.clear()
         self.load_combo.addItems(loadcases)
@@ -347,12 +371,14 @@ class OutputDock(QWidget):
 
         return btn_layout
 
-    # ── Original schema-driven field loop (design sections only) ─────────────
+    # ── Schema-driven field loop (design sections only) ───────────────────────
     def _build_field_loop(self, root_layout: QVBoxLayout):
         """
         Builds schema-driven design sections from output_values().
-        Analysis Results are now built by _build_analysis_results_section().
-        We skip the first TYPE_TITLE that has kind='analysis'.
+        Analysis Results are built by _build_analysis_results_section().
+        TYPE_BUTTON entries are skipped (Steel Design / Deck Design buttons
+        are no longer needed here).
+        Sections whose meta kind == 'analysis' are skipped entirely.
         """
         field_list = []
         if self.backend and hasattr(self.backend, "output_values"):
@@ -388,7 +414,7 @@ class OutputDock(QWidget):
             if ftype == TYPE_TITLE:
                 close_group()
                 kind = meta.get("kind", "design")
-                # Skip the analysis section — we built it manually above
+                # Skip analysis section — built manually above
                 if kind == "analysis":
                     skip_section = True
                     continue
@@ -399,6 +425,10 @@ class OutputDock(QWidget):
                 continue
 
             if not track or skip_section:
+                continue
+
+            # ── Skip TYPE_BUTTON entries (Steel Design / Deck Design) ──────
+            if ftype == TYPE_BUTTON:
                 continue
 
             if meta.get("group_title"):
@@ -412,9 +442,7 @@ class OutputDock(QWidget):
 
             target = sub_layout if subgroup is not None else glayout
 
-            if ftype == TYPE_BUTTON:
-                target.addLayout(self._make_button_row(label, meta))
-            elif ftype == TYPE_COMBOBOX:
+            if ftype == TYPE_COMBOBOX:
                 target.addLayout(self._make_combobox_row(key, label, values, meta))
             elif ftype == TYPE_CHECKBOX_GRID:
                 target.addLayout(self._make_checkbox_grid(key, label, values, meta))
@@ -493,26 +521,6 @@ class OutputDock(QWidget):
         return outer, body_layout
 
     # ── Widget factories ──────────────────────────────────────────────────────
-    def _make_button_row(self, label, meta):
-        row = QHBoxLayout()
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(8)
-        lbl = QLabel(label)
-        lbl.setStyleSheet(LABEL_STYLE)
-        lbl.setMinimumWidth(110)
-        row.addWidget(lbl)
-        btn = QPushButton(meta.get("button_label", "Here"))
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        btn.setStyleSheet(ACTION_BTN_STYLE)
-        cb = getattr(self, meta.get("action", ""), None)
-        if callable(cb):
-            btn.clicked.connect(cb)
-        else:
-            btn.setEnabled(False)
-        row.addWidget(btn, 1)
-        return row
-
     def _make_combobox_row(self, key, label, values, meta):
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
@@ -606,12 +614,3 @@ class OutputDock(QWidget):
         super().resizeEvent(event)
         if self.parent and hasattr(self.parent, "update_docking_icons"):
             self.parent.update_docking_icons(output_is_active=self.width() > 0)
-
-    # ── Action handlers ───────────────────────────────────────────────────────
-    def open_steel_design(self):
-        from osdagbridge.desktop.ui.dialogs.steel_design import SteelDesign
-        SteelDesign(parent=self.parent).exec()
-
-    def open_deck_design(self):
-        from osdagbridge.desktop.ui.dialogs.deck_design import DeckDesign
-        DeckDesign(parent=self.parent).exec()

@@ -88,7 +88,7 @@ HTML_TEMPLATE = """
 # =========================================================
 class PlotSignals(QObject):
     """
-    Central signal hub so PlotWidget and OutputDock can talk
+    Central signal hub so PlotWidget and OutputDock can communicate
     without circular imports.
     """
     # OutputDock → PlotWidget
@@ -96,6 +96,7 @@ class PlotSignals(QObject):
     force_changed     = Signal(str)
     max_toggled       = Signal(bool)
     min_toggled       = Signal(bool)
+    axis_toggled      = Signal(bool)   # True = show axes, False = hide axes
 
     # PlotWidget → OutputDock (populate loadcase list after design)
     loadcases_ready   = Signal(list)
@@ -174,7 +175,7 @@ class PlotWidget(QWidget):
         # ── Top control bar ──────────────────────────────────────────────
         top = QHBoxLayout()
 
-        # Load case dropdown (kept here for standalone mode;
+        # Load case dropdown (kept for standalone mode;
         # in full app the output dock drives it via signals)
         top.addWidget(QLabel("Load case:"))
         self.combo = QComboBox()
@@ -191,6 +192,7 @@ class PlotWidget(QWidget):
 
         # Contour checkbox
         self.contour_cb = QCheckBox("Contour")
+        self.contour_cb.setToolTip("Toggle contour colouring on the diagram surface")
         self.contour_cb.stateChanged.connect(self.update_plot)
         top.addWidget(self.contour_cb)
 
@@ -207,9 +209,16 @@ class PlotWidget(QWidget):
 
         top.addWidget(QLabel("|"))
 
+        # 2. Hide/Show Axes  (new — driven by output dock via axis_toggled signal)
+        self.axis_cb = QCheckBox("Axes")
+        self.axis_cb.setChecked(True)
+        self.axis_cb.setToolTip("Toggle axis lines and labels")
+        self.axis_cb.stateChanged.connect(self.update_plot)
+        top.addWidget(self.axis_cb)
 
+        top.addWidget(QLabel("|"))
 
-        # 2. Scale slider
+        # 3. Scale slider
         top.addWidget(QLabel("Scale:"))
 
         self.scale_slider = QSlider(Qt.Horizontal)
@@ -223,17 +232,15 @@ class PlotWidget(QWidget):
         self.scale_label = QLabel("1.0×")
         self.scale_label.setFixedWidth(36)
 
-
         scale_layout = QHBoxLayout()
         scale_layout.setSpacing(3)
         scale_layout.addWidget(self.scale_slider)
         scale_layout.addWidget(self.scale_label)
-
         top.addLayout(scale_layout)
 
         top.addWidget(QLabel("|"))
 
-        # 3. Isolate girder
+        # 4. Isolate girder
         top.addWidget(QLabel("Girder:"))
         self.girder_combo = QComboBox()
         self.girder_combo.addItem("All")
@@ -270,14 +277,15 @@ class PlotWidget(QWidget):
         plot_signals.force_changed.connect(self._recv_force)
         plot_signals.max_toggled.connect(self._recv_max)
         plot_signals.min_toggled.connect(self._recv_min)
+        plot_signals.axis_toggled.connect(self._recv_axis)   # new
 
     # ── Task-1: scale slider ─────────────────────────────────────────────
-    def _on_scale_changed(self, value):
+    def _on_scale_changed(self, value: int):
         factor = value / 10.0
         self.scale_label.setText(f"{factor:.1f}×")
         self.update_plot()
 
-    def _scale_factor(self):
+    def _scale_factor(self) -> float:
         return self.scale_slider.value() / 10.0
 
     # ── Task-1: isolate girder ───────────────────────────────────────────
@@ -292,18 +300,18 @@ class PlotWidget(QWidget):
             return None
 
     # ── Local control callbacks ──────────────────────────────────────────
-    def _on_loadcase_changed(self, text):
+    def _on_loadcase_changed(self, text: str):
         # Emit to output dock so it stays in sync
         plot_signals.loadcase_changed.emit(text)
         self.update_plot()
 
-    def _on_force_changed(self, text):
+    def _on_force_changed(self, text: str):
         plot_signals.force_changed.emit(text)
         self.update_plot()
 
     # ── Receive signals FROM output dock (Task-2) ────────────────────────
     @Slot(str)
-    def _recv_loadcase(self, text):
+    def _recv_loadcase(self, text: str):
         """Output dock changed the load case."""
         if self.combo.currentText() != text:
             self.combo.blockSignals(True)
@@ -314,7 +322,7 @@ class PlotWidget(QWidget):
             self.update_plot()
 
     @Slot(str)
-    def _recv_force(self, text):
+    def _recv_force(self, text: str):
         """Output dock changed the force selection."""
         if self.force_combo.currentText() != text:
             self.force_combo.blockSignals(True)
@@ -325,13 +333,26 @@ class PlotWidget(QWidget):
             self.update_plot()
 
     @Slot(bool)
-    def _recv_max(self, checked):
-        """Output dock toggled Max — handled inside Plotly layout; just refresh."""
+    def _recv_max(self, checked: bool):
+        """Output dock toggled Max — just refresh."""
         self.update_plot()
 
     @Slot(bool)
-    def _recv_min(self, checked):
+    def _recv_min(self, checked: bool):
         self.update_plot()
+
+    @Slot(bool)
+    def _recv_axis(self, show_axis: bool):
+        """
+        Output dock toggled Hide Axes.
+        show_axis=True  → axes visible  (Hide Axes unchecked)
+        show_axis=False → axes hidden   (Hide Axes checked)
+        """
+        if self.axis_cb.isChecked() != show_axis:
+            self.axis_cb.blockSignals(True)
+            self.axis_cb.setChecked(show_axis)
+            self.axis_cb.blockSignals(False)
+            self.update_plot()
 
     # ── Setup (called after bridge analysis) ────────────────────────────
     def setup(self, ds_all, loadcases, nodes, members):
@@ -345,7 +366,6 @@ class PlotWidget(QWidget):
         self.combo.blockSignals(False)
 
         # Populate girder isolate combo
-        # Count girders from model Z coordinates
         from collections import defaultdict
         import openseespy.opensees as ops
         Z_TOL = 3
@@ -391,15 +411,17 @@ class PlotWidget(QWidget):
         loadcase    = self.combo.currentText()
         force_key   = self.force_combo.currentText()
         show_grid   = self.grid_cb.isChecked()
+        show_axis   = self.axis_cb.isChecked()   # new
         scale       = self._scale_factor()
         isolate     = self._isolate_girder()
         ds          = self._ds_all.sel(Loadcase=loadcase)
+        
 
         is_force  = force_key.startswith("F")
         is_moment = force_key.startswith("M")
 
         if is_force:
-            # Contour is available for Fy; disable for other force types
+            # Contour available only for Fy
             if force_key == "Fy":
                 self.contour_cb.setEnabled(True)
             else:
@@ -415,6 +437,7 @@ class PlotWidget(QWidget):
                 scale_factor=scale,
                 isolate_girder=isolate,
                 show_grid=show_grid,
+                show_axis=show_axis,
             )
 
         elif is_moment:
@@ -426,6 +449,7 @@ class PlotWidget(QWidget):
                     scale_factor=scale,
                     isolate_girder=isolate,
                     show_grid=show_grid,
+                    show_axis=show_axis,
                 )
                 self.stats_dict = {}
             else:
@@ -434,6 +458,7 @@ class PlotWidget(QWidget):
                     scale_factor=scale,
                     isolate_girder=isolate,
                     show_grid=show_grid,
+                    show_axis=show_axis,
                 )
                 if self.summary_dialog.isVisible():
                     self.summary_dialog.update_data(self.stats_dict)
