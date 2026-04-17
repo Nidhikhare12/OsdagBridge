@@ -87,6 +87,7 @@ class OutputDock(QWidget):
 
         content_container = QWidget()
         content_container.setStyleSheet("background-color: white;")
+        content_container.setMaximumWidth(360)
         content_layout = QVBoxLayout(content_container)
         content_layout.setContentsMargins(8, 8, 8, 8)
         content_layout.setSpacing(10)
@@ -167,6 +168,9 @@ class OutputDock(QWidget):
 
         root_layout.addStretch()
         self.scroll_area.setWidget(self.output_widget)
+        
+        self._bind_plot_signals()
+        
         return self.scroll_area
 
     # ── Bottom buttons ────────────────────────────────────────────────────────
@@ -344,6 +348,44 @@ class OutputDock(QWidget):
 
     # ── Widget factories ──────────────────────────────────────────────────────
 
+
+    def _bind_plot_signals(self):
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_LOAD_COMBINATION, KEY_ANALYSIS_FORCES, KEY_ANALYSIS_DISPLAY_OPTIONS
+        
+        self.combo_loadcase = self._w(KEY_ANALYSIS_LOAD_COMBINATION)
+        if self.combo_loadcase:
+            self.combo_loadcase.currentTextChanged.connect(self._trigger_plot_update)
+            
+        self.force_checkboxes = []
+        for text in ["Fx", "Vy", "Vz", "Tx", "My", "Mz", "Dx", "Dy", "Dz"]:
+            cb = self._w(f"{KEY_ANALYSIS_FORCES}_{text}")
+            if cb:
+                self.force_checkboxes.append(cb)
+                cb.clicked.connect(self._trigger_plot_update)
+                
+        self.cb_max = self._w(f"{KEY_ANALYSIS_DISPLAY_OPTIONS}_Max")
+        self.cb_min = self._w(f"{KEY_ANALYSIS_DISPLAY_OPTIONS}_Min")
+        if self.cb_max: self.cb_max.clicked.connect(self._trigger_plot_update)
+        if self.cb_min: self.cb_min.clicked.connect(self._trigger_plot_update)
+
+    def _trigger_plot_update(self, *args):
+        if not hasattr(self.parent, "plots_widget"): return
+        
+        loadcase = self.combo_loadcase.currentText() if self.combo_loadcase else ""
+        
+        force_key = "Vy" 
+        for cb in self.force_checkboxes:
+            if cb.isChecked():
+                force_key = cb.objectName().split('_')[-1]
+                break
+                
+        show_max = self.cb_max.isChecked() if self.cb_max else False
+        show_min = self.cb_min.isChecked() if self.cb_min else False
+        
+        # We integrated contour completely into SFD and removed toggle, so is_contour=False
+        is_contour = False
+        self.parent.plots_widget.update_plot_from_dock(loadcase, force_key, is_contour, show_max, show_min)
+
     def _make_button_row(self, label: str, meta: dict) -> QHBoxLayout:
         """[Label | Action Button] — mirrors InputDock._make_button_row."""
         row = QHBoxLayout()
@@ -390,12 +432,6 @@ class OutputDock(QWidget):
         return row
 
     def _make_checkbox_grid(self, key: str, label: str, values, meta: dict) -> QVBoxLayout:
-        """
-        N-column grid of checkboxes, aligned in rows using QGridLayout.
-        values    = [["Fx","Mx","Dx"], ["Fy","My","Dy"], ...]
-        label     = None means no label row is added.
-        exclusive : bool — if True only one checkbox can be checked at a time.
-        """
         from PySide6.QtWidgets import QGridLayout
 
         outer = QVBoxLayout()
@@ -408,7 +444,7 @@ class OutputDock(QWidget):
             outer.addWidget(lbl)
 
         columns  = values if isinstance(values, list) else []
-        all_cbs: list[RichCheckBox] = []
+        all_cbs: list[QCheckBox] = []
         num_cols = len(columns)
 
         grid = QGridLayout()
@@ -416,18 +452,18 @@ class OutputDock(QWidget):
         grid.setHorizontalSpacing(8)
         grid.setVerticalSpacing(4)
 
-        # Set equal stretch on every column so they fill the width evenly
         for c in range(num_cols):
-            grid.setColumnStretch(c, 1)
+            grid.setColumnStretch(c, 0)
 
-        # Fill row by row: row index = position within column
         num_rows = max((len(col) for col in columns), default=0)
         for row in range(num_rows):
             for col, col_items in enumerate(columns):
                 if row < len(col_items):
-                    cb = RichCheckBox(str(col_items[row]))
+                    clean_text = str(col_items[row]).replace("<sub>", "").replace("</sub>", "")
+                    cb = QCheckBox(clean_text)
+                    cb.setObjectName(f"{key}_{clean_text}")
                     all_cbs.append(cb)
-                    grid.addWidget(cb, row, col, alignment=Qt.AlignCenter)
+                    grid.addWidget(cb, row, col)
 
         outer.addLayout(grid)
 
@@ -437,11 +473,6 @@ class OutputDock(QWidget):
         return outer
 
     def _make_checkbox_row(self, key: str, label: str, values, meta: dict) -> QHBoxLayout:
-        """
-        Horizontal row of checkboxes.
-        values    = ["Max", "Min", ...]
-        exclusive : bool — if True only one checkbox can be checked at a time.
-        """
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(12)
@@ -456,6 +487,8 @@ class OutputDock(QWidget):
         cbs: list[QCheckBox] = []
         for text in options:
             cb = QCheckBox(str(text))
+            clean_text = str(text).replace("<sub>", "").replace("</sub>", "")
+            cb.setObjectName(f"{key}_{clean_text}")
             cbs.append(cb)
             row.addWidget(cb)
 
