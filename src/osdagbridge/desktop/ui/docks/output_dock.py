@@ -165,6 +165,10 @@ class OutputDock(QWidget):
 
         self._build_field_loop(root_layout)
 
+        # connecting analysis checkboxes/combos to plot widget
+        # so selections in the output dock can drive the plot updates.
+        self._wire_plot_controls()
+
         root_layout.addStretch()
         self.scroll_area.setWidget(self.output_widget)
         return self.scroll_area
@@ -357,14 +361,17 @@ class OutputDock(QWidget):
 
         btn = QPushButton(meta.get("button_label", "Here"))
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        btn.setMinimumWidth(80)
         btn.setStyleSheet(ACTION_BTN_STYLE)
         cb = getattr(self, meta.get("action", ""), None)
         if callable(cb):
             btn.clicked.connect(cb)
         else:
             btn.setEnabled(False)
-        row.addWidget(btn, 1)
+            
+        row.addWidget(btn)
+        row.addStretch()
         return row
 
     def _make_combobox_row(self, key: str, label: str, values, meta: dict) -> QHBoxLayout:
@@ -413,21 +420,19 @@ class OutputDock(QWidget):
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(8)
+        grid.setHorizontalSpacing(16)
         grid.setVerticalSpacing(4)
-
-        # Set equal stretch on every column so they fill the width evenly
-        for c in range(num_cols):
-            grid.setColumnStretch(c, 1)
 
         # Fill row by row: row index = position within column
         num_rows = max((len(col) for col in columns), default=0)
         for row in range(num_rows):
             for col, col_items in enumerate(columns):
                 if row < len(col_items):
-                    cb = RichCheckBox(str(col_items[row]))
+                    # text coloring the checkbox labels
+                    html_text = f"<span style='color:#1a1a2e'>{col_items[row]}</span>"
+                    cb = RichCheckBox(html_text)
                     all_cbs.append(cb)
-                    grid.addWidget(cb, row, col, alignment=Qt.AlignCenter)
+                    grid.addWidget(cb, row, col, alignment=Qt.AlignLeft)
 
         outer.addLayout(grid)
 
@@ -507,3 +512,68 @@ class OutputDock(QWidget):
     def open_deck_design(self):
         from osdagbridge.desktop.ui.dialogs.deck_design import DeckDesign
         DeckDesign(parent=self.parent).exec()
+
+    ### ── Plot integration ─────────────────────────── ###
+    # The output dock drives the plot widget by forwarding the checkbox and combo
+    # selections to PlotWidget.set_force() and PlotWidget.set_loadcase().
+
+    # Map from checkbox HTML labels to backend force keys.
+    # The grid shows names with HTML subscripts
+    _FORCE_LABEL_MAP = {
+        "F<sub>x</sub>": "Fx",
+        "V<sub>y</sub>": "Fy",
+        "V<sub>z</sub>": "Fz",
+        "T<sub>x</sub>": "Mx",
+        "M<sub>y</sub>": "My",
+        "M<sub>z</sub>": "Mz",
+    }
+
+    def _wire_plot_controls(self):
+        """
+        Connect the Analysis Results widgets to the plot widget.
+        Called once after _build_field_loop has created all the UI.
+        """
+        plot_widget = getattr(self.parent, "plots_widget", None)
+        if plot_widget is None:
+            return
+
+        # 1) Wiring the force checkbox grid
+        for cb in self.output_widget.findChildren(RichCheckBox):
+            label_text = cb.text()
+            for pattern, force_key in self._FORCE_LABEL_MAP.items():
+                if pattern in label_text:
+                    cb.clicked.connect(
+                        lambda checked, fk=force_key: (
+                            plot_widget.set_force(fk) if checked else None
+                        )
+                    )
+                    break
+
+        # 2) Wiring the load combination combo box
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_LOAD_COMBINATION
+        lc_combo = self._w(KEY_ANALYSIS_LOAD_COMBINATION)
+        if lc_combo is not None:
+            lc_combo.currentTextChanged.connect(plot_widget.set_loadcase)
+
+        # 3) Wiring max/min checkboxes from display options
+        from PySide6.QtWidgets import QCheckBox
+        for cb in self.output_widget.findChildren(QCheckBox):
+            if cb.text() == "Max":
+                cb.clicked.connect(plot_widget.toggle_max)
+            elif cb.text() == "Min":
+                cb.clicked.connect(plot_widget.toggle_min)
+
+    def populate_loadcases(self, loadcase_list):
+        """
+        Fill the Load Combination combobox with actual loadcase names
+        from the analysis results. Called after design() completes.
+        """
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_LOAD_COMBINATION
+        lc_combo = self._w(KEY_ANALYSIS_LOAD_COMBINATION)
+        if lc_combo is None:
+            return
+
+        lc_combo.blockSignals(True)
+        lc_combo.clear()
+        lc_combo.addItems(loadcase_list)
+        lc_combo.blockSignals(False)

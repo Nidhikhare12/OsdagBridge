@@ -17,7 +17,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QCheckBox, QTableWidget, QTableWidgetItem, 
-    QHeaderView, QPushButton, QDialog
+    QHeaderView, QPushButton, QDialog, QSlider
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
@@ -29,6 +29,7 @@ from osdagbridge.core.bridge_types.plate_girder.plots_widget import (
     build_figure_sfd,
     build_figure_bmd,
     build_figure_bmd_contour,
+    build_figure_sfd_contour,
     FORCE_MAP,
 )
 
@@ -73,6 +74,9 @@ HTML_TEMPLATE = """
                 var targetDiv = document.getElementById('plot_div');
                 Plotly.Plots.resize(targetDiv);
 
+                // reset previously cached aspect ratio
+                targetDiv._baseAspect = null;
+
                 if (!targetDiv.hasRelayoutListener) {
                     targetDiv.on('plotly_relayout', function(eventdata) {
                         var eventString = JSON.stringify(eventdata);
@@ -84,9 +88,107 @@ HTML_TEMPLATE = """
                             }, 100);
                         }
                     });
+
+                    // Custom legend click handler: Plotly's built-in toggle doesn't always work for Surface traces in a legendgroup,
+                    // so we manually set visibility for all traces in the group.
+                    targetDiv.on('plotly_legendclick', function(eventdata) {
+                        var grp = eventdata.data[eventdata.curveNumber].legendgroup;
+                        if (!grp) return true;
+
+                        var plot = document.getElementById('plot_div');
+                        var isVisible = (eventdata.data[eventdata.curveNumber].visible !== 'legendonly');
+
+                        var indices = [];
+                        for (var i = 0; i < plot.data.length; i++) {
+                            if (plot.data[i].legendgroup === grp) {
+                                indices.push(i);
+                            }
+                        }
+                        var nextVis = isVisible ? 'legendonly' : true;
+                        Plotly.restyle('plot_div', {'visible': nextVis}, indices);
+
+                        return false;
+                    });
+
                     targetDiv.hasRelayoutListener = true;
                 }
             });
+        }
+
+        // --- Max/min visibility toggle ---
+        function toggleMaxMin(group, show) {
+            var plot = document.getElementById('plot_div');
+            if (!plot.data) return;
+            var indices = [];
+            for (var i = 0; i < plot.data.length; i++) {
+                if (plot.data[i].legendgroup === group) {
+                    indices.push(i);
+                }
+            }
+            if (indices.length > 0) {
+                Plotly.restyle('plot_div', {'visible': show}, indices);
+            }
+        }
+
+        // grid toggle
+        function toggleGrid(show) {
+            Plotly.relayout('plot_div', {
+                'scene.xaxis.showgrid': show,
+                'scene.zaxis.showgrid': show
+            });
+        }
+
+        // axis toggle
+        function toggleAxis(show) {
+            Plotly.relayout('plot_div', {
+                'scene.xaxis.visible': show,
+                'scene.yaxis.visible': show,
+                'scene.zaxis.visible': show
+            });
+        }
+
+        // ---- Scale adjustment via aspect ratio ----
+        // captures the initial aspect ratio on first call,
+        // and then scales the Y axis relative to that.
+        function setScale(factor) {
+            var plot = document.getElementById('plot_div');
+            if (!plot._fullLayout || !plot._fullLayout.scene) return;
+
+            if (!plot._baseAspect) {
+                var scene = plot._fullLayout.scene;
+                plot._baseAspect = {
+                    x: scene.aspectratio.x,
+                    y: scene.aspectratio.y,
+                    z: scene.aspectratio.z
+                };
+            }
+
+            Plotly.relayout('plot_div', {
+                'scene.aspectmode': 'manual',
+                'scene.aspectratio.x': plot._baseAspect.x,
+                'scene.aspectratio.y': plot._baseAspect.y * factor,
+                'scene.aspectratio.z': plot._baseAspect.z
+            });
+        }
+
+        // ---- Isolate a single girder by legendgroup ----
+        // 'All' restores every trace- otherwise only traces matching
+        function isolateGirder(girderName) {
+            var plot = document.getElementById('plot_div');
+            if (!plot.data) return;
+
+            var visibility = [];
+            for (var i = 0; i < plot.data.length; i++) {
+                var trace = plot.data[i];
+                if (!trace.legendgroup) {
+                    visibility.push(true);
+                } else if (girderName === 'All') {
+                    visibility.push(true);
+                } else {
+                    visibility.push(trace.legendgroup === girderName);
+                }
+            }
+            Plotly.restyle('plot_div', {'visible': visibility});
         }
     </script>
 </body>
@@ -151,6 +253,8 @@ class PlotWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Plate Girder Results")
+        self._max_visible = False
+        self._min_visible = False
 
         # Populated by setup() after bridge analysis completes
         self._ds_all = None
@@ -160,25 +264,51 @@ class PlotWidget(QWidget):
         layout = QVBoxLayout(self)
         top = QHBoxLayout()
 
-        # ---------- LOADCASE ----------
-        top.addWidget(QLabel("Load case:"))
-        self.combo = QComboBox()
-        self.combo.currentTextChanged.connect(self.update_plot)
-        top.addWidget(self.combo)
-
-        # ---------- FORCE ----------
-        top.addWidget(QLabel("Force:"))
-        self.force_combo = QComboBox()
-        self.force_combo.addItems(list(FORCE_MAP.keys()))
-        self.force_combo.setCurrentText("Vy")
-        self.force_combo.currentTextChanged.connect(self.update_plot)
-        top.addWidget(self.force_combo)
+        self.setStyleSheet("""
+            QLabel { color: #1a1a2e; font-size: 12px; }
+            QComboBox { color: #1a1a2e; background: #f5f5f5; border: 1px solid #ccc;
+                        padding: 2px 6px; min-width: 80px; }
+            QComboBox QAbstractItemView { color: #1a1a2e; background: white; }
+            QCheckBox { color: #1a1a2e; spacing: 4px; }
+            QSlider::groove:horizontal { height: 6px; background: #ddd; border-radius: 3px; }
+            QSlider::handle:horizontal { width: 14px; margin: -4px 0;
+                                          background: #4a90d9; border-radius: 7px; }
+        """)
 
         # ---------- CONTOUR CHECKBOX ----------
-        self.contour = QCheckBox("Contour (Moments only)")
+        # Supports Fy shear contour in addition to moments
+        self.contour = QCheckBox("Contour")
         self.contour.stateChanged.connect(self.update_plot)
         top.addWidget(self.contour)
-        
+
+        # ---------- GRID VISIBILITY ----------
+        self.grid_cb = QCheckBox("Grid")
+        self.grid_cb.setChecked(True)
+        self.grid_cb.stateChanged.connect(self._toggle_grid)
+        top.addWidget(self.grid_cb)
+
+        # ---------- AXIS VISIBILITY ----------
+        self.axis_cb = QCheckBox("Axis")
+        self.axis_cb.setChecked(True)
+        self.axis_cb.stateChanged.connect(self._toggle_axis)
+        top.addWidget(self.axis_cb)
+
+        # ---------- SCALE SLIDER ----------
+        top.addWidget(QLabel("Scale:"))
+        self.scale_slider = QSlider(Qt.Horizontal)
+        self.scale_slider.setRange(1, 20)
+        self.scale_slider.setValue(10)
+        self.scale_slider.setFixedWidth(100)
+        self.scale_slider.valueChanged.connect(self._set_scale)
+        top.addWidget(self.scale_slider)
+
+        # ---------- ISOLATE GIRDER ----------
+        top.addWidget(QLabel("Girder:"))
+        self.girder_combo = QComboBox()
+        self.girder_combo.addItem("All")
+        self.girder_combo.currentTextChanged.connect(self._isolate_girder)
+        top.addWidget(self.girder_combo)
+
         top.addStretch()
         layout.addLayout(top)
 
@@ -210,13 +340,61 @@ class PlotWidget(QWidget):
     def setup(self, ds_all, loadcases, nodes, members):
         """Populate the widget with bridge analysis results. Call after design() completes."""
         self._ds_all = ds_all
+        self._loadcases = loadcases
         self._nodes = nodes
         self._members = members
 
-        self.combo.blockSignals(True)
-        self.combo.clear()
-        self.combo.addItems(loadcases)
-        self.combo.blockSignals(False)
+        # Default to first loadcase and Fy force
+        self._current_loadcase = loadcases[0] if loadcases else ""
+        self._current_force = "Fy"
+
+        # Populate the girder isolation dropdown based on the model
+        self._populate_girder_combo()
+
+        # Push loadcase names to the output dock's Load combination combobox
+        # so users can switch the loadcase from the output panel
+        main_window = self.window()
+        if main_window and hasattr(main_window, "output_dock") and main_window.output_dock:
+            main_window.output_dock.populate_loadcases(loadcases)
+
+        self.update_plot()
+
+    def _populate_girder_combo(self):
+        """Fill the girder combobox with names derived from the model geometry."""
+        z_vals = set()
+        for ele_tag, (n1, n2) in self._members.items():
+            z1 = round(self._nodes[n1][2], 3)
+            z2 = round(self._nodes[n2][2], 3)
+            if z1 == z2:
+                z_vals.add(z1)
+
+        self.girder_combo.blockSignals(True)
+        self.girder_combo.clear()
+        self.girder_combo.addItem("All")
+        for i in range(len(sorted(z_vals))):
+            self.girder_combo.addItem(f"G{i+1}")
+        self.girder_combo.blockSignals(False)
+
+
+    def _toggle_grid(self, state):
+        """Show or hide grid lines on the 3D plot axes."""
+        show = "true" if state else "false"
+        self.web.page().runJavaScript(f"toggleGrid({show})")
+
+    def _toggle_axis(self, state):
+        """Show or hide all axis lines, labels, and ticks on the 3D plot."""
+        show = "true" if state else "false"
+        self.web.page().runJavaScript(f"toggleAxis({show})")
+
+    def _set_scale(self, value):
+        """Scale the force diagram height. Slider 1-20 maps to 0.1x - 2.0x."""
+        factor = value / 10.0
+        self.web.page().runJavaScript(f"setScale({factor})")
+
+    def _isolate_girder(self, girder_name):
+        """Show only the selected girder, or 'All' to restore everything."""
+        self.web.page().runJavaScript(f"isolateGirder('{girder_name}')")
+
 
     def show_summary_dialog(self):
         """Pops up the dialog perfectly in the top-left corner of the web view."""
@@ -232,25 +410,74 @@ class PlotWidget(QWidget):
         top_left_corner = self.web.mapToGlobal(QPoint(15, 15))
         self.summary_dialog.move(top_left_corner)
 
+    # Public setters
+
+    def toggle_max(self, state):
+        """Show or hide max indicator lines on the BMD plot."""
+        self._max_visible = bool(state)
+        show = "true" if state else "false"
+        self.web.page().runJavaScript(f"toggleMaxMin('max_lines', {show})")
+        self._update_hud_visibility()
+
+    def toggle_min(self, state):
+        """Show or hide min indicator lines on the BMD plot."""
+        self._min_visible = bool(state)
+        show = "true" if state else "false"
+        self.web.page().runJavaScript(f"toggleMaxMin('min_lines', {show})")
+        self._update_hud_visibility()
+
+    def _update_hud_visibility(self):
+        """Sync the HUD Extreme Values table natively on the plot with the Max/Min checkboxes."""
+        show_hud = "true" if (self._max_visible or self._min_visible) else "false"
+        self.web.page().runJavaScript(f"Plotly.relayout('plot_div', {{'annotations[0].visible': {show_hud}}})")
+
+    def set_loadcase(self, loadcase_name):
+        """Set the active load case and refresh the plot."""
+        if loadcase_name and loadcase_name != self._current_loadcase:
+            self._current_loadcase = loadcase_name
+            self.update_plot()
+
+    def set_force(self, force_key):
+        """Set the active force component and refresh the plot."""
+        if force_key and force_key != self._current_force:
+            self._current_force = force_key
+            self.update_plot()
+
+    # Main plot update
+
     def update_plot(self):
         if self._ds_all is None:
             return
 
-        loadcase = self.combo.currentText()
-        force_key = self.force_combo.currentText()
+        loadcase = self._current_loadcase
+        force_key = self._current_force
+
+        if not loadcase or loadcase not in self._ds_all.Loadcase.values:
+            return
+
         ds = self._ds_all.sel(Loadcase=loadcase)
 
         is_force = force_key.startswith("F") 
-        is_moment = force_key.startswith("M") 
+        is_moment = force_key.startswith("M")
 
         if is_force:
-            self.contour.blockSignals(True)
-            self.contour.setChecked(False)
-            self.contour.setEnabled(False)
-            self.contour.blockSignals(False)
-            
-            self.stats_dict = {}
-            plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
+            if force_key == "Fy":
+                self.contour.setEnabled(True)
+
+                if self.contour.isChecked():
+                    plot_json = build_figure_sfd_contour(ds, force_key, self._nodes, self._members)
+                    self.stats_dict = {}
+                else:
+                    self.stats_dict = {}
+                    plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
+            else:
+                self.contour.blockSignals(True)
+                self.contour.setChecked(False)
+                self.contour.setEnabled(False)
+                self.contour.blockSignals(False)
+
+                self.stats_dict = {}
+                plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
 
         elif is_moment:
             self.contour.setEnabled(True)
@@ -259,17 +486,28 @@ class PlotWidget(QWidget):
                 plot_json = build_figure_bmd_contour(ds, force_key, self._nodes, self._members)
                 self.stats_dict = {}
             else:
-                plot_json, self.stats_dict = build_figure_bmd(ds, force_key, self._nodes, self._members)
+                plot_json, self.stats_dict = build_figure_bmd(
+                    ds, force_key, self._nodes, self._members,
+                    show_max=self._max_visible, show_min=self._min_visible
+                )
                 
                 if self.summary_dialog.isVisible():
                     self.summary_dialog.update_data(self.stats_dict)
 
         else:
-            raise ValueError(f"Unsupported force: {force_key}")
+            return
 
-        # -------- INJECT PLOT VIA QWEBCHANNEL --------
-        # Emits the raw JSON string perfectly without double-encoding it
+        # outputs raw JSON string to web
         self.backend.newPlotData.emit(plot_json)
+
+        # default values
+        self.girder_combo.blockSignals(True)
+        self.girder_combo.setCurrentText("All")
+        self.girder_combo.blockSignals(False)
+
+        self.scale_slider.blockSignals(True)
+        self.scale_slider.setValue(10)
+        self.scale_slider.blockSignals(False)
 
 
 # ======================= MAIN
