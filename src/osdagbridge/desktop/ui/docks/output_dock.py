@@ -261,10 +261,16 @@ class OutputDock(QWidget):
                 target.addLayout(self._make_combobox_row(key, label, values, meta))
 
             elif ftype == TYPE_CHECKBOX_GRID:
-                target.addLayout(self._make_checkbox_grid(key, label, values, meta))
+                container = QWidget()
+                container.setObjectName(key)
+                container.setLayout(self._make_checkbox_grid(key, label, values, meta))
+                target.addWidget(container)
 
             elif ftype == TYPE_CHECKBOX_ROW:
-                target.addLayout(self._make_checkbox_row(key, label, values, meta))
+                container = QWidget()
+                container.setObjectName(key)
+                container.setLayout(self._make_checkbox_row(key, label, values, meta))
+                target.addWidget(container)
 
             elif ftype == TYPE_CHECKBOX:
                 cb = QCheckBox(label or "")

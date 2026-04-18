@@ -2,13 +2,16 @@ import sys
 import os
 import json
 
-# WebGL Performance Flags: Optimized for native hardware acceleration on all platforms
+# Performance Flags: Tuned for Screen Recording / Meetings on Windows
+os.environ["QT_OPENGL"] = "software"
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--ignore-gpu-blocklist "
     "--enable-gpu-rasterization "
     "--enable-webgl "
     "--enable-transparent-visuals "
     "--disable-software-rasterizer "
+    "--disable-gpu-driver-bug-workarounds"
+    "--use-angle=d3d11 "
 )
 
 from PySide6.QtWidgets import (
@@ -168,8 +171,6 @@ class PlotWidget(QWidget):
 
         settings = self.web.settings()
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
         layout.addWidget(self.web)
 
         # ---------- INITIALIZATION & QWEBCHANNEL ----------
@@ -205,40 +206,36 @@ class PlotWidget(QWidget):
         top_left_corner = self.web.mapToGlobal(QPoint(15, 15))
         self.summary_dialog.move(top_left_corner)
 
-    def update_plot(self, loadcase="Envelope", force_key="Vy", is_contour=False, show_grid=True, scale=1.0, selected_girder="All", show_max=False, show_min=False, show_axis=True):
-        print(f"DEBUG [PlotsUI]: update_plot called with force_key={force_key}, loadcase={loadcase}")
+    def update_plot(self, loadcase="Envelope", force_key="Vy", is_contour=False, show_grid=True, scale=1.0, selected_girder="All", show_max=False, show_min=False):
         if self._ds_all is None:
-            print("DEBUG [PlotsUI]: Returning early because _ds_all is None")
             return
 
         ds = self._ds_all.sel(Loadcase=loadcase)
 
-        # Map display names to internal keys (forces, moments, or displacements)
+        # Map display names to internal force keys
         MAP_DISP_TO_KEY = {
             "Fx": "Fx", "Vy": "Fy", "Vz": "Fz",
-            "Tx": "Mx", "My": "My", "Mz": "Mz",
-            "Dx": "ux", "Dy": "uy", "Dz": "uz"
+            "Tx": "Mx", "My": "My", "Mz": "Mz"
         }
         
         force_key = MAP_DISP_TO_KEY.get(force_key, force_key)
 
         is_force = force_key.startswith("F") 
-        is_moment = force_key.startswith("M")
-        is_disp = force_key.startswith("u")
+        is_moment = force_key.startswith("M") 
 
-        if is_force or is_disp:
+        if is_force:
             self.stats_dict = {}
             if is_contour:
-                plot_json = build_figure_sfd_contour(ds, force_key, self._nodes, self._members, show_grid, scale, selected_girder, show_axis)
+                plot_json = build_figure_sfd_contour(ds, force_key, self._nodes, self._members, show_grid, scale, selected_girder)
             else:
-                plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members, show_grid, scale, selected_girder, show_axis)
+                plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members, show_grid, scale, selected_girder)
 
         elif is_moment:
             if is_contour:
-                plot_json = build_figure_bmd_contour(ds, force_key, self._nodes, self._members, show_grid, scale, selected_girder, show_axis)
+                plot_json = build_figure_bmd_contour(ds, force_key, self._nodes, self._members, show_grid, scale, selected_girder)
                 self.stats_dict = {}
             else:
-                plot_json, stats = build_figure_bmd(ds, force_key, self._nodes, self._members, show_grid, scale, selected_girder, show_axis)
+                plot_json, stats = build_figure_bmd(ds, force_key, self._nodes, self._members, show_grid, scale, selected_girder)
                 self.stats_dict = stats
                 
                 # Update visibility of max/min lines

@@ -238,38 +238,37 @@ class FrontendData:
                  ["D<sub>x</sub>","D<sub>y</sub>","D<sub>z</sub>"]],
                 True, "No Validator", {"exclusive": True}),
 
-            (KEY_ANALYSIS_DISPLAY_OPTIONS, None,
+            (KEY_ANALYSIS_DISPLAY_OPTIONS, None,  # label goes on the groupbox title instead
                 TYPE_CHECKBOX_ROW, ["Max", "Min"],
                 True, "No Validator",
                 {"exclusive": False, "group_title": "Display Options"}),
 
-            (KEY_ANALYSIS_UTILIZATION, "Show Contours",
-                TYPE_CHECKBOX, None, True, "No Validator", {"group_end": True}),
-
-            (KEY_ANALYSIS_PLOT_CONTROLS, None,
-                TYPE_CHECKBOX_ROW, ["Show Grid", "Show Axis"],
-                True, "No Validator",
-                {"group_title": "Plot Controls", "default": [True, True]}),
+            (KEY_ANALYSIS_UTILIZATION, "Controlling Utilization Ratio",
+                TYPE_CHECKBOX, None, True, "No Validator", {}),
 
             (KEY_ANALYSIS_SCALE, "Plot Scale:",
                 TYPE_COMBOBOX, ["0.1", "0.25", "0.5", "1.0", "1.5", "2.0"],
-                True, "No Validator", {"default": "1.0"}),
+                True, "No Validator", {"default": "1.0", "group_title": "Plot Controls"}),
 
             (KEY_ANALYSIS_ISOLATE, "Isolate Girder:",
-                TYPE_COMBOBOX, ["All"], True, "No Validator", {"group_end": True}),
+                TYPE_COMBOBOX, ["All"], True, "No Validator", {}),
+
+            (KEY_ANALYSIS_SHOW_GRID, "Show Grid",
+                TYPE_CHECKBOX, None, True, "No Validator",
+                {"default": True, "group_end": True}),
 
             # ── Superstructure ────────────────────────────────────────────────
             (KEY_SECTION_OUTPUT_SUPERSTRUCTURE, "Superstructure",
                 TYPE_TITLE, None, True, "No Validator",
                 {"kind": "design"}),
 
-            (KEY_BTN_STEEL_DESIGN, "Design Actions:",
+            (KEY_BTN_STEEL_DESIGN, "Steel Design",
                 TYPE_BUTTON, None, True, "No Validator",
-                {"action": "open_steel_design", "button_label": "Steel", "group_inline": True}),
+                {"action": "open_steel_design", "button_label": "Here"}),
 
-            (KEY_BTN_DECK_DESIGN, None,
+            (KEY_BTN_DECK_DESIGN, "Deck Design",
                 TYPE_BUTTON, None, True, "No Validator",
-                {"action": "open_deck_design", "button_label": "Deck", "group_inline": True}),
+                {"action": "open_deck_design", "button_label": "Here"}),
 
             # ── Substructure ──────────────────────────────────────────────────
             (KEY_SECTION_OUTPUT_SUBSTRUCTURE, "Substructure",

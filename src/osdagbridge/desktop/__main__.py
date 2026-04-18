@@ -1,6 +1,15 @@
 import sys
+import os
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QFile, QTextStream
+from PySide6.QtCore import QFile, QTextStream, Qt
+
+# On macOS, we must enable hardware acceleration attributes BEFORE creating the QApplication
+# to ensure WebGL is supported in QWebEngineView.
+if sys.platform == 'darwin':
+    QApplication.setAttribute(Qt.AA_UseDesktopOpenGL)
+    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+    # Optional: Force hardware acceleration if previously blacklisted
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--ignore-gpu-blacklist --enable-gpu-rasterization"
 from osdagbridge.desktop.resources import resources_rc
 
 # Create Intg_osdag.sqlite if not Exist
