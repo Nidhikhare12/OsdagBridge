@@ -58,8 +58,6 @@ KEY_ANALYSIS_UTILIZATION      = "analysis.utilization"
 KEY_ANALYSIS_SCALE            = "analysis.scale"
 KEY_ANALYSIS_ISOLATE          = "analysis.isolate"
 KEY_ANALYSIS_SHOW_GRID        = "analysis.show_grid"
-KEY_ANALYSIS_SHOW_AXIS        = "analysis.show_axis"
-KEY_ANALYSIS_PLOT_CONTROLS    = "analysis.plot_controls"
 
 KEY_BTN_STEEL_DESIGN          = "btn.steel_design"
 KEY_BTN_DECK_DESIGN           = "btn.deck_design"

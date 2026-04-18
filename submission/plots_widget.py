@@ -15,7 +15,7 @@ FORCE_MAP = {
 # UNIFIED SCENE & CAMERA CONFIGURATION
 # ============================================================
 # Used by all 3 plots so the camera never jumps when switching dropdowns
-def get_shared_scene(show_grid=True, show_axis=True):
+def get_shared_scene(show_grid=True):
     return dict(
         camera=dict(
             up=dict(x=0, y=1, z=0),
@@ -23,22 +23,22 @@ def get_shared_scene(show_grid=True, show_axis=True):
             eye=dict(x=0, y=0.1, z=2.5) # Perfect front elevation
         ),
         xaxis=dict(
-            title=dict(text="<b>Span Length</b>" if show_axis else "", font=dict(size=12, color="black")),
+            title=dict(text="<b>Span Length</b>", font=dict(size=12, color="black")),
             showbackground=False, showgrid=show_grid, gridcolor="rgba(100, 100, 100, 0.15)",
-            zeroline=False, showline=show_axis, linecolor="black", linewidth=2,
-            ticks="outside" if show_axis else "", tickfont=dict(size=11, color="black"),
-            visible=show_axis, showspikes=False, showticklabels=show_axis
+            zeroline=False, showline=True, linecolor="black", linewidth=2,
+            ticks="outside", tickfont=dict(size=11, color="black"),
+            visible=True, showspikes=False
         ),
         zaxis=dict(
-            title=dict(text="<b>Bridge Width</b>" if show_axis else "", font=dict(size=12, color="black")),
+            title=dict(text="<b>Bridge Width</b>", font=dict(size=12, color="black")),
             showbackground=False, showgrid=show_grid, gridcolor="rgba(100, 100, 100, 0.15)",
-            zeroline=False, showline=show_axis, linecolor="black", linewidth=2,
-            ticks="outside" if show_axis else "", tickfont=dict(size=11, color="black"),
-            autorange="reversed", visible=show_axis, showspikes=False, showticklabels=show_axis
+            zeroline=False, showline=True, linecolor="black", linewidth=2,
+            ticks="outside", tickfont=dict(size=11, color="black"),
+            autorange="reversed", visible=True, showspikes=False
         ),
         yaxis=dict(
             showbackground=False, showgrid=False, zeroline=False,
-            visible=False, showspikes=False, showticklabels=False
+            visible=False, showspikes=False
         ),
         aspectmode='data',
     )
@@ -57,94 +57,73 @@ def build_nodes_members():
     return nodes, members
 
 
-def add_grillage_background(fig, nodes_dict, members_dict, show_grid=True):
-    if not show_grid:
-        return
-    # To avoid null/None segments which can crash some browser environments,
-    # we'll draw each member as a separate trace or a continuous path.
-    # For a background grid, basic Scatter3d traces are efficient.
+def add_grillage_background(fig, nodes_dict, members_dict):
+    x_grill, y_grill, z_grill = [], [], []
     for ele_tag, (n1, n2) in members_dict.items():
         x1, _, z1 = nodes_dict[n1]
         x2, _, z2 = nodes_dict[n2]
-        fig.add_trace(go.Scatter3d(
-            x=[x1, x2], y=[0, 0], z=[z1, z2], mode='lines',
-            line=dict(color='darkgrey', width=2), opacity=0.9,
-            hoverinfo='skip', showlegend=False
-        ))
+        x_grill.extend([x1, x2, None])
+        y_grill.extend([0, 0, None])
+        z_grill.extend([z1, z2, None])
 
-def add_coordinate_triad(fig, nodes, scale=0.10, show_axis=True):
-    if not show_axis or not nodes:
-        return
-    
-    try:
-        xs = [coord[0] for coord in nodes.values()]
-        ys = [coord[1] for coord in nodes.values()]
-        zs = [coord[2] for coord in nodes.values()]
-        
-        span = max(max(xs) - min(xs), max(zs) - min(zs))
-        if span <= 0: span = 5000
-    except (ValueError, TypeError):
-        return
+    fig.add_trace(go.Scatter3d(
+        x=x_grill, y=y_grill, z=z_grill, mode='lines',
+        line=dict(color='darkgrey', width=2), opacity=0.9,
+        hoverinfo='skip', showlegend=False
+    ))
+
+def add_coordinate_triad(fig, nodes, scale=0.10):
+    xs = [coord[0] for coord in nodes.values()]
+    ys = [coord[1] for coord in nodes.values()]
+    zs = [coord[2] for coord in nodes.values()]
+
+    span_x = max(xs) - min(xs)
+    span_z = max(zs) - min(zs)
+    span = max(span_x, span_z)
+    if span == 0: span = 5000
 
     L = span * scale
     ox, oy, oz = min(xs), min(ys), min(zs)
+
     cad_colors = {'X': '#FF4136', 'Y': '#2ECC40', 'Z': '#0074D9'}
 
-    # Draw Axis Lines separately to avoid "null" segment errors in JS
-    # X Axis
-    fig.add_trace(go.Scatter3d(
-        x=[ox, ox + L], y=[oy, oy], z=[oz, oz],
-        mode='lines', line=dict(color=cad_colors['X'], width=5), hoverinfo='skip', showlegend=False
-    ))
-    # Y Axis
-    fig.add_trace(go.Scatter3d(
-        x=[ox, ox], y=[oy, oy + L], z=[oz, oz],
-        mode='lines', line=dict(color=cad_colors['Y'], width=5), hoverinfo='skip', showlegend=False
-    ))
-    # Z Axis
-    fig.add_trace(go.Scatter3d(
-        x=[ox, ox], y=[oy, oy], z=[oz, oz + L],
-        mode='lines', line=dict(color=cad_colors['Z'], width=5), hoverinfo='skip', showlegend=False
-    ))
+    def draw_axis(axis_name, end_pt, vec, color):
+        fig.add_trace(go.Scatter3d(
+            x=[ox, end_pt[0]], y=[oy, end_pt[1]], z=[oz, end_pt[2]],
+            mode='lines', line=dict(color=color, width=5), hoverinfo='skip', showlegend=False
+        ))
+        fig.add_trace(go.Cone(
+            x=[end_pt[0]], y=[end_pt[1]], z=[end_pt[2]], u=[vec[0]], v=[vec[1]], w=[vec[2]],
+            sizemode="absolute", sizeref=L*0.2, anchor="tail", showscale=False, hoverinfo='skip',
+            colorscale=[[0, color], [1, color]]
+        ))
 
-    # Text Labels
+    draw_axis('X', [ox + L, oy, oz], [L, 0, 0], cad_colors['X'])
+    draw_axis('Y', [ox, oy + L, oz], [0, L, 0], cad_colors['Y'])
+    draw_axis('Z', [ox, oy, oz + L], [0, 0, L], cad_colors['Z'])
+
     fig.add_trace(go.Scatter3d(
         x=[ox + L*1.2, ox, ox], y=[oy, oy + L*1.2, oy], z=[oz, oz, oz + L*1.2],
-        mode='text', text=['X', 'Y', 'Z'],
-        textfont=dict(color=[cad_colors['X'], cad_colors['Y'], cad_colors['Z']], size=12),
+        mode='text', text=['<b>X</b>', '<b>Y</b>', '<b>Z</b>'],
+        textfont=dict(color=[cad_colors['X'], cad_colors['Y'], cad_colors['Z']], size=13, family="Arial Black, sans-serif"),
         hoverinfo='skip', showlegend=False
     ))
 
 # SFD
 # ============================================================
-def build_figure_sfd(ds, force_key, nodes, members, show_grid=True, scale=1.0, selected_girder="All", show_axis=True):
+def build_figure_sfd(ds, force_key, nodes, members, show_grid=True, scale=1.0, selected_girder="All"):
     def find_component(name):
-        available = ds["Component"].values
-        for c in available:
-            if c.lower() == name.lower(): return c
-        base = name.split('_')[0].lower()
-        for c in available:
-            if c.lower().startswith(base): return c
+        for c in ds["Component"].values:
+            if c.lower() == name.lower():
+                return c
         return None
 
-    # Support both Forces and Displacements
-    is_disp = force_key.startswith("u")
-    comp_i_name, comp_j_name = FORCE_MAP.get(force_key, (force_key, force_key))
-    comp_i = find_component(comp_i_name) or find_component(force_key)
-    comp_j = find_component(comp_j_name) or find_component(force_key)
+    comp_i_name, comp_j_name = FORCE_MAP[force_key]
+    comp_i = find_component(comp_i_name)
+    comp_j = find_component(comp_j_name)
 
-    def get_val(tag, comp, is_node=False):
-        if not comp: return 0.0
-        try:
-            if is_disp:
-                # Displacements are node-based (ux, uy, uz)
-                node_tag = tag if is_node else members[tag][0]
-                return float(ds["displacements"].sel(Node=node_tag, Component=comp).values)
-            else:
-                # Forces are element-based (Fx, Fy, Mz...)
-                return float(ds["forces"].sel(Element=tag, Component=comp).values)
-        except Exception:
-            return 0.0
+    def get_force(elem, comp):
+        return float(ds["forces"].sel(Element=elem, Component=comp).values)
 
     Z_TOL = 3
     node_z = {}
@@ -167,23 +146,20 @@ def build_figure_sfd(ds, force_key, nodes, members, show_grid=True, scale=1.0, s
             n1, n2 = members[e]
             x1, y1, z1 = nodes[n1]
             xs.append(x1); ys.append(y1); zs.append(z1)
-            # Use get_val with correct node/element tag
-            v = get_val(n1, comp_i, is_node=True) if is_disp else get_val(e, comp_i)
-            vals.append(round(v, 4 if is_disp else 1))
+            vals.append(round(get_force(e, comp_i), 3))
             node_ids.append(n1)
 
         last_e = elem_list[-1]
         n1, n2 = members[last_e]
         x2, y2, z2 = nodes[n2]
         xs.append(x2); ys.append(y2); zs.append(z2)
-        v = get_val(n2, comp_j, is_node=True) if is_disp else get_val(last_e, comp_j)
-        vals.append(round(v, 4 if is_disp else 1))
+        vals.append(round(get_force(last_e, comp_j), 3))
         node_ids.append(n2)
         return np.array(xs), np.array(ys), np.array(zs), np.array(vals), node_ids
 
     fig_sfd = go.Figure()
-    add_grillage_background(fig_sfd, nodes, members, show_grid=show_grid)
-    add_coordinate_triad(fig_sfd, nodes, show_axis=show_axis)
+    add_grillage_background(fig_sfd, nodes, members)
+    add_coordinate_triad(fig_sfd, nodes)
 
     sorted_girders = sorted(girders.items(), key=lambda item: item[0])
     for i, (z_val, elems) in enumerate(sorted_girders):
@@ -196,23 +172,22 @@ def build_figure_sfd(ds, force_key, nodes, members, show_grid=True, scale=1.0, s
         z_base = np.mean(zs)
 
         if max(Vy) - min(Vy) == 0:
-            shear_scale = 1.0 if max(Vy) == 0 else 0.4 * abs((max(xs) - min(xs)) / max(Vy))
+            shear_scale = 1.0 if max(Vy) == 0 else 0.25 * abs((max(xs) - min(xs)) / max(Vy))
         else:
-            shear_scale = 0.4 * abs((max(xs) - min(xs)) / (max(Vy) - min(Vy)))
+            shear_scale = 0.25 * abs((max(xs) - min(xs)) / (max(Vy) - min(Vy)))
         
         shear_scale *= scale # Apply dynamic scaling
-        print(f"DEBUG: {girder_name} - {force_key} Range: [{min(Vy)}, {max(Vy)}] | Factor: {shear_scale}")
 
         x_step = np.repeat(xs, 2)[1:-1]
         Vy_step = np.repeat(Vy[:-1], 2)
         y_step = Vy_step * shear_scale
         z_step = [z_base] * len(y_step)
 
-        # Main SFD Fill (Thicked line instead of surface for better browser compatibility)
-        fig_sfd.add_trace(go.Scatter3d(
-            x=x_step, y=y_step, z=z_step, mode="lines",
-            line=dict(color="rgba(0, 0, 255, 0.2)", width=2), # Faint fill line
-            hoverinfo="skip", showlegend=False, name=girder_name, legendgroup=girder_name
+        # Main SFD Line + Fill Area
+        fig_sfd.add_trace(go.Surface(
+            x=[x_step, x_step], y=[np.zeros(len(y_step)), y_step], z=[z_step, z_step],
+            surfacecolor=[[1]*len(y_step), [1]*len(y_step)], colorscale=[[0, 'blue'], [1, 'blue']],
+            opacity=0.2, showscale=False, hoverinfo="skip", name=girder_name, legendgroup=girder_name, showlegend=False
         ))
 
         hover_strings = [f"<br>Node {nid}<br>X = {x:.2f}<br>{force_key} = {v:.2f}"
@@ -220,30 +195,28 @@ def build_figure_sfd(ds, force_key, nodes, members, show_grid=True, scale=1.0, s
 
         fig_sfd.add_trace(go.Scatter3d(
             x=x_step, y=y_step, z=z_step, mode="lines",
-            line=dict(color="blue", width=8), hoverinfo="text", text=hover_strings, 
+            line=dict(color="blue", width=6), hoverinfo="text", text=hover_strings, 
             name=f"{girder_name} SFD", legendgroup=girder_name, showlegend=True
         ))
         
         # Base Line
         fig_sfd.add_trace(go.Scatter3d(
-            x=list(xs), y=[0] * len(xs), z=list(zs), mode="lines",
+            x=list(xs) + [None], y=[0] * (len(xs) + 1), z=list(zs) + [None], mode="lines",
             line=dict(color="green", width=3), hoverinfo="skip", 
             name=f"{girder_name} Base", legendgroup=girder_name, showlegend=False
         ))
 
-        # Vertical connectors (cliffs) - Continuous path to avoid "null" and save WebGL resources
+        # Vertical connectors (cliffs)
         cliff_x, cliff_y, cliff_z = [], [], []
         for xi, vyi in zip(xs, Vy):
-            h = -vyi * shear_scale if xi == xs[-1] else vyi * shear_scale
-            # Path: (0) -> (height) -> (0) - Creates a vertical spike without needing null breaks
-            cliff_x.extend([xi, xi, xi])
-            cliff_y.extend([0, h, 0])
-            cliff_z.extend([z_base, z_base, z_base])
+            cliff_x.extend([xi, xi, None])
+            cliff_z.extend([z_base, z_base, None])
+            cliff_y.extend([0, -vyi * shear_scale if xi == xs[-1] else vyi * shear_scale, None])
         
         fig_sfd.add_trace(go.Scatter3d(
             x=cliff_x, y=cliff_y, z=cliff_z, mode="lines",
             line=dict(color="blue", width=4), hoverinfo="skip", 
-            showlegend=False, name=f"{girder_name} Connectors", legendgroup=girder_name
+            name=f"{girder_name} Connectors", legendgroup=girder_name, showlegend=False
         ))
 
         # Girder Label
@@ -256,46 +229,30 @@ def build_figure_sfd(ds, force_key, nodes, members, show_grid=True, scale=1.0, s
     fig_sfd.update_layout(
         uirevision="constant_view",
         hoverlabel=dict(bgcolor="#E6F2FF", font_size=12, font_color="#2C3E50", bordercolor="#BBD6EE", namelength=-1),
-        scene=get_shared_scene(show_grid, show_axis),
+        scene=get_shared_scene(show_grid),
         margin=dict(l=0, r=0, t=40, b=0),
         paper_bgcolor="white", plot_bgcolor="white",
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
     )
-    if not fig_sfd.data:
-        print(f"DEBUG: No traces added for {force_key}")
-    
     return fig_sfd.to_json()
 
 
 # ============================================================
 # SFD CONTOUR
 # ============================================================
-def build_figure_sfd_contour(ds, force_key, nodes, members, show_grid=True, scale=1.0, selected_girder="All", show_axis=True):
+def build_figure_sfd_contour(ds, force_key, nodes, members, show_grid=True, scale=1.0, selected_girder="All"):
     def find_component(name):
-        available = ds["Component"].values
-        for c in available:
-            if c.lower() == name.lower(): return c
-        base = name.split('_')[0].lower()
-        for c in available:
-            if c.lower().startswith(base): return c
+        for c in ds["Component"].values:
+            if c.lower() == name.lower():
+                return c
         return None
 
-    # Support both Forces and Displacements
-    is_disp = force_key.startswith("u")
-    comp_i_name, comp_j_name = FORCE_MAP.get(force_key, (force_key, force_key))
-    comp_i = find_component(comp_i_name) or find_component(force_key)
-    comp_j = find_component(comp_j_name) or find_component(force_key)
+    comp_i_name, comp_j_name = FORCE_MAP[force_key]
+    comp_i = find_component(comp_i_name)
+    comp_j = find_component(comp_j_name)
 
-    def get_val(tag, comp, is_node=False):
-        if not comp: return 0.0
-        try:
-            if is_disp:
-                node_tag = tag if is_node else members[tag][0]
-                return float(ds["displacements"].sel(Node=node_tag, Component=comp).values)
-            else:
-                return float(ds["forces"].sel(Element=tag, Component=comp).values)
-        except Exception:
-            return 0.0
+    def get_force(elem, comp):
+        return float(ds["forces"].sel(Element=elem, Component=comp).values)
 
     Z_TOL = 3
     node_z = {}
@@ -315,20 +272,17 @@ def build_figure_sfd_contour(ds, force_key, nodes, members, show_grid=True, scal
     def build_polyline(elem_list, comp_i, comp_j):
         xs, ys, zs, vals, node_ids = [], [], [], [], []
         for e in elem_list:
-            n1 = members[e][0]
+            n1, n2 = members[e]
             x1, y1, z1 = nodes[n1]
             xs.append(x1); ys.append(y1); zs.append(z1)
-            # Use get_val with correct node/element tag
-            v = get_val(n1, comp_i, is_node=True) if is_disp else get_val(e, comp_i)
-            vals.append(round(v, 4 if is_disp else 1))
+            vals.append(round(get_force(e, comp_i), 3))
             node_ids.append(n1)
 
         last_e = elem_list[-1]
-        n2 = members[last_e][1]
+        n1, n2 = members[last_e]
         x2, y2, z2 = nodes[n2]
         xs.append(x2); ys.append(y2); zs.append(z2)
-        v = get_val(n2, comp_j, is_node=True) if is_disp else get_val(last_e, comp_j)
-        vals.append(round(v, 4 if is_disp else 1))
+        vals.append(round(get_force(last_e, comp_j), 3))
         node_ids.append(n2)
         return np.array(xs), np.array(ys), np.array(zs), np.array(vals), node_ids
 
@@ -339,7 +293,7 @@ def build_figure_sfd_contour(ds, force_key, nodes, members, show_grid=True, scal
 
     fig = go.Figure()
     add_grillage_background(fig, nodes, members)
-    add_coordinate_triad(fig, nodes, show_axis=show_axis)
+    add_coordinate_triad(fig, nodes)
 
     sorted_girders = sorted(girders.items(), key=lambda item: item[0])
     for i, (gid, elems) in enumerate(sorted_girders):
@@ -384,7 +338,7 @@ def build_figure_sfd_contour(ds, force_key, nodes, members, show_grid=True, scal
     fig.update_layout(
         uirevision="constant_view",
         hoverlabel=dict(bgcolor="rgba(15, 23, 42, 0.95)", font_size=12, font_color="#F8F9FA", bordercolor="#0EA5E9", namelength=-1),
-        scene=get_shared_scene(show_grid, show_axis),
+        scene=get_shared_scene(show_grid),
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0),
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
     )
@@ -394,32 +348,19 @@ def build_figure_sfd_contour(ds, force_key, nodes, members, show_grid=True, scal
 # ============================================================
 # BMD
 # ============================================================
-def build_figure_bmd(ds, force_key, nodes, members, show_grid=True, scale=1.0, selected_girder="All", show_axis=True):
+def build_figure_bmd(ds, force_key, nodes, members, show_grid=True, scale=1.0, selected_girder="All"):
     def find_component(name):
-        available = ds["Component"].values
-        for c in available:
-            if c.lower() == name.lower(): return c
-        base = name.split('_')[0].lower()
-        for c in available:
-            if c.lower().startswith(base): return c
+        for c in ds["Component"].values:
+            if c.lower() == name.lower():
+                return c
         return None
 
-    # Support both Forces and Displacements
-    is_disp = force_key.startswith("u")
-    comp_i_name, comp_j_name = FORCE_MAP.get(force_key, (force_key, force_key))
-    comp_i = find_component(comp_i_name) or find_component(force_key)
-    comp_j = find_component(comp_j_name) or find_component(force_key)
+    comp_i_name, comp_j_name = FORCE_MAP[force_key]
+    comp_i = find_component(comp_i_name)
+    comp_j = find_component(comp_j_name)
 
-    def get_val(tag, comp, is_node=False):
-        if not comp: return 0.0
-        try:
-            if is_disp:
-                node_tag = tag if is_node else members[tag][0]
-                return float(ds["displacements"].sel(Node=node_tag, Component=comp).values)
-            else:
-                return float(ds["forces"].sel(Element=tag, Component=comp).values)
-        except Exception:
-            return 0.0
+    def get_force(elem, comp):
+        return float(ds["forces"].sel(Element=elem, Component=comp).values)
 
     Z_TOL = 3
     node_z = {}
@@ -442,23 +383,20 @@ def build_figure_bmd(ds, force_key, nodes, members, show_grid=True, scale=1.0, s
             n1, n2 = members[e]
             x1, y1, z1 = nodes[n1]
             xs.append(x1); ys.append(y1); zs.append(z1)
-            # Use get_val with correct node/element tag
-            v = get_val(n1, comp_i, is_node=True) if is_disp else get_val(e, comp_i)
-            vals.append(round(v, 4 if is_disp else 1))
+            vals.append(round(get_force(e, comp_i), 3))
             node_ids.append(n1)
 
         last_e = elem_list[-1]
         n1, n2 = members[last_e]
         x2, y2, z2 = nodes[n2]
         xs.append(x2); ys.append(y2); zs.append(z2)
-        v = get_val(n2, comp_j, is_node=True) if is_disp else get_val(last_e, comp_j)
-        vals.append(round(v, 4 if is_disp else 1))
+        vals.append(round(get_force(last_e, comp_j), 3))
         node_ids.append(n2)
         return np.array(xs), np.array(ys), np.array(zs), np.array(vals), node_ids
 
     fig_bmd = go.Figure()
-    add_grillage_background(fig_bmd, nodes, members, show_grid=show_grid)
-    add_coordinate_triad(fig_bmd, nodes, show_axis=show_axis)
+    add_grillage_background(fig_bmd, nodes, members)
+    add_coordinate_triad(fig_bmd, nodes)
 
     summary_data = {}
 
@@ -471,34 +409,30 @@ def build_figure_bmd(ds, force_key, nodes, members, show_grid=True, scale=1.0, s
         xs, ys, zs, mz, node_ids = build_polyline(elems, comp_i, comp_j)
 
         if max(mz) - min(mz) == 0:
-            factormz = 1.0 if max(mz) == 0 else 0.25 * abs((max(xs) - min(xs)) / max(mz))
+            factormz = 1.0 if max(mz) == 0 else 0.1 * abs((max(xs) - min(xs)) / max(mz))
         else:
-            factormz = 0.25 * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
+            factormz = 0.1 * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
             
         factormz *= scale # Apply dynamic scaling
 
-        print(f"DEBUG: {girder_name} - Mz Range: [{min(mz)}, {max(mz)}] | Factor: {factormz}")
-
         y_plot = mz * factormz
 
-        # Main BMD Fill (Thicker line instead of surface for robustness)
-        fig_bmd.add_trace(go.Scatter3d(
-            x=xs, y=y_plot, z=zs, mode='lines',
-            line=dict(color="rgba(255, 0, 0, 0.2)", width=2),
-            showlegend=False, name=girder_name, legendgroup=girder_name, hoverinfo="skip"
+        fig_bmd.add_trace(go.Surface(
+            x=[xs, xs], y=[np.zeros(len(xs)), y_plot], z=[zs, zs],
+            surfacecolor=[[1]*len(xs), [1]*len(xs)], colorscale=[[0, 'red'], [1, 'red']],
+            opacity=0.2, showscale=False, hoverinfo="skip", name=girder_name, legendgroup=girder_name, showlegend=False
         ))
 
         hover_text = [f"Node {nid}<br>X = {x:.2f}<br>{force_key} = {v:.2f}<br>Z = {z:.2f}" for nid, x, v, z in zip(node_ids, xs, mz, zs)]
         
         fig_bmd.add_trace(go.Scatter3d(
-            x=xs, y=y_plot, z=zs, mode='lines', line=dict(color="red", width=8),
+            x=xs, y=y_plot, z=zs, mode='lines', line=dict(color="red", width=4),
             showlegend=True, name=f"{girder_name} BMD", legendgroup=girder_name,
             text=hover_text, hoverinfo="text"
         ))
 
-        # Base Line
         fig_bmd.add_trace(go.Scatter3d(
-            x=list(xs), y=[0] * len(xs), z=list(zs), mode='lines',
+            x=[xs[0], xs[-1]], y=[0, 0], z=[zs[0], zs[0]], mode='lines',
             line=dict(color="green", width=3, dash='solid'), showlegend=False, hoverinfo='skip', legendgroup=girder_name
         ))
 
@@ -562,7 +496,7 @@ def build_figure_bmd(ds, force_key, nodes, members, show_grid=True, scale=1.0, s
                 ]
             )
         ],
-        scene=get_shared_scene(show_grid, show_axis),
+        scene=get_shared_scene(show_grid),
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0),
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
     )
@@ -572,32 +506,19 @@ def build_figure_bmd(ds, force_key, nodes, members, show_grid=True, scale=1.0, s
 # ============================================================
 # BMD CONTOUR
 # ============================================================
-def build_figure_bmd_contour(ds, force_key, nodes, members, show_grid=True, scale=1.0, selected_girder="All", show_axis=True):
+def build_figure_bmd_contour(ds, force_key, nodes, members, show_grid=True, scale=1.0, selected_girder="All"):
     def find_component(name):
-        available = ds["Component"].values
-        for c in available:
-            if c.lower() == name.lower(): return c
-        base = name.split('_')[0].lower()
-        for c in available:
-            if c.lower().startswith(base): return c
+        for c in ds["Component"].values:
+            if c.lower() == name.lower():
+                return c
         return None
 
-    # Support both Forces and Displacements
-    is_disp = force_key.startswith("u")
-    comp_i_name, comp_j_name = FORCE_MAP.get(force_key, (force_key, force_key))
-    comp_i = find_component(comp_i_name) or find_component(force_key)
-    comp_j = find_component(comp_j_name) or find_component(force_key)
+    comp_i_name, comp_j_name = FORCE_MAP[force_key]
+    comp_i = find_component(comp_i_name)
+    comp_j = find_component(comp_j_name)
 
-    def get_val(tag, comp, is_node=False):
-        if not comp: return 0.0
-        try:
-            if is_disp:
-                node_tag = tag if is_node else members[tag][0]
-                return float(ds["displacements"].sel(Node=node_tag, Component=comp).values)
-            else:
-                return float(ds["forces"].sel(Element=tag, Component=comp).values)
-        except Exception:
-            return 0.0
+    def get_force(elem, comp):
+        return float(ds["forces"].sel(Element=elem, Component=comp).values)
 
     Z_TOL = 3
     node_z = {}
@@ -615,24 +536,21 @@ def build_figure_bmd_contour(ds, force_key, nodes, members, show_grid=True, scal
             girders[z1].append(int(ele))
 
     def build_polyline(elem_list, comp_i, comp_j):
-        xs, ys, zs, vals, node_ids = [], [], [], [], []
+        xs, ys, zs, mz, node_ids = [], [], [], [], []
         for e in elem_list:
-            n1 = members[e][0]
+            n1, n2 = members[e]
             x1, y1, z1 = nodes[n1]
             xs.append(x1); ys.append(y1); zs.append(z1)
-            # Use get_val with correct node/element tag
-            v = get_val(n1, comp_i, is_node=True) if is_disp else get_val(e, comp_i)
-            vals.append(round(v, 4 if is_disp else 1))
+            mz.append(round(get_force(e, comp_i), 3))
             node_ids.append(n1)
 
         last_e = elem_list[-1]
-        n2 = members[last_e][1]
+        n1, n2 = members[last_e]
         x2, y2, z2 = nodes[n2]
         xs.append(x2); ys.append(y2); zs.append(z2)
-        v = get_val(n2, comp_j, is_node=True) if is_disp else get_val(last_e, comp_j)
-        vals.append(round(v, 4 if is_disp else 1))
+        mz.append(round(get_force(last_e, comp_j), 3))
         node_ids.append(n2)
-        return np.array(xs), np.array(ys), np.array(zs), np.array(vals), node_ids
+        return np.array(xs), np.array(ys), np.array(zs), np.array(mz), node_ids
 
     xfull, mzfull = [], []
     for elems in girders.values():
@@ -642,7 +560,7 @@ def build_figure_bmd_contour(ds, force_key, nodes, members, show_grid=True, scal
 
     fig = go.Figure()
     add_grillage_background(fig, nodes, members)
-    add_coordinate_triad(fig, nodes, show_axis=show_axis)
+    add_coordinate_triad(fig, nodes)
 
     sorted_girders = sorted(girders.items(), key=lambda item: item[0])
     for i, (gid, elems) in enumerate(sorted_girders):
@@ -653,20 +571,25 @@ def build_figure_bmd_contour(ds, force_key, nodes, members, show_grid=True, scal
         xs, ys, zs, mz, node_ids = build_polyline(elems, comp_i, comp_j)
 
         if max(mz) - min(mz) == 0:
-            moment_scale = 1.0 if max(mz) == 0 else 0.25 * abs((max(xs) - min(xs)) / max(mz))
+            moment_scale = 1.0 if max(mz) == 0 else 0.1 * abs((max(xs) - min(xs)) / max(mz))
         else:
-            moment_scale = 0.25 * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
+            moment_scale = 0.1 * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
             
         moment_scale *= scale
 
         y_plot = mz * moment_scale
 
-        # Use thick color-mapped line instead of surface for robustness
+        fig.add_trace(go.Surface(
+            x=[xs, xs], y=[np.zeros(len(xs)), y_plot], z=[zs, zs],
+            surfacecolor=[mz, mz], colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull),
+            opacity=0.4, showscale=False, hoverinfo="skip", name=girder_name, legendgroup=girder_name, showlegend=False
+        ))
+
         fig.add_trace(go.Scatter3d(
             x=xs, y=y_plot, z=zs, mode="lines+markers",
-            line=dict(width=10, color=mz, colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull)),
-            marker=dict(size=4, opacity=0.8, color=mz, colorscale="Jet"),
-            showlegend=True, name=f"{girder_name} Contour", legendgroup=girder_name,
+            line=dict(width=6, color=mz, colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull)),
+            marker=dict(size=12, opacity=0),
+            showlegend=True, name=f"{girder_name} BMD", legendgroup=girder_name,
             text=[f"Node {nid}<br>X={x:.2f}<br>{force_key}={v:.2f}" for nid, x, v in zip(node_ids, xs, mz)],
             hoverinfo="text"
         ))
@@ -680,9 +603,11 @@ def build_figure_bmd_contour(ds, force_key, nodes, members, show_grid=True, scal
     fig.update_layout(
         uirevision="constant_view",
         hoverlabel=dict(bgcolor="rgba(15, 23, 42, 0.95)", font_size=12, font_color="#F8F9FA", bordercolor="#0EA5E9", namelength=-1),
-        scene=get_shared_scene(show_grid, show_axis),
+        scene=get_shared_scene(show_grid),
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0),
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
     )
+
+    return fig.to_json()
 
     return fig.to_json()

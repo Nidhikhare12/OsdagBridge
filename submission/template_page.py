@@ -271,9 +271,8 @@ class CustomWindow(QWidget):
 
             # Wire up the plots widget with results from the completed analysis
             ds_all = self.backend.get_results_dataset()
+            loadcases = self.backend.get_available_loadcases()
             nodes, members = self.backend.get_nodes_members()
-            loadcases = self.backend.get_available_loadcases() # Restored missing line
-            print(f"DEBUG [TemplatePage]: Design completed. ds_all type: {type(ds_all)} | nodes: {len(nodes)}")
             self.plots_widget.setup(ds_all, nodes, members)
 
             # Update Output Dock controls
@@ -339,12 +338,9 @@ class CustomWindow(QWidget):
         isolate = self.output_dock._w(KEY_ANALYSIS_ISOLATE)
         if isolate: isolate.currentTextChanged.connect(self.sync_plots_with_output)
 
-        # Plot Controls (Grid/Axis)
-        ctrls = self.output_dock._w(KEY_ANALYSIS_PLOT_CONTROLS)
-        if ctrls:
-            from PySide6.QtWidgets import QCheckBox
-            for cb in ctrls.findChildren(QCheckBox):
-                cb.stateChanged.connect(self.sync_plots_with_output)
+        # Show Grid
+        grid = self.output_dock._w(KEY_ANALYSIS_SHOW_GRID)
+        if grid: grid.stateChanged.connect(self.sync_plots_with_output)
 
         # Contour (using KEY_ANALYSIS_UTILIZATION as a proxy or adding a new one)
         # Actually I added KEY_ANALYSIS_SHOW_GRID and others. 
@@ -352,16 +348,16 @@ class CustomWindow(QWidget):
         # but let's check ui_fields.py. I added Scale, Isolate, Show Grid.
         # I should probably add a Contour toggle too.
         # For now I'll use KEY_ANALYSIS_UTILIZATION as "Contour" for demo.
-        # Contour
         cont = self.output_dock._w(KEY_ANALYSIS_UTILIZATION)
         if cont: 
+            cont.setText("Contour Feature")
             cont.stateChanged.connect(self.sync_plots_with_output)
 
     def sync_plots_with_output(self):
         """Read all values from Output Dock and update plots_widget"""
-        # We always update the plot now, even if not visible, 
-        # to ensure it's ready when the user switches to the Plots view.
-        pass
+        if not self.plots_widget.isVisible() and not self.plots_view_active:
+             # Only update if plots are active (optional, maybe update anyway in background)
+             pass
 
         # 1. Load Case
         lc_box = self.output_dock._w(KEY_ANALYSIS_LOAD_COMBINATION)
@@ -402,14 +398,9 @@ class CustomWindow(QWidget):
         iso_box = self.output_dock._w(KEY_ANALYSIS_ISOLATE)
         selected_girder = iso_box.currentText() if iso_box else "All"
 
-        # 7. Grid & Axis
-        show_grid, show_axis = True, True
-        ctrl_box = self.output_dock._w(KEY_ANALYSIS_PLOT_CONTROLS)
-        if ctrl_box:
-            from PySide6.QtWidgets import QCheckBox
-            for cb in ctrl_box.findChildren(QCheckBox):
-                if cb.text() == "Show Grid": show_grid = cb.isChecked()
-                if cb.text() == "Show Axis": show_axis = cb.isChecked()
+        # 7. Grid
+        grid_box = self.output_dock._w(KEY_ANALYSIS_SHOW_GRID)
+        show_grid = grid_box.isChecked() if grid_box else True
 
         # Trigger plot update
         self.plots_widget.update_plot(
@@ -420,8 +411,7 @@ class CustomWindow(QWidget):
             scale=scale,
             selected_girder=selected_girder,
             show_max=show_max,
-            show_min=show_min,
-            show_axis=show_axis
+            show_min=show_min
         )
 
     def setup_cad_connections(self):
@@ -597,8 +587,6 @@ class CustomWindow(QWidget):
             self.plots_control.load(":/vectors/view_btn/plots_active.svg")
             # Switch central area to Plots widget
             self._set_central_view('plots')
-            # Ensure plots are updated with current output dock state
-            self.sync_plots_with_output()
         else:
             # Plots turned off — mark inactive & update icon
             self.plots_control.load(":/vectors/view_btn/plots_inactive.svg")
