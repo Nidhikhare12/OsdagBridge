@@ -76,9 +76,9 @@ EQ_HTML = {
         "DCR = M<sub>d</sub> / M<sub>cr</sub>"
     ),
     "deflection": (
-        "&delta; &le; L / x &nbsp;(x = 600)"
+        "&delta; &le; L / 600"
         "&nbsp;&nbsp;|&nbsp;&nbsp;"
-        "DCR = &delta; / (L/x)"
+        "DCR = &delta; / (L/600)"
     ),
 }
 

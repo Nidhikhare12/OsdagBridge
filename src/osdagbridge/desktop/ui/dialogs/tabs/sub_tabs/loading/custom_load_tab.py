@@ -341,11 +341,11 @@ class ElevationScene(QGraphicsScene):
         s     = self._span_m
 
         if lt == "Point":
+            # _x1 is normalised distance from CENTRE LINE OF BEARING (0=left bearing, 1=right bearing)
             px  = self._scene_x(self._x1)
-            x_m = round(self._x1 * s, 2)
+            a_m = round(self._x1 * s, 2)
             self._draw_arrow(px)
-            # label above arrow
-            lbl = self.addText(f"x = {x_m} m")
+            lbl = self.addText(f"a = {a_m} m from CL bearing")
             lbl.setFont(QFont("Arial", 7, QFont.Bold))
             lbl.setDefaultTextColor(self.C_LOAD)
             lbl.setPos(px - lbl.boundingRect().width() / 2, top_y - 14)
@@ -372,15 +372,19 @@ class ElevationScene(QGraphicsScene):
                 ax = x_start + i * (x_end - x_start) / n
                 self._draw_arrow(ax)
 
-            x1_m = round(self._x1 * s, 2)
-            x2_m = round(self._x2 * s, 2)
-            lbl = self.addText(f"x₁ = {x1_m} m   x₂ = {x2_m} m")
+            a1_m = round(self._x1 * s, 2)
+            a2_m = round(self._x2 * s, 2)
+            lbl = self.addText(f"a₁ = {a1_m} m   a₂ = {a2_m} m  (from CL bearing)")
             lbl.setFont(QFont("Arial", 7, QFont.Bold))
             lbl.setDefaultTextColor(self.C_LOAD)
             mid  = (x_start + x_end) / 2
             lbl.setPos(mid - lbl.boundingRect().width() / 2, top_y - 14)
 
     def _dim_line(self):
+        """
+        Dimension line showing span measured between CENTRE LINES OF BEARINGS.
+        Two vertical tick marks at bearing positions with labels.
+        """
         dim_y = self.BEAM_Y + self.BEAM_H + 36
         pen   = self._pen(self.C_DIM, 1.0, Qt.DashLine)
         tick  = self._pen(self.C_DIM, 1.0)
@@ -391,7 +395,19 @@ class ElevationScene(QGraphicsScene):
         for xx in (xl, xr):
             self.addLine(xx, dim_y - 5, xx, dim_y + 5, tick)
 
-        sp = self.addText(f"Span = {self._span_m:.1f} m")
+        # Bearing centre-line labels
+        for xx, label in [(xl, "CL Bearing (L)"), (xr, "CL Bearing (R)")]:
+            bl = self.addText(label)
+            bl.setFont(QFont("Arial", 6))
+            bl.setDefaultTextColor(self.C_DIM)
+            bw = bl.boundingRect().width()
+            # Left label aligns left; right label aligns right
+            if xx == xl:
+                bl.setPos(xx, dim_y + 14)
+            else:
+                bl.setPos(xx - bw, dim_y + 14)
+
+        sp = self.addText(f"Span (c/c bearings) = {self._span_m:.1f} m")
         sp.setFont(QFont("Arial", 8))
         sp.setDefaultTextColor(self.C_DIM)
         sp.setPos(self.W / 2 - sp.boundingRect().width() / 2, dim_y + 5)
@@ -858,6 +874,10 @@ class CustomLoadTab(QWidget):
         owner.custom_point_left_input.textChanged.connect(self._refresh_diagram)
         owner.custom_line_left_start.textChanged.connect(self._refresh_diagram)
         owner.custom_line_left_end.textChanged.connect(self._refresh_diagram)
+        # Bearing inputs also drive the elevation view (reviewer fix)
+        owner.custom_point_bearing_input.textChanged.connect(self._refresh_diagram)
+        owner.custom_line_bearing_start.textChanged.connect(self._refresh_diagram)
+        owner.custom_line_bearing_end.textChanged.connect(self._refresh_diagram)
 
         self._refresh_custom_load_table()
         self._refresh_diagram()
@@ -871,33 +891,53 @@ class CustomLoadTab(QWidget):
 
         x1 = x2 = 0.4
 
+        # cross-section uses left-edge distance (unchanged)
+        x1_left = x2_left = 0.4
+
+        # elevation uses distance from CENTRE LINE OF BEARING
+        x1_bearing = x2_bearing = 0.4
+
         if lt == "Point":
             try:
-                raw = float(owner.custom_point_left_input.text())
-                x1  = max(0.0, min(1.0, raw / span))
+                raw_left    = float(owner.custom_point_left_input.text())
+                x1_left     = max(0.0, min(1.0, raw_left / span))
             except ValueError:
-                x1 = 0.4
-            x2 = x1
+                x1_left = 0.4
+            try:
+                raw_bearing = float(owner.custom_point_bearing_input.text())
+                x1_bearing  = max(0.0, min(1.0, raw_bearing / span))
+            except ValueError:
+                x1_bearing = x1_left   # fall back to left-edge value
+            x2_left    = x1_left
+            x2_bearing = x1_bearing
 
         else:   # Line / Area
             try:
-                x1 = max(0.0, min(1.0, float(owner.custom_line_left_start.text()) / span))
+                x1_left = max(0.0, min(1.0, float(owner.custom_line_left_start.text()) / span))
             except ValueError:
-                x1 = 0.3
+                x1_left = 0.3
             try:
-                x2 = max(0.0, min(1.0, float(owner.custom_line_left_end.text()) / span))
+                x2_left = max(0.0, min(1.0, float(owner.custom_line_left_end.text()) / span))
             except ValueError:
-                x2 = 0.7
+                x2_left = 0.7
+            try:
+                x1_bearing = max(0.0, min(1.0, float(owner.custom_line_bearing_start.text()) / span))
+            except ValueError:
+                x1_bearing = x1_left
+            try:
+                x2_bearing = max(0.0, min(1.0, float(owner.custom_line_bearing_end.text()) / span))
+            except ValueError:
+                x2_bearing = x2_left
 
         # Map combo text → scene load type string
         scene_lt = "Point" if lt == "Point" else ("Area" if "Area" in lt else "Line")
 
-        # ── Update cross-section view ──
-        self._load_scene.update_load(scene_lt, x1, x2, span_m=span)
+        # ── Update cross-section view (left-edge distance) ──
+        self._load_scene.update_load(scene_lt, x1_left, x2_left, span_m=span)
         self._load_view.fitInView(self._load_scene.sceneRect(), Qt.KeepAspectRatio)
 
-        # ── Update elevation view ──
-        self._elev_scene.update_load(scene_lt, x1, x2, span_m=span)
+        # ── Update elevation view (BEARING distance — reviewer correction) ──
+        self._elev_scene.update_load(scene_lt, x1_bearing, x2_bearing, span_m=span)
         self._elev_view.fitInView(self._elev_scene.sceneRect(), Qt.KeepAspectRatio)
 
     def showEvent(self, event):
