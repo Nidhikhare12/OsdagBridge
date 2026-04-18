@@ -152,7 +152,7 @@ CRASH_BARRIER_TAB_SCHEMA = {
                     "default": DEFAULT_CRASH_BARRIER_WIDTH,
                     "validator": {"type": "double_range", "bottom": 0.0, "top": 2.0, "decimals": 3},
                     "bind": "crash_barrier_width",
-                    "on_text_changed": "recalculate_girders",
+                    "on_text_changed": "_update_crash_barrier_area_from_dimensions",
                 }
             ]
         },
@@ -164,6 +164,7 @@ CRASH_BARRIER_TAB_SCHEMA = {
                     "type": "line",
                     "validator": {"type": "double_range", "bottom": 0.0, "top": 3.0, "decimals": 3},
                     "bind": "crash_barrier_height",
+                    "on_text_changed": "_update_crash_barrier_area_from_dimensions",
                 }
             ]
         },
@@ -246,6 +247,7 @@ MEDIAN_TAB_SCHEMA = {
                     "type": "line",
                     "validator": {"type": "double_range", "bottom": 0.0, "top": 3.0, "decimals": 3},
                     "bind": "median_width",
+                    "on_text_changed": "_update_median_area_from_dimensions",
                 }
             ]
         },
@@ -257,6 +259,7 @@ MEDIAN_TAB_SCHEMA = {
                     "type": "line",
                     "validator": {"type": "double_range", "bottom": 0.0, "top": 3.0, "decimals": 3},
                     "bind": "median_height",
+                    "on_text_changed": "_update_median_area_from_dimensions",
                 }
             ]
         },

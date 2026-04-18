@@ -15,7 +15,7 @@ from osdagbridge.desktop.ui.docks.output_dock import (
     NoScrollComboBox,
 )
 from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
-from osdagbridge.desktop.ui.dialogs.design_checks import compute_all
+from osdagbridge.desktop.ui.dialogs.design_check import compute_all
 from osdagbridge.desktop.ui.utils.styled_scroll_area import StyledScrollArea
 
 # From load_combination_tab.py defaults + output_dock

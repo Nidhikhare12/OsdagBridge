@@ -1394,7 +1394,7 @@ class CrossSectionCADWidget(QWidget):
             deck_right_x, Y_OVERALL,
             "", True,
             extension_direction='down',
-            extension_end_y=fp_top_y
+            extension_end_y=deck_top_y
         )
 
         mid_x = (deck_left_x + deck_right_x) / 2.0
@@ -1838,7 +1838,7 @@ class CrossSectionCADWidget(QWidget):
             )
 
     def draw_i_section(self, painter, x, base_y, scale, girder_color):
-        """Draw I-section girder (supports asymmetric sections)"""
+        """Draw I-section girder (supports asymmetric sections) - Enhanced visualization"""
         visual = self.girder_visual_scale
         d = self.girder['depth'] * scale * visual['depth']
         
@@ -1865,7 +1865,8 @@ class CrossSectionCADWidget(QWidget):
         else:
             painter.setBrush(QBrush(girder_color))
         
-        painter.setPen(QPen(QColor(0, 0, 0), 1.5))
+        # Use thicker, darker pen for better I-section definition
+        painter.setPen(QPen(QColor(60, 60, 60), 2.0))
         
         # Draw bottom flange
         painter.drawRect(QRectF(x - bf_bottom/2, base_y - tf_bottom, bf_bottom, tf_bottom))
