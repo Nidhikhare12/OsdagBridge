@@ -1,34 +1,20 @@
 import math
 
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QGridLayout,
-    QLabel,
-    QLineEdit,
-    QFrame,
-    QSizePolicy,
-    QTextEdit,
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QLabel, QLineEdit, QFrame, QSizePolicy, QTextEdit,
 )
 from PySide6.QtCore import Qt
 
-from osdagbridge.desktop.ui.docks.output_dock import (
-    NoScrollComboBox,
-)
+from osdagbridge.desktop.ui.docks.output_dock import NoScrollComboBox
 from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
 from osdagbridge.desktop.ui.utils.styled_scroll_area import StyledScrollArea
 
-# From load_combination_tab.py defaults + output_dock
 LOAD_COMBINATIONS = [
-    "Envelope",
-    "DL + LL",
-    "1.35 DL + 1.5 LL",
-    "DL", "SIDL", "LL",
-    "WL", "EL", "IMF", "TL",
+    "Envelope", "DL + LL", "1.35 DL + 1.5 LL",
+    "DL", "SIDL", "LL", "WL", "EL", "IMF", "TL",
 ]
 
-# 8 design checks — order matches the screenshot layout (left-col first, row by row)
 DESIGN_CHECKS = [
     ("flexure",          "Strength Limit State (Flexure)"),
     ("shear_long_trans", "Resistance to Longitudinal and Transverse Shear"),
@@ -40,213 +26,224 @@ DESIGN_CHECKS = [
     ("deflection",       "Deflection and Crack Control"),
 ]
 
+# ── HTML formula strings shown in the card header (subscripts + superscripts) ─
+# QLabel with Qt.RichText renders <sub> and <sup> natively.
+EQ_HTML = {
+    "flexure": (
+        "M<sub>r</sub> = &beta;<sub>b</sub> &middot; Z<sub>p</sub> "
+        "&middot; f<sub>y</sub> / &gamma;<sub>m</sub>"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "DCR = M<sub>d</sub> / M<sub>r</sub>"
+    ),
+    "shear_long_trans": (
+        # Full equation — this was the missing piece flagged by the reviewer
+        "V<sub>rd</sub> = V<sub>rd,c</sub> + V<sub>rd,s</sub>"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "V<sub>rd,c</sub> = 0.18&middot;k&middot;(100&rho;f<sub>ck</sub>)<sup>1/3</sup>&middot;b&middot;d"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "V<sub>rd,s</sub> = A<sub>sv</sub>&middot;f<sub>y</sub>&middot;d / s"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "DCR = V<sub>d</sub> / V<sub>rd</sub>"
+    ),
+    "shear": (
+        "V<sub>r</sub> = A<sub>v</sub> &middot; f<sub>y</sub> "
+        "/ (&radic;3 &middot; &gamma;<sub>m</sub>)"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "DCR = V<sub>d</sub> / V<sub>r</sub>"
+    ),
+    "fatigue": (
+        "&Delta;&sigma;<sub>allow</sub> = "
+        "&Delta;&sigma;<sub>C</sub> / &gamma;<sub>mf</sub>"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "DCR = &Delta;&sigma; / &Delta;&sigma;<sub>allow</sub>"
+    ),
+    "interaction": (
+        "M<sub>d</sub>/M<sub>r</sub> + V<sub>d</sub>/V<sub>r</sub> &le; 1"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "DCR = M<sub>d</sub>/M<sub>r</sub> + V<sub>d</sub>/V<sub>r</sub>"
+    ),
+    "stress": (
+        "&sigma; = M<sub>d</sub> / Z<sub>e</sub>"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "&sigma; &le; f<sub>y</sub> / &gamma;<sub>m</sub>"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "DCR = &sigma; / (f<sub>y</sub>/&gamma;<sub>m</sub>)"
+    ),
+    "ltb": (
+        "M<sub>cr</sub> = &pi;<sup>2</sup>&middot;E&middot;I<sub>y</sub> "
+        "/ L<sub>LTB</sub><sup>2</sup>"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "DCR = M<sub>d</sub> / M<sub>cr</sub>"
+    ),
+    "deflection": (
+        "&delta; &le; L / x &nbsp;(x = 600)"
+        "&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "DCR = &delta; / (L/x)"
+    ),
+}
 
-# ── Calculation logic (separated from UI) ─────────────────────────────────────
+
+# ── Calculation logic (zero PySide6 imports) ──────────────────────────────────
 
 class DesignChecks:
     """
-    Pure-calculation class for all 8 steel design checks.
-    No UI imports — keeps logic completely separate from presentation.
-
-    All inputs are in consistent SI units:
-      Forces  : N
-      Moments : N·mm
-      Lengths : mm
-      Stress  : MPa (N/mm²)
-      Area    : mm²
+    Pure-Python calculation class — all 8 steel design checks.
+    Returns a dict with:
+      'lines' : list of HTML strings (subscripts/superscripts) for display
+      'DCR'   : Demand/Capacity Ratio (float)
+      'pass'  : bool (DCR <= 1.0)
+    Units: N, mm, MPa throughout.
     """
 
-    GAMMA_M  = 1.10   # material partial safety factor (IS 800)
+    GAMMA_M  = 1.10   # IS 800 material partial safety factor
     GAMMA_MF = 1.15   # fatigue partial safety factor
 
-    # ── 1. Strength Limit State — Flexure ─────────────────────────────────────
+    # 1. Flexure ───────────────────────────────────────────────────────────────
     @staticmethod
-    def flexure(Md: float, Zp: float, fy: float, beta_b: float = 1.0) -> dict:
-        """
-        Check  : Md ≤ Mr
-        Mr     = beta_b · Zp · fy / gamma_m
-        DCR    = Md / Mr
-        """
-        gamma_m = DesignChecks.GAMMA_M
-        Mr  = beta_b * Zp * fy / gamma_m
+    def flexure(Md, Zp, fy, beta_b=1.0):
+        gm  = DesignChecks.GAMMA_M
+        Mr  = beta_b * Zp * fy / gm
         DCR = Md / Mr if Mr > 0 else float("inf")
         return {
-            "equation": (
-                f"Mr = βb·Zp·fy/γm\n"
-                f"   = {beta_b}×{Zp/1e3:.1f}×10³×{fy}/{gamma_m}\n"
-                f"   = {Mr/1e6:.2f} kN·m\n"
-                f"Md = {Md/1e6:.2f} kN·m\n"
-                f"DCR = Md/Mr = {DCR:.3f}"
-            ),
+            "lines": [
+                f"&beta;<sub>b</sub> = {beta_b},&nbsp; Z<sub>p</sub> = {Zp/1e3:.1f}&times;10&sup3; mm&sup3;",
+                f"f<sub>y</sub> = {fy} MPa,&nbsp; &gamma;<sub>m</sub> = {gm}",
+                f"M<sub>r</sub> = &beta;<sub>b</sub>&middot;Z<sub>p</sub>&middot;f<sub>y</sub>/&gamma;<sub>m</sub> = {Mr/1e6:.2f} kN&middot;m",
+                f"M<sub>d</sub> = {Md/1e6:.2f} kN&middot;m",
+                f"DCR = M<sub>d</sub>/M<sub>r</sub> = {DCR:.3f}",
+            ],
             "Mr": Mr, "DCR": DCR, "pass": DCR <= 1.0,
         }
 
-    # ── 2. Strength Limit State — Shear ───────────────────────────────────────
+    # 2. Shear ─────────────────────────────────────────────────────────────────
     @staticmethod
-    def shear(Vd: float, Av: float, fy: float) -> dict:
-        """
-        Check  : Vd ≤ Vr
-        Vr     = Av·fy / (√3·gamma_m)
-        DCR    = Vd / Vr
-        """
-        gamma_m = DesignChecks.GAMMA_M
-        Vr  = (Av * fy) / (math.sqrt(3) * gamma_m)
+    def shear(Vd, Av, fy):
+        gm  = DesignChecks.GAMMA_M
+        Vr  = (Av * fy) / (math.sqrt(3) * gm)
         DCR = Vd / Vr if Vr > 0 else float("inf")
         return {
-            "equation": (
-                f"Vr = Av·fy/(√3·γm)\n"
-                f"   = {Av:.0f}×{fy}/{math.sqrt(3):.3f}×{gamma_m}\n"
-                f"   = {Vr/1e3:.2f} kN\n"
-                f"Vd = {Vd/1e3:.2f} kN\n"
-                f"DCR = Vd/Vr = {DCR:.3f}"
-            ),
+            "lines": [
+                f"A<sub>v</sub> = {Av:.0f} mm&sup2;,&nbsp; f<sub>y</sub> = {fy} MPa",
+                f"V<sub>r</sub> = A<sub>v</sub>&middot;f<sub>y</sub>/(&radic;3&middot;&gamma;<sub>m</sub>) = {Vr/1e3:.2f} kN",
+                f"V<sub>d</sub> = {Vd/1e3:.2f} kN",
+                f"DCR = V<sub>d</sub>/V<sub>r</sub> = {DCR:.3f}",
+            ],
             "Vr": Vr, "DCR": DCR, "pass": DCR <= 1.0,
         }
 
-    # ── 3. Interaction (Bending + Shear) ──────────────────────────────────────
+    # 3. Interaction ───────────────────────────────────────────────────────────
     @staticmethod
-    def interaction(Md: float, Mr: float, Vd: float, Vr: float) -> dict:
-        """
-        Check  : Md/Mr + Vd/Vr ≤ 1
-        DCR    = Md/Mr + Vd/Vr
-        """
-        m_ratio = Md / Mr if Mr > 0 else float("inf")
-        v_ratio = Vd / Vr if Vr > 0 else float("inf")
-        DCR     = m_ratio + v_ratio
+    def interaction(Md, Mr, Vd, Vr):
+        mr  = Md / Mr if Mr > 0 else float("inf")
+        vr  = Vd / Vr if Vr > 0 else float("inf")
+        DCR = mr + vr
         return {
-            "equation": (
-                f"Md/Mr + Vd/Vr ≤ 1\n"
-                f"= {m_ratio:.3f} + {v_ratio:.3f}\n"
-                f"DCR = {DCR:.3f}"
-            ),
+            "lines": [
+                f"M<sub>d</sub>/M<sub>r</sub> = {mr:.3f}",
+                f"V<sub>d</sub>/V<sub>r</sub> = {vr:.3f}",
+                f"DCR = {mr:.3f} + {vr:.3f} = {DCR:.3f}",
+            ],
             "DCR": DCR, "pass": DCR <= 1.0,
         }
 
-    # ── 4. Lateral Torsional Buckling ─────────────────────────────────────────
+    # 4. LTB ───────────────────────────────────────────────────────────────────
     @staticmethod
-    def ltb(Md: float, E: float, Iy: float, L_LTB: float) -> dict:
-        """
-        Check      : Md ≤ Mcr
-        Mcr (simp) = π²·E·Iy / L_LTB²
-        DCR        = Md / Mcr
-        """
-        Mcr = (math.pi ** 2 * E * Iy) / (L_LTB ** 2) if L_LTB > 0 else float("inf")
+    def ltb(Md, E, Iy, L_LTB):
+        Mcr = (math.pi**2 * E * Iy) / (L_LTB**2) if L_LTB > 0 else float("inf")
         DCR = Md / Mcr if Mcr > 0 else float("inf")
         return {
-            "equation": (
-                f"Mcr = π²·E·Iy/L²\n"
-                f"    = π²×{E/1e3:.0f}×10³×{Iy/1e6:.2f}×10⁶/{L_LTB:.0f}²\n"
-                f"    = {Mcr/1e6:.2f} kN·m\n"
-                f"Md  = {Md/1e6:.2f} kN·m\n"
-                f"DCR = Md/Mcr = {DCR:.3f}"
-            ),
+            "lines": [
+                f"E = {E/1e3:.0f}&times;10&sup3; MPa,&nbsp; I<sub>y</sub> = {Iy/1e6:.2f}&times;10&sup6; mm&sup4;",
+                f"L<sub>LTB</sub> = {L_LTB:.0f} mm",
+                f"M<sub>cr</sub> = &pi;&sup2;&middot;E&middot;I<sub>y</sub>/L<sub>LTB</sub>&sup2; = {Mcr/1e6:.2f} kN&middot;m",
+                f"M<sub>d</sub> = {Md/1e6:.2f} kN&middot;m",
+                f"DCR = M<sub>d</sub>/M<sub>cr</sub> = {DCR:.3f}",
+            ],
             "Mcr": Mcr, "DCR": DCR, "pass": DCR <= 1.0,
         }
 
-    # ── 5. Resistance to Longitudinal and Transverse Shear ────────────────────
+    # 5. Resistance to Long. & Trans. Shear ────────────────────────────────────
     @staticmethod
-    def shear_long_trans(
-        Vd: float, rho: float, fck: float, b: float, d: float,
-        Asv: float, fy: float, s: float
-    ) -> dict:
+    def shear_long_trans(Vd, rho, fck, b, d, Asv, fy, s):
         """
-        Vrd   = Vrd_c + Vrd_s
-        Vrd_c = 0.18·k·(100·ρ·fck)^(1/3)·b·d
-        Vrd_s = Asv·fy·d / s
-        DCR   = Vd / Vrd
+        V_rd,c  = 0.18 · k · (100 · rho · fck)^(1/3) · b · d
+        V_rd,s  = Asv · fy · d / s
+        k       = 1 + sqrt(200/d)  <= 2.0   (size factor)
+        V_rd    = V_rd,c + V_rd,s
+        DCR     = Vd / V_rd
         """
-        k     = min(2.0, 1 + math.sqrt(200 / d)) if d > 0 else 2.0
-        Vrd_c = 0.18 * k * (100 * rho * fck) ** (1 / 3) * b * d
+        k     = min(2.0, 1.0 + math.sqrt(200.0 / d)) if d > 0 else 2.0
+        Vrd_c = 0.18 * k * (100.0 * rho * fck) ** (1.0/3.0) * b * d
         Vrd_s = (Asv * fy * d) / s if s > 0 else 0.0
         Vrd   = Vrd_c + Vrd_s
         DCR   = Vd / Vrd if Vrd > 0 else float("inf")
         return {
-            "equation": (
-                f"Vrd = Vrd,c + Vrd,s\n"
-                f"Vrd,c = {Vrd_c/1e3:.2f} kN\n"
-                f"Vrd,s = {Vrd_s/1e3:.2f} kN\n"
-                f"Vrd   = {Vrd/1e3:.2f} kN\n"
-                f"DCR = Vd/Vrd = {DCR:.3f}"
-            ),
+            "lines": [
+                f"k = 1+&radic;(200/d) = {k:.3f}&nbsp;(&le;2.0)",
+                f"V<sub>rd,c</sub> = 0.18&middot;k&middot;(100&rho;f<sub>ck</sub>)<sup>1/3</sup>&middot;b&middot;d = {Vrd_c/1e3:.2f} kN",
+                f"V<sub>rd,s</sub> = A<sub>sv</sub>&middot;f<sub>y</sub>&middot;d/s = {Vrd_s/1e3:.2f} kN",
+                f"V<sub>rd</sub> = V<sub>rd,c</sub> + V<sub>rd,s</sub> = {Vrd/1e3:.2f} kN",
+                f"V<sub>d</sub> = {Vd/1e3:.2f} kN",
+                f"DCR = V<sub>d</sub>/V<sub>rd</sub> = {DCR:.3f}",
+            ],
             "Vrd": Vrd, "DCR": DCR, "pass": DCR <= 1.0,
         }
 
-    # ── 6. Fatigue Check ──────────────────────────────────────────────────────
+    # 6. Fatigue ───────────────────────────────────────────────────────────────
     @staticmethod
-    def fatigue(delta_sigma: float, delta_sigma_C: float) -> dict:
-        """
-        Check            : Δσ ≤ Δσ_allowable
-        Δσ_allowable     = Δσ_C / gamma_mf
-        DCR              = Δσ / Δσ_allowable
-        """
-        gamma_mf         = DesignChecks.GAMMA_MF
-        delta_sigma_all  = delta_sigma_C / gamma_mf
-        DCR              = delta_sigma / delta_sigma_all if delta_sigma_all > 0 else float("inf")
+    def fatigue(delta_sigma, delta_sigma_C):
+        gmf = DesignChecks.GAMMA_MF
+        dsa = delta_sigma_C / gmf
+        DCR = delta_sigma / dsa if dsa > 0 else float("inf")
         return {
-            "equation": (
-                f"Δσ_allow = ΔσC/γmf\n"
-                f"         = {delta_sigma_C}/{gamma_mf}\n"
-                f"         = {delta_sigma_all:.2f} MPa\n"
-                f"Δσ       = {delta_sigma:.2f} MPa\n"
-                f"DCR = Δσ/Δσ_allow = {DCR:.3f}"
-            ),
-            "delta_sigma_allowable": delta_sigma_all,
+            "lines": [
+                f"&Delta;&sigma;<sub>C</sub> = {delta_sigma_C:.2f} MPa,&nbsp; &gamma;<sub>mf</sub> = {gmf}",
+                f"&Delta;&sigma;<sub>allow</sub> = &Delta;&sigma;<sub>C</sub>/&gamma;<sub>mf</sub> = {dsa:.2f} MPa",
+                f"&Delta;&sigma; = {delta_sigma:.2f} MPa",
+                f"DCR = &Delta;&sigma;/&Delta;&sigma;<sub>allow</sub> = {DCR:.3f}",
+            ],
+            "delta_sigma_allowable": dsa,
             "DCR": DCR, "pass": DCR <= 1.0,
         }
 
-    # ── 7. Stress Limitation ──────────────────────────────────────────────────
+    # 7. Stress Limitation ─────────────────────────────────────────────────────
     @staticmethod
-    def stress(Md: float, Ze: float, fy: float) -> dict:
-        """
-        σ    = Md / Ze
-        σ ≤ fy / gamma_m
-        DCR  = σ / (fy/gamma_m)
-        """
-        gamma_m     = DesignChecks.GAMMA_M
-        sigma       = Md / Ze if Ze > 0 else float("inf")
-        sigma_limit = fy / gamma_m
-        DCR         = sigma / sigma_limit if sigma_limit > 0 else float("inf")
+    def stress(Md, Ze, fy):
+        gm    = DesignChecks.GAMMA_M
+        sigma = Md / Ze if Ze > 0 else float("inf")
+        slim  = fy / gm
+        DCR   = sigma / slim if slim > 0 else float("inf")
         return {
-            "equation": (
-                f"σ = Md/Ze\n"
-                f"  = {Md/1e6:.2f}×10⁶/{Ze/1e3:.1f}×10³\n"
-                f"  = {sigma:.2f} MPa\n"
-                f"Limit = fy/γm = {sigma_limit:.2f} MPa\n"
-                f"DCR = σ/(fy/γm) = {DCR:.3f}"
-            ),
-            "sigma": sigma, "sigma_limit": sigma_limit,
+            "lines": [
+                f"Z<sub>e</sub> = {Ze/1e3:.1f}&times;10&sup3; mm&sup3;",
+                f"&sigma; = M<sub>d</sub>/Z<sub>e</sub> = {sigma:.2f} MPa",
+                f"Limit = f<sub>y</sub>/&gamma;<sub>m</sub> = {slim:.2f} MPa",
+                f"DCR = &sigma;/(f<sub>y</sub>/&gamma;<sub>m</sub>) = {DCR:.3f}",
+            ],
+            "sigma": sigma, "sigma_limit": slim,
             "DCR": DCR, "pass": DCR <= 1.0,
         }
 
-    # ── 8. Deflection and Crack Control ───────────────────────────────────────
+    # 8. Deflection ────────────────────────────────────────────────────────────
     @staticmethod
-    def deflection(delta: float, L: float, x: float = 600.0) -> dict:
-        """
-        δ ≤ L/x   (default x = 600)
-        DCR = δ / (L/x)
-        """
+    def deflection(delta, L, x=600.0):
         limit = L / x if x > 0 else float("inf")
         DCR   = delta / limit if limit > 0 else float("inf")
         return {
-            "equation": (
-                f"δ ≤ L/x  (x = {x:.0f})\n"
-                f"Limit = {L:.0f}/{x:.0f} = {limit:.2f} mm\n"
-                f"δ     = {delta:.2f} mm\n"
-                f"DCR = δ/(L/x) = {DCR:.3f}"
-            ),
+            "lines": [
+                f"L = {L:.0f} mm,&nbsp; x = {x:.0f}",
+                f"Limit = L/x = {limit:.2f} mm",
+                f"&delta; = {delta:.2f} mm",
+                f"DCR = &delta;/(L/x) = {DCR:.3f}",
+            ],
             "limit": limit, "DCR": DCR, "pass": DCR <= 1.0,
         }
 
-    # ── Convenience: run all checks from a data dict ──────────────────────────
+    # ── Run all checks ────────────────────────────────────────────────────────
     @classmethod
-    def run_all(cls, data: dict) -> dict:
-        """
-        Run all 8 checks and return a dict keyed by check name.
-        `data` must contain the keys listed in _default_data().
-        """
+    def run_all(cls, data):
         flex_r  = cls.flexure(data["Md"], data["Zp"], data["fy"], data.get("beta_b", 1.0))
         shear_r = cls.shear(data["Vd"], data["Av"], data["fy"])
-
         return {
             "flexure":          flex_r,
             "shear":            shear_r,
@@ -266,34 +263,16 @@ class DesignChecks:
         }
 
     @staticmethod
-    def _default_data() -> dict:
-        """
-        Realistic placeholder values for a typical highway steel-girder bridge.
-        Replace with values pulled from the actual model/cad_state.
-        Units: N, mm, MPa.
-        """
+    def _default_data():
         return {
-            "Md":            500e6,    # N·mm   factored bending moment demand
-            "Zp":           3000e3,    # mm³    plastic section modulus
-            "Ze":           2700e3,    # mm³    elastic section modulus
-            "fy":              250,    # MPa    yield strength (E 250)
-            "beta_b":          1.0,    # –      bending factor
-            "Vd":           300e3,     # N      factored shear demand
-            "Av":            4800,     # mm²    shear area (d_w × t_w)
-            "E":            2.0e5,     # MPa    Young's modulus
-            "Iy":           1.5e8,     # mm⁴    minor-axis second moment of area
-            "L_LTB":         3500,     # mm     unbraced length between bracings
-            "rho":           0.012,    # –      longitudinal reinforcement ratio
-            "fck":              35,    # MPa    characteristic concrete strength
-            "b":               300,    # mm     section width
-            "d":               600,    # mm     effective depth
-            "Asv":             402,    # mm²    stirrup area (2-legged 16 mm φ)
-            "s":               150,    # mm     stirrup spacing
-            "delta_sigma":      80,    # MPa    fatigue stress range
-            "delta_sigma_C":   100,    # MPa    fatigue strength (detail category)
-            "delta":            12,    # mm     mid-span deflection
-            "L":             20000,    # mm     span length (matches UI default 20 m)
-            "defl_x":          600,    # –      deflection limit divisor
+            "Md": 500e6, "Zp": 3000e3, "Ze": 2700e3,
+            "fy": 250,   "beta_b": 1.0,
+            "Vd": 300e3, "Av": 4800,
+            "E": 2.0e5,  "Iy": 1.5e8, "L_LTB": 3500,
+            "rho": 0.012, "fck": 35, "b": 300, "d": 600,
+            "Asv": 402,  "s": 150,
+            "delta_sigma": 80, "delta_sigma_C": 100,
+            "delta": 12, "L": 20000, "defl_x": 600,
         }
 
 
@@ -302,12 +281,8 @@ class DesignChecks:
 class SteelDesignCheckTab(QWidget):
 
     def __init__(self, parent=None):
-        # Must init dict BEFORE super().__init__ because _build_check_card
-        # is called inside _build_checks_grid which is called from __init__
-        self.check_outputs = {}   # key → QTextEdit
-
+        self.check_outputs = {}
         super().__init__(parent)
-
         self.setStyleSheet("background-color: white;")
 
         main_layout = QVBoxLayout(self)
@@ -315,87 +290,44 @@ class SteelDesignCheckTab(QWidget):
         main_layout.setSpacing(0)
 
         scroll_area = StyledScrollArea()
-
-        container = QWidget()
+        container   = QWidget()
         container.setStyleSheet("background-color: white;")
-
-        container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(18, 6, 18, 12)
-        container_layout.setSpacing(16)
-
-        container_layout.addLayout(self._build_top_bar())
-        container_layout.addLayout(self._build_checks_grid())
-        container_layout.addStretch()
+        c_layout = QVBoxLayout(container)
+        c_layout.setContentsMargins(18, 6, 18, 12)
+        c_layout.setSpacing(16)
+        c_layout.addLayout(self._build_top_bar())
+        c_layout.addLayout(self._build_checks_grid())
+        c_layout.addStretch()
 
         scroll_area.setWidget(container)
         main_layout.addWidget(scroll_area)
-
-        # Populate cards with default placeholder values on startup
         self._populate_defaults()
 
-    # ── Default population ────────────────────────────────────────────────────
-
     def _populate_defaults(self):
-        """Show equations + placeholder DCR values so cards are never empty."""
-        data    = DesignChecks._default_data()
-        results = DesignChecks.run_all(data)
+        results = DesignChecks.run_all(DesignChecks._default_data())
         for key, result in results.items():
             self._display_result(key, result)
 
-    # ── Display helper ────────────────────────────────────────────────────────
-
     def _display_result(self, key: str, result: dict):
-        """
-        Write the formatted equation + DCR into the card's QTextEdit.
-        Colors the DCR line green (pass) or red (fail).
-        """
         if key not in self.check_outputs:
             return
-
         output = self.check_outputs[key]
-        eq_text = result.get("equation", "")
-        dcr     = result.get("DCR", None)
-        passed  = result.get("pass", True)
-
-        # Build HTML so the DCR line can be coloured
-        lines_html = []
-        for line in eq_text.splitlines():
+        lines  = result.get("lines", [])
+        passed = result.get("pass", True)
+        html_lines = []
+        for line in lines:
             if line.startswith("DCR"):
                 color  = "#2e7d32" if passed else "#c62828"
-                status = "  ✓ OK" if passed else "  ✗ FAIL"
-                lines_html.append(
-                    f'<span style="color:{color}; font-weight:bold;">'
-                    f'{line}{status}</span>'
+                status = "&nbsp;&nbsp;&#10003; OK" if passed else "&nbsp;&nbsp;&#10007; FAIL"
+                html_lines.append(
+                    f'<span style="color:{color}; font-weight:bold;">{line}{status}</span>'
                 )
             else:
-                lines_html.append(
-                    f'<span style="color:#333333;">{line}</span>'
-                )
-
-        html = "<br>".join(lines_html)
+                html_lines.append(f'<span style="color:#333333;">{line}</span>')
         output.setHtml(
-            f'<div style="font-family: Courier New, monospace; font-size: 10px;">'
-            f'{html}</div>'
+            '<div style="font-family:\'Courier New\',monospace; font-size:10px; line-height:1.5;">'
+            + "<br>".join(html_lines) + "</div>"
         )
-
-    # ── Helpers (same style as the rest of the dialog) ────────────────────────
-
-    def _row_label(self, text):
-        lbl = QLabel(text)
-        lbl.setStyleSheet("font-size: 13px; color: #000;")
-        lbl.setMinimumWidth(180)
-        return lbl
-
-    def _readonly_field(self):
-        field = QLineEdit()
-        field.setReadOnly(True)
-        field.setFixedWidth(150)
-        field.setFixedHeight(22)
-        field.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        apply_field_style(field)
-        return field
-
-    # ── Top bar ───────────────────────────────────────────────────────────────
 
     def _build_top_bar(self):
         bar = QHBoxLayout()
@@ -404,35 +336,28 @@ class SteelDesignCheckTab(QWidget):
 
         member_lbl = QLabel("Member ID")
         member_lbl.setStyleSheet("font-size: 11px; color: #000;")
-
         self.member_combo = NoScrollComboBox()
         apply_field_style(self.member_combo)
         self.member_combo.setFixedWidth(150)
         self.member_combo.setFixedHeight(22)
         self.member_combo.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.member_combo.addItems(["All", "Girder 1", "Girder 2"])
-
         bar.addWidget(member_lbl)
         bar.addWidget(self.member_combo)
         bar.addSpacing(40)
 
         load_lbl = QLabel("Load Combination:")
         load_lbl.setStyleSheet("font-size: 11px; color: #000;")
-
         self.load_combo = NoScrollComboBox()
         apply_field_style(self.load_combo)
         self.load_combo.setFixedWidth(150)
         self.load_combo.setFixedHeight(22)
         self.load_combo.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.load_combo.addItems(LOAD_COMBINATIONS)
-
         bar.addWidget(load_lbl)
         bar.addWidget(self.load_combo)
         bar.addStretch()
-
         return bar
-
-    # ── Check cards grid ──────────────────────────────────────────────────────
 
     def _build_checks_grid(self):
         grid = QGridLayout()
@@ -441,20 +366,12 @@ class SteelDesignCheckTab(QWidget):
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
-
         for idx, (key, title) in enumerate(DESIGN_CHECKS):
-            col  = idx % 2
-            row  = idx // 2
             card = self._build_check_card(key, title)
-            grid.addWidget(card, row, col)
-
+            grid.addWidget(card, idx // 2, idx % 2)
         return grid
 
     def _build_check_card(self, key: str, title: str) -> QFrame:
-        """
-        Single check card — rounded border, bold title, monospace output area.
-        Height is taller than original (90 px) so the equation lines fit.
-        """
         card = QFrame()
         card.setObjectName("checkCard")
         card.setStyleSheet("""
@@ -468,128 +385,93 @@ class SteelDesignCheckTab(QWidget):
 
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(12, 10, 12, 10)
-        card_layout.setSpacing(6)
+        card_layout.setSpacing(4)
 
+        # Title
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet("""
-            QLabel {
-                font-size: 11px;
-                font-weight: bold;
-                color: #000;
-                background: transparent;
-                border: none;
-            }
-        """)
+        title_lbl.setStyleSheet(
+            "font-size: 11px; font-weight: bold; color: #000;"
+            "background: transparent; border: none;"
+        )
         title_lbl.setWordWrap(True)
         card_layout.addWidget(title_lbl)
 
-        # Separator line
+        # ── Equation formula with HTML subscripts/superscripts ────────────────
+        eq_lbl = QLabel()
+        eq_lbl.setTextFormat(Qt.RichText)
+        eq_lbl.setText(
+            f'<span style="font-size:9px; color:#555;">{EQ_HTML.get(key, "")}</span>'
+        )
+        eq_lbl.setWordWrap(True)
+        eq_lbl.setStyleSheet("background: transparent; border: none;")
+        card_layout.addWidget(eq_lbl)
+
+        # Separator
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color: #E0E0E0; background-color: #E0E0E0; border: none;")
+        sep.setStyleSheet("color:#E0E0E0; background-color:#E0E0E0; border:none;")
         sep.setFixedHeight(1)
         card_layout.addWidget(sep)
 
-        # Readonly output — taller than original so all equation lines show
+        # Result text area — extra height for the 6-line shear_long_trans card
         output = QTextEdit()
         output.setReadOnly(True)
-        output.setFixedHeight(92)
+        output.setFixedHeight(104 if key == "shear_long_trans" else 88)
         output.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        output.setStyleSheet("""
-            QTextEdit {
-                background-color: white;
-                border: none;
-                font-family: 'Courier New', monospace;
-                font-size: 10px;
-                color: #333;
-            }
-        """)
+        output.setStyleSheet(
+            "QTextEdit { background-color:white; border:none;"
+            "font-family:'Courier New',monospace; font-size:10px; color:#333; }"
+        )
         card_layout.addWidget(output)
-
         self.check_outputs[key] = output
         return card
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     def set_girder_count(self, count: int):
-        """Update Member ID combo when girder count changes."""
         self.member_combo.clear()
         self.member_combo.addItems(["All"] + [f"Girder {i}" for i in range(1, count + 1)])
 
     def load_data(self, cad_state: dict):
-        """
-        Called by SteelDesign dialog when cad_state is available.
-        Pulls section/material properties from cad_state, runs all checks,
-        and populates the cards.  Falls back to defaults for any missing key.
-        """
         if not cad_state:
             return
-
-        # Update girder count if available
         try:
             self.set_girder_count(int(cad_state.get("no_of_girders", 2)))
         except (ValueError, TypeError):
             pass
-
-        # Build data dict — merge defaults with whatever cad_state provides
         data = DesignChecks._default_data()
         key_map = {
-            # cad_state key       : data key
-            "Md":                   "Md",
-            "Vd":                   "Vd",
-            "fy":                   "fy",
-            "Zp":                   "Zp",
-            "Ze":                   "Ze",
-            "Av":                   "Av",
-            "E_modulus":            "E",
-            "Iy":                   "Iy",
-            "L_LTB":                "L_LTB",
-            "rho":                  "rho",
-            "fck":                  "fck",
-            "b":                    "b",
-            "d":                    "d",
-            "Asv":                  "Asv",
-            "s":                    "s",
-            "delta_sigma":          "delta_sigma",
-            "delta_sigma_C":        "delta_sigma_C",
-            "deflection":           "delta",
-            "span":                 "L",
+            "Md": "Md", "Vd": "Vd", "fy": "fy", "Zp": "Zp", "Ze": "Ze",
+            "Av": "Av", "E_modulus": "E", "Iy": "Iy", "L_LTB": "L_LTB",
+            "rho": "rho", "fck": "fck", "b": "b", "d": "d",
+            "Asv": "Asv", "s": "s",
+            "delta_sigma": "delta_sigma", "delta_sigma_C": "delta_sigma_C",
+            "deflection": "delta", "span": "L",
         }
-        for src_key, dst_key in key_map.items():
-            val = cad_state.get(src_key)
+        for src, dst in key_map.items():
+            val = cad_state.get(src)
             if val is not None:
                 try:
-                    data[dst_key] = float(val)
+                    data[dst] = float(val)
                 except (ValueError, TypeError):
                     pass
-
-        # Also accept pre-computed check results stored in cad_state
-        # (e.g. from the analysis engine) — these take priority
-        has_precomputed = any(
-            cad_state.get(f"check_{k}") for k in self.check_outputs
-        )
-        if has_precomputed:
+        has_pre = any(cad_state.get(f"check_{k}") for k in self.check_outputs)
+        if has_pre:
             for key in self.check_outputs:
-                result_text = cad_state.get(f"check_{key}", "")
-                if result_text:
-                    self.check_outputs[key].setPlainText(str(result_text))
+                txt = cad_state.get(f"check_{key}", "")
+                if txt:
+                    self.check_outputs[key].setPlainText(str(txt))
             return
-
-        # Run calculations and populate cards
-        results = DesignChecks.run_all(data)
-        for key, result in results.items():
+        for key, result in DesignChecks.run_all(data).items():
             self._display_result(key, result)
 
     def set_check_result(self, key: str, text: str):
-        """Directly set plain-text result for a specific check card."""
         if key in self.check_outputs:
             self.check_outputs[key].setPlainText(text)
 
     def set_check_result_from_dict(self, key: str, result: dict):
-        """Set result from a DesignChecks result dict (shows coloured DCR)."""
         self._display_result(key, result)
 
     def clear_results(self):
-        """Clear all check output areas."""
         for output in self.check_outputs.values():
             output.clear()
