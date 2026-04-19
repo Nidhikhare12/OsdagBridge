@@ -255,6 +255,7 @@ class OutputDock(QWidget):
         self.main_layout.addWidget(content_container)
 
     def open_steel_design(self):
+        """Open the Steel Design dialog."""
         from osdagbridge.desktop.ui.dialogs.steel_design import SteelDesign
         dlg = SteelDesign(parent=self.parent)
         dlg.exec()
