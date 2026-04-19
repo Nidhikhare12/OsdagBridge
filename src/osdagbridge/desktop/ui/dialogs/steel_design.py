@@ -17,7 +17,6 @@ class SteelDesign(QDialog):
         self.setObjectName("SteelDesign")
         self.resize(1024, 720)
         self.setMinimumSize(900, 520)
-        self.setSizeGripEnabled(True)
         self.init_ui()
         self.setStyleSheet("""
             QDialog {
@@ -58,7 +57,7 @@ class SteelDesign(QDialog):
 
     
 
-        # ── Tabs ──────────────────────────────────────────────────────────────
+        # Setup tabs
         self.tabs = QTabWidget()
         self.tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.tabs.setDocumentMode(True)
@@ -85,11 +84,17 @@ class SteelDesign(QDialog):
         """)
 
         self.details_tab = SteelDesignDetailsTab(self)
+        self.check_tab  = SteelDesignCheckTab(self)
         self.tabs.addTab(self.details_tab,             "Details")
         self.tabs.addTab(SteelDesignAnalysisTab(self), "Analysis Results")
-        self.tabs.addTab(SteelDesignCheckTab(self),    "Design Check")
+        self.tabs.addTab(self.check_tab,               "Design Check")
 
         main_layout.addWidget(self.tabs)
 
-        if hasattr(self._main_window, "cad_state"):
+        if hasattr(self._main_window, "input_dock"):
+            cad_state = self._main_window.input_dock.get_all_input_values()
+            self.details_tab.load_data(cad_state)
+            self.check_tab.load_data(cad_state)
+        elif hasattr(self._main_window, "cad_state"):
             self.details_tab.load_data(self._main_window.cad_state)
+            self.check_tab.load_data(self._main_window.cad_state)
