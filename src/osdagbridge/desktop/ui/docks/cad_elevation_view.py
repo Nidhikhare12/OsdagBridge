@@ -52,6 +52,13 @@ class ElevationViewCADWidget(QWidget):
             'railing_width': 100,
             'median_present': False,
             'median_width': 1200,
+            'show_live_load': True,
+            'load_case_label': 'LL',
+            'load_type': 'Point',
+            'load_position_m': 17.5,
+            'load_position_ratio': 0.5,
+            'load_line_start_m': None,
+            'load_line_end_m': None,
         }
         
         # girder dimensions (mm)
@@ -228,6 +235,138 @@ class ElevationViewCADWidget(QWidget):
         """Update parameters from the model"""
         self.params.update(params)
         self.update()
+
+    def _to_float(self, value, default=None):
+        try:
+            if value is None:
+                return default
+            if isinstance(value, str) and not value.strip():
+                return default
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _draw_downward_load_arrow(self, painter, x, y_top, y_bottom, color):
+        painter.setPen(QPen(color, 1.6))
+        painter.drawLine(QPointF(x, y_top), QPointF(x, y_bottom))
+        arrow_size = 5
+        painter.setBrush(QBrush(color))
+        arrow = [
+            QPointF(x, y_bottom),
+            QPointF(x - arrow_size / 2, y_bottom - arrow_size),
+            QPointF(x + arrow_size / 2, y_bottom - arrow_size),
+        ]
+        painter.drawPolygon(QPolygonF(arrow))
+
+    def _draw_label_with_bg(self, painter, x, y, text,
+                            bg_color=QColor(232, 241, 255, 230),
+                            text_color=QColor(45, 92, 170)):
+        font = QFont('Arial', 9, QFont.Bold)
+        painter.setFont(font)
+        metrics = painter.fontMetrics()
+        text_rect = metrics.boundingRect(text)
+        pad = 3
+
+        bg_rect = QRectF(
+            x - pad,
+            y - text_rect.height() - pad,
+            text_rect.width() + 2 * pad,
+            text_rect.height() + 2 * pad,
+        )
+
+        painter.save()
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QBrush(bg_color))
+        painter.drawRect(bg_rect)
+        painter.setPen(QPen(text_color, 1.0))
+        painter.drawText(int(x), int(y), text)
+        painter.restore()
+
+    def draw_elevation_live_load(self, painter, start_x, span_px, deck_top_y, base_y, span_length_m):
+        """Draw live-load position over the elevation view span."""
+        if not self.params.get('show_live_load', True):
+            return
+
+        if span_length_m <= 0:
+            return
+
+        load_case = str(self.params.get('load_case_label', 'LL')).strip() or 'LL'
+        load_type = str(self.params.get('load_type', 'Point')).strip().lower()
+        load_color = QColor(45, 92, 170)
+
+        arrow_top_y = deck_top_y - 48
+        arrow_bottom_y = deck_top_y + 2
+        reference_line_y = base_y + 28
+
+        painter.save()
+        painter.setPen(QPen(load_color, 1.5))
+        painter.setBrush(QBrush(load_color))
+
+        if load_type in {'line', 'area'}:
+            start_m = self._to_float(self.params.get('load_line_start_m'))
+            end_m = self._to_float(self.params.get('load_line_end_m'))
+
+            if start_m is None or end_m is None:
+                center_m = self._to_float(self.params.get('load_position_m'), span_length_m * 0.5)
+                half_window = max(0.1, span_length_m * 0.1)
+                start_m = center_m - half_window
+                end_m = center_m + half_window
+
+            start_m = max(0.0, min(span_length_m, start_m))
+            end_m = max(0.0, min(span_length_m, end_m))
+            if end_m < start_m:
+                start_m, end_m = end_m, start_m
+
+            load_start_x = start_x + (start_m / span_length_m) * span_px
+            load_end_x = start_x + (end_m / span_length_m) * span_px
+
+            if abs(load_end_x - load_start_x) < 8:
+                load_end_x = min(start_x + span_px, load_start_x + 8)
+
+            painter.drawLine(QPointF(load_start_x, arrow_top_y), QPointF(load_end_x, arrow_top_y))
+
+            arrow_count = max(3, min(8, int(abs(load_end_x - load_start_x) / 80.0) + 1))
+            if arrow_count == 1:
+                x_positions = [(load_start_x + load_end_x) * 0.5]
+            else:
+                x_positions = [
+                    load_start_x + (load_end_x - load_start_x) * i / (arrow_count - 1)
+                    for i in range(arrow_count)
+                ]
+
+            for x_pos in x_positions:
+                self._draw_downward_load_arrow(painter, x_pos, arrow_top_y, arrow_bottom_y, load_color)
+
+            mid_x = (load_start_x + load_end_x) * 0.5
+            painter.setPen(QPen(load_color, 1.0, Qt.DashLine))
+            painter.drawLine(QPointF(mid_x, deck_top_y + 2), QPointF(mid_x, reference_line_y))
+            self._draw_label_with_bg(
+                painter,
+                mid_x - 80,
+                arrow_top_y - 10,
+                f"{load_case} {load_type.title()}: {start_m:.2f} m to {end_m:.2f} m",
+            )
+        else:
+            load_position_m = self._to_float(self.params.get('load_position_m'))
+            if load_position_m is None:
+                ratio = self._to_float(self.params.get('load_position_ratio'), 0.5)
+                ratio = max(0.0, min(1.0, ratio))
+                load_position_m = span_length_m * ratio
+
+            load_position_m = max(0.0, min(span_length_m, load_position_m))
+            load_x = start_x + (load_position_m / span_length_m) * span_px
+
+            self._draw_downward_load_arrow(painter, load_x, arrow_top_y, arrow_bottom_y, load_color)
+            painter.setPen(QPen(load_color, 1.0, Qt.DashLine))
+            painter.drawLine(QPointF(load_x, deck_top_y + 2), QPointF(load_x, reference_line_y))
+            self._draw_label_with_bg(
+                painter,
+                load_x - 58,
+                arrow_top_y - 10,
+                f"{load_case} @ {load_position_m:.2f} m",
+            )
+
+        painter.restore()
     
     def paintEvent(self, event):
         """Paint the elevation view"""
@@ -352,6 +491,15 @@ class ElevationViewCADWidget(QWidget):
         
         # Right railing
         painter.drawRect(QRectF(start_x + span_px, deck_top_y - railing_height_px, 10, railing_height_px))
+
+        self.draw_elevation_live_load(
+            painter,
+            start_x,
+            span_px,
+            deck_top_y,
+            base_y,
+            span_length_m,
+        )
         
         # Draw dimensions
         self.draw_elevation_dimensions(painter, start_x, span_px, base_y, deck_top_y, 

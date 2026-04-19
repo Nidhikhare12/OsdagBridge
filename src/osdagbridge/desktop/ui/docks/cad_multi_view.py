@@ -112,60 +112,130 @@ class BridgeMultiViewCADWidget(QWidget):
         )
         
         params = {}
-        
-        # Map span (meters to mm)
-        if KEY_SPAN in input_dict:
-            params['span_length'] = float(input_dict[KEY_SPAN]) * 1000
-        
-        # Map carriageway width (meters to mm)
-        if KEY_CARRIAGEWAY_WIDTH in input_dict:
-            params['carriageway_width'] = float(input_dict[KEY_CARRIAGEWAY_WIDTH]) * 1000
-        
-        # Map skew angle (degrees)
-        if KEY_SKEW_ANGLE in input_dict:
-            params['skew_angle'] = float(input_dict[KEY_SKEW_ANGLE])
-        
-        # Map number of girders
-        if KEY_NO_OF_GIRDERS in input_dict:
-            params['num_girders'] = int(input_dict[KEY_NO_OF_GIRDERS])
-        
-        # Map girder spacing (meters to mm)
-        if KEY_GIRDER_SPACING in input_dict:
-            params['girder_spacing'] = float(input_dict[KEY_GIRDER_SPACING]) * 1000
-        
-        # Map deck overhang (meters to mm)
-        if KEY_DECK_OVERHANG in input_dict:
-            params['deck_overhang'] = float(input_dict[KEY_DECK_OVERHANG]) * 1000
-        
-        # Map deck thickness (mm)
-        if KEY_DECK_THICKNESS in input_dict:
-            params['deck_thickness'] = float(input_dict[KEY_DECK_THICKNESS])
-        
-        # Map footpath width (meters to mm)
-        if KEY_FOOTPATH_WIDTH in input_dict:
-            params['footpath_width'] = float(input_dict[KEY_FOOTPATH_WIDTH]) * 1000
-        
-        # Map footpath thickness (mm)
-        if KEY_FOOTPATH_THICKNESS in input_dict:
-            params['footpath_thickness'] = float(input_dict[KEY_FOOTPATH_THICKNESS])
-        
-        # Map footpath configuration
+
+        def _to_float(value, default=None):
+            try:
+                if value is None:
+                    return default
+                if isinstance(value, str) and not value.strip():
+                    return default
+                return float(value)
+            except (TypeError, ValueError):
+                return default
+
+        def _to_int(value, default=None):
+            try:
+                if value is None:
+                    return default
+                if isinstance(value, str) and not value.strip():
+                    return default
+                return int(float(value))
+            except (TypeError, ValueError):
+                return default
+
+        span_m = _to_float(input_dict.get(KEY_SPAN))
+        if span_m is not None:
+            params['span_length'] = span_m * 1000
+
+        carriageway_m = _to_float(input_dict.get(KEY_CARRIAGEWAY_WIDTH))
+        if carriageway_m is not None:
+            params['carriageway_width'] = carriageway_m * 1000
+
+        skew_angle = _to_float(input_dict.get(KEY_SKEW_ANGLE))
+        if skew_angle is not None:
+            params['skew_angle'] = skew_angle
+
+        num_girders = _to_int(input_dict.get(KEY_NO_OF_GIRDERS))
+        if num_girders is not None:
+            params['num_girders'] = num_girders
+
+        girder_spacing_m = _to_float(input_dict.get(KEY_GIRDER_SPACING))
+        if girder_spacing_m is not None:
+            params['girder_spacing'] = girder_spacing_m * 1000
+
+        deck_overhang_m = _to_float(input_dict.get(KEY_DECK_OVERHANG))
+        if deck_overhang_m is not None:
+            params['deck_overhang'] = deck_overhang_m * 1000
+
+        deck_thickness_mm = _to_float(input_dict.get(KEY_DECK_THICKNESS))
+        if deck_thickness_mm is not None:
+            params['deck_thickness'] = deck_thickness_mm
+
+        footpath_width_m = _to_float(input_dict.get(KEY_FOOTPATH_WIDTH))
+        if footpath_width_m is not None:
+            params['footpath_width'] = footpath_width_m * 1000
+
+        footpath_thickness_mm = _to_float(input_dict.get(KEY_FOOTPATH_THICKNESS))
+        if footpath_thickness_mm is not None:
+            params['footpath_thickness'] = footpath_thickness_mm
+
         if KEY_FOOTPATH in input_dict:
-            footpath_value = input_dict[KEY_FOOTPATH]
+            footpath_value = str(input_dict.get(KEY_FOOTPATH, '')).strip()
             if footpath_value == "None":
                 params['footpath_config'] = 'none'
-            elif footpath_value == "Single Sided":
+            elif footpath_value in {"Single Side", "Single Sided", "Left"}:
                 params['footpath_config'] = 'left'
-            elif footpath_value == "Both":
+            elif footpath_value == "Right":
+                params['footpath_config'] = 'right'
+            elif footpath_value in {"Both", "Both Sides"}:
                 params['footpath_config'] = 'both'
-        
-        # Map cross bracing spacing (meters to mm)
-        if KEY_CROSS_BRACING_SPACING in input_dict:
-            params['cross_bracing_spacing'] = float(input_dict[KEY_CROSS_BRACING_SPACING]) * 1000
-        
-        # Map median present
+
+        cross_bracing_spacing_m = _to_float(input_dict.get(KEY_CROSS_BRACING_SPACING))
+        if cross_bracing_spacing_m is not None:
+            params['cross_bracing_spacing'] = cross_bracing_spacing_m * 1000
+
         if KEY_INCLUDE_MEDIAN in input_dict:
-            params['median_present'] = bool(input_dict[KEY_INCLUDE_MEDIAN])
+            raw_median = input_dict.get(KEY_INCLUDE_MEDIAN)
+            if isinstance(raw_median, str):
+                params['median_present'] = raw_median.strip().lower() in {"yes", "true", "1"}
+            else:
+                params['median_present'] = bool(raw_median)
+
+        # Custom load values drive load overlays in cross-section and elevation.
+        load_case = str(input_dict.get("custom_load_case", "") or "").strip()
+        custom_load_case_name = str(input_dict.get("custom_load_case_name", "") or "").strip()
+        if not load_case:
+            load_case = "LL"
+        elif load_case.lower() == "custom":
+            load_case = custom_load_case_name or "Custom"
+
+        load_type = str(input_dict.get("custom_load_type", "Point") or "Point").strip().title()
+        if load_type not in {"Point", "Line", "Area"}:
+            load_type = "Point"
+
+        params['show_live_load'] = True
+        params['load_case_label'] = load_case
+        params['load_type'] = load_type
+
+        point_left_m = _to_float(input_dict.get("custom_point_left"))
+        point_bearing_m = _to_float(input_dict.get("custom_point_bearing"))
+        line_left_start_m = _to_float(input_dict.get("custom_line_left_start"))
+        line_left_end_m = _to_float(input_dict.get("custom_line_left_end"))
+        line_bearing_start_m = _to_float(input_dict.get("custom_line_bearing_start"))
+        line_bearing_end_m = _to_float(input_dict.get("custom_line_bearing_end"))
+
+        if point_left_m is not None:
+            params['load_transverse_m'] = point_left_m
+
+        if line_left_start_m is not None and line_left_end_m is not None:
+            if line_left_end_m < line_left_start_m:
+                line_left_start_m, line_left_end_m = line_left_end_m, line_left_start_m
+            params['load_transverse_start_m'] = line_left_start_m
+            params['load_transverse_end_m'] = line_left_end_m
+
+        if line_bearing_start_m is not None and line_bearing_end_m is not None:
+            if line_bearing_end_m < line_bearing_start_m:
+                line_bearing_start_m, line_bearing_end_m = line_bearing_end_m, line_bearing_start_m
+            params['load_line_start_m'] = line_bearing_start_m
+            params['load_line_end_m'] = line_bearing_end_m
+            params['load_position_m'] = (line_bearing_start_m + line_bearing_end_m) * 0.5
+        elif point_bearing_m is not None:
+            params['load_position_m'] = point_bearing_m
+        elif span_m is not None and span_m > 0.0:
+            params['load_position_m'] = span_m * 0.5
+
+        if span_m and span_m > 0.0 and 'load_position_m' in params:
+            params['load_position_ratio'] = max(0.0, min(1.0, params['load_position_m'] / span_m))
         
         # Update all widgets with same parameters
         self.cross_section_widget.update_params(params)

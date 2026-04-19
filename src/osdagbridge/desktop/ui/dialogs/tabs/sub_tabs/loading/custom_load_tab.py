@@ -67,8 +67,7 @@ class LoadGraphicsView(QGraphicsView):
         elif load_type == "line":
             self.draw_line_load(inputs.get("x1"), inputs.get("x2"))
         elif load_type == "area":
-            # Area load is full-span; inputs are ignored by design
-            self.draw_area_load(None, None)
+            self.draw_area_load(inputs.get("x1"), inputs.get("x2"))
 
     # ── Drawing helpers ──────────────────────────────────────────────────
     def draw_bridge(self):
@@ -85,10 +84,6 @@ class LoadGraphicsView(QGraphicsView):
             girder = QGraphicsLineItem(x, self.deck_y + 18, x, self.deck_y + 18 + self.girder_height)
             girder.setPen(QPen(QColor(110, 110, 110), 2.0))
             self.scene.addItem(girder)
-
-        span_label = QGraphicsSimpleTextItem(f"Span: {self.span_length} m")
-        span_label.setPos(self.left_margin, self.deck_y + self.girder_height + 24)
-        self.scene.addItem(span_label)
 
     def _scale_x(self, value):
         try:
@@ -157,12 +152,20 @@ class LoadGraphicsView(QGraphicsView):
         self.scene.addItem(span_label)
 
     def draw_area_load(self, x1, x2):
-        # Full-span area load per requirement: ignore x1/x2, cover entire deck span
-        start_x_val = 0.0
-        end_x_val = float(self.span_length) if self._is_number(self.span_length) else 30.0
+        x1_val = float(x1) if self._is_number(x1) else 5.0
+        x2_val = float(x2) if self._is_number(x2) else 20.0
+        if x2_val < x1_val:
+            x1_val, x2_val = x2_val, x1_val
+
+        start_x_val = x1_val
+        end_x_val = x2_val
 
         p1 = self._scale_x(start_x_val)
         p2 = self._scale_x(end_x_val)
+
+        if abs(p2 - p1) < 2:
+            p2 = p1 + 2
+
         top = self.deck_y - 44
         height = 44
 
@@ -171,7 +174,7 @@ class LoadGraphicsView(QGraphicsView):
         rect.setPen(QPen(QColor(200, 40, 40), 1.2, Qt.DashLine))
         self.scene.addItem(rect)
 
-        num_arrows = 8
+        num_arrows = max(4, min(10, int(abs(p2 - p1) / 24) + 1))
         spacing = (p2 - p1) / (num_arrows + 1)
         for i in range(1, num_arrows + 1):
             x = p1 + i * spacing
@@ -182,7 +185,7 @@ class LoadGraphicsView(QGraphicsView):
         label.setPos((p1 + p2) / 2 - 32, top - 22)
         self.scene.addItem(label)
 
-        span_label = QGraphicsSimpleTextItem(f"Full span: 0 - {end_x_val} m")
+        span_label = QGraphicsSimpleTextItem(f"x1 = {x1_val} m | x2 = {x2_val} m")
         span_label.setPos(p1, top - 36)
         self.scene.addItem(span_label)
 
