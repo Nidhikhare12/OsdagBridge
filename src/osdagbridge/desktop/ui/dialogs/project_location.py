@@ -13,7 +13,10 @@ from osdagbridge.core.bridge_types.plate_girder.ui_fields_project_location impor
     get_weather,
 )
 from osdagbridge.desktop.ui.widgets.native_map import NativeMapWidget
-from osdagbridge.core.data.project_location.zone_lookup import get_zones_for_coordinates, get_temperature_for_coordinates
+from osdagbridge.core.data.project_location.zone_lookup import (
+    get_zones_for_coordinates, get_temperature_for_coordinates,
+    is_inside_india, spatial_deps_available,
+)
 
 # Session-level state to persist values across dialog open/close cycles
 # so that reopening the dialog retains user-entered or looked-up data.
@@ -873,19 +876,52 @@ class ProjectLocationDialog(QDialog):
     def _lookup_zones_for_coordinates(self, lat: float, lon: float):
         """Lookup wind, seismic zones and temperature for given coordinates and update UI."""
         global LAST_CUSTOM_WEATHER_DATA, LAST_WEATHER_DATA, LAST_LOCATION_METHOD, LAST_LOCATION_DATA
-        
+
+        # ── Step 1: Geographic boundary check ──────────────────────────────
+        if not is_inside_india(lat, lon):
+            CustomMessageBox(
+                title="Location Error",
+                text="The selected location is outside of India.\nPlease select a location within Indian territory.",
+                dialogType=MessageBoxType.Critical
+            ).exec()
+            self._clear_map_selection()
+            self._update_irc_values(None)
+            self.custom_weather_data = None
+            LAST_CUSTOM_WEATHER_DATA = None
+            LAST_WEATHER_DATA = None
+            LAST_LOCATION_METHOD = None
+            LAST_LOCATION_DATA = None
+            self._current_weather_data = None
+            return
+
+        # ── Step 2: Attempt data lookup ────────────────────────────────────
         zone_data = get_zones_for_coordinates(lat, lon)
         temp_data = get_temperature_for_coordinates(lat, lon)
-        # Assuming that valid locations within India will always have a seismic zone/wind speed
+
         missing_zone = not zone_data.get("seismic_zone")
         missing_wind = zone_data.get("wind_Vb") in (None, "")
         missing_max_temp = temp_data.get("max_temp") is None
         missing_min_temp = temp_data.get("min_temp") is None
+
         if missing_zone or missing_wind or missing_max_temp or missing_min_temp:
+            # Inside India but data lookup failed — distinguish the reason
+            if not spatial_deps_available():
+                msg = (
+                    "Zone data is not available for this location.\n\n"
+                    "Reason: Spatial libraries (shapely, fiona) are not installed.\n"
+                    "Install them with: pip install shapely fiona\n\n"
+                    "You can use 'Input Custom Data' to enter values manually."
+                )
+            else:
+                msg = (
+                    "Complete data is not available for this location.\n\n"
+                    "Some zone/weather data could not be determined.\n"
+                    "You can use 'Input Custom Data' to enter values manually."
+                )
             CustomMessageBox(
-                title="Location Error",
-                text="Data for this location is not available.\n (Outside of India)",
-                dialogType=MessageBoxType.Critical
+                title="Data Not Available",
+                text=msg,
+                dialogType=MessageBoxType.Warning
             ).exec()
             # Clear the pin from the map
             self._clear_map_selection()
