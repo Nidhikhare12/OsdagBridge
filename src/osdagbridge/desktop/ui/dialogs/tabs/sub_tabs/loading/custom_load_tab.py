@@ -22,6 +22,10 @@ from PySide6.QtWidgets import (
 from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
 from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
 from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import CUSTOM_LOAD_TAB_SCHEMA
+from osdagbridge.desktop.ui.dialogs.tabs.sub_tabs.loading.bridge_load_canvas import (
+    BridgeLoadCanvas,
+    BridgeElevationCanvas,
+)
 
 
 class CustomLoadTab(QWidget):
@@ -70,21 +74,22 @@ class CustomLoadTab(QWidget):
         left_column.setContentsMargins(0, 0, 0, 0)
         left_column.setSpacing(8)
 
-        diagram = QFrame()
-        diagram.setMinimumSize(QSize(380, 130))
-        diagram.setMaximumHeight(130)
-        diagram.setStyleSheet(
-            "QFrame { border: 1px solid #a0a0a0; border-radius: 4px; background-color: #d0d0d0; }"
+        self.canvas = BridgeLoadCanvas()
+        self.canvas.setMinimumSize(QSize(380, 280))
+        self.canvas.setMaximumHeight(280)
+        self.canvas.setStyleSheet(
+            "border: 1px solid #a0a0a0; border-radius: 4px; background-color: #ffffff;"
         )
-        diagram_layout = QVBoxLayout(diagram)
-        diagram_layout.setContentsMargins(8, 8, 8, 8)
-        diagram_label = QLabel("Bridge Geometry\nDiagram")
-        diagram_label.setAlignment(Qt.AlignCenter)
-        diagram_label.setStyleSheet(
-            "font-size: 11px; font-weight: 600; color: #2a2a2a; background: transparent; border: none;"
+        left_column.addWidget(self.canvas)
+
+        # ── Elevation (side) view canvas ──────────────────────────────────────
+        self.elevation_canvas = BridgeElevationCanvas()
+        self.elevation_canvas.setMinimumSize(QSize(380, 160))
+        self.elevation_canvas.setMaximumHeight(170)
+        self.elevation_canvas.setStyleSheet(
+            "border: 1px solid #a0a0a0; border-radius: 4px; background-color: #ffffff;"
         )
-        diagram_layout.addWidget(diagram_label, 1)
-        left_column.addWidget(diagram)
+        left_column.addWidget(self.elevation_canvas)
 
         input_card = owner._create_card()
         input_card.setStyleSheet(
@@ -453,7 +458,20 @@ class CustomLoadTab(QWidget):
         main_layout.addWidget(scroll_area)
 
         owner.custom_load_type_combo.currentTextChanged.connect(self._on_custom_load_type_changed)
+        owner.custom_load_type_combo.currentTextChanged.connect(self.canvas.set_load_type)
+        owner.custom_load_type_combo.currentTextChanged.connect(self.elevation_canvas.set_load_type)
         self._on_custom_load_type_changed(owner.custom_load_type_combo.currentText())
+
+        # Wire position inputs to BOTH canvases (cross-section + elevation)
+        owner.custom_point_left_input.textChanged.connect(self._sync_canvas_point)
+        owner.custom_point_left_input.textChanged.connect(self._sync_elevation_point)
+        owner.custom_line_left_start.textChanged.connect(self._sync_canvas_range)
+        owner.custom_line_left_start.textChanged.connect(self._sync_elevation_range)
+        owner.custom_line_left_end.textChanged.connect(self._sync_canvas_range)
+        owner.custom_line_left_end.textChanged.connect(self._sync_elevation_range)
+        owner.custom_point_bearing_input.textChanged.connect(self._sync_elevation_point)
+        owner.custom_line_bearing_start.textChanged.connect(self._sync_elevation_range)
+        owner.custom_line_bearing_end.textChanged.connect(self._sync_elevation_range)
 
         save_btn.clicked.connect(self._on_save_custom_load)
         owner.custom_delete_btn.clicked.connect(self._on_delete_custom_load)
@@ -671,3 +689,62 @@ class CustomLoadTab(QWidget):
         self._refresh_custom_load_table()
         if hasattr(self, '_editing_load_data'):
             self._editing_load_data = None
+
+    # ── Canvas sync helpers ──────────────────────────────────────────
+    def _sync_canvas_point(self, *args):
+        """Update canvas point-load position from the left-distance input."""
+        try:
+            val = float(self.owner.custom_point_left_input.text())
+            cad = getattr(self.owner, 'cad_state', {})
+            span = float(cad.get('span', 1.0))
+            self.canvas.set_span(span)
+            self.canvas.set_position(val)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            pass
+
+    def _sync_canvas_range(self, *args):
+        """Update canvas line/area-load range from the left-distance inputs."""
+        try:
+            x1 = float(self.owner.custom_line_left_start.text())
+            x2 = float(self.owner.custom_line_left_end.text())
+            cad = getattr(self.owner, 'cad_state', {})
+            span = float(cad.get('span', 1.0))
+            self.canvas.set_span(span)
+            self.canvas.set_range(x1, x2)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            pass
+
+    # ── Elevation-canvas sync helpers ─────────────────────────────────
+
+    def _sync_elevation_point(self, *args):
+        """Mirror _sync_canvas_point for the elevation view."""
+        try:
+            val = float(self.owner.custom_point_left_input.text())
+            cad = getattr(self.owner, 'cad_state', {})
+            span = float(cad.get('span', 1.0))
+            self.elevation_canvas.set_span(span)
+            self.elevation_canvas.set_position(val)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            pass
+
+    def _sync_elevation_range(self, *args):
+        """Mirror _sync_canvas_range for the elevation view."""
+        try:
+            x1 = float(self.owner.custom_line_left_start.text())
+            x2 = float(self.owner.custom_line_left_end.text())
+            cad = getattr(self.owner, 'cad_state', {})
+            span = float(cad.get('span', 1.0))
+            self.elevation_canvas.set_span(span)
+            self.elevation_canvas.set_range(x1, x2)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            pass
+
+    def sync_num_girders_from_state(self):
+        """Read num_girders from owner.cad_state and push to the canvas."""
+        cad = getattr(self.owner, 'cad_state', None)
+        if cad:
+            try:
+                n = int(cad.get('num_girders', 3))
+                self.canvas.set_num_girders(n)
+            except (ValueError, TypeError):
+                pass
