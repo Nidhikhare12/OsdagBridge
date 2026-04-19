@@ -226,7 +226,13 @@ def build_figure_sfd(ds, force_key, nodes, members, user_scale = 0.25 , grid_on=
             surfacecolor=[f_step, f_step], 
             colorscale="Viridis",           
             opacity=0.4, 
-            showscale=True, 
+            showscale=True if i == 0 else False,
+            colorbar=dict(
+                title=force_key,
+                thickness=15,
+                x=1.1,           # Right side shift
+                tickfont=dict(size=10)
+            ) if i == 0 else None, 
             hoverinfo="skip", 
             showlegend=True, 
             name=f"{girder_name} SFD"
@@ -283,18 +289,30 @@ def build_figure_sfd(ds, force_key, nodes, members, user_scale = 0.25 , grid_on=
         uirevision= force_key,
         hoverlabel=dict(bgcolor="#E6F2FF", font_size=12, font_color="#2C3E50", bordercolor="#BBD6EE", namelength=-1),
         scene=SHARED_SCENE,
-        margin=dict(l=0, r=0, t=40, b=0),
+        margin=dict(l=10, r=200, t=40, b=10),
+        legend=dict(
+            x=1.2,           # Plot ke kafi bahar (Right side)
+            y=1,
+            xanchor='left',
+            font=dict(size=10)
+        ),
+        coloraxis_colorbar=dict(
+            title="Force",
+            thickness=15,
+            x=1.1,           # Legend 1.35 par hai, colorbar 1.1 par (Gap ban gaya!)
+            tickfont=dict(size=10)
+        ),
         paper_bgcolor="white", plot_bgcolor="white"
     )
 
-
-   
     # --- TASK-1: GRID TOGGLE LOGIC ---
     fig_sfd.update_scenes(
         xaxis=dict(showgrid=grid_on, zeroline=grid_on),
         yaxis=dict(showgrid=grid_on, zeroline=grid_on),
-        zaxis=dict(showgrid=grid_on, zeroline=grid_on)
+        zaxis=dict(showgrid=grid_on, zeroline=grid_on),
+        camera=SHARED_SCENE['camera'] 
     )
+
     return fig_sfd.to_json()
 
 
@@ -348,6 +366,15 @@ def build_figure_bmd(ds, force_key, nodes, members, user_scale = 0.25, grid_on=T
         node_ids.append(n2)
         return np.array(xs), np.array(ys), np.array(zs), np.array(vals), node_ids
 
+    # --- YAHAN DEFINE KARO (Error Fix) ---
+    xfull, mzfull = [], []
+    for elems in girders.values():
+        xs_f, _, _, mz_f, _ = build_polyline(elems, comp_i, comp_j)
+        xfull.extend(xs_f)
+        mzfull.extend(mz_f)
+    # -------------------------------------
+
+    
     fig_bmd = go.Figure()
     add_grillage_background(fig_bmd, nodes, members)
     add_coordinate_triad(fig_bmd, nodes)
@@ -392,13 +419,23 @@ def build_figure_bmd(ds, force_key, nodes, members, user_scale = 0.25, grid_on=T
             y_surf_base = [np.zeros(len(xs)), y_plot]
             z_surf_base = [zs, zs]
 
+        # --- MZ CONTOUR LOGIC ---
         fig_bmd.add_trace(go.Surface(
             x=[xs, xs], 
             y=y_surf_base, 
             z=z_surf_base,
-            surfacecolor=[[1]*len(xs), [1]*len(xs)], 
-            colorscale=[[0, 'red'], [1, 'red']],
-            opacity=0.2, showscale=False, hoverinfo="skip"
+            surfacecolor=[mz, mz],          # <--- Mz values map kardi
+            colorscale="Jet",               # <--- Red hatake Rainbow (Jet) kar diya
+            cmin=min(mzfull), cmax=max(mzfull),
+            opacity=0.4, 
+            showscale=True if i == 0 else False, # Ghosting/Double numbers fix
+            colorbar=dict(
+                title=force_key,
+                thickness=15,
+                x=1.1,                      # Colorbar position
+                tickfont=dict(size=10)
+            ) if i == 0 else None, 
+            hoverinfo="skip"
         ))
 
         master_line_x.extend(list(xs) + [None])
@@ -503,14 +540,28 @@ def build_figure_bmd(ds, force_key, nodes, members, user_scale = 0.25, grid_on=T
             )
         ],
         scene=SHARED_SCENE,
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0)
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=10, r=200, t=40, b=10),
+        legend=dict(
+            x=1.2,           # Plot ke kafi bahar (Right side)
+            y=1,
+            xanchor='left',
+            font=dict(size=10)
+        ),
+        coloraxis_colorbar=dict(
+            title="Force",
+            thickness=15,
+            x=1.1,           # Legend 1.35 par hai, colorbar 1.1 par (Gap ban gaya!)
+            tickfont=dict(size=10)
+        ),
     )
+
 
     # --- GRID TOGGLE LOGIC ---
     fig_bmd.update_scenes(
         xaxis=dict(showgrid=grid_on, zeroline=grid_on),
         yaxis=dict(showgrid=grid_on, zeroline=grid_on),
-        zaxis=dict(showgrid=grid_on, zeroline=grid_on)
+        zaxis=dict(showgrid=grid_on, zeroline=grid_on),
+        camera=SHARED_SCENE['camera'] 
     )
 
     return fig_bmd.to_json(), summary_data
@@ -596,7 +647,14 @@ def build_figure_bmd_contour(ds, force_key, nodes, members, user_scale = 0.25, g
         fig.add_trace(go.Surface(
             x=[xs, xs], y=[np.zeros(len(xs)), y_plot], z=[zs, zs],
             surfacecolor=[mz, mz], colorscale="Jet", cmin=min(mzfull), cmax=max(mzfull),
-            opacity=0.4, showscale=False, hoverinfo="skip"
+            opacity=0.4, showscale=True if i == 0 else False,
+            colorbar=dict(
+                title=force_key,
+                thickness=15,
+                x=1.1,           # Right side shift
+                tickfont=dict(size=10)
+            ) if i == 0 else None,
+            hoverinfo="skip"
         ))
 
         fig.add_trace(go.Scatter3d(
@@ -640,13 +698,23 @@ def build_figure_bmd_contour(ds, force_key, nodes, members, user_scale = 0.25, g
         uirevision="constant_view",
         hoverlabel=dict(bgcolor="rgba(15, 23, 42, 0.95)", font_size=12, font_color="#F8F9FA", bordercolor="#0EA5E9", namelength=-1),
         scene=SHARED_SCENE,
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=0, r=0, t=40, b=0)
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(l=10, r=200, t=40, b=10),
+        legend=dict(
+            x=1.2,           # Plot ke kafi bahar (Right side)
+            y=1,
+            xanchor='left',
+            font=dict(size=10)
+        ),
+        
     )
 
     fig.update_scenes(
         xaxis_showgrid=grid_on,
         zaxis_showgrid=grid_on,
-        yaxis_showgrid=grid_on
+        yaxis_showgrid=grid_on,
+        camera=SHARED_SCENE['camera'] 
     )
+
+    
 
     return fig.to_json()
