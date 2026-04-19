@@ -10,6 +10,26 @@ from osdagbridge.core.bridge_types.plate_girder.analysis_results import PlateGir
 from osdagbridge.core.bridge_types.plate_girder.dto import (SectionProperties, SteelProperties, MaterialProperties, GrillageGeometry, DeckLayoutProperties)
 
 
+def _patch_ospgrillage_add_load_compat():
+    for class_name in ("CompoundLoad", "LoadCase", "MovingLoad"):
+        cls = getattr(og, class_name, None)
+        if cls is None or getattr(cls.add_load, "_osdagbridge_load_compat", False):
+            continue
+
+        original_add_load = cls.add_load
+
+        def add_load_compat(self, load=None, *args, _original_add_load=original_add_load, **kwargs):
+            if load is None and "load_obj" in kwargs:
+                load = kwargs.pop("load_obj")
+            return _original_add_load(self, load, *args, **kwargs)
+
+        add_load_compat._osdagbridge_load_compat = True
+        cls.add_load = add_load_compat
+
+
+_patch_ospgrillage_add_load_compat()
+
+
 class BridgeGrillageModel:
 
     def __init__(self):
@@ -912,7 +932,7 @@ class BridgeGrillageModel:
                     # Add to load case
                     # -----------------------------
                     lc.add_load(
-                        load_obj=vehicle,
+                        vehicle,
                         load_factor=lane_factor
                     )
 

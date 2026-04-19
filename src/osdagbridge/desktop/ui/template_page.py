@@ -210,6 +210,8 @@ class CustomWindow(QWidget):
         )
         self.logs_dock.setMinimumHeight(80)
         self.cad_log_splitter.addWidget(self.logs_dock)
+        for index in range(self.cad_log_splitter.count()):
+            self.cad_log_splitter.setCollapsible(index, True)
 
         central_V_layout.addWidget(self.cad_log_splitter)
 
@@ -272,6 +274,8 @@ class CustomWindow(QWidget):
             loadcases = self.backend.get_available_loadcases()
             nodes, members = self.backend.get_nodes_members()
             self.plots_widget.setup(ds_all, loadcases, nodes, members)
+            if self.output_dock and hasattr(self.output_dock, "sync_plot_controls"):
+                self.output_dock.sync_plot_controls()
         elif trigger == "Save":
             # Collect all the values from input Dock and save to osi/csv
             pass
@@ -454,6 +458,7 @@ class CustomWindow(QWidget):
             self.plots_control.load(":/vectors/view_btn/plots_active.svg")
             # Switch central area to Plots widget
             self._set_central_view('plots')
+            QTimer.singleShot(0, self.plots_widget.update_plot)
         else:
             # Plots turned off — mark inactive & update icon
             self.plots_control.load(":/vectors/view_btn/plots_inactive.svg")
@@ -492,16 +497,24 @@ class CustomWindow(QWidget):
 
     # Helper function to show and hide the 3D CAD | Plots | 2D CAD widgets
     def _set_central_view(self, view: str):
-        # Show only the requested widget; hide the other two
-        self.cad_comp_widget.setVisible(view == 'dual')
-        self.cad_3d_widget.setVisible(view == '3d')
-        self.plots_widget.setVisible(view == 'plots')
+        view_widgets = {
+            'dual': self.cad_comp_widget,
+            '3d': self.cad_3d_widget,
+            'plots': self.plots_widget,
+        }
+        active_widget = view_widgets[view]
+
+        for widget in view_widgets.values():
+            widget.hide()
+
+        active_widget.show()
+        active_widget.raise_()
 
         # Enforce 4:1 height ratio between active view and log dock
         # Splitter index order: [dual(0), 3d(1), plots(2), logs(3)]
-        total  = self.cad_log_splitter.height()
+        total  = max(self.cad_log_splitter.height(), self.central_widget.height(), 1)
         view_h = int(total * 4 / 5)
-        log_h  = total - view_h
+        log_h  = total - view_h if self.log_dock_active else 0
 
         if view == 'dual':
             self.cad_log_splitter.setSizes([view_h, 0, 0, log_h])
@@ -509,6 +522,10 @@ class CustomWindow(QWidget):
             self.cad_log_splitter.setSizes([0, view_h, 0, log_h])
         else:  # plots
             self.cad_log_splitter.setSizes([0, 0, view_h, log_h])
+
+        active_widget.updateGeometry()
+        active_widget.update()
+        active_widget.repaint()
         
     def _position_log_dock(self):
         """Position log dock at bottom of central widget as overlay (max 1/5 height)"""

@@ -98,6 +98,30 @@ def _point_in_polygon_lookup(lat: float, lon: float, zones) -> Optional[Dict]:
         return None
 
 
+# ── India bounding-box constants ──────────────────────────────────────────────
+# Generous bounding box covering mainland India + island territories.
+INDIA_LAT_MIN = 6.0
+INDIA_LAT_MAX = 37.5
+INDIA_LON_MIN = 68.0
+INDIA_LON_MAX = 97.5
+
+
+def is_inside_india(lat: float, lon: float) -> bool:
+    """Return True if (lat, lon) falls within the Indian bounding box."""
+    return (INDIA_LAT_MIN <= lat <= INDIA_LAT_MAX and
+            INDIA_LON_MIN <= lon <= INDIA_LON_MAX)
+
+
+def spatial_deps_available() -> bool:
+    """Return True if shapely and fiona are importable."""
+    try:
+        import shapely  # noqa: F401
+        import fiona    # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def get_zones_for_coordinates(lat: float, lon: float) -> Dict[str, Any]:
     """
     Get wind and seismic zone data for given coordinates.

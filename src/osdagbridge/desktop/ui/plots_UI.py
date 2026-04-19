@@ -17,7 +17,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QCheckBox, QTableWidget, QTableWidgetItem, 
-    QHeaderView, QPushButton, QDialog
+    QHeaderView, QPushButton, QDialog, QSlider
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
@@ -31,6 +31,8 @@ from osdagbridge.core.bridge_types.plate_girder.plots_widget import (
     build_figure_bmd_contour,
     FORCE_MAP,
 )
+
+_UNSET = object()
 
 # =========================================================
 # THE RAM-ONLY FRONTEND
@@ -106,6 +108,7 @@ class BridgeBackend(QObject):
     @Slot()
     def pageReady(self):
         """JavaScript calls this when the page is fully loaded."""
+        self.main_app._page_ready = True
         self.main_app.update_plot()
 
     @Slot()
@@ -156,6 +159,7 @@ class PlotWidget(QWidget):
         self._ds_all = None
         self._nodes = {}
         self._members = {}
+        self._page_ready = False
 
         layout = QVBoxLayout(self)
         top = QHBoxLayout()
@@ -170,14 +174,41 @@ class PlotWidget(QWidget):
         top.addWidget(QLabel("Force:"))
         self.force_combo = QComboBox()
         self.force_combo.addItems(list(FORCE_MAP.keys()))
-        self.force_combo.setCurrentText("Vy")
+        self.force_combo.setCurrentText("Fy")
         self.force_combo.currentTextChanged.connect(self.update_plot)
         top.addWidget(self.force_combo)
 
         # ---------- CONTOUR CHECKBOX ----------
-        self.contour = QCheckBox("Contour (Moments only)")
+        self.contour = QCheckBox("Contour")
+        self.contour.setToolTip("Show contour plot for the selected force or moment")
         self.contour.stateChanged.connect(self.update_plot)
         top.addWidget(self.contour)
+
+        # ---------- GRID ----------
+        self.grid = QCheckBox("Grid")
+        self.grid.setToolTip("Toggle plot grid visibility")
+        self.grid.setChecked(True)
+        self.grid.stateChanged.connect(self.update_plot)
+        top.addWidget(self.grid)
+
+        # ---------- SCALE ----------
+        self.scale_label = QLabel("Scale: 1.0x")
+        top.addWidget(self.scale_label)
+        self.scale_slider = QSlider(Qt.Horizontal)
+        self.scale_slider.setRange(10, 100)
+        self.scale_slider.setValue(10)
+        self.scale_slider.setFixedWidth(120)
+        self.scale_slider.setToolTip("Scale plotted force or moment values")
+        self.scale_slider.valueChanged.connect(self._on_scale_changed)
+        top.addWidget(self.scale_slider)
+
+        # ---------- GIRDER FILTER ----------
+        top.addWidget(QLabel("Girder:"))
+        self.girder_combo = QComboBox()
+        self.girder_combo.addItem("All", None)
+        self.girder_combo.setToolTip("Show all girders or isolate one girder")
+        self.girder_combo.currentIndexChanged.connect(self.update_plot)
+        top.addWidget(self.girder_combo)
         
         top.addStretch()
         layout.addLayout(top)
@@ -207,16 +238,68 @@ class PlotWidget(QWidget):
         # Inject HTML directly into memory
         self.web.setHtml(HTML_TEMPLATE, QUrl("qrc:/"))
 
+    def _on_scale_changed(self, value):
+        self.scale_label.setText(f"Scale: {value / 10:.1f}x")
+        self.update_plot()
+
+    def set_plot_controls(self, show_grid=None, scale_factor=None, girder_index=_UNSET):
+        if show_grid is not None:
+            self.grid.blockSignals(True)
+            self.grid.setChecked(bool(show_grid))
+            self.grid.blockSignals(False)
+
+        if scale_factor is not None:
+            slider_value = max(self.scale_slider.minimum(), min(self.scale_slider.maximum(), int(round(float(scale_factor) * 10))))
+            self.scale_slider.blockSignals(True)
+            self.scale_slider.setValue(slider_value)
+            self.scale_slider.blockSignals(False)
+            self.scale_label.setText(f"Scale: {slider_value / 10:.1f}x")
+
+        if girder_index is not _UNSET:
+            self.girder_combo.blockSignals(True)
+            match_index = 0
+            for item_index in range(self.girder_combo.count()):
+                if self.girder_combo.itemData(item_index) == girder_index:
+                    match_index = item_index
+                    break
+            self.girder_combo.setCurrentIndex(match_index)
+            self.girder_combo.blockSignals(False)
+
+        self.update_plot()
+
+    def available_girder_options(self):
+        return [
+            (self.girder_combo.itemText(index), self.girder_combo.itemData(index))
+            for index in range(self.girder_combo.count())
+        ]
+
+    def _refresh_girder_options(self):
+        girder_z_values = sorted({
+            round(float(self._nodes[n1][2]), 3)
+            for n1, n2 in self._members.values()
+            if n1 in self._nodes and n2 in self._nodes
+            and round(float(self._nodes[n1][2]), 3) == round(float(self._nodes[n2][2]), 3)
+        })
+
+        self.girder_combo.blockSignals(True)
+        self.girder_combo.clear()
+        self.girder_combo.addItem("All", None)
+        for index, _ in enumerate(girder_z_values):
+            self.girder_combo.addItem(f"G{index + 1}", index)
+        self.girder_combo.blockSignals(False)
+
     def setup(self, ds_all, loadcases, nodes, members):
         """Populate the widget with bridge analysis results. Call after design() completes."""
         self._ds_all = ds_all
         self._nodes = nodes
         self._members = members
+        self._refresh_girder_options()
 
         self.combo.blockSignals(True)
         self.combo.clear()
         self.combo.addItems(loadcases)
         self.combo.blockSignals(False)
+        self.update_plot()
 
     def show_summary_dialog(self):
         """Pops up the dialog perfectly in the top-left corner of the web view."""
@@ -233,33 +316,70 @@ class PlotWidget(QWidget):
         self.summary_dialog.move(top_left_corner)
 
     def update_plot(self):
-        if self._ds_all is None:
+        if self._ds_all is None or not self._page_ready:
             return
 
         loadcase = self.combo.currentText()
         force_key = self.force_combo.currentText()
+        if not loadcase or not force_key:
+            return
         ds = self._ds_all.sel(Loadcase=loadcase)
+        show_grid = self.grid.isChecked()
+        scale_factor = self.scale_slider.value() / 10
+        girder_index = self.girder_combo.currentData()
 
         is_force = force_key.startswith("F") 
         is_moment = force_key.startswith("M") 
 
         if is_force:
-            self.contour.blockSignals(True)
-            self.contour.setChecked(False)
-            self.contour.setEnabled(False)
-            self.contour.blockSignals(False)
-            
+            self.contour.setEnabled(True)
+
+            if self.contour.isChecked():
+                plot_json = build_figure_bmd_contour(
+                    ds,
+                    force_key,
+                    self._nodes,
+                    self._members,
+                    show_grid=show_grid,
+                    scale_factor=scale_factor,
+                    girder_index=girder_index,
+                )
+            else:
+                plot_json = build_figure_sfd(
+                    ds,
+                    force_key,
+                    self._nodes,
+                    self._members,
+                    show_grid=show_grid,
+                    scale_factor=scale_factor,
+                    girder_index=girder_index,
+                )
             self.stats_dict = {}
-            plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
 
         elif is_moment:
             self.contour.setEnabled(True)
 
             if self.contour.isChecked():
-                plot_json = build_figure_bmd_contour(ds, force_key, self._nodes, self._members)
+                plot_json = build_figure_bmd_contour(
+                    ds,
+                    force_key,
+                    self._nodes,
+                    self._members,
+                    show_grid=show_grid,
+                    scale_factor=scale_factor,
+                    girder_index=girder_index,
+                )
                 self.stats_dict = {}
             else:
-                plot_json, self.stats_dict = build_figure_bmd(ds, force_key, self._nodes, self._members)
+                plot_json, self.stats_dict = build_figure_bmd(
+                    ds,
+                    force_key,
+                    self._nodes,
+                    self._members,
+                    show_grid=show_grid,
+                    scale_factor=scale_factor,
+                    girder_index=girder_index,
+                )
                 
                 if self.summary_dialog.isVisible():
                     self.summary_dialog.update_data(self.stats_dict)
