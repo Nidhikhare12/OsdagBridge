@@ -106,7 +106,7 @@ class DesignChecks:
         DCR = Md / Mr if Mr > 0 else float("inf")
         return {
             "lines": [
-                f"&beta;<sub>b</sub> = {beta_b},&nbsp; Z<sub>p</sub> = {Zp/1e3:.1f}&times;10&sup3; mm&sup3;",
+                f"&beta;<sub>b</sub> = {beta_b},&nbsp; Z<sub>p</sub> = {Zp/1e3:.1f}×10<sup>3</sup> mm<sup>3</sup>",
                 f"f<sub>y</sub> = {fy} MPa,&nbsp; &gamma;<sub>m</sub> = {gm}",
                 f"M<sub>r</sub> = &beta;<sub>b</sub>&middot;Z<sub>p</sub>&middot;f<sub>y</sub>/&gamma;<sub>m</sub> = {Mr/1e6:.2f} kN&middot;m",
                 f"M<sub>d</sub> = {Md/1e6:.2f} kN&middot;m",
@@ -153,9 +153,9 @@ class DesignChecks:
         DCR = Md / Mcr if Mcr > 0 else float("inf")
         return {
             "lines": [
-                f"E = {E/1e3:.0f}&times;10&sup3; MPa,&nbsp; I<sub>y</sub> = {Iy/1e6:.2f}&times;10&sup6; mm&sup4;",
+                f"E = {E/1e3:.0f}×10<sup>3</sup> MPa,&nbsp; I<sub>y</sub> = {Iy/1e6:.2f}×10<sup>6</sup> mm<sup>4</sup>",
                 f"L<sub>LTB</sub> = {L_LTB:.0f} mm",
-                f"M<sub>cr</sub> = &pi;&sup2;&middot;E&middot;I<sub>y</sub>/L<sub>LTB</sub>&sup2; = {Mcr/1e6:.2f} kN&middot;m",
+                f"M<sub>cr</sub> = &pi;<sup>2</sup>&middot;E&middot;I<sub>y</sub>/L<sub>LTB</sub><sup>2</sup> = {Mcr/1e6:.2f} kN&middot;m",
                 f"M<sub>d</sub> = {Md/1e6:.2f} kN&middot;m",
                 f"DCR = M<sub>d</sub>/M<sub>cr</sub> = {DCR:.3f}",
             ],
@@ -215,7 +215,7 @@ class DesignChecks:
         DCR   = sigma / slim if slim > 0 else float("inf")
         return {
             "lines": [
-                f"Z<sub>e</sub> = {Ze/1e3:.1f}&times;10&sup3; mm&sup3;",
+                f"Z<sub>e</sub> = {Ze/1e3:.1f}×10<sup>3</sup> mm<sup>3</sup>",
                 f"&sigma; = M<sub>d</sub>/Z<sub>e</sub> = {sigma:.2f} MPa",
                 f"Limit = f<sub>y</sub>/&gamma;<sub>m</sub> = {slim:.2f} MPa",
                 f"DCR = &sigma;/(f<sub>y</sub>/&gamma;<sub>m</sub>) = {DCR:.3f}",
