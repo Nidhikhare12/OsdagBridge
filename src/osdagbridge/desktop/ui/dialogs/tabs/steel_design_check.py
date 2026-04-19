@@ -1,13 +1,13 @@
+from math import isfinite
+
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QGridLayout,
     QLabel,
-    QLineEdit,
     QFrame,
     QSizePolicy,
-    QTextEdit,
 )
 from PySide6.QtCore import Qt
 
@@ -15,6 +15,7 @@ from osdagbridge.desktop.ui.docks.output_dock import (
     NoScrollComboBox,
 )
 from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
+from osdagbridge.desktop.ui.dialogs.design_check import compute_all
 from osdagbridge.desktop.ui.utils.styled_scroll_area import StyledScrollArea
 
 # From load_combination_tab.py defaults + output_dock
@@ -42,7 +43,7 @@ DESIGN_CHECKS = [
 class SteelDesignCheckTab(QWidget):
 
     def __init__(self, parent=None):
-        self.check_outputs = {}   # key → QTextEdit for each check result
+        self.check_widgets = {}   # key → labels for each check result
 
         super().__init__(parent)
 
@@ -72,6 +73,8 @@ class SteelDesignCheckTab(QWidget):
 
         scroll_area.setWidget(container)
         main_layout.addWidget(scroll_area)
+
+        self.run_checks()
 
     # ── HELPERS — exact copy from steel_design_details.py ────────────────────
 
@@ -110,19 +113,43 @@ class SteelDesignCheckTab(QWidget):
         grid.setColumnStretch(2, 1)
         return grid
 
-    def _readonly_field(self):
-        field = QLineEdit()
-        field.setReadOnly(True)
-        field.setFixedWidth(150)
-        field.setFixedHeight(22)
-        field.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        apply_field_style(field)
-        return field
-
     def _add_row(self, grid, row, text, widget):
         grid.addWidget(self._row_label(text), row, 0, Qt.AlignLeft | Qt.AlignVCenter)
         grid.addWidget(widget,                row, 1, Qt.AlignLeft | Qt.AlignVCenter)
         return row + 1
+
+    def _value_row(self, label_text):
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
+
+        label = QLabel(label_text)
+        label.setStyleSheet("font-size: 10px; color: #666; font-weight: 600;")
+
+        value = QLabel("—")
+        value.setStyleSheet("font-size: 10px; color: #000;")
+        value.setTextFormat(Qt.RichText)
+        value.setWordWrap(True)
+
+        row.addWidget(label)
+        row.addWidget(value, 1)
+        return row, value
+
+    def _status_style(self, status):
+        if status == "PASS":
+            return (
+                "color: #2e7d32; background: #eaf5d1; border: 1px solid #9ccc65; "
+                "border-radius: 6px; padding: 2px 8px; font-weight: bold; font-size: 10px;"
+            )
+        if status == "FAIL":
+            return (
+                "color: #c62828; background: #fdecea; border: 1px solid #f5a9a9; "
+                "border-radius: 6px; padding: 2px 8px; font-weight: bold; font-size: 10px;"
+            )
+        return (
+            "color: #444; background: #f1f1f1; border: 1px solid #d0d0d0; "
+            "border-radius: 6px; padding: 2px 8px; font-weight: bold; font-size: 10px;"
+        )
 
     # ── TOP BAR ───────────────────────────────────────────────────────────────
 
@@ -187,12 +214,55 @@ class SteelDesignCheckTab(QWidget):
 
         return grid
 
+    def _fmt_value(self, value):
+        if value is None:
+            return "—"
+        try:
+            num = float(value)
+        except (TypeError, ValueError):
+            return str(value)
+        if not isfinite(num):
+            return "—"
+        text = f"{num:.3f}".rstrip("0").rstrip(".")
+        return text or "0"
+
+    def _apply_status(self, label, status):
+        status_text = status or "—"
+        label.setText(status_text)
+        label.setStyleSheet(self._status_style(status))
+
+    def _update_check_card(self, key, data):
+        widgets = self.check_widgets.get(key)
+        if not widgets or not data:
+            return
+
+        equation = data.get("equation", "")
+        widgets["equation"].setText(equation)
+
+        result_label = data.get("result_label", "Result")
+        result_value = self._fmt_value(data.get("result"))
+        widgets["result"].setText(f"{result_label}: {result_value}")
+
+        dcr_label = data.get("dcr_label", "DCR")
+        dcr_value = self._fmt_value(data.get("dcr"))
+        widgets["dcr"].setText(f"{dcr_label}: {dcr_value}")
+
+        self._apply_status(widgets["status"], data.get("status"))
+
+        details = data.get("details")
+        if details:
+            widgets["details"].setText(details)
+            widgets["details"].setVisible(True)
+        else:
+            widgets["details"].clear()
+            widgets["details"].setVisible(False)
+
     def _build_check_card(self, key, title):
         """
         Single check card:
           - Rounded border matching the screenshot style
-          - Bold title at top
-          - Expanding QTextEdit output area below (readonly)
+                    - Bold title at top
+                    - Equation, result, DCR, and status labels
         """
         card = QFrame()
         card.setObjectName("checkCard")
@@ -223,25 +293,46 @@ class SteelDesignCheckTab(QWidget):
         title_lbl.setWordWrap(True)
         card_layout.addWidget(title_lbl)
 
-        # Output area — readonly, expandable, shows check results
-        output = QTextEdit()
-        output.setReadOnly(True)
-        output.setFixedHeight(60)
-        output.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        output.setStyleSheet("""
-            QTextEdit {
-                background-color: white;
-                border: none;
-                font-size: 10px;
-                color: #333;
-            }
-        """)
-        card_layout.addWidget(output)
+        equation_lbl = QLabel()
+        equation_lbl.setTextFormat(Qt.RichText)
+        equation_lbl.setWordWrap(True)
+        equation_lbl.setStyleSheet("font-size: 10px; color: #444;")
+        card_layout.addWidget(equation_lbl)
 
-        self.check_outputs[key] = output
+        result_row, result_value_lbl = self._value_row("Result")
+        card_layout.addLayout(result_row)
+
+        dcr_row, dcr_value_lbl = self._value_row("DCR")
+        card_layout.addLayout(dcr_row)
+
+        details_lbl = QLabel()
+        details_lbl.setWordWrap(True)
+        details_lbl.setStyleSheet("font-size: 9px; color: #666;")
+        details_lbl.setVisible(False)
+        card_layout.addWidget(details_lbl)
+
+        status_lbl = QLabel("—")
+        status_lbl.setAlignment(Qt.AlignCenter)
+        status_lbl.setFixedHeight(22)
+        status_lbl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        status_lbl.setStyleSheet(self._status_style(None))
+        card_layout.addWidget(status_lbl, alignment=Qt.AlignRight)
+
+        self.check_widgets[key] = {
+            "equation": equation_lbl,
+            "result": result_value_lbl,
+            "dcr": dcr_value_lbl,
+            "status": status_lbl,
+            "details": details_lbl,
+        }
         return card
 
     # ── PUBLIC API ────────────────────────────────────────────────────────────
+
+    def run_checks(self, overrides=None):
+        results = compute_all(overrides)
+        for key, data in results.items():
+            self._update_check_card(key, data)
 
     def set_girder_count(self, count):
         """Mirrors GirderDetailsTab.set_girder_count."""
@@ -257,17 +348,32 @@ class SteelDesignCheckTab(QWidget):
         except (ValueError, TypeError):
             pass
 
-        # Populate check output areas if results are in cad_state
-        for key, output in self.check_outputs.items():
-            result = cad_state.get(f"check_{key}", "")
-            output.setPlainText(str(result) if result else "")
+        overrides = None
+        if isinstance(cad_state, dict):
+            overrides = cad_state.get("design_check_inputs") or cad_state.get("design_checks")
+
+        if isinstance(overrides, dict):
+            self.run_checks(overrides)
+        else:
+            self.run_checks()
 
     def set_check_result(self, key: str, text: str):
         """Set result text for a specific check card."""
-        if key in self.check_outputs:
-            self.check_outputs[key].setPlainText(text)
+        if isinstance(text, dict):
+            self._update_check_card(key, text)
+            return
+
+        widgets = self.check_widgets.get(key)
+        if widgets and text:
+            widgets["details"].setText(str(text))
+            widgets["details"].setVisible(True)
 
     def clear_results(self):
         """Clear all check output areas."""
-        for output in self.check_outputs.values():
-            output.clear()
+        for widgets in self.check_widgets.values():
+            widgets["equation"].clear()
+            widgets["result"].setText("—")
+            widgets["dcr"].setText("—")
+            widgets["details"].clear()
+            widgets["details"].setVisible(False)
+            self._apply_status(widgets["status"], None)

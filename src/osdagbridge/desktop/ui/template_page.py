@@ -1,7 +1,7 @@
 import sys
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QMenuBar, QSplitter, QSizePolicy, QPushButton, QScrollArea, QFrame,
+    QMenuBar, QSplitter, QSizePolicy, QPushButton, QScrollArea, QFrame, QMessageBox,
 )
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtCore import Qt, QFile, QTextStream, Signal,QTimer
@@ -10,7 +10,7 @@ from PySide6.QtGui import QIcon, QAction, QKeySequence
 from osdagbridge.desktop.ui.docks.input_dock import InputDock
 from osdagbridge.desktop.ui.docks.output_dock import OutputDock
 from osdagbridge.desktop.ui.docks.log_dock import LogDock
-from osdagbridge.desktop.ui.docks.cad_dual_view import BridgeDualCADWidget
+from osdagbridge.desktop.ui.docks.cad_multi_view import BridgeMultiViewCADWidget
 from osdagbridge.desktop.ui.dialogs.additional_inputs import AdditionalInputs
 
 from osdagbridge.core.bridge_types.plate_girder.ui_fields import FrontendData
@@ -48,6 +48,7 @@ class CustomWindow(QWidget):
         )
         self.input_dock = None
         self.output_dock = None
+        self._advanced_3d_windows = []
 
         self.init_ui()
         # Central CAD state (single source of truth)
@@ -180,7 +181,7 @@ class CustomWindow(QWidget):
         self.cad_log_splitter.setChildrenCollapsible(False)  
 
         # CAD widget
-        self.cad_comp_widget = BridgeDualCADWidget(self)
+        self.cad_comp_widget = BridgeMultiViewCADWidget(self)
         self.cad_comp_widget.setSizePolicy(
             QSizePolicy.Expanding, QSizePolicy.Expanding
         )
@@ -649,6 +650,11 @@ class CustomWindow(QWidget):
         rotate_3d_action.setShortcut(QKeySequence("Ctrl+R"))
         graphics_menu.addAction(rotate_3d_action)
 
+        open_advanced_3d_action = QAction("Open Advanced 3D Viewer", self)
+        open_advanced_3d_action.setShortcut(QKeySequence("Ctrl+Shift+3"))
+        open_advanced_3d_action.triggered.connect(self.open_advanced_3d_viewer)
+        graphics_menu.addAction(open_advanced_3d_action)
+
         graphics_menu.addSeparator()
 
         front_view_action = QAction("Show Front View", self)
@@ -716,6 +722,31 @@ class CustomWindow(QWidget):
 
         check_update_action = QAction("Check For Update", self)
         help_menu.addAction(check_update_action)
+
+    def open_advanced_3d_viewer(self):
+        """Open external OCC based 3D viewer when available."""
+        try:
+            from osdagbridge.desktop.ui.cad_3d import CAD3DWindow
+        except Exception as exc:
+            QMessageBox.information(
+                self,
+                "Advanced 3D Viewer Unavailable",
+                "The external 3D viewer could not be opened.\n"
+                "Install OCC/pythonOCC dependencies to use this feature.\n\n"
+                f"Details: {exc}",
+            )
+            return
+
+        viewer = CAD3DWindow(self)
+        viewer.setAttribute(Qt.WA_DeleteOnClose, True)
+
+        def _cleanup(*_):
+            if viewer in self._advanced_3d_windows:
+                self._advanced_3d_windows.remove(viewer)
+
+        viewer.destroyed.connect(_cleanup)
+        self._advanced_3d_windows.append(viewer)
+        viewer.show()
    
 
 class InputDockIndicator(QWidget):

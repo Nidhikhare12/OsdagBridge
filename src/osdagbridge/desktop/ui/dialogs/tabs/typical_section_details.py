@@ -1040,6 +1040,37 @@ class TypicalSectionDetailsTab(QWidget):
                 self.crash_barrier_load.clear()
         # For other types load is user-entered; do not overwrite
 
+    def _update_crash_barrier_area_from_dimensions(self):
+        """Calculate crash barrier area from width and height when either changes"""
+        barrier_type = self.crash_barrier_type.currentText() if hasattr(self, "crash_barrier_type") else ""
+        if self._is_rcc_barrier(barrier_type):
+            try:
+                w = float(self.crash_barrier_width.text()) if self.crash_barrier_width.text() else 0.0
+                h = float(self.crash_barrier_height.text()) if self.crash_barrier_height.text() else 0.0
+                if w > 0 and h > 0:
+                    area = w * h
+                    self.crash_barrier_area.setText(f"{area:.4f}")
+                    # Also recalculate the load
+                    self._auto_compute_crash_barrier_load()
+                    self.recalculate_girders()
+            except:
+                pass
+
+    def _update_median_area_from_dimensions(self):
+        """Calculate median area from width and height when either changes"""
+        median_type = self.median_type.currentText() if hasattr(self, "median_type") else ""
+        if self._is_rcc_median(median_type):
+            try:
+                w = float(self.median_width.text()) if self.median_width.text() else 0.0
+                h = float(self.median_height.text()) if self.median_height.text() else 0.0
+                if w > 0 and h > 0:
+                    area = w * h
+                    self.median_area.setText(f"{area:.4f}")
+                    # Also recalculate the load
+                    self._auto_compute_median_load()
+            except:
+                pass
+
     def _apply_crash_barrier_defaults(self, barrier_type: str, force: bool = False):
         """Populate recommended defaults per IRC 5 selections.
 

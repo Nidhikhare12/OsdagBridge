@@ -85,11 +85,14 @@ class SteelDesign(QDialog):
         """)
 
         self.details_tab = SteelDesignDetailsTab(self)
+        self.check_tab = SteelDesignCheckTab(self)
         self.tabs.addTab(self.details_tab,             "Details")
         self.tabs.addTab(SteelDesignAnalysisTab(self), "Analysis Results")
-        self.tabs.addTab(SteelDesignCheckTab(self),    "Design Check")
+        self.tabs.addTab(self.check_tab,               "Design Check")
 
         main_layout.addWidget(self.tabs)
 
         if hasattr(self._main_window, "cad_state"):
-            self.details_tab.load_data(self._main_window.cad_state)
+            cad_state = self._main_window.cad_state
+            self.details_tab.load_data(cad_state)
+            self.check_tab.load_data(cad_state)
