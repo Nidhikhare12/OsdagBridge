@@ -87,7 +87,11 @@ EQUATION_TEMPLATES = {
     ),
     "shear_long_trans": _build_eq(
         "<i>V<sub>d</sub></i> &le; <i>V<sub>rd</sub></i>",
-        "<i>V<sub>rd</sub></i> = <i>V<sub>rd,c</sub></i> + <i>V<sub>rd,s</sub></i>",
+        ["<i>V<sub>rd</sub></i> = ", "<i>V<sub>rd,c</sub></i>", " + ", "<i>V<sub>rd,s</sub></i>"],
+        ["<i>V<sub>rd,c</sub></i> = ",
+         ("0.18 &middot; <i>k</i> &middot; (100 &middot; <i>&rho;<sub>l</sub></i> &middot; <i>f<sub>ck</sub></i>)<sup>1/3</sup>",
+          "<i>&gamma;<sub>m</sub></i>"),
+         " &middot; <i>b<sub>w</sub></i> &middot; <i>d</i>"],
         _dcr("<i>V<sub>d</sub></i>", "<i>V<sub>rd</sub></i>")
     ),
     "fatigue": _build_eq(
