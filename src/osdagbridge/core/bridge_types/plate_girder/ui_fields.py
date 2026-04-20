@@ -145,7 +145,7 @@ class FrontendData:
                         "_update_carriageway_placeholder",
                         "_validate_carriageway_width_silent",
                     ],
-                }),  
+                }),
 
             (KEY_FOOTPATH, KEY_DISP_FOOTPATH, TYPE_COMBOBOX, VALUES_FOOTPATH,
                 True, "No Validator",
@@ -245,7 +245,21 @@ class FrontendData:
 
             (KEY_ANALYSIS_UTILIZATION, "Controlling Utilization Ratio",
                 TYPE_CHECKBOX, None, True, "No Validator",
-                {"group_end": True}),             # closes the Display Options box
+                {"group_end": True}),
+
+           #------TOGGLE BUTTON INPUT FOR GRID ON/OFF IN PLOTS----------------#
+
+            ("plot_grid", "Show Grid", 
+                TYPE_CHECKBOX, None, True, "No Validator", 
+                {"default": True, "kind": "analysis"}),
+
+            ("plot_scale", "Plot Scale:", 
+                TYPE_COMBOBOX, ["0.1", "0.25", "0.5", "0.75", "1.0"], True, "No Validator", 
+                {"default": "0.25", "kind": "analysis"}),
+
+            ("plot_isolate", "Isolate Girder:", 
+                TYPE_COMBOBOX, ["All", "G1", "G2", "G3", "G4"], True, "No Validator", 
+                {"default": "All", "kind": "analysis"}),
 
             # ── Superstructure ────────────────────────────────────────────────
             (KEY_SECTION_OUTPUT_SUPERSTRUCTURE, "Superstructure",
