@@ -145,7 +145,7 @@ class FrontendData:
                         "_update_carriageway_placeholder",
                         "_validate_carriageway_width_silent",
                     ],
-                }),
+                }), 
 
             (KEY_FOOTPATH, KEY_DISP_FOOTPATH, TYPE_COMBOBOX, VALUES_FOOTPATH,
                 True, "No Validator",

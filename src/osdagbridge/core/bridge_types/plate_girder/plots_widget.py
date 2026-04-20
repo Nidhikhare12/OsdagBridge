@@ -379,7 +379,7 @@ def build_figure_bmd(ds, force_key, nodes, members, user_scale = 0.25, grid_on=T
             factormz = user_scale * abs((max(xs) - min(xs)) / (max(mz) - min(mz)))
 
         # --- DYNAMIC COORDINATES ---
-        if is_vertical:
+        if is_vertical: 
             
             y_plot = np.zeros(len(xs))
             z_plot = zs + (mz * factormz)

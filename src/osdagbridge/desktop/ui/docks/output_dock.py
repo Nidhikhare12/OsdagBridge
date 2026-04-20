@@ -596,4 +596,4 @@ class OutputDock(QWidget):
             grid_on=grid_state, 
             user_scale=scale_val, 
             selected_girder=iso_val
-        )
+        ) 

@@ -11,7 +11,7 @@ from osdagbridge.core.bridge_types.plate_girder.dto import (SectionProperties, S
 
 
 class BridgeGrillageModel:
-
+ 
     def __init__(self):
 
         # -------------------- MATERIALS --------------------
