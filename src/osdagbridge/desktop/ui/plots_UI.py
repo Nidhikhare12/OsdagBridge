@@ -152,7 +152,7 @@ class PlotWidget(QWidget):
         super().__init__()
         self.setWindowTitle("Plate Girder Results")
 
-        # Populated by setup() after bridge analysis completes
+        
         self._ds_all = None
         self._nodes = {}
         self._members = {}
@@ -181,11 +181,11 @@ class PlotWidget(QWidget):
         
         top.addStretch()
         layout.addLayout(top)
+        
 
         # ---------- MAIN BROWSER AREA ----------
         self.web = QWebEngineView()
         
-        # Stops Qt from painting a blank background behind the web viewer
         self.web.setAttribute(Qt.WA_OpaquePaintEvent)
         self.web.setAttribute(Qt.WA_NoSystemBackground)
         self.web.page().setBackgroundColor(Qt.white)
@@ -197,6 +197,12 @@ class PlotWidget(QWidget):
         # ---------- INITIALIZATION & QWEBCHANNEL ----------
         self.stats_dict = {}  
         self.summary_dialog = SummaryDialog(self)
+
+        self.current_scale = 0.25     
+        self.grid_visible = True       
+        self.selected_girder = None    
+        self.current_load = "Envelope"     
+        self.current_force = "Vy"     
 
         self.channel = QWebChannel()
         self.backend = BridgeBackend(self)
@@ -228,54 +234,105 @@ class PlotWidget(QWidget):
         self.summary_dialog.raise_()
         self.summary_dialog.activateWindow()
 
-        # Calculate exactly where the top-left of the 3D plot is on the screen
         top_left_corner = self.web.mapToGlobal(QPoint(15, 15))
         self.summary_dialog.move(top_left_corner)
 
-    def update_plot(self):
+    def update_plot(self, force_key=None, loadcase=None, grid_on=None, user_scale=None, selected_girder=None):
+        """
+        Final Updated Update Plot: Fixes 'int' error, Scaling, and Girder Isolation.
+        """
         if self._ds_all is None:
+            print("DEBUG: No dataset loaded yet.")
             return
 
-        loadcase = self.combo.currentText()
-        force_key = self.force_combo.currentText()
-        ds = self._ds_all.sel(Loadcase=loadcase)
-
-        is_force = force_key.startswith("F") 
-        is_moment = force_key.startswith("M") 
-
-        if is_force:
-            self.contour.blockSignals(True)
-            self.contour.setChecked(False)
-            self.contour.setEnabled(False)
-            self.contour.blockSignals(False)
-            
-            self.stats_dict = {}
-            plot_json = build_figure_sfd(ds, force_key, self._nodes, self._members)
-
-        elif is_moment:
-            self.contour.setEnabled(True)
-
-            if self.contour.isChecked():
-                plot_json = build_figure_bmd_contour(ds, force_key, self._nodes, self._members)
-                self.stats_dict = {}
+        # ---HANDLE 'INT' FORCE KEY ERROR ---
+        if force_key is not None:
+            if isinstance(force_key, int):
+                self.current_force = self.force_combo.itemText(force_key)
             else:
-                plot_json, self.stats_dict = build_figure_bmd(ds, force_key, self._nodes, self._members)
-                
-                if self.summary_dialog.isVisible():
-                    self.summary_dialog.update_data(self.stats_dict)
+                self.current_force = str(force_key)
 
-        else:
-            raise ValueError(f"Unsupported force: {force_key}")
+        if not hasattr(self, 'current_force') or not self.current_force:
+            self.current_force = "Vy"
 
-        # -------- INJECT PLOT VIA QWEBCHANNEL --------
-        # Emits the raw JSON string perfectly without double-encoding it
-        self.backend.newPlotData.emit(plot_json)
+        # --- UPDATE PERMANENT STATE ---
+        if loadcase is not None:
+            self.current_load = str(loadcase)
+        elif not hasattr(self, 'current_load'):
+            self.current_load = "Envelope"
 
+        if grid_on is not None:
+            self.grid_visible = bool(grid_on)
 
+        if user_scale is not None:
+            try:
+                self.current_scale = float(user_scale)
+            except (ValueError, TypeError):
+                pass
+        
+        if selected_girder is not None:
+            
+            val = str(selected_girder).strip()
+            self.current_girder = None if val in ["All", "None", ""] else val
+
+        # --- KEY MAPPING (Internal vs UI names) ---
+        f_key = self.current_force
+        if "Vy" in f_key: f_key = "Fy"
+        if "Vz" in f_key: f_key = "Fz"
+        if "Tx" in f_key: f_key = "Mx"
+
+        # --- FIX 4: DYNAMIC LOADCASE SAFETY ---
+        available_cases = list(self._ds_all.coords["Loadcase"].values)
+        if self.current_load not in available_cases:
+            if available_cases:
+                self.current_load = available_cases[0]
+            else:
+                return
+
+        # 3. Data Slicing
+        try:
+            ds = self._ds_all.sel(Loadcase=self.current_load)
+        except Exception as e:
+            print(f"Slicing Error: {e}")
+            return
+
+        # 4. DISPATCH TO BACKEND (plots_widget.py)
+        plot_json = ""
+        
+        u_scale = getattr(self, "current_scale", 0.25)
+        g_on = getattr(self, "grid_visible", True)
+        s_girder = getattr(self, "current_girder", None)
+
+        if any(x in f_key for x in ["F", "V"]):
+            # SFD Path
+            plot_json = build_figure_sfd(
+                ds, f_key, self._nodes, self._members, 
+                user_scale= self.current_scale, 
+                grid_on=g_on, 
+                selected_girder=s_girder
+            )
+        elif any(x in f_key for x in ["M", "T"]):
+            # BMD Path
+            plot_json, self.stats_dict = build_figure_bmd(
+                ds, f_key, self._nodes, self._members, 
+                user_scale= self.current_scale, 
+                grid_on=g_on,
+                selected_girder=s_girder
+            )
+            
+            # Table Refresh
+            if self.summary_dialog.isVisible():
+                self.summary_dialog.update_data(self.stats_dict)
+
+        # 5. Push to Browser
+        if plot_json:
+            self.backend.newPlotData.emit(plot_json)
+
+   
 # ======================= MAIN
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     w = PlotWidget()
     w.resize(1200, 800)
     w.show()
-    sys.exit(app.exec())
+    sys.exit(app.exec()) 
