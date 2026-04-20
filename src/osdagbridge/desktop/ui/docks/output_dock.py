@@ -258,18 +258,55 @@ class OutputDock(QWidget):
                 target.addLayout(self._make_button_row(label, meta))
 
             elif ftype == TYPE_COMBOBOX:
-                target.addLayout(self._make_combobox_row(key, label, values, meta))
+            
+                row_layout = self._make_combobox_row(key, label, values, meta)
+                target.addLayout(row_layout)
+                
+                
+                combo = None
+               
+                for i in range(row_layout.count()):
+                    w = row_layout.itemAt(i).widget()
+                    if isinstance(w, QComboBox):
+                        combo = w
+                        break
+                
+            
+                if combo:
+                    combo.setObjectName(key) 
+                    
+                    if key in ["plot_scale", "plot_isolate", "load_combination_key"]:
+                        
+                        try: combo.currentTextChanged.disconnect()
+                        except: pass
+                        
+                        combo.currentTextChanged.connect(self._handle_master_update)
+                        print(f"DEBUG: Signal connected for {key}") 
 
             elif ftype == TYPE_CHECKBOX_GRID:
-                target.addLayout(self._make_checkbox_grid(key, label, values, meta))
+            
+                layout = self._make_checkbox_grid(key, label, values, meta)
+                target.addLayout(layout)
+                
+                # Checkboxes connect
+                for cb in self.findChildren(RichCheckBox):
+                    
+                    try: cb.toggled.disconnect() 
+                    except: pass
+                    cb.toggled.connect(self._handle_master_update)
 
             elif ftype == TYPE_CHECKBOX_ROW:
+                
                 target.addLayout(self._make_checkbox_row(key, label, values, meta))
 
             elif ftype == TYPE_CHECKBOX:
                 cb = QCheckBox(label or "")
                 cb.setObjectName(key)
                 target.addWidget(cb)
+                
+                # --- NEW: Connect Grid Toggle ---
+                if key in ["grid_on", "plot_grid"]:
+                    cb.toggled.connect(self._handle_master_update)
 
             # ── Close nested subgroup if group_end declared ────────────────
             if meta.get("group_end"):
@@ -426,7 +463,10 @@ class OutputDock(QWidget):
             for col, col_items in enumerate(columns):
                 if row < len(col_items):
                     cb = RichCheckBox(str(col_items[row]))
+                    cb.setObjectName(f"force_{col_items[row]}")
                     all_cbs.append(cb)
+                    cb.toggled.connect(self._handle_master_update)
+
                     grid.addWidget(cb, row, col, alignment=Qt.AlignCenter)
 
         outer.addLayout(grid)
@@ -507,3 +547,53 @@ class OutputDock(QWidget):
     def open_deck_design(self):
         from osdagbridge.desktop.ui.dialogs.deck_design import DeckDesign
         DeckDesign(parent=self.parent).exec()
+
+    def _handle_master_update(self):
+        """
+        MASTER HANDLER: This function works when anything in the Output Dock changes.
+        """
+        # 1. Plotter's Address
+        plots_widget = getattr(self.parent, "plots_widget", None)
+        if not plots_widget:
+            plots_widget = getattr(getattr(self.parent, "parent", None), "plots_widget", None)
+        if not plots_widget: return
+
+        # 2. Identify ACTIVE FORCE (Checkboxes)
+        active_force = "Fy" # Default
+        mapping = {
+            "V<sub>y</sub>": "Fy", "Vy": "Fy", "V<sub>z</sub>": "Fz", "Vz": "Fz",
+            "F<sub>x</sub>": "Fx", "Fx": "Fx", "M<sub>z</sub>": "Mz", "Mz": "Mz",
+            "M<sub>y</sub>": "My", "My": "My", "T<sub>x</sub>": "Mx", "Tx": "Mx"
+        }
+        
+        # TO VERIFY WHICH CHECKBOX IS CHECKED
+        from osdagbridge.desktop.ui.utils.combobox_utils import RichCheckBox
+        for cb in self.findChildren(RichCheckBox):
+            if cb.isChecked():
+                active_force = mapping.get(cb.text().strip(), "Fy")
+                break
+
+        # 3. Get Grid, Scale, and Isolate values (Combos & Checkboxes)
+        grid_cb = self._w("plot_grid") or self._w("grid_on")
+        grid_state = grid_cb.isChecked() if grid_cb else True
+
+        scale_combo = self._w("plot_scale")
+        scale_val = scale_combo.currentText() if scale_combo else "0.25"
+
+        iso_combo = self._w("plot_isolate")
+        iso_val = iso_combo.currentText() if iso_combo else "All"
+        
+        # 4. Load Case
+        load_combo = self._w("load_combination_key")
+        selected_load = load_combo.currentText() if load_combo else "Default"
+
+        # 5. DEBUG: PRINT THE VALUES TO VERIFY
+        print(f"DEBUG: MASTER UPDATE -> Force:{active_force}, Load:{selected_load}, Scale:{scale_val}, Isolate:{iso_val}")
+        
+        plots_widget.update_plot(
+            force_key=active_force,
+            loadcase=selected_load,
+            grid_on=grid_state, 
+            user_scale=scale_val, 
+            selected_girder=iso_val
+        )   

@@ -11,7 +11,7 @@ from osdagbridge.core.bridge_types.plate_girder.dto import (SectionProperties, S
 
 
 class BridgeGrillageModel:
-
+  
     def __init__(self):
 
         # -------------------- MATERIALS --------------------
@@ -912,7 +912,7 @@ class BridgeGrillageModel:
                     # Add to load case
                     # -----------------------------
                     lc.add_load(
-                        load_obj=vehicle,
+                        load =vehicle,
                         load_factor=lane_factor
                     )
 
