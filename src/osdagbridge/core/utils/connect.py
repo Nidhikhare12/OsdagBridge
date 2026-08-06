@@ -34,12 +34,16 @@ from osdag_core.design_type.compression_member.compression_bolted import Compres
 from osdag_core.design_type.compression_member.compression_welded import Compression_welded
 from osdag_core.design_type.tension_member.tension_bolted import Tension_bolted
 from osdag_core.design_type.tension_member.tension_welded import Tension_welded
+from osdag_core.design_type.flexural_member.flexure import Flexure
+from osdag_core.design_type.plate_girder.core.plate_girder import PlateGirderWelded
 
 MODULE_CLASS_MAP = {
     "Tension Member Design - Bolted to End Gusset": Tension_bolted,
     "Tension Member Design - Welded to End Gusset": Tension_welded,
     "Struts Bolted to End Gusset": Compression_bolted,
     "Struts Welded to End Gusset": Compression_welded,
+    "Flexural Members - Simply Supported": Flexure,
+    "PLATE GIRDER": PlateGirderWelded,
 }
 
 # OUTPUT SUPPRESSION
@@ -627,12 +631,113 @@ design_dict_struts_welded = {
     "Weld.Material_Grade_OverWrite": "290",
     "out_titles_status": [1, 1, 1, 1, 1],
 }
+# END DIAPHRAGM — ROLLED (Simply Supported / Flexure module)
+# KEY → string-value reference (from osdag_core.Common):
+#   KEY_MODULE                = 'Module'
+#   KEY_SEC_PROFILE           = 'Member.Profile'      (must be in VALUES_SEC_PROFILE3 = ['Beams and Columns'])
+#   KEY_SECSIZE               = 'Member.Designation'
+#   KEY_MATERIAL              = 'Material'
+#   KEY_SEC_MATERIAL          = 'Member.Material'      ← was missing (caused KeyError)
+#   KEY_DESIGN_TYPE_FLEXURE   = 'Flexure.Type'         (must be in VALUES_SUPP_TYPE_temp)
+#   KEY_TORSIONAL_RES         = 'Torsion.restraint'
+#   KEY_WARPING_RES           = 'Warping.restraint'
+#   KEY_LENGTH                = 'Member.Length'
+#   KEY_MOMENT                = 'Load.Moment'
+#   KEY_SHEAR                 = 'Load.Shear'
+#   KEY_LENGTH_OVERWRITE      = 'Length.Overwrite'     ← was missing
+#   KEY_EFFECTIVE_AREA_PARA   = 'Effective.Area_Para'  ← was missing
+#   KEY_ALLOW_CLASS           = 'Optimum.Class'        ← was missing
+#   KEY_BEARING_LENGTH        = 'Bearing.Length'       ← was missing
+#   KEY_LOAD                  = 'Loading.Condition'    ← was missing
+#   KEY_DP_DESIGN_METHOD      = 'Design.Design_Method' ← was missing
+design_dict_end_diaphragm_rolled = {
+    # --- Input dock keys (from input_values()) ---
+    "Module": "Flexural Members - Simply Supported",
+    "Member.Profile": "Beams and Columns",           # VALUES_SEC_PROFILE3 = ['Beams and Columns']
+    "Member.Designation": [
+        "MB 200", "MB 250", "MB 300", "MB 350",
+        "MB 400", "MB 450", "MB 500", "MB 600",
+        "WB 300", "WB 350", "WB 400", "WB 450", "WB 500",
+    ],
+    "Material": "E 250 (Fe 410 W)A",
+    "Flexure.Type": "Major Laterally Supported",     # VALUES_SUPP_TYPE_temp[0]
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Member.Length": "1500",    # mm  — placeholder; overwritten at runtime with actual ED span
+    "Load.Moment": "5",         # kNm — placeholder; overwritten at runtime with |Mz|
+    "Load.Shear": "5",          # kN  — placeholder; overwritten at runtime with |Vy|
+    # --- Design-preference keys (from get_values_for_design_pref / input_dictionary_without_design_pref) ---
+    "Member.Material": "E 250 (Fe 410 W)A",  # KEY_SEC_MATERIAL — was missing
+    "Length.Overwrite": "NA",                # KEY_LENGTH_OVERWRITE
+    "Effective.Area_Para": "1.0",            # KEY_EFFECTIVE_AREA_PARA
+    "Optimum.Class": "Yes",                  # KEY_ALLOW_CLASS
+    "Bearing.Length": "NA",                  # KEY_BEARING_LENGTH
+    "Loading.Condition": "Normal",           # KEY_LOAD
+    "Design.Design_Method": "Limit State Design",  # KEY_DP_DESIGN_METHOD
+}
+
+# END DIAPHRAGM — WELDED (Plate Girder module)
+# KEY → string-value reference (from osdag_core.Common):
+#   KEY_MODULE                           = 'Module'
+#   KEY_MATERIAL                         = 'Material'
+#   KEY_OVERALL_DEPTH_PG_TYPE            = 'Total.Design_Type'       ('Optimized' or 'Customized')
+#   KEY_OVERALL_DEPTH_PG                 = 'Total.Depth'
+#   KEY_WEB_THICKNESS_PG                 = 'Web.Thickness'
+#   KEY_TOP_Bflange_PG                   = 'Topflange.Width'
+#   KEY_TOP_FLANGE_THICKNESS_PG          = 'TopFlange.Thickness'
+#   KEY_BOTTOM_Bflange_PG                = 'Bottomflange.Width'
+#   KEY_BOTTOM_FLANGE_THICKNESS_PG       = 'BottomFlange.Thickness'
+#   KEY_LENGTH                           = 'Member.Length'
+#   KEY_DESIGN_TYPE_FLEXURE              = 'Flexure.Type'
+#   KEY_SUPPORT_WIDTH                    = 'Support.Width'
+#   KEY_WEB_PHILOSOPHY                   = 'Web.Philosophy'
+#   KEY_TORSIONAL_RES                    = 'Torsion.restraint'
+#   KEY_WARPING_RES                      = 'Warping.restraint'
+#   KEY_MOMENT                           = 'Load.Moment'
+#   KEY_SHEAR                            = 'Load.Shear'
+#   KEY_BENDING_MOMENT_SHAPE             = 'Bendingmoment.shape'
+#   KEY_IntermediateStiffener_thickness  = 'IntermediateStiffener.Thickness'  ← was missing
+#   KEY_LongitudnalStiffener_thickness   = 'LongitudnalStiffner.Thickness'    ← was missing
+#   KEY_MAX_DEFL                         = 'Deflection.Max'                   ← was missing
+#   KEY_LOAD                             = 'Loading.Condition'                ← was missing
+#   KEY_ALLOW_CLASS                      = 'Optimum.Class'                    ← was missing
+#   KEY_LongitudnalStiffener             = 'LongitudnalStiffener.Data'        ← was missing
+#   KEY_IntermediateStiffener_spacing    = 'IntermediateStiffener.Spacing'    ← was missing
+design_dict_end_diaphragm_welded = {
+    # --- Input dock keys (from input_values()) ---
+    "Module": "PLATE GIRDER",
+    "Material": "E 250 (Fe 410 W)A",
+    "Total.Design_Type": "Customized",              # 'Customized' branch (not 'Optimized')
+    "Total.Depth": "600",
+    "Web.Thickness": "10",
+    "Topflange.Width": "200",
+    "TopFlange.Thickness": "12",
+    "Bottomflange.Width": "200",
+    "BottomFlange.Thickness": "12",
+    "Member.Length": "1500",    # mm  — placeholder; overwritten at runtime with actual ED span
+    "Flexure.Type": "Major Laterally Supported",   # VALUES_SUPP_TYPE_temp[0]
+    "Support.Width": "150",
+    "Web.Philosophy": "Thick Web without ITS",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Load.Moment": "5",         # kNm — placeholder; overwritten at runtime with |Mz|
+    "Load.Shear": "5",          # kN  — placeholder; overwritten at runtime with |Vy|
+    "Bendingmoment.shape": "Uniform Loading with pinned-pinned support",
+    # --- Design-preference keys (from get_values_for_design_pref / input_dictionary_without_design_pref) ---
+    "IntermediateStiffener.Thickness": "All",    # KEY_IntermediateStiffener_thickness
+    "LongitudnalStiffner.Thickness": "All",      # KEY_LongitudnalStiffener_thickness
+    "Deflection.Max": 600,                       # KEY_MAX_DEFL (int, matches default for Highway Bridge)
+    "Loading.Condition": "Normal",               # KEY_LOAD
+    "Optimum.Class": "Yes",                      # KEY_ALLOW_CLASS
+    "LongitudnalStiffener.Data": "No",           # KEY_LongitudnalStiffener
+    "IntermediateStiffener.Spacing": "NA",       # KEY_IntermediateStiffener_spacing
+}
 
 # STANDALONE TESTING
 if __name__ == "__main__":
     """
     Standalone testing:
-    Runs 10 parallel Osdag designs
+    Runs 4 parallel Osdag designs
     using ProcessPoolExecutor
     """
 
@@ -642,7 +747,6 @@ if __name__ == "__main__":
         design_dict_struts_bolted,
         design_dict_struts_welded,
     ]
-
     start_time = time.perf_counter()
     results = run_parallel_designs(design_dicts, quiet=True)
     end_time = time.perf_counter()

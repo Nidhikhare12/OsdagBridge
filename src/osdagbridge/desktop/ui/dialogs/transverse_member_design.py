@@ -901,8 +901,8 @@ class TransverseMemberDesign(QDialog):
             return
 
         try:
-            from osdagbridge.core.bridge_types.plate_girder.crossbracingforces import CrossBracingForces
-            cb = CrossBracingForces(bridge=backend)
+            from osdagbridge.core.bridge_types.plate_girder.cross_bracing_design import CrossBracingDesign
+            cb = CrossBracingDesign(bridge=backend)
             self._cb_forces_df = cb.compute_panel_forces()
             forces_dict = cb.get_design_forces_dict()
             if not forces_dict or not forces_dict.get("pairs"):
