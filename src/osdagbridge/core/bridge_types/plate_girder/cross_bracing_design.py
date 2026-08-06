@@ -128,6 +128,7 @@ from typing import Optional
 import pandas as pd
 
 from osdagbridge.core.utils.common import (
+    KEY_MP_CB_BRACING_CONNECTION,
     KEY_MP_CB_SPACING,
     KEY_MP_CB_TYPE,
     KEY_MP_GIRDER_DEPTH,
@@ -160,6 +161,9 @@ class CrossBracingDesign:
     brace_type : str or None
         'X' or 'K'.  If None, read from bridge.additional_inputs
         [KEY_MP_CB_TYPE]; default 'X'.
+    connection_type : str or None
+        'Bolted' or 'Welded'. If None, read from bridge.additional_inputs
+        [KEY_MP_CB_BRACING_CONNECTION]; default 'Bolted'.
     top_chord : bool or None
         True if a top chord connects the two girders at the top flange.
         None → read from additional_inputs.  Default True.
@@ -177,18 +181,19 @@ class CrossBracingDesign:
     def __init__(
         self,
         bridge,
-        brace_type:    Optional[str]   = None,
-        top_chord:     Optional[bool]  = None,
-        bottom_chord:  Optional[bool]  = None,
-        cb_spacing:    Optional[float] = None,
-        depth_ratio:   float = 0.85,
+        brace_type:      Optional[str]   = None,
+        connection_type: Optional[str]   = None,
+        top_chord:       Optional[bool]  = None,
+        bottom_chord:    Optional[bool]  = None,
+        cb_spacing:      Optional[float] = None,
+        depth_ratio:     float = 0.85,
         include_edge_beams: bool = False,
     ):
         self.bridge = bridge
         self.depth_ratio = depth_ratio
         self.include_edge_beams = include_edge_beams
 
-        self._identify_configuration(brace_type, top_chord, bottom_chord)
+        self._identify_configuration(brace_type, connection_type, top_chord, bottom_chord)
         self._init_geometry(cb_spacing)
 
     # =======================================================================
@@ -197,9 +202,10 @@ class CrossBracingDesign:
 
     def _identify_configuration(
         self,
-        brace_type:   Optional[str],
-        top_chord:    Optional[bool],
-        bottom_chord: Optional[bool],
+        brace_type:      Optional[str],
+        connection_type: Optional[str],
+        top_chord:       Optional[bool],
+        bottom_chord:    Optional[bool],
     ) -> None:
         ai = getattr(self.bridge, "additional_inputs", {})
 
@@ -211,6 +217,13 @@ class CrossBracingDesign:
         if raw not in (BRACE_X, BRACE_K):
             raw = BRACE_X  # TODO: remove fallback once UI always sets brace type
         self.brace_type: str = raw
+
+        # Connection type: Bolted (default) or Welded
+        if connection_type is not None:
+            self.connection_type: str = str(connection_type).strip()
+        else:
+            raw_conn = ai.get(KEY_MP_CB_BRACING_CONNECTION) or "Bolted"
+            self.connection_type = str(raw_conn).strip()
 
         if top_chord is not None:
             self.top_chord = bool(top_chord)
@@ -590,7 +603,9 @@ class CrossBracingDesign:
 
         from osdagbridge.core.utils.connect import (
             design_dict_struts_bolted,
+            design_dict_struts_welded,
             design_dict_tension_bolted,
+            design_dict_tension_welded,
         )
 
         if not forces_dict or not forces_dict.get("pairs"):
@@ -599,6 +614,10 @@ class CrossBracingDesign:
         geom       = forces_dict.get("geometry", {})
         L_diag_mm  = round(geom.get("diagonal_length_m", 0) * 1000)
         L_chord_mm = round(geom.get("horiz_proj_m",      0) * 1000)
+
+        is_welded = (self.connection_type.lower() == "welded")
+        t_dict = design_dict_tension_welded if is_welded else design_dict_tension_bolted
+        c_dict = design_dict_struts_welded  if is_welded else design_dict_struts_bolted
 
         # Build a flat job list so all designs run in one parallel batch.
         # Each job tracks (pair, member_type, force_type) for reassembly.
@@ -610,13 +629,13 @@ class CrossBracingDesign:
                 ("chord",    L_chord_mm, "chord_tension_kN", "chord_compression_kN"),
             ):
                 if vals.get(t_key) is not None:
-                    d = copy.deepcopy(design_dict_tension_bolted)
+                    d = copy.deepcopy(t_dict)
                     d["Load.Axial"]    = str(float(vals[t_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "tension", d))
 
                 if vals.get(c_key) is not None:
-                    d = copy.deepcopy(design_dict_struts_bolted)
+                    d = copy.deepcopy(c_dict)
                     d["Load.Axial"]    = str(float(vals[c_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "compression", d))
@@ -624,10 +643,11 @@ class CrossBracingDesign:
         if not jobs:
             return {}
 
+        conn_str = "WELDED" if is_welded else "BOLTED"
         sep = "-" * 60
         print(
             f"\n{sep}\n"
-            f"  CROSS BRACING DESIGNS  ({len(forces_dict['pairs'])} pair(s))"
+            f"  CROSS BRACING DESIGNS ({conn_str})  ({len(forces_dict['pairs'])} pair(s))"
             f"  diag L={L_diag_mm} mm  chord L={L_chord_mm} mm\n"
             f"{sep}"
         )
