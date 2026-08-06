@@ -267,7 +267,19 @@ class EndDiaphragmDesign(CrossBracingDesign):
 
                 mz_i = abs(float(f.get("Mz_i", 0.0))) / 1e3
                 mz_j = abs(float(f.get("Mz_j", 0.0))) / 1e3
-                mz_max = max(mz_i, mz_j)
+
+                # NOTE ON Mz EXTRACTION:
+                # Each end-diaphragm member between adjacent girders is discretized as a
+                # single finite element in the grillage mesh. The FE nodal forces Mz_i and
+                # Mz_j are evaluated at the girder support nodes, where bending moment is
+                # naturally near-zero (~0 kNm).
+                # To capture the governing peak mid-span bending moment demand for a
+                # simply-supported transverse beam with uniform/symmetric load distribution
+                # (as assumed by Osdag's "Uniform Loading with pinned-pinned support" shape),
+                # M_max is computed analytically from statics: M_midspan = (V_max * L) / 4.
+                L_m = float(self.s)
+                mz_analytical = (vy_max * L_m) / 4.0
+                mz_max = max(mz_i, mz_j, mz_analytical)
 
                 if vy_max > p_data["max_Vy_kN"]:
                     p_data["max_Vy_kN"] = round(vy_max, 4)
