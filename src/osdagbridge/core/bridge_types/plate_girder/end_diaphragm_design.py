@@ -89,10 +89,13 @@ class EndDiaphragmDesign(CrossBracingDesign):
         self.connection_type: str = "Bolted"
         self.ed_type: str = "Cross Bracing"
 
-        # Superclass __init__ calls self._identify_configuration() and self._init_geometry()
+        # Superclass __init__ calls self._identify_configuration() and self._init_geometry().
+        # We pass connection_type=None so the parent passes it through to our override,
+        # which reads KEY_MP_ED_BRACING_CONNECTION instead.
         super().__init__(
             bridge=bridge,
             brace_type=brace_type,
+            connection_type=None,       # overridden: we read KEY_MP_ED_BRACING_CONNECTION
             top_chord=top_chord,
             bottom_chord=bottom_chord,
             cb_spacing=cb_spacing,
@@ -106,9 +109,10 @@ class EndDiaphragmDesign(CrossBracingDesign):
 
     def _identify_configuration(
         self,
-        brace_type:   Optional[str],
-        top_chord:    Optional[bool],
-        bottom_chord: Optional[bool],
+        brace_type:      Optional[str],
+        connection_type: Optional[str],   # ignored — we read KEY_MP_ED_BRACING_CONNECTION
+        top_chord:       Optional[bool],
+        bottom_chord:    Optional[bool],
     ) -> None:
         """Read End-Diaphragm-specific keys from bridge.additional_inputs."""
         ai = getattr(self.bridge, "additional_inputs", {})
@@ -129,7 +133,7 @@ class EndDiaphragmDesign(CrossBracingDesign):
         else:
             self.brace_type = BRACE_X
 
-        # Connection Type: Bolted / Welded
+        # Connection Type: Bolted / Welded — always from ED-specific key
         raw_conn = ai.get(KEY_MP_ED_BRACING_CONNECTION) or "Bolted"
         self.connection_type = str(raw_conn).strip()
 
@@ -164,69 +168,160 @@ class EndDiaphragmDesign(CrossBracingDesign):
         """
         Run member designs for End Diaphragm.
 
-        Supports both Bolted and Welded connections for Cross Bracing, as well
-        as stub calls for Rolled and Welded beam types.
+        Routes to the appropriate design path based on ed_type:
+          - 'Rolled Beam'  → run_rolled_member_design() (stub)
+          - 'Welded Beam'  → run_welded_member_design() (stub)
+          - 'Cross Bracing' → delegates to CrossBracingDesign.run_member_designs(),
+            which already branches on self.connection_type (Bolted / Welded).
+            The dev-dump filename is overridden here before delegating.
         """
         if self.ed_type == "Rolled Beam":
             return self.run_rolled_member_design(forces_dict, dev)
         elif self.ed_type == "Welded Beam":
             return self.run_welded_member_design(forces_dict, dev)
 
-        # Default: "Cross Bracing" type
+        # Cross Bracing type — write ED-specific dev dump then delegate to parent.
         if dev:
             out = Path(__file__).parents[5] / "tools" / "enddiaphragm_forces_dict.json"
             out.write_text(json.dumps(forces_dict, indent=2))
             print(f"[EndDiaphragm] dev dump → {out}")
+            # Suppress duplicate dev dump in parent by passing dev=False.
+            return super().run_member_designs(forces_dict, dev=False)
 
-        from osdagbridge.core.utils.connect import (
-            design_dict_struts_bolted,
-            design_dict_struts_welded,
-            design_dict_tension_bolted,
-            design_dict_tension_welded,
-        )
+        return super().run_member_designs(forces_dict, dev=False)
 
-        if not forces_dict or not forces_dict.get("pairs"):
+    # =======================================================================
+    # FORCE EXTRACTION & MEMBER DESIGNS FOR ROLLED & WELDED BEAM TYPES
+    # =======================================================================
+
+    def compute_ed_beam_forces(self) -> dict[str, dict[str, float | str]]:
+        """
+        Extract governing shear (Vy in kN) and bending moment (Mz in kNm)
+        for end diaphragm members at the bridge supports (x ≈ min_x or x ≈ max_x),
+        grouped by girder pair.
+
+        Returns
+        -------
+        dict ::
+            {
+                "G1-G2": {
+                    "max_Vy_kN": float,
+                    "max_Mz_kNm": float,
+                    "gov_lc_vy": str,
+                    "gov_lc_mz": str,
+                },
+                ...
+            }
+        """
+        chain_stations = self._build_chain_map()
+        if not chain_stations:
             return {}
 
-        geom       = forces_dict.get("geometry", {})
-        L_diag_mm  = round(geom.get("diagonal_length_m", 0) * 1000)
-        L_chord_mm = round(geom.get("horiz_proj_m",      0) * 1000)
+        # Filter end diaphragm chains at start and end supports (min X and max X)
+        x_coords = [st["start_coords"][0] for st in chain_stations if st.get("start_coords")]
+        if not x_coords:
+            return {}
 
-        is_welded = (self.connection_type.lower() == "welded")
-        t_dict = design_dict_tension_welded if is_welded else design_dict_tension_bolted
-        c_dict = design_dict_struts_welded if is_welded else design_dict_struts_bolted
+        min_x = min(x_coords)
+        max_x = max(x_coords)
+        _tol = 1e-3
 
-        jobs: list[tuple[str, str, str, dict]] = []
+        ed_stations = [
+            st for st in chain_stations
+            if st.get("start_coords") and (
+                abs(st["start_coords"][0] - min_x) < _tol or
+                abs(st["start_coords"][0] - max_x) < _tol
+            )
+        ]
 
-        for pair, vals in forces_dict["pairs"].items():
-            for member, L_mm, t_key, c_key in (
-                ("diagonal", L_diag_mm, "diag_tension_kN",  "diag_compression_kN"),
-                ("chord",    L_chord_mm, "chord_tension_kN", "chord_compression_kN"),
-            ):
-                if vals.get(t_key) is not None:
-                    d = copy.deepcopy(t_dict)
-                    d["Load.Axial"]    = str(float(vals[t_key]))
-                    d["Member.Length"] = str(L_mm)
-                    jobs.append((pair, member, "tension", d))
+        if not ed_stations:
+            ed_stations = chain_stations
 
-                if vals.get(c_key) is not None:
-                    d = copy.deepcopy(c_dict)
-                    d["Load.Axial"]    = str(float(vals[c_key]))
-                    d["Member.Length"] = str(L_mm)
-                    jobs.append((pair, member, "compression", d))
+        all_lcs = [
+            lc for lc in self.bridge.result_data.get("loadcases", [])
+            if not str(lc).startswith("Envelope")
+        ]
+
+        pairs_forces: dict[str, dict] = {}
+
+        for st in ed_stations:
+            pair = f"{st['left_girder']}-{st['right_girder']}"
+            m_id = st["first_member"]
+            p_data = pairs_forces.setdefault(pair, {
+                "max_Vy_kN": 0.0,
+                "max_Mz_kNm": 0.0,
+                "gov_lc_vy": "",
+                "gov_lc_mz": "",
+            })
+
+            for lc in all_lcs:
+                lc_str = str(lc)
+                try:
+                    f = self.bridge.result_data["forces"][lc_str][m_id]
+                except (KeyError, TypeError):
+                    continue
+
+                vy_i = abs(float(f.get("Vy_i", 0.0))) / 1e3
+                vy_j = abs(float(f.get("Vy_j", 0.0))) / 1e3
+                vy_max = max(vy_i, vy_j)
+
+                mz_i = abs(float(f.get("Mz_i", 0.0))) / 1e3
+                mz_j = abs(float(f.get("Mz_j", 0.0))) / 1e3
+                mz_max = max(mz_i, mz_j)
+
+                if vy_max > p_data["max_Vy_kN"]:
+                    p_data["max_Vy_kN"] = round(vy_max, 4)
+                    p_data["gov_lc_vy"] = lc_str
+
+                if mz_max > p_data["max_Mz_kNm"]:
+                    p_data["max_Mz_kNm"] = round(mz_max, 4)
+                    p_data["gov_lc_mz"] = lc_str
+
+        return pairs_forces
+
+    def run_rolled_member_design(self, forces_dict: dict, dev: bool = False) -> dict:
+        """
+        Run Osdag Flexure (Rolled Beam) member designs for End Diaphragms.
+        """
+        if dev:
+            out = Path(__file__).parents[5] / "tools" / "enddiaphragm_rolled_forces_dict.json"
+            out.write_text(json.dumps(forces_dict, indent=2))
+            print(f"[EndDiaphragm Rolled] dev dump → {out}")
+
+        from osdagbridge.core.utils.connect import (
+            design_dict_end_diaphragm_rolled,
+            design_pool,
+            run_calculation,
+        )
+
+        ed_forces = self.compute_ed_beam_forces()
+        if not ed_forces:
+            return {}
+
+        L_mm = round(self.s * 1000)
+
+        jobs: list[tuple[str, dict]] = []
+        for pair, pdata in ed_forces.items():
+            vy = max(float(pdata.get("max_Vy_kN", 0.0)), 1.0)
+            mz = max(float(pdata.get("max_Mz_kNm", 0.0)), 1.0)
+
+            d = copy.deepcopy(design_dict_end_diaphragm_rolled)
+            d["Member.Length"] = str(int(L_mm))
+            d["Load.Moment"]   = str(round(mz, 3))
+            d["Load.Shear"]    = str(round(vy, 3))
+
+            jobs.append((pair, d))
 
         if not jobs:
             return {}
 
-        conn_str = "WELDED" if is_welded else "BOLTED"
         sep = "-" * 60
         print(
             f"\n{sep}\n"
-            f"  END DIAPHRAGM DESIGNS ({conn_str})  ({len(forces_dict['pairs'])} pair(s))"
-            f"  diag L={L_diag_mm} mm  chord L={L_chord_mm} mm\n"
+            f"  END DIAPHRAGM ROLLED BEAM DESIGNS  ({len(jobs)} pair(s))"
+            f"  L={L_mm} mm\n"
             f"{sep}"
         )
-        from osdagbridge.core.utils.connect import design_pool, run_calculation
 
         cpu_count = __import__("os").cpu_count() or 4
         max_workers = min(cpu_count, len(jobs))
@@ -236,30 +331,82 @@ class EndDiaphragmDesign(CrossBracingDesign):
 
         with design_pool(max_workers) as executor:
             futures = {
-                executor.submit(run_calculation, j[3]): j
-                for j in jobs
+                executor.submit(run_calculation, job[1]): job[0]
+                for job in jobs
             }
-            for future, (pair, member, force_type, _) in futures.items():
+            for future, pair in futures.items():
                 try:
                     result = future.result()
                 except Exception as exc:
-                    print(f"  [EndDiaphragm] SKIP {pair} {member} {force_type}: {exc}")
+                    print(f"  [EndDiaphragm Rolled] SKIP {pair}: {exc}")
                     result = None
-                results.setdefault(pair, {}).setdefault(member, {})[force_type] = result
+                results.setdefault(pair, {})["flexure"] = result
 
         print(f"  Total time : {time.perf_counter() - t0:.3f}s  |  {len(jobs)} designs\n{sep}")
         return results
 
-    # =======================================================================
-    # STUB METHODS FOR ROLLED & WELDED BEAM TYPES (To be implemented in later task)
-    # =======================================================================
-
-    def run_rolled_member_design(self, forces_dict: dict, dev: bool = False) -> dict:
-        raise NotImplementedError(
-            "Rolled/Welded end diaphragm force extraction — implemented in a later task"
-        )
-
     def run_welded_member_design(self, forces_dict: dict, dev: bool = False) -> dict:
-        raise NotImplementedError(
-            "Rolled/Welded end diaphragm force extraction — implemented in a later task"
+        """
+        Run Osdag PlateGirder (Welded Beam) member designs for End Diaphragms.
+        """
+        if dev:
+            out = Path(__file__).parents[5] / "tools" / "enddiaphragm_welded_forces_dict.json"
+            out.write_text(json.dumps(forces_dict, indent=2))
+            print(f"[EndDiaphragm Welded] dev dump → {out}")
+
+        from osdagbridge.core.utils.connect import (
+            design_dict_end_diaphragm_welded,
+            design_pool,
+            run_calculation,
         )
+
+        ed_forces = self.compute_ed_beam_forces()
+        if not ed_forces:
+            return {}
+
+        L_mm = round(self.s * 1000)
+
+        jobs: list[tuple[str, dict]] = []
+        for pair, pdata in ed_forces.items():
+            vy = max(float(pdata.get("max_Vy_kN", 0.0)), 1.0)
+            mz = max(float(pdata.get("max_Mz_kNm", 0.0)), 1.0)
+
+            d = copy.deepcopy(design_dict_end_diaphragm_welded)
+            d["Member.Length"] = str(int(L_mm))
+            d["Load.Moment"]   = str(round(mz, 3))
+            d["Load.Shear"]    = str(round(vy, 3))
+
+            jobs.append((pair, d))
+
+        if not jobs:
+            return {}
+
+        sep = "-" * 60
+        print(
+            f"\n{sep}\n"
+            f"  END DIAPHRAGM WELDED BEAM DESIGNS  ({len(jobs)} pair(s))"
+            f"  L={L_mm} mm\n"
+            f"{sep}"
+        )
+
+        cpu_count = __import__("os").cpu_count() or 4
+        max_workers = min(cpu_count, len(jobs))
+
+        t0 = time.perf_counter()
+        results: dict = {}
+
+        with design_pool(max_workers) as executor:
+            futures = {
+                executor.submit(run_calculation, job[1]): job[0]
+                for job in jobs
+            }
+            for future, pair in futures.items():
+                try:
+                    result = future.result()
+                except Exception as exc:
+                    print(f"  [EndDiaphragm Welded] SKIP {pair}: {exc}")
+                    result = None
+                results.setdefault(pair, {})["flexure"] = result
+
+        print(f"  Total time : {time.perf_counter() - t0:.3f}s  |  {len(jobs)} designs\n{sep}")
+        return results
