@@ -623,20 +623,56 @@ def _dump_crossbracing(data: dict) -> None:
 def _extract_osdag_summary(result: dict) -> dict:
     if not result:
         return {}
+
     def _first(*keys):
         for k in keys:
             v = result.get(k)
-            if v is not None:
-                return v
+            if v is not None and v != "NA" and v != "N/A":
+                try:
+                    return float(v)
+                except (ValueError, TypeError):
+                    return str(v)
         return None
 
-    return {
-        "section":     _first("section_size.designation", "Optimum.Designation"),
-        "capacity_kN": _first("Member.tension_capacity",  "Design.Strength"),
-        "efficiency":  _first("Member.efficiency",        "Optimum.UR"),
-        "slenderness": result.get("Member.Slenderness"),
-        "connection":  "Welded" if "Weld.Type" in result else "Bolted",
-    }
+    module_name = str(result.get("Module") or "")
+    has_bolt = any(k.lower().startswith("bolt") for k in result)
+    has_weld = any(k.lower().startswith("weld") for k in result)
+
+    is_beam = module_name in ("Flexural Members - Simply Supported", "PLATE GIRDER") or "Moment.Strength" in result
+
+    if is_beam:
+        conn = None
+    elif has_weld or "welded" in module_name.lower():
+        conn = "Welded"
+    elif has_bolt or "bolted" in module_name.lower():
+        conn = "Bolted"
+    else:
+        conn = None
+
+    sec = _first("section_size.designation", "Optimum.Designation")
+    eff = _first("Member.efficiency", "Optimum.UR")
+    slnd = _first("Member.Slenderness", "ESR")
+
+    if is_beam:
+        cap_val = _first("Moment.Strength", "Design.Strength")
+        res_summary = {
+            "section": str(sec) if sec is not None else "",
+            "capacity_kNm": cap_val,
+            "efficiency": eff,
+            "slenderness": slnd,
+        }
+    else:
+        cap_val = _first("Member.tension_capacity", "Design.Strength")
+        res_summary = {
+            "section": str(sec) if sec is not None else "",
+            "capacity_kN": cap_val,
+            "efficiency": eff,
+            "slenderness": slnd,
+        }
+
+    if conn is not None:
+        res_summary["connection"] = conn
+    return res_summary
 
 
 def enrich_crossbracing_dump(pair_designs: dict) -> None:

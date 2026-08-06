@@ -1428,6 +1428,7 @@ VALUES_CROSS_BRACING_TYPE = [
     "X-Bracing",
 ]
 VALUES_END_DIAPHRAGM_TYPE = ["Cross Bracing", "Rolled Beam", "Welded Beam"]
+VALUES_CONNECTION_TYPE = ["Bolted", "Welded"]
 VALUES_WEARING_COAT_MATERIAL = ["Concrete", "Bituminous", "Custom"]
 VALUES_RAILING_TYPE = ["IRC 5 - RCC Railing", "IRC 5 - Steel Railing", "Custom"]
 VALUES_CUSTOM_AXLE_TYPE = ["Single", "Bogie"]

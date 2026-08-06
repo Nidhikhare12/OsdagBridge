@@ -2430,8 +2430,8 @@ class AdditionalInputs(QDialog):
                 try:   return float(v) if v else default
                 except (ValueError, TypeError): return default
 
-            depth = _f(_get(KEY_MP_ED_TOTAL_DEPTH))
-            top_w = _f(_get(KEY_MP_ED_TOP_FLANGE_WIDTH))
+            depth = _f(_get(KEY_MP_ED_TOTAL_DEPTH), default=300.0)
+            top_w = _f(_get(KEY_MP_ED_TOP_FLANGE_WIDTH), default=200.0)
             if not depth or not top_w:
                 widget.clear()
                 return
@@ -2462,29 +2462,35 @@ class AdditionalInputs(QDialog):
             KEY_MP_ED_ELASTIC_MODULUS_ZZ, KEY_MP_ED_ELASTIC_MODULUS_ZY,
             KEY_MP_ED_PLASTIC_MODULUS_ZUZ, KEY_MP_ED_PLASTIC_MODULUS_ZUY,
         )
+        # The bare key is only populated when the user changes it live.
+        # The per-pair keys (e.g. ...is_section.G1G2.E1M1) are stored in working_input_dict
+        # so we also try reading the live QComboBox widget.
         designation = working_input_dict.get(KEY_MP_ED_IS_SECTION, "")
+        if not designation:
+            is_w = self.findChild(QComboBox, KEY_MP_ED_IS_SECTION)
+            designation = is_w.currentText().strip() if is_w else ""
         if not designation:
             return {}
         section = GirderSectionCatalog().get_beam_profile(str(designation).strip())
         if section is None:
             return {}
         return {
-            KEY_MP_ED_MASS:                str(section.mass_per_meter_kg),
-            KEY_MP_ED_SECTIONAL_AREA:      str(section.area_cm2),
-            KEY_MP_ED_SECTIONAL_IZ:        str(section.moment_of_inertia_zz_cm4),
-            KEY_MP_ED_SECTIONAL_IY:        str(section.moment_of_inertia_yy_cm4),
-            KEY_MP_ED_RADIUS_GYRATION_Z:   str(section.radius_of_gyration_z_cm),
-            KEY_MP_ED_RADIUS_GYRATION_Y:   str(section.radius_of_gyration_y_cm),
-            KEY_MP_ED_ELASTIC_MODULUS_ZZ:  str(section.elastic_section_modulus_z_cm3),
-            KEY_MP_ED_ELASTIC_MODULUS_ZY:  str(section.elastic_section_modulus_y_cm3),
-            KEY_MP_ED_PLASTIC_MODULUS_ZUZ: str(section.plastic_section_modulus_z_cm3),
-            KEY_MP_ED_PLASTIC_MODULUS_ZUY: str(section.plastic_section_modulus_y_cm3),
+            KEY_MP_ED_MASS:                f"{section.mass_per_meter_kg:.2f}",
+            KEY_MP_ED_SECTIONAL_AREA:      f"{section.area_cm2:.2f}",
+            KEY_MP_ED_SECTIONAL_IZ:        f"{section.moment_of_inertia_zz_cm4:.2f}",
+            KEY_MP_ED_SECTIONAL_IY:        f"{section.moment_of_inertia_yy_cm4:.2f}",
+            KEY_MP_ED_RADIUS_GYRATION_Z:   f"{section.radius_of_gyration_z_cm:.2f}",
+            KEY_MP_ED_RADIUS_GYRATION_Y:   f"{section.radius_of_gyration_y_cm:.2f}",
+            KEY_MP_ED_ELASTIC_MODULUS_ZZ:  f"{section.elastic_section_modulus_z_cm3:.2f}",
+            KEY_MP_ED_ELASTIC_MODULUS_ZY:  f"{section.elastic_section_modulus_y_cm3:.2f}",
+            KEY_MP_ED_PLASTIC_MODULUS_ZUZ: f"{section.plastic_section_modulus_z_cm3:.2f}",
+            KEY_MP_ED_PLASTIC_MODULUS_ZUY: f"{section.plastic_section_modulus_y_cm3:.2f}",
         }
 
     def _compute_ed_welded_section_properties(self, working_input_dict: dict) -> dict:  # compute: derives welded I-section properties for end diaphragm from flange/web dimensions
         from osdagbridge.core.bridge_types.plate_girder.initial_sizing import BridgeConfigurationSolver
         from osdagbridge.core.utils.common import (
-            KEY_SPAN, KEY_MP_ED_SYMMETRY,
+            KEY_MP_ED_SYMMETRY,
             KEY_MP_ED_TOTAL_DEPTH, KEY_MP_ED_WEB_THICKNESS,
             KEY_MP_ED_TOP_FLANGE_WIDTH, KEY_MP_ED_TOP_FLANGE_THICKNESS,
             KEY_MP_ED_BOTTOM_FLANGE_WIDTH, KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
@@ -2512,14 +2518,28 @@ class AdditionalInputs(QDialog):
         if not depth_m or not b_top_m:
             return {}
 
-        span_m = float(working_input_dict.get(KEY_SPAN))
+        # KEY_SPAN is "geometry.span" (bridge geometry) — not in the ED working dict.
+        # Use the girder total span key which IS present in working_input_dict.
+        from osdagbridge.core.utils.common import KEY_MP_GD_TOTAL_SPAN
+        try:
+            span_m = float(
+                working_input_dict.get(KEY_MP_GD_TOTAL_SPAN)
+                or working_input_dict.get("member_properties.girder_details.total_span")
+                or 30.0
+            )
+        except (ValueError, TypeError):
+            span_m = 30.0
+
         symmetry = str(working_input_dict.get(KEY_MP_ED_SYMMETRY) or "Girder Symmetric")
 
-        result = BridgeConfigurationSolver(carriageway_width=1.0).compute_section_properties(
-            span=span_m, symmetry=symmetry,
-            user_depth=depth_m, B_top=b_top_m, B_bot=b_bot_m,
-            t_f_top=tf_top_m, t_f_bot=tf_bot_m, t_w=tw_m,
-        )
+        try:
+            result = BridgeConfigurationSolver(carriageway_width=1.0).compute_section_properties(
+                span=span_m, symmetry=symmetry,
+                user_depth=depth_m, B_top=b_top_m, B_bot=b_bot_m,
+                t_f_top=tf_top_m, t_f_bot=tf_bot_m, t_w=tw_m,
+            )
+        except Exception:
+            return {}
 
         return {
             KEY_MP_ED_MASS:                f"{result['Mass']:.4f}",

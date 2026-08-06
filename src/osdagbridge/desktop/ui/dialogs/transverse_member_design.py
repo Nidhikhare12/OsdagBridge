@@ -196,6 +196,8 @@ class TransverseMemberDesign(QDialog):
 
         self._forces_dict:      dict          = {}
         self._designs_dict:     dict          = {}
+        self._cb_designs_dict:  dict          = {}
+        self._ed_designs_dict:  dict          = {}
         self._pair_keys:        list[str]     = []
         self._members_per_pair: dict[str, int] = {}
         self._ed_group_widgets: dict[str, list[QWidget]] = {"crossbracing": [], "welded_beam": []}
@@ -797,10 +799,10 @@ class TransverseMemberDesign(QDialog):
                     self._forces_dict if current_lc == "Envelope"
                     else self._get_forces_for_lc(current_lc)
                 )
-                cb_html = self._build_cb_design_check_html(pair_key, forces_for_display, self._designs_dict)
+                cb_html = self._build_cb_design_check_html(pair_key, forces_for_display, self._cb_designs_dict)
                 if self._tab_result_texts.get("cb"):
                     self._tab_result_texts["cb"].setHtml(cb_html)
-                ed_html = self._build_ed_design_check_html(pair_key, forces_for_display, self._designs_dict)
+                ed_html = self._build_ed_design_check_html(pair_key, forces_for_display, self._ed_designs_dict)
                 if self._tab_result_texts.get("ed"):
                     self._tab_result_texts["ed"].setHtml(ed_html)
 
@@ -816,10 +818,10 @@ class TransverseMemberDesign(QDialog):
             self._forces_dict if text == "Envelope"
             else self._get_forces_for_lc(text)
         )
-        cb_html = self._build_cb_design_check_html(pair_key, forces_for_display, self._designs_dict)
+        cb_html = self._build_cb_design_check_html(pair_key, forces_for_display, self._cb_designs_dict)
         if self._tab_result_texts.get("cb"):
             self._tab_result_texts["cb"].setHtml(cb_html)
-        ed_html = self._build_ed_design_check_html(pair_key, forces_for_display, self._designs_dict)
+        ed_html = self._build_ed_design_check_html(pair_key, forces_for_display, self._ed_designs_dict)
         if self._tab_result_texts.get("ed"):
             self._tab_result_texts["ed"].setHtml(ed_html)
 
@@ -917,24 +919,21 @@ class TransverseMemberDesign(QDialog):
             ed_designs = getattr(backend, "end_diaphragm_design_results", {}) or {}
             od         = getattr(backend, "output_dict", {}) or {}
 
+            self._cb_designs_dict = cb_designs or {}
+            self._ed_designs_dict = ed_designs or {}
+
             # Merge ED results into designs_dict and tag ed_type / ed_bracing_type
             designs_dict: dict = dict(cb_designs)
             for pair, ed_pair_data in ed_designs.items():
                 pair_id   = pair.replace("-", "")
-                ed_type  = od.get(f"member_properties.end_diaphragm_details.{pair_id}.type") or ""
+                ed_type  = od.get(f"member_properties.end_diaphragm_details.{pair_id}.type") or ed_pair_data.get("ed_type") or ""
                 ed_btype = od.get(f"member_properties.end_diaphragm_details.{pair_id}.bracing_type") or ""
                 entry = designs_dict.setdefault(pair, {})
-                # Only attach ED metadata if real ED design exists
-                # ALWAYS store ED type metadata (UI needs this)
                 if ed_type:
                     entry["ed_type"] = ed_type
 
                 if ed_btype:
                     entry["ed_bracing_type"] = ed_btype
-
-                if ed_pair_data:
-                    for k, v in ed_pair_data.items():
-                        entry.setdefault(k, v)
 
             self._backend = backend
             members_per_pair = self._compute_members_per_pair(backend, forces_dict)
@@ -1055,10 +1054,10 @@ class TransverseMemberDesign(QDialog):
             self._populate_ed_pair_details(self._pair_keys[0])
 
         if self._pair_keys:
-            cb_html = self._build_cb_design_check_html(self._pair_keys[0], forces_dict, self._designs_dict)
+            cb_html = self._build_cb_design_check_html(self._pair_keys[0], forces_dict, self._cb_designs_dict)
             if self._tab_result_texts.get("cb"):
                 self._tab_result_texts["cb"].setHtml(cb_html)
-            ed_html = self._build_ed_design_check_html(self._pair_keys[0], forces_dict, self._designs_dict)
+            ed_html = self._build_ed_design_check_html(self._pair_keys[0], forces_dict, self._ed_designs_dict)
             if self._tab_result_texts.get("ed"):
                 self._tab_result_texts["ed"].setHtml(ed_html)
 
@@ -1426,36 +1425,29 @@ class TransverseMemberDesign(QDialog):
         for m_idx in range(n_members):
             member_id = f"E{pair_num}M{m_idx + 1}"   # → E1M1, E1M2 / E2M1, E2M2
 
-            if ed_type == "Welded Beam":
-                member_data = pair_designs.get("welded_beam", {})
-                for force_type, force_key in (
-                    ("Tension",     "ed_tension_kN"),
-                    ("Compression", "ed_compression_kN"),
-                ):
-                    force_kn = vals.get(force_key)
-                    if force_kn is None:
-                        continue
-                    res      = _extract_osdag_summary(member_data.get(force_type.lower()) or {})
-                    section  = res.get("section")   or "—"
-                    cap_kn   = res.get("capacity_kN")
-                    eff      = res.get("efficiency")
-                    slnd     = res.get("slenderness")
-                    conn     = res.get("connection") or "—"
-                    cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                    eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                    slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
-                    if eff is None:
-                        status_color, status = "#888888", "N/A"
-                    elif eff <= 1.0:
-                        status_color, status = "#3a7d00", "PASS"
-                    else:
-                        status_color, status = "#c0392b", "FAIL"
-                    rows_html.append(
-                        f"<tr><td>{member_id}</td><td>Beam ({force_type})</td>"
-                        f"<td>{force_kn:.3f}</td><td>{section}</td><td>{conn}</td>"
-                        f"<td>{slnd_str}</td><td>{cap_str}</td><td>{eff_str}</td>"
-                        f"<td style='color:{status_color};font-weight:bold;'>{status}</td></tr>"
-                    )
+            if ed_type in ("Rolled Beam", "Welded Beam"):
+                beam_res = pair_designs.get("beam") or {}
+                res      = _extract_osdag_summary(beam_res)
+                section  = res.get("section")   or "—"
+                cap_kn   = res.get("capacity_kN")
+                eff      = res.get("efficiency")
+                slnd     = res.get("slenderness")
+                conn     = res.get("connection") or "—"
+                cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
+                eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
+                slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
+                if eff is None:
+                    status_color, status = "#888888", "N/A"
+                elif eff <= 1.0:
+                    status_color, status = "#3a7d00", "PASS"
+                else:
+                    status_color, status = "#c0392b", "FAIL"
+                rows_html.append(
+                    f"<tr><td>{member_id}</td><td>{ed_type}</td>"
+                    f"<td>—</td><td>{section}</td><td>{conn}</td>"
+                    f"<td>{slnd_str}</td><td>{cap_str}</td><td>{eff_str}</td>"
+                    f"<td style='color:{status_color};font-weight:bold;'>{status}</td></tr>"
+                )
             else:  # Cross Bracing — same structure as CB but E prefix already handled
                 for label, member_type, t_key, c_key in (
                     ("Diagonal", "diagonal", "diag_tension_kN",  "diag_compression_kN"),

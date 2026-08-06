@@ -2384,7 +2384,7 @@ CROSS_BRACING_DETAILS_SCHEMA = {
                     "id":      KEY_MP_CB_BRACING_CONNECTION,
                     "label":   "Type of Connection:",
                     "type":    TYPE_COMBOBOX,
-                    "choices": ["Bolted", "Welded"],
+                    "choices": VALUES_CONNECTION_TYPE,
                 }]},
 
                 # ── Bracing section ──────────────────────────────────────────
@@ -2445,12 +2445,12 @@ CROSS_BRACING_DETAILS_SCHEMA = {
                     "label":   "  Bottom Chord Section Type:",
                     "type":    TYPE_COMBOBOX,
                     "choices": [
-                                    "Angle",
-                                    "Double Angle (Long Leg)",
-                                    "Double Angle (Short Leg)",
-                                    "Channel",
-                                    "Double Channel",
-                                ],
+                        "Angle",
+                        "Double Angle (Long Leg)",
+                        "Double Angle (Short Leg)",
+                        "Channel",
+                        "Double Channel",
+                    ],
                 }]},
                 {"fields": [{
                     "id":      KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG,
@@ -2564,7 +2564,7 @@ END_DIAPHRAGM_DETAILS_SCHEMA = {
                     "label": "Type:",
                     "type": TYPE_COMBOBOX,
                     "choices": VALUES_END_DIAPHRAGM_TYPE,
-                    "enabled_choices": ["Cross Bracing"],
+                    "enabled_choices": ["Cross Bracing", "Rolled Beam", "Welded Beam"],
                     "on_change": "_on_end_diaphragm_type_changed",
                 }]},
  
@@ -2583,7 +2583,7 @@ END_DIAPHRAGM_DETAILS_SCHEMA = {
                         "id": KEY_MP_ED_BRACING_CONNECTION,
                         "label": "Type of Connection:",
                         "type": TYPE_COMBOBOX,
-                        "choices": ["Bolted", "Welded"],
+                        "choices": VALUES_CONNECTION_TYPE,
                     }],
                 },
                 {
