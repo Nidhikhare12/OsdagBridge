@@ -5,6 +5,10 @@
 /* ==============================================
    1. GLOBAL STYLES (Least Specific)
    ============================================== */
+* {
+    font-family: "Ubuntu Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
 QMainWindow {
     background-color: #f4f4f4;
     border: 1px solid #90af13;
