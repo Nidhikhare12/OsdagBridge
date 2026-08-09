@@ -12,7 +12,14 @@ from PySide6.QtGui import QColor
 OSDAG_BRAND_GREEN = QColor("#90AF13")
 
 # Typography used by CAD preview widgets.
+#
+# Ubuntu Sans is not bundled with this project and is absent from a stock
+# macOS install, so a single family name resolves silently to the system
+# face and Qt warns about the alias lookup on every launch. Prefer
+# OSDAG_FONT_STACK wherever the consumer accepts a list; OSDAG_FONT_FAMILY
+# is kept for callers that require one name.
 OSDAG_FONT_FAMILY = "Ubuntu Sans"
+OSDAG_FONT_STACK = ["Ubuntu Sans", "Segoe UI", "Helvetica Neue", "sans-serif"]
 
 # Core CAD canvas + ink.
 CAD_CANVAS_BG = QColor("#ffffff")
