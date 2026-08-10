@@ -279,6 +279,9 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 
 \endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
 \endhead
 
 \textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
@@ -297,6 +300,9 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 
 \endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
 \endhead
 
 \textnormal{Wearing Course Load} & """ + (_render_value(input_dict, KEY_WC_MATERIAL)) + r""" x """ + (_render_value(input_dict, KEY_WC_THICKNESS)) + r""" \\[6pt]
@@ -315,6 +321,9 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 
 \endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
 \endhead
 
 \textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
@@ -335,6 +344,9 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 
 \endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
 \endhead
 
 \textnormal{Basic Wind Speed, Vb} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" [from Project Location] \\[6pt]
@@ -363,6 +375,9 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 
 \endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
 \endhead
 
 \textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone')) + r""" [from Project Location] \\[6pt]
@@ -393,6 +408,9 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 
 \endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
 \endhead
 
 \textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[6pt]

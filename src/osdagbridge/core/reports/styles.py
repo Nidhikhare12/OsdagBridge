@@ -18,8 +18,10 @@ TABLE_SETTINGS = {
 
 
 def latex_style_preamble():
-    return r"""
-\usepackage[a4paper, margin=1in]{geometry}
+    """Return the single source of truth for report layout and table styles."""
+    return (
+        r"""\usepackage[""" + PAGE_SETTINGS["paper"]
+        + r""", margin=""" + PAGE_SETTINGS["margin"] + r"""]{geometry}
 
 \usepackage{xcolor}
 \usepackage{booktabs}
@@ -27,11 +29,12 @@ def latex_style_preamble():
 \usepackage{longtable}
 \usepackage{fancyhdr}
 
-\definecolor{osdagGreen}{HTML}{91B014}
+\definecolor{osdagGreen}{HTML}{""" + OSDAG_GREEN + r"""}
 
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+\setlength{\tabcolsep}{""" + TABLE_SETTINGS["column_padding"] + r"""}
+\renewcommand{\arraystretch}{""" + TABLE_SETTINGS["row_height"] + r"""}
+\setlength{\arrayrulewidth}{""" + TABLE_SETTINGS["rule_width"] + r"""}
+\setlength{\extrarowheight}{""" + TABLE_SETTINGS["extra_row_height"] + r"""}
 
 """
+    )
