@@ -975,7 +975,8 @@ def generate_report(payload, request):
                         logger.error(
                             "LaTeX compilation failed. Log saved: %s",
                             error_log
-                        )                except Exception as exc:
+                        )
+                except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
 
             if os.path.exists(tmp_tex):
