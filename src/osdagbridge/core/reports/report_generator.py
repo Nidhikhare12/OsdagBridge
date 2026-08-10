@@ -959,7 +959,23 @@ def generate_report(payload, request):
                         [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
                         **kwargs
                     )
-                except Exception as exc:
+                    if res.returncode != 0:
+                        error_log = os.path.join(
+                            request.output_dir,
+                            request.file_stem + "_latex_error.log"
+                        )
+
+                        with open(error_log, "w", encoding="utf-8") as f:
+                            f.write(
+                                res.stdout.decode('utf-8', 'ignore')
+                                + "\n"
+                                + res.stderr.decode('utf-8', 'ignore')
+                            )
+
+                        logger.error(
+                            "LaTeX compilation failed. Log saved: %s",
+                            error_log
+                        )                except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
 
             if os.path.exists(tmp_tex):
