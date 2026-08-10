@@ -119,6 +119,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import latex_style_preamble
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -154,19 +155,15 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     rv = _tex(report_version)
     return r"""
 \documentclass[12pt,a4paper]{report}
+""" + latex_style_preamble() + r"""
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
 \usepackage{tabularx}
 \usepackage{float}
-\usepackage{fancyhdr}
 \usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
 \usepackage{caption}
@@ -180,7 +177,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
-\usepackage{longtable}
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
 \usepackage{titlesec}
@@ -193,20 +189,13 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
 \setlength{\LTpre}{0pt}
 \setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
 
 % Prevent tables from overflowing past the page bottom:
 % if fewer than 5 baseline-skips remain, break to the next page first.
 \BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
 \BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -970,6 +959,23 @@ def generate_report(payload, request):
                         [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
                         **kwargs
                     )
+                    if res.returncode != 0:
+                        error_log = os.path.join(
+                            request.output_dir,
+                            request.file_stem + "_latex_error.log"
+                        )
+
+                        with open(error_log, "w", encoding="utf-8") as f:
+                            f.write(
+                                res.stdout.decode('utf-8', 'ignore')
+                                + "\n"
+                                + res.stderr.decode('utf-8', 'ignore')
+                            )
+
+                        logger.error(
+                            "LaTeX compilation failed. Log saved: %s",
+                            error_log
+                        )
                 except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
 
