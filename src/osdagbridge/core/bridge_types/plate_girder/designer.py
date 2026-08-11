@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 
 from osdagbridge.core.bridge_types.plate_girder.analysis_results import PlateGirderAnalysisResults
+from osdagbridge.core.design_ledger import DesignCheckResult, DesignLedger
 from osdagbridge.core.bridge_types.plate_girder.initial_sizing import (
     composite_section_properties,
     steel_i_section_properties,
@@ -2072,6 +2073,30 @@ class DCREngine:
             dcr=round(dcr, 4), status=status, note=note,  governing_method=governing_method,
         )
         self.checks.append(result)
+
+        # Store the same engineering verification in the structured ledger.
+        # This keeps existing check outputs unchanged while enabling
+        # machine-readable audit trails and future report integration.
+        if not hasattr(self, "design_ledger") or self.design_ledger is None:
+            self.design_ledger = DesignLedger()
+
+        self.design_ledger.add_check(
+            DesignCheckResult(
+                check_id=str(check_id),
+                title=name,
+                code_reference=clause,
+                description=note,
+                demand=float(demand),
+                capacity=float(capacity),
+                utilization_ratio=float(round(dcr, 4)),
+                status=status,
+                metadata={
+                    "unit": unit,
+                    "governing_method": governing_method,
+                },
+            )
+        )
+
         return result
     
     def category_urs(self) -> Dict[int, dict]:
