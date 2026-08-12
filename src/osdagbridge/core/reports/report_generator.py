@@ -119,6 +119,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import latex_style_preamble
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -154,33 +155,20 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     rv = _tex(report_version)
     return r"""
 \documentclass[12pt,a4paper]{report}
+""" + latex_style_preamble() + r"""
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
 \usepackage{tabularx}
 \usepackage{float}
-\usepackage{fancyhdr}
 \usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
-\usepackage{longtable}
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
 \usepackage{titlesec}
@@ -193,20 +181,13 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
 \setlength{\LTpre}{0pt}
 \setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
 
 % Prevent tables from overflowing past the page bottom:
 % if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
+\BeforeBeginEnvironment{table}{\needspace{""" + PAGE_BREAK_SETTINGS["threshold"] + r"""}}
+\BeforeBeginEnvironment{longtable}{\needspace{""" + PAGE_BREAK_SETTINGS["threshold"] + r"""}}
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -924,7 +905,56 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                utilization_chart_path = os.path.join(tmp_images, "utilization_ratio.png")
+
+                from osdagbridge.core.reports.charts.utilization_chart import generate_utilization_chart
+
+                utilization_data = {
+                    "Steel Plate Girders": 0.0,
+                    "Concrete Deck Slab": 0.0,
+                    "Cross Bracing": 0.0,
+                    "End Diaphragms": 0.0,
+                }
+
+                design_results = payload.output_dict.get("design_results", {}) or {}
+                per_girder = design_results.get("per_girder", {}) or {}
+
+                for girder in per_girder.values():
+                    for check in girder.get("checks", []):
+                        dcr = check.get("dcr")
+                        if dcr is not None:
+                            utilization_data["Steel Plate Girders"] = max(
+                                utilization_data["Steel Plate Girders"],
+                                float(dcr)
+                            )
+
+                generate_utilization_chart(
+                    utilization_data,
+                    utilization_chart_path,
+                )
+
+                from osdagbridge.core.reports.charts.material_chart import generate_material_chart
+
+                material_chart_path = os.path.join(tmp_images, "material_quantities.png")
+
+                generate_material_chart(
+                    {
+                        "Structural Steel": float(payload.inputs.get("steel_girders_wt_total", 0) or 0),
+                        "Concrete": float(payload.inputs.get("concrete_deck_wt_total", 0) or 0),
+                        "Reinforcement": float(payload.inputs.get("rebar_deck_wt_total", 0) or 0),
+                    },
+                    material_chart_path,
+                )
+
+                doc_parts.append(
+                    ch5_design_checks(
+                        payload.design_checks,
+                        bridge,
+                        chart_paths={
+                            "utilization": utilization_chart_path
+                        }
+                    )
+                )
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
