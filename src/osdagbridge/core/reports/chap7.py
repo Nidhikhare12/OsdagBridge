@@ -8,6 +8,7 @@ def ch7_quantities(input_dict):
 \begingroup
 \setlength{\tabcolsep}{3.5pt}
 \begin{longtable}{|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
+\caption{\textbf{Material Take-off and Quantity Summary}}\\
 \hline
 \textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
 \hline
@@ -36,5 +37,4 @@ def ch7_quantities(input_dict):
 \hline
 \end{longtable}
 """
-
 

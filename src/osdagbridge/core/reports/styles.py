@@ -28,6 +28,7 @@ def latex_style_preamble():
 \usepackage{array}
 \usepackage{longtable}
 \usepackage{fancyhdr}
+\usepackage{caption}
 
 \definecolor{osdagGreen}{HTML}{""" + OSDAG_GREEN + r"""}
 
@@ -35,6 +36,19 @@ def latex_style_preamble():
 \renewcommand{\arraystretch}{""" + TABLE_SETTINGS["row_height"] + r"""}
 \setlength{\arrayrulewidth}{""" + TABLE_SETTINGS["rule_width"] + r"""}
 \setlength{\extrarowheight}{""" + TABLE_SETTINGS["extra_row_height"] + r"""}
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{2pt}
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{6pt}
+
+\captionsetup{
+    labelfont=bf,
+    justification=raggedright,
+    singlelinecheck=false,
+    format=plain
+}
 
 """
     )
