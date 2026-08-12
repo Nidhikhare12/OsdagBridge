@@ -5,6 +5,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from osdagbridge.core.reports.charts.utilization_chart import generate_utilization_chart
+
 from osdagbridge.core.utils.common import (
     KEY_DD_AS_BOT,
     KEY_DD_AS_LONG,
@@ -1070,6 +1072,14 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         _ed_shear_row,
     ]
     t522_content = "\n".join(_t522)
+    # Utilization ratio chart data
+    utilization_data = {
+        "Steel Plate Girders": 0.0,
+        "Concrete Deck Slab": 0.0,
+        "Cross Bracing": 0.0,
+        "End Diaphragms": 0.0,
+    }
+
 
     return r"""
 \chapter{Design Checks}
@@ -1656,6 +1666,15 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
 
 % ===========================
+
+\section{Utilization Ratio Visualization}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{assets/utilization_ratio.png}
+\caption*{Overall Utilization Ratio Summary (UR = Demand / Capacity)}
+\end{figure}
+
 \section{Overall Design Check Summary}
 \label{sec:overall-summary}
 % ===========================

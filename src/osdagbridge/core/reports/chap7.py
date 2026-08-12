@@ -3,6 +3,14 @@ def ch7_quantities(input_dict):
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
 
+\section{Material Quantity Visualization}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{assets/material_quantities.png}
+\caption*{Material Quantity Distribution}
+\end{figure}
+
 \noindent\textbf{Table 7.1  Bill of Materials (Steel, Concrete, and Reinforcement Quantities)}
 
 \begingroup

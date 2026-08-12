@@ -913,7 +913,56 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                utilization_chart_path = os.path.join(tmp_images, "utilization_ratio.png")
+
+                from osdagbridge.core.reports.charts.utilization_chart import generate_utilization_chart
+
+                utilization_data = {
+                    "Steel Plate Girders": 0.0,
+                    "Concrete Deck Slab": 0.0,
+                    "Cross Bracing": 0.0,
+                    "End Diaphragms": 0.0,
+                }
+
+                design_results = payload.output_dict.get("design_results", {}) or {}
+                per_girder = design_results.get("per_girder", {}) or {}
+
+                for girder in per_girder.values():
+                    for check in girder.get("checks", []):
+                        dcr = check.get("dcr")
+                        if dcr is not None:
+                            utilization_data["Steel Plate Girders"] = max(
+                                utilization_data["Steel Plate Girders"],
+                                float(dcr)
+                            )
+
+                generate_utilization_chart(
+                    utilization_data,
+                    utilization_chart_path,
+                )
+
+                from osdagbridge.core.reports.charts.material_chart import generate_material_chart
+
+                material_chart_path = os.path.join(tmp_images, "material_quantities.png")
+
+                generate_material_chart(
+                    {
+                        "Structural Steel": float(payload.inputs.get("steel_girders_wt_total", 0) or 0),
+                        "Concrete": float(payload.inputs.get("concrete_deck_wt_total", 0) or 0),
+                        "Reinforcement": float(payload.inputs.get("rebar_deck_wt_total", 0) or 0),
+                    },
+                    material_chart_path,
+                )
+
+                doc_parts.append(
+                    ch5_design_checks(
+                        payload.design_checks,
+                        bridge,
+                        chart_paths={
+                            "utilization": utilization_chart_path
+                        }
+                    )
+                )
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
