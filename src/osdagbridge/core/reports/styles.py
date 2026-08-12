@@ -14,6 +14,24 @@ TABLE_SETTINGS = {
     "row_height": "1.12",
     "extra_row_height": "0.6pt",
     "rule_width": "0.5pt",
+    "longtable_left": "0pt",
+    "longtable_right": "0pt",
+    "longtable_post_skip": "6pt",
+    "page_break_threshold": "5\\baselineskip",
+}
+
+FONT_SETTINGS = {
+    "document_size": "12pt",
+}
+
+CAPTION_SETTINGS = {
+    "labelfont": "bf",
+    "justification": "raggedright",
+    "singlelinecheck": "false",
+}
+
+HEADER_SETTINGS = {
+    "style_name": "main",
 }
 
 
@@ -35,6 +53,11 @@ def latex_style_preamble():
 \renewcommand{\arraystretch}{""" + TABLE_SETTINGS["row_height"] + r"""}
 \setlength{\arrayrulewidth}{""" + TABLE_SETTINGS["rule_width"] + r"""}
 \setlength{\extrarowheight}{""" + TABLE_SETTINGS["extra_row_height"] + r"""}
+\setlength{\LTleft}{""" + TABLE_SETTINGS["longtable_left"] + r"""}
+\setlength{\LTright}{""" + TABLE_SETTINGS["longtable_right"] + r"""}
+\setlength{\LTpost}{""" + TABLE_SETTINGS["longtable_post_skip"] + r"""}
 
 """
     )
+
+
