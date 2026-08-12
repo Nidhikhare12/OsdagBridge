@@ -166,14 +166,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage[hidelinks]{hyperref}
 \usepackage{setspace}
 \usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
@@ -194,8 +186,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 % Prevent tables from overflowing past the page bottom:
 % if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+\BeforeBeginEnvironment{table}{\needspace{""" + PAGE_BREAK_SETTINGS["threshold"] + r"""}}
+\BeforeBeginEnvironment{longtable}{\needspace{""" + PAGE_BREAK_SETTINGS["threshold"] + r"""}}
 
 \fancypagestyle{main}{
   \fancyhf{}

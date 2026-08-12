@@ -20,18 +20,15 @@ TABLE_SETTINGS = {
     "page_break_threshold": "5\\baselineskip",
 }
 
-FONT_SETTINGS = {
-    "document_size": "12pt",
-}
-
 CAPTION_SETTINGS = {
     "labelfont": "bf",
     "justification": "raggedright",
     "singlelinecheck": "false",
+    "format": "plain",
 }
 
-HEADER_SETTINGS = {
-    "style_name": "main",
+PAGE_BREAK_SETTINGS = {
+    "threshold": "5\\baselineskip",
 }
 
 
@@ -46,6 +43,14 @@ def latex_style_preamble():
 \usepackage{array}
 \usepackage{longtable}
 \usepackage{fancyhdr}
+\usepackage{caption}
+
+\captionsetup{
+    labelfont=bf,
+    justification=raggedright,
+    singlelinecheck=false,
+    format=plain
+}
 
 \definecolor{osdagGreen}{HTML}{""" + OSDAG_GREEN + r"""}
 
