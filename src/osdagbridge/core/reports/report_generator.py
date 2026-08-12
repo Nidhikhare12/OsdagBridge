@@ -119,6 +119,8 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import latex_style_preamble
+from osdagbridge.core.reports.report_validator import validate_latex_source
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -154,35 +156,20 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     rv = _tex(report_version)
     return r"""
 \documentclass[12pt,a4paper]{report}
+""" + latex_style_preamble() + r"""
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
 \usepackage{tabularx}
 \usepackage{float}
-\usepackage{fancyhdr}
 \usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
-\usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
 \usepackage{titlesec}
 \usepackage{titletoc}
 \usepackage{lastpage}
@@ -192,21 +179,10 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
-
 % Prevent tables from overflowing past the page bottom:
 % if fewer than 5 baseline-skips remain, break to the next page first.
 \BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
 \BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -447,6 +423,61 @@ class ReportPayload:
 class ReportResult:
     pdf_path: Optional[str]
     tex_path: Optional[str]
+    latex_log_path: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+@dataclass
+class _LatexCompilation:
+    """Outcome of compiling a report source file."""
+
+    succeeded: bool
+    diagnostics: str = ""
+
+
+def _compile_latex(compiler, working_dir, file_stem, passes=2):
+    """Compile a report, stopping at the first failed LaTeX pass.
+
+    A second pass is required for the table of contents and references, but it
+    must never conceal diagnostics from a failed first pass.  Keeping this
+    small wrapper separate also makes compiler behaviour testable without
+    assembling a full bridge report.
+    """
+    command = [compiler, "-interaction=nonstopmode", file_stem + ".tex"]
+
+    for pass_number in range(1, passes + 1):
+        kwargs = {
+            "cwd": working_dir,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "check": False,
+            "env": os.environ.copy(),
+        }
+        if os.name == "nt":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+
+        try:
+            result = subprocess.run(command, **kwargs)
+        except OSError as exc:
+            return _LatexCompilation(
+                succeeded=False,
+                diagnostics=(
+                    "Unable to start pdflatex on pass "
+                    f"{pass_number}: {exc}"
+                ),
+            )
+
+        stdout = result.stdout.decode("utf-8", "ignore")
+        stderr = result.stderr.decode("utf-8", "ignore")
+        if result.returncode != 0:
+            diagnostics = (
+                f"pdflatex failed on pass {pass_number} "
+                f"with exit code {result.returncode}.\n\n"
+                f"STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
+            )
+            return _LatexCompilation(succeeded=False, diagnostics=diagnostics)
+
+    return _LatexCompilation(succeeded=True)
 
 
 class ReportDataBridge:
@@ -953,43 +984,63 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            # Compile twice for TOC and references
-            for _ in range(2):
-                try:
-                    kwargs = {
-                        'cwd': tmp_dir,
-                        'stdout': subprocess.PIPE,
-                        'stderr': subprocess.PIPE,
-                        'check': False,
-                        'env': os.environ.copy()
-                    }
-                    if os.name == 'nt':
-                        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
-                    res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
-                        **kwargs
-                    )
-                except Exception as exc:
-                    logger.warning(f"pdflatex run failed: {exc}")
-
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)
-            if os.path.exists(tmp_pdf):
-                shutil.copy2(tmp_pdf, pdf_path)
+
+            validation = validate_latex_source(full_tex)
+            if not validation.passed:
+                latex_log_path = os.path.join(
+                    request.output_dir, request.file_stem + '_report_validation.log'
+                )
+                with open(latex_log_path, 'w', encoding='utf-8') as error_log:
+                    error_log.write('\n'.join(validation.errors) + '\n')
+                logger.error(
+                    'Report validation failed; diagnostics saved to: %s',
+                    latex_log_path,
+                )
+                return ReportResult(
+                    pdf_path=None,
+                    tex_path=tex_path,
+                    latex_log_path=latex_log_path,
+                    error_message='Report validation failed. See the diagnostic log for details.',
+                )
+
+            compilation = _compile_latex(compiler, tmp_dir, request.file_stem)
+            if not compilation.succeeded:
+                latex_log_path = os.path.join(
+                    request.output_dir, request.file_stem + '_latex_error.log'
+                )
+                with open(latex_log_path, 'w', encoding='utf-8') as error_log:
+                    error_log.write(compilation.diagnostics)
+
+                logger.error(
+                    'LaTeX compilation failed; diagnostics saved to: %s',
+                    latex_log_path,
+                )
+                return ReportResult(
+                    pdf_path=None,
+                    tex_path=tex_path,
+                    latex_log_path=latex_log_path,
+                    error_message='LaTeX compilation failed. See the diagnostic log for details.',
+                )
+
+            if not os.path.exists(tmp_pdf):
+                message = 'pdflatex completed successfully but produced no PDF.'
+                logger.error(message)
+                return ReportResult(pdf_path=None, tex_path=tex_path, error_message=message)
+
+            shutil.copy2(tmp_pdf, pdf_path)
 
         if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)
             return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
 
-        logger.error("pdflatex ran but no PDF was produced.")
-        if 'res' in locals():
-            logger.error("pdflatex STDOUT:\n%s", res.stdout.decode('utf-8', 'ignore'))
-            logger.error("pdflatex STDERR:\n%s", res.stderr.decode('utf-8', 'ignore'))
-        return ReportResult(pdf_path=None, tex_path=tex_path)
+        message = 'pdflatex completed but no PDF was produced.'
+        logger.error(message)
+        return ReportResult(pdf_path=None, tex_path=tex_path, error_message=message)
 
     except Exception as exc:
         logger.error("generate_report failed: %s", exc, exc_info=True)
         if tex_path and os.path.exists(tex_path):
-            return ReportResult(pdf_path=None, tex_path=tex_path)
-        return ReportResult(pdf_path=None, tex_path=None)
+            return ReportResult(pdf_path=None, tex_path=tex_path, error_message=str(exc))
+        return ReportResult(pdf_path=None, tex_path=None, error_message=str(exc))
