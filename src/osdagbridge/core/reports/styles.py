@@ -18,7 +18,7 @@ TABLE_SETTINGS = {
 
 
 def latex_style_preamble():
-    """Return the single source of truth for report layout and table styles."""
+    """Return the single source of truth for report-wide LaTeX setup."""
     return (
         r"""\usepackage[""" + PAGE_SETTINGS["paper"]
         + r""", margin=""" + PAGE_SETTINGS["margin"] + r"""]{geometry}
@@ -29,6 +29,23 @@ def latex_style_preamble():
 \usepackage{longtable}
 \usepackage{fancyhdr}
 \usepackage{caption}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage[hidelinks]{hyperref}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{colortbl}
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{lastpage}
+\usepackage{makecell}
+\usepackage{etoolbox}
+\usepackage{needspace}
 
 \definecolor{osdagGreen}{HTML}{""" + OSDAG_GREEN + r"""}
 

@@ -80,6 +80,12 @@ def test_preamble_has_no_duplicate_latex_packages():
     assert len(flattened) == len(set(flattened))
 
 
+def test_global_latex_dependencies_are_centralized_in_styles():
+    generator_source = Path(report_generator.__file__).read_text(encoding="utf-8")
+
+    assert r"\usepackage" not in generator_source
+
+
 def test_report_sources_define_the_required_sections():
     required_sections = {
         "chap1.py": r"\chapter{Project Information}",
@@ -155,6 +161,15 @@ def test_latex_compilation_runs_two_passes_after_a_successful_first_pass(
     assert result.succeeded
     assert len(calls) == 2
     assert calls[0][0] == ["pdflatex", "-interaction=nonstopmode", "report.tex"]
+
+
+def test_report_diagnostics_are_written_beside_the_tex_output(tmp_path):
+    path = report_generator._write_report_diagnostics(
+        tmp_path, "sample", "_latex_error.log", "LaTeX Error: broken table"
+    )
+
+    assert Path(path) == tmp_path / "sample_latex_error.log"
+    assert Path(path).read_text(encoding="utf-8") == "LaTeX Error: broken table"
 
 
 def test_generate_report_writes_tex_and_returns_pdf_after_successful_compilation(

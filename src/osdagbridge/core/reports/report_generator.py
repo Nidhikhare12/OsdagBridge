@@ -158,25 +158,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 """ + latex_style_preamble() + r"""
 
-% Packages
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{tabularx}
-\usepackage{float}
-\usepackage[hidelinks]{hyperref}
-\usepackage{setspace}
-\usepackage{enumitem}
-\usepackage{subcaption}
-\usepackage{multirow}
-\usepackage{colortbl}
-\usepackage{titlesec}
-\usepackage{titletoc}
-\usepackage{lastpage}
-\usepackage{makecell}
-\usepackage{etoolbox}
-\usepackage{needspace}
-
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Prevent tables from overflowing past the page bottom:
@@ -478,6 +459,14 @@ def _compile_latex(compiler, working_dir, file_stem, passes=2):
             return _LatexCompilation(succeeded=False, diagnostics=diagnostics)
 
     return _LatexCompilation(succeeded=True)
+
+
+def _write_report_diagnostics(output_dir, file_stem, suffix, diagnostics):
+    """Write diagnostics beside the generated TeX source and return its path."""
+    path = os.path.join(output_dir, file_stem + suffix)
+    with open(path, 'w', encoding='utf-8') as diagnostic_log:
+        diagnostic_log.write(diagnostics)
+    return path
 
 
 class ReportDataBridge:
@@ -989,11 +978,12 @@ def generate_report(payload, request):
 
             validation = validate_latex_source(full_tex)
             if not validation.passed:
-                latex_log_path = os.path.join(
-                    request.output_dir, request.file_stem + '_report_validation.log'
+                latex_log_path = _write_report_diagnostics(
+                    request.output_dir,
+                    request.file_stem,
+                    '_report_validation.log',
+                    '\n'.join(validation.errors) + '\n',
                 )
-                with open(latex_log_path, 'w', encoding='utf-8') as error_log:
-                    error_log.write('\n'.join(validation.errors) + '\n')
                 logger.error(
                     'Report validation failed; diagnostics saved to: %s',
                     latex_log_path,
@@ -1007,11 +997,12 @@ def generate_report(payload, request):
 
             compilation = _compile_latex(compiler, tmp_dir, request.file_stem)
             if not compilation.succeeded:
-                latex_log_path = os.path.join(
-                    request.output_dir, request.file_stem + '_latex_error.log'
+                latex_log_path = _write_report_diagnostics(
+                    request.output_dir,
+                    request.file_stem,
+                    '_latex_error.log',
+                    compilation.diagnostics,
                 )
-                with open(latex_log_path, 'w', encoding='utf-8') as error_log:
-                    error_log.write(compilation.diagnostics)
 
                 logger.error(
                     'LaTeX compilation failed; diagnostics saved to: %s',
