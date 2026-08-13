@@ -16,6 +16,7 @@ __all__ = [
     "ISectionDimsDTO",
     "ShearStudParamsDTO",
     "GirderSegmentDTO",
+    "SubstructureParametersDTO",
     "BridgeParametersDTO",
 ]
 
@@ -397,4 +398,126 @@ class BridgeParametersDTO:
     girder_segments_dict: dict[int, list[GirderSegmentDTO]] = field(default_factory=dict)
     stiffeners_dict: dict[int, dict] = field(default_factory=dict)
 
+    # Optional substructure parameters (None = omit substructure from 3-D model)
+    substructure: Optional["SubstructureParametersDTO"] = field(default=None)
+
+
+# ---------------------------------------------------------------------------
+# Substructure DTO
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SubstructureParametersDTO:
+    """
+    Geometric parameters for the bridge substructure: piers, pier caps,
+    pile caps, piles, and pier rebar.
+
+    All dimensions in **millimetres** unless stated otherwise.
+    Pass an instance of this class as ``BridgeParametersDTO.substructure``
+    to include the substructure in the 3-D CAD model.
+
+    Default values strictly match user specifications.
+    """
+
+    # --- Pier ---
+    num_supports: int = 2
+    """Number of support rows along the span (placed at ends by default)."""
+
+    pier_x_positions: Optional[list] = None
+    """Explicit X-coords of each support (mm). Auto-derived at ends [0.0, span_length_L] if None."""
+
+    pier_diameter: float = 800.0
+    """Outer diameter of each circular pier column (mm)."""
+
+    pier_wall_thickness: float = 0.0
+    """Wall thickness for hollow piers (mm).  0 = solid."""
+
+    pier_height: float = 3000.0
+    """Height of pier shaft from pile-cap top to pier-cap soffit (mm)."""
+
+    num_piers_per_support: int = 1
+    """Number of pier columns in the transverse direction per support."""
+
+    pier_spacing: float = 2000.0
+    """Centre-to-centre spacing of pier columns in Y (mm)."""
+
+    # --- Pier cap ---
+    pier_cap_top_width: float = 3000.0
+    """Transverse width of the wider top face of the trapezoidal pier cap (mm)."""
+
+    pier_cap_bottom_width: float = 1200.0
+    """Transverse width of the narrower bottom face of the trapezoidal pier cap (mm)."""
+
+    pier_cap_length: float = 3000.0
+    """Alias for pier_cap_top_width; kept for backward compatibility (mm)."""
+
+    pier_cap_depth: float = 600.0
+    """Longitudinal depth of the pier cap (mm)."""
+
+    pier_cap_height: float = 600.0
+    """Vertical height of the pier cap (mm)."""
+
+    # --- Pile cap ---
+    pile_cap_len_x: float = 2200.0
+    """Longitudinal length of the pile cap (mm)."""
+
+    pile_cap_len_y: float = 1200.0
+    """Transverse width of the pile cap (mm)."""
+
+    pile_cap_thickness: float = 600.0
+    """Vertical thickness of the pile cap (mm)."""
+
+    # --- Piles ---
+    pile_diameter: float = 400.0
+    """Outer diameter of each bored pile (mm)."""
+
+    pile_length: float = 5000.0
+    """Length of each pile from pile-cap base downward (mm)."""
+
+    pile_rows: int = 2
+    """Number of pile rows in X (longitudinal) per pile cap (2x2 grid = 4 piles total)."""
+
+    pile_cols: int = 2
+    """Number of pile columns in Y (transverse) per pile cap (2x2 grid = 4 piles total)."""
+
+    pile_spacing_x: float = 600.0
+    """C/C pile spacing in X (mm)."""
+
+    pile_spacing_y: float = 600.0
+    """C/C pile spacing in Y (mm)."""
+
+    # --- Pier rebar ---
+    include_pier_rebar: bool = True
+    """Whether to generate the pier reinforcement cage."""
+
+    rebar_cover: float = 40.0
+    """Clear cover to outer face of tie bar (mm)."""
+
+    main_bar_diameter: float = 16.0
+    """Diameter of each main vertical bar (mm)."""
+
+    num_main_bars: int = 12
+    """Number of main bars around the perimeter."""
+
+    tie_diameter: float = 8.0
+    """Diameter of each circular tie/stirrup bar (mm)."""
+
+    tie_spacing: float = 200.0
+    """Centre-to-centre spacing of tie rings (mm)."""
+
+    # --- Additional rebar ---
+    include_pile_cap_rebar: bool = True
+    """Whether to generate pile cap reinforcement grids."""
+
+    include_pier_cap_rebar: bool = True
+    """Whether to generate pier cap reinforcement grids."""
+
+    include_pile_rebar: bool = True
+    """Whether to generate pile rebar cages."""
+
+    rebar_spacing_long: float = 150.0
+    """Longitudinal bar spacing for slab-type rebar grids (mm)."""
+
+    rebar_spacing_trans: float = 200.0
+    """Transverse bar spacing for slab-type rebar grids (mm)."""
 

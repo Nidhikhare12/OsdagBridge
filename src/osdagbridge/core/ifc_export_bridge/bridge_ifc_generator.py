@@ -2,6 +2,7 @@
 Bridge IFC Generator
 Orchestrates the creation of the IFC4 file and aggregates mapped components.
 """
+import math
 import uuid
 import time
 import ifcopenshell
@@ -618,6 +619,171 @@ class BridgeIfcGenerator:
                      _process_barrier(item)
                  elif item._class_name == "RailingSweep":
                      _process_railing(item)
+
+        # Process Substructure
+        sub_dict = extracted_dict.get("substructure", {})
+        if sub_dict:
+            concrete_mat = self.mapper.define_material(getattr(cad_context, "concrete_grade", "M35 Concrete"))
+            steel_mat = self.mapper.define_material("Fe500 Rebar Steel")
+
+            created_piers = []
+            created_rebar = []
+
+            def _process_pier(item):
+                s = 0.001
+                r_m = (item.diameter / 2.0) * s
+                h_m = item.height * s
+                wall_t_m = getattr(item, 'wall_thickness', 0) * s
+                if wall_t_m > 0:
+                    prof = self.mapper.create_circle_hollow_profile(r_m, wall_t_m)
+                    area_m2 = math.pi * (r_m**2 - (r_m - wall_t_m)**2)
+                else:
+                    prof = self.mapper.create_circle_profile(r_m)
+                    area_m2 = math.pi * (r_m**2)
+                vol_m3 = area_m2 * h_m
+
+                scaled_origin = [v * s for v in item.origin]
+                place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                solid = self.mapper.create_extruded_solid(prof, h_m, local_identity)
+                shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
+                self.mapper.apply_color(shape, RCC_COLOR)
+                prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+                elem = self.file.createIfcColumn(create_ifc_guid(), self._owner_history, Name=item.ifc_name,
+                    ObjectPlacement=self.file.createIfcLocalPlacement(self.storey.ObjectPlacement, place),
+                    Representation=prod_def)
+                self.bind_element_to_storey(elem)
+                self.mapper.assign_material(elem, concrete_mat)
+                self.metadata.map_substructure(elem, cad_context, item)
+                self.metadata.assign_quantities(elem, "Qto_ColumnBaseQuantities", {"Height": h_m, "NetVolume": vol_m3})
+                created_piers.append(elem)
+                return elem
+
+            def _process_pier_cap(item):
+                s = 0.001
+                top_w_m = getattr(item, 'length', 3000.0) * s
+                depth_m = item.depth * s
+                height_m = item.height * s
+                vol_m3 = top_w_m * depth_m * height_m
+                prof = self.mapper.create_rectangular_profile(depth_m, top_w_m)
+                scaled_origin = [v * s for v in item.origin]
+                place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                solid = self.mapper.create_extruded_solid(prof, height_m, local_identity)
+                shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
+                self.mapper.apply_color(shape, RCC_COLOR)
+                prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+                elem = self.file.createIfcBeam(create_ifc_guid(), self._owner_history, Name=item.ifc_name,
+                    ObjectPlacement=self.file.createIfcLocalPlacement(self.storey.ObjectPlacement, place),
+                    Representation=prod_def)
+                self.bind_element_to_storey(elem)
+                self.mapper.assign_material(elem, concrete_mat)
+                self.metadata.map_substructure(elem, cad_context, item)
+                self.metadata.assign_quantities(elem, "Qto_BeamBaseQuantities", {"Length": top_w_m, "Depth": depth_m, "Height": height_m, "NetVolume": vol_m3})
+                return elem
+
+            def _process_pile_cap(item):
+                s = 0.001
+                len_x_m = item.len_x * s
+                len_y_m = item.len_y * s
+                thick_m = item.thickness * s
+                vol_m3 = len_x_m * len_y_m * thick_m
+                prof = self.mapper.create_rectangular_profile(len_x_m, len_y_m)
+                scaled_origin = [v * s for v in item.origin]
+                place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                solid = self.mapper.create_extruded_solid(prof, thick_m, local_identity)
+                shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
+                self.mapper.apply_color(shape, RCC_COLOR)
+                prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+                elem = self.file.createIfcFooting(create_ifc_guid(), self._owner_history, Name=item.ifc_name,
+                    ObjectPlacement=self.file.createIfcLocalPlacement(self.storey.ObjectPlacement, place),
+                    Representation=prod_def, PredefinedType="PAD_FOOTING")
+                self.bind_element_to_storey(elem)
+                self.mapper.assign_material(elem, concrete_mat)
+                self.metadata.map_substructure(elem, cad_context, item)
+                self.metadata.assign_quantities(elem, "Qto_FootingBaseQuantities", {"Length": len_x_m, "Width": len_y_m, "Thickness": thick_m, "NetVolume": vol_m3})
+                return elem
+
+            def _process_pile(item):
+                s = 0.001
+                r_m = (item.diameter / 2.0) * s
+                length_m = item.length * s
+                vol_m3 = math.pi * (r_m**2) * length_m
+                prof = self.mapper.create_circle_profile(r_m)
+                scaled_origin = [v * s for v in item.origin]
+                place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, -1), x_dir=(1, 0, 0))
+                local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                solid = self.mapper.create_extruded_solid(prof, length_m, local_identity)
+                shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
+                self.mapper.apply_color(shape, RCC_COLOR)
+                prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+                elem = self.file.createIfcPile(create_ifc_guid(), self._owner_history, Name=item.ifc_name,
+                    ObjectPlacement=self.file.createIfcLocalPlacement(self.storey.ObjectPlacement, place),
+                    Representation=prod_def, PredefinedType="BORED")
+                self.bind_element_to_storey(elem)
+                self.mapper.assign_material(elem, concrete_mat)
+                self.metadata.map_substructure(elem, cad_context, item)
+                self.metadata.assign_quantities(elem, "Qto_PileBaseQuantities", {"Length": length_m, "NetVolume": vol_m3})
+                return elem
+
+            def _process_rebar(item):
+                s = 0.001
+                r_m = (item.diameter / 2.0) * s
+                scaled_origin = [v * s for v in item.origin]
+                if item._class_name == "PierRebarMain" or hasattr(item, 'length'):
+                    bar_len_m = item.length * s
+                    prof = self.mapper.create_circle_profile(r_m)
+                    place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                    local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                    solid = self.mapper.create_extruded_solid(prof, bar_len_m, local_identity)
+                else:
+                    ring_r_m = item.ring_radius * s
+                    bar_len_m = 2.0 * math.pi * ring_r_m
+                    pts_2d = [(ring_r_m + r_m * math.cos(a), r_m * math.sin(a)) for a in [i * 2 * math.pi / 16 for i in range(16)]]
+                    prof_ring = self.mapper.create_polygonal_profile(pts_2d, f"RebarTieRingProfile_{item.ifc_name}")
+                    place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                    local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                    solid = self.mapper.create_extruded_solid(prof_ring, 2 * r_m, local_identity)
+
+                vol_m3 = math.pi * (r_m**2) * bar_len_m
+                weight_kg = vol_m3 * 7850.0  # density of steel ~7850 kg/m3
+
+                shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
+                self.mapper.apply_color(shape, STEEL_COLOR)
+                prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+                elem = self.file.createIfcReinforcingBar(create_ifc_guid(), self._owner_history, Name=item.ifc_name,
+                    ObjectPlacement=self.file.createIfcLocalPlacement(self.storey.ObjectPlacement, place),
+                    Representation=prod_def, NominalDiameter=item.diameter * s, BarLength=bar_len_m)
+                self.bind_element_to_storey(elem)
+                self.mapper.assign_material(elem, steel_mat)
+                self.metadata.map_substructure(elem, cad_context, item)
+                self.metadata.assign_quantities(elem, "Qto_ReinforcingBarBaseQuantities", {"Length": bar_len_m, "Weight": weight_kg})
+                created_rebar.append(elem)
+                return elem
+
+            for item in sub_dict.get("pier_shafts", []):
+                _process_pier(item)
+            for item in sub_dict.get("pier_caps", []):
+                _process_pier_cap(item)
+            for item in sub_dict.get("pile_caps", []):
+                _process_pile_cap(item)
+            for item in sub_dict.get("piles", []):
+                _process_pile(item)
+            for item in sub_dict.get("pier_rebar", []):
+                _process_rebar(item)
+
+            # Link rebar to concrete elements via IfcRelAggregates
+            if created_piers and created_rebar:
+                for pier_elem in created_piers:
+                    self.file.createIfcRelAggregates(
+                        create_ifc_guid(),
+                        self._owner_history,
+                        "PierRebarAggregation",
+                        "Reinforcing bars aggregated into pier column concrete element",
+                        pier_elem,
+                        created_rebar
+                    )
                  
         # Intentionally ignore "deck_textures"
         print("Model assembly complete. Saving...")

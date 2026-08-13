@@ -125,7 +125,8 @@ class PlateGirderIFCExtractor:
             "cross_bracings": self._extract_cross_bracings(n_girders, spacing),
             "deck_slab": self._extract_deck_slab(total_width),
             "crash_barriers": self._extract_safety_components(total_width, actual_base_width, actual_railing_width),
-            "supports": self._extract_supports(n_girders, spacing)
+            "supports": self._extract_supports(n_girders, spacing),
+            "substructure": self._extract_substructure()
         }
 
     def _solve_girder_layout(self, total_width):
@@ -492,3 +493,130 @@ class PlateGirderIFCExtractor:
                 uDir=[0,1,0], wDir=[0,0,1], ifc_name=f"Cylindrical Support {i+1}"))
                 
         return {"supports_tri": [s for s in supports if s._class_name == "StiffenerPlate"], "supports_cyl": [s for s in supports if s._class_name == "CircularSolid"]}
+
+    def _extract_substructure(self):
+        sp = getattr(self.cad, "substructure", None)
+        if sp is None:
+            return {}
+
+        girder_d = getattr(self.cad, "girder_section_d", 1500.0)
+        girder_tf = getattr(self.cad, "girder_section_tf", 25.0)
+        girder_tf_b = getattr(self.cad, "girder_section_tf_b", 25.0)
+        girder_total_depth = girder_d + girder_tf + girder_tf_b
+
+        pier_cap_top_z = -girder_total_depth
+        pier_base_z    = pier_cap_top_z - sp.pier_cap_height - sp.pier_height
+        pile_cap_top_z = pier_base_z
+        pile_top_z     = pile_cap_top_z - sp.pile_cap_thickness
+
+        span_L = getattr(self.cad, "span_length_L", 20000.0)
+        if sp.pier_x_positions:
+            x_positions = sp.pier_x_positions
+        else:
+            n = max(1, int(sp.num_supports))
+            step = span_L / (n + 1)
+            x_positions = [step * (i + 1) for i in range(n)]
+
+        num_piers = sp.num_piers_per_support
+        pier_spacing = sp.pier_spacing
+        total_spread = (num_piers - 1) * pier_spacing
+        y_offsets = [-total_spread / 2.0 + i * pier_spacing for i in range(num_piers)]
+
+        pier_shafts = []
+        pier_caps = []
+        pile_caps = []
+        piles = []
+        rebar = []
+
+        for idx, x_pos in enumerate(x_positions):
+            # Pier cap
+            pier_caps.append(ExtractedObject(
+                "PierCap",
+                length=sp.pier_cap_length,
+                depth=sp.pier_cap_depth,
+                height=sp.pier_cap_height,
+                origin=[x_pos, 0.0, pier_cap_top_z - sp.pier_cap_height],
+                ifc_name=f"Pier Cap {idx+1}"
+            ))
+
+            # Pile cap
+            pile_caps.append(ExtractedObject(
+                "PileCap",
+                len_x=sp.pile_cap_len_x,
+                len_y=sp.pile_cap_len_y,
+                thickness=sp.pile_cap_thickness,
+                origin=[x_pos, 0.0, pile_top_z],
+                ifc_name=f"Pile Cap {idx+1}"
+            ))
+
+            # Piers and rebar
+            for p_idx, y_off in enumerate(y_offsets):
+                pier_shafts.append(ExtractedObject(
+                    "PierShaft",
+                    diameter=sp.pier_diameter,
+                    height=sp.pier_height,
+                    wall_thickness=sp.pier_wall_thickness,
+                    origin=[x_pos, y_off, pier_base_z],
+                    ifc_name=f"Pier Shaft {idx+1}.{p_idx+1}"
+                ))
+
+                if sp.include_pier_rebar:
+                    bar_radius = sp.main_bar_diameter / 2.0
+                    tie_radius = sp.tie_diameter / 2.0
+                    main_ring_r = (sp.pier_diameter / 2.0) - sp.rebar_cover - sp.tie_diameter - bar_radius
+                    main_ring_r = max(main_ring_r, bar_radius)
+
+                    for k in range(sp.num_main_bars):
+                        angle = 2.0 * math.pi * k / sp.num_main_bars
+                        bx = x_pos + main_ring_r * math.cos(angle)
+                        by = y_off + main_ring_r * math.sin(angle)
+                        rebar.append(ExtractedObject(
+                            "PierRebarMain",
+                            diameter=sp.main_bar_diameter,
+                            length=sp.pier_height,
+                            origin=[bx, by, pier_base_z],
+                            ifc_name=f"Pier Rebar Main {idx+1}.{p_idx+1}.{k+1}"
+                        ))
+
+                    tie_ring_r = (sp.pier_diameter / 2.0) - sp.rebar_cover - tie_radius
+                    tie_ring_r = max(tie_ring_r, tie_radius)
+                    z_start_tie = pier_base_z + sp.rebar_cover + tie_radius
+                    z_end_tie   = pier_base_z + sp.pier_height - sp.rebar_cover - tie_radius
+                    z_tie = z_start_tie
+                    t_idx = 1
+                    while z_tie <= z_end_tie + 1e-3:
+                        rebar.append(ExtractedObject(
+                            "PierRebarTie",
+                            diameter=sp.tie_diameter,
+                            ring_radius=tie_ring_r,
+                            origin=[x_pos, y_off, z_tie],
+                            ifc_name=f"Pier Rebar Tie {idx+1}.{p_idx+1}.{t_idx}"
+                        ))
+                        z_tie += sp.tie_spacing
+                        t_idx += 1
+
+            # Piles under this pile cap
+            total_x_spread = (sp.pile_rows - 1) * sp.pile_spacing_x
+            total_y_spread = (sp.pile_cols - 1) * sp.pile_spacing_y
+            px_offsets = [-total_x_spread / 2.0 + r * sp.pile_spacing_x for r in range(sp.pile_rows)]
+            py_offsets = [-total_y_spread / 2.0 + c * sp.pile_spacing_y for c in range(sp.pile_cols)]
+
+            p_count = 1
+            for dx in px_offsets:
+                for dy in py_offsets:
+                    piles.append(ExtractedObject(
+                        "Pile",
+                        diameter=sp.pile_diameter,
+                        length=sp.pile_length,
+                        origin=[x_pos + dx, dy, pile_top_z],
+                        ifc_name=f"Pile {idx+1}.{p_count}"
+                    ))
+                    p_count += 1
+
+        return {
+            "pier_shafts": pier_shafts,
+            "pier_caps": pier_caps,
+            "pile_caps": pile_caps,
+            "piles": piles,
+            "pier_rebar": rebar
+        }

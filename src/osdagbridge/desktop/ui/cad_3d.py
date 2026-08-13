@@ -68,6 +68,7 @@ from osdagbridge.core.bridge_types.plate_girder.dto import (
     ISectionDimsDTO,
     ShearStudParamsDTO,
     GirderSegmentDTO,
+    SubstructureParametersDTO,
 )
 from osdagbridge.desktop.ui.utils.custom_cursors import pointing_hand_cursor
 
@@ -144,7 +145,7 @@ class CAD3DWindow(QWidget):
         self.viewer.context = self.display.Context
         self.viewer.view = self.display.View
 
-        self.display.set_bg_gradient_color([255, 255, 255], [126, 126, 126])
+        self.display.set_bg_gradient_color([240, 243, 246], [175, 182, 190])
         self.viewer.context.SetAutomaticHilight(False)
 
         if hasattr(self.viewer, "display_view_cube"):
@@ -191,6 +192,8 @@ class CAD3DWindow(QWidget):
             available.add("Railing")
         if getattr(design_params, "enable_median", False):
             available.add("Median")
+        if getattr(design_params, "substructure", None) is not None:
+            available.update({"Pier", "Pier Cap", "Pile Cap", "Pile", "Rebar"})
         self.component_selector.set_available_components(available)
 
         # Render on display
@@ -279,13 +282,13 @@ class CAD3DWindow(QWidget):
         FLANGE_COLOR = Quantity_Color(134/255.0, 134/255.0, 100/255.0, Quantity_TOC_RGB)
         STIFFENER_COLOR = Quantity_Color(72/255, 72/255, 54/255, Quantity_TOC_RGB)
         DECK_COLOR = Quantity_Color(100/255, 100/255, 100/255, Quantity_TOC_RGB)
-        BARRIER_COLOR = Quantity_Color(40/255, 40/255, 40/255, Quantity_TOC_RGB)  #Quantity_Color(120/255, 120/255, 120/255, Quantity_TOC_RGB)
+        BARRIER_COLOR = Quantity_Color(40/255, 40/255, 40/255, Quantity_TOC_RGB)
         BRACING_COLOR = Quantity_Color(60/255, 60/255, 60/255, Quantity_TOC_RGB)
         WBEAM_COLOR = Quantity_Color(128/255, 128/255, 128/255, Quantity_TOC_RGB)
         BARRIER_POST_COLOR = Quantity_Color(20/255, 20/255, 20/255, Quantity_TOC_RGB)
         SUPPORT_COLOR = Quantity_Color(20/255.0, 20/255.0, 20/255.0, Quantity_TOC_RGB)
-
-
+        SUBSTRUCTURE_CONCRETE_COLOR = Quantity_Color(145 / 255.0, 138 / 255.0, 125 / 255.0, Quantity_TOC_RGB)
+        REBAR_COLOR = Quantity_Color(0.25, 0.25, 0.25, Quantity_TOC_RGB)
 
         # HELPER 
         def display_and_register(shapes, key, label, color, transparency=None, line_width=None, selectable=True):
@@ -301,19 +304,20 @@ class CAD3DWindow(QWidget):
                 kwargs = {'color': color, 'update': False}
                 if transparency is not None:
                     kwargs['transparency'] = float(transparency)
-                ais = display.DisplayShape(shp, **kwargs)
+                res = display.DisplayShape(shp, **kwargs)
 
-                ais = ais[0] if isinstance(ais, list) else ais
+                items = res if isinstance(res, list) else [res]
 
-                if line_width is not None:
-                    ais.SetWidth(line_width)
-                    context.RecomputePrsOnly(ais, False)
+                for ais in items:
+                    if line_width is not None:
+                        ais.SetWidth(line_width)
+                        context.RecomputePrsOnly(ais, False)
 
-                if selectable:
-                    context.Activate(ais, 0)   # REQUIRED for hover
-                else:
-                    context.Deactivate(ais)
-                ais_list.append(ais)
+                    if selectable:
+                        context.Activate(ais, 0)   # REQUIRED for hover
+                    else:
+                        context.Deactivate(ais)
+                    ais_list.append(ais)
 
             self.viewer.model_ais_objects[key] = ais_list
             self.viewer.model_hover_labels[key] = label
@@ -465,6 +469,50 @@ class CAD3DWindow(QWidget):
             "Railing",
             f"Railing\nType: {params.railing_type.upper()}\nRails: {params.rail_count}\nWidth: {params.railing_width:.2f} mm",
             BARRIER_COLOR
+        )
+
+        # ── SUBSTRUCTURE (SEMI-TRANSPARENT CONCRETE + OPAQUE STEEL REBAR) ─────
+        SUBSTRUCTURE_CONCRETE_COLOR = Quantity_Color(100 / 255.0, 110 / 255.0, 120 / 255.0, Quantity_TOC_RGB)
+        REBAR_COLOR = Quantity_Color(30 / 255.0, 30 / 255.0, 35 / 255.0, Quantity_TOC_RGB)
+
+        display_and_register(
+            cad_data.get("pier_shafts", []),
+            "Pier Shaft",
+            "Pier Shaft",
+            SUBSTRUCTURE_CONCRETE_COLOR,
+            transparency=0.65  # opacity = 0.35
+        )
+
+        display_and_register(
+            cad_data.get("pier_caps", []),
+            "Pier Cap",
+            "Pier Cap",
+            SUBSTRUCTURE_CONCRETE_COLOR,
+            transparency=0.65  # opacity = 0.35
+        )
+
+        display_and_register(
+            cad_data.get("pile_caps", []),
+            "Pile Cap",
+            "Pile Cap",
+            SUBSTRUCTURE_CONCRETE_COLOR,
+            transparency=0.65  # opacity = 0.35
+        )
+
+        display_and_register(
+            cad_data.get("piles", []),
+            "Pile",
+            "Pile",
+            SUBSTRUCTURE_CONCRETE_COLOR,
+            transparency=0.65  # opacity = 0.35
+        )
+
+        display_and_register(
+            cad_data.get("pier_rebar", []),
+            "Pier Rebar",
+            "Pier Rebar",
+            REBAR_COLOR,
+            transparency=None  # Opaque dark steel rebar
         )
 
         # Nodes and grillage overlays
@@ -716,6 +764,11 @@ class CAD3DWindow(QWidget):
             "Crash Barrier": ["Crash Barrier", "Crash Barrier W-Beam"],
             "Median":        ["Median", "Median W-Beam"],
             "Railing":       ["Railing"],
+            "Pier":          ["Pier Shaft"],
+            "Pier Cap":      ["Pier Cap"],
+            "Pile Cap":      ["Pile Cap"],
+            "Pile":          ["Pile"],
+            "Rebar":         ["Pier Rebar"],
             "Grillage":      ["Grillage"],
             "Node":          ["Node"],
         }
@@ -1209,6 +1262,11 @@ class BridgeComponentCheckbox(QWidget):
         ("Crash Barrier", "Crash Barrier"),
         ("Median",        "Median"),
         ("Railing",       "Railing"),
+        ("Pier",          "Pier"),
+        ("Pier Cap",      "Pier Cap"),
+        ("Pile Cap",      "Pile Cap"),
+        ("Pile",          "Pile"),
+        ("Rebar",         "Rebar"),
         ("Grillage view", "Grillage"),
         ("Node",          "Node"),
         ("Node Numbers",  "NodeNumbers"),
@@ -1216,7 +1274,7 @@ class BridgeComponentCheckbox(QWidget):
     OVERLAY_KEYS = {"Grillage", "Node", "NodeNumbers"}
     # Base components that are only present in some designs. Their checkboxes
     # are hidden when the component is not part of the current design.
-    OPTIONAL_KEYS = {"Railing", "Median"}
+    OPTIONAL_KEYS = {"Railing", "Median", "Pier", "Pier Cap", "Pile Cap", "Pile", "Rebar"}
 
     def __init__(self, parent: CAD3DWindow):
         super().__init__(parent)
@@ -1432,6 +1490,8 @@ def main():
     app = QApplication(sys.argv)
 
     bridge_parameters = BridgeParametersDTO(
+        steel_grade="E250",
+        concrete_grade="M35",
         # --- Girder ---
         span_length_L=25_000,
         girder_section_d=900,
@@ -1541,6 +1601,7 @@ def main():
             )
         ],
         girder_segments_dict=None,
+        substructure=SubstructureParametersDTO(),
     )
 
     win = CAD3DWindow()

@@ -31,6 +31,17 @@ class BridgeGeometryMapper:
     def define_material(self, name="Steel"):
         mat = self.file.createIfcMaterial(name)
         return mat
+
+    def assign_material(self, element, material):
+        owner_history = getattr(self, '_owner_history', None)
+        return self.file.createIfcRelAssociatesMaterial(
+            create_ifc_guid(),
+            owner_history,
+            None,
+            None,
+            [element],
+            material
+        )
         
     def create_cartesian_point_2d(self, x, y):
         return self.file.createIfcCartesianPoint((float(x), float(y)))
@@ -92,6 +103,21 @@ class BridgeGeometryMapper:
             WebThickness=float(web_thickness),
             FlangeThickness=float(flange_thickness),
             FilletRadius=None, FlangeEdgeRadius=None, FlangeSlope=None
+        )
+
+    def create_circle_profile(self, radius):
+        return self.file.createIfcCircleProfileDef(
+            ProfileType="AREA", ProfileName=None,
+            Position=self.create_axis2placement_2d(),
+            Radius=float(radius)
+        )
+
+    def create_circle_hollow_profile(self, radius, wall_thickness):
+        return self.file.createIfcCircleHollowProfileDef(
+            ProfileType="AREA", ProfileName=None,
+            Position=self.create_axis2placement_2d(),
+            Radius=float(radius),
+            WallThickness=float(wall_thickness)
         )
 
     def create_double_angle_profile(self, leg_h, leg_w, thickness, connection_type):
