@@ -161,6 +161,20 @@ _LABEL_STYLE    = "font-size: 11px; font-weight: 400; color: #4b4b4b; border: no
 _SUBHEAD_STYLE  = "font-size: 11px; font-weight: 600; color: #4b4b4b; border: none;"
 _PROP_LBL_STYLE = "font-size: 10px; color: #555; border: none; background: transparent;"
 
+def _safe_float(val) -> float | None:
+    if val is None or val in ("", "—", "N/A", "NA"):
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
+def _safe_fmt(val, spec: str) -> str:
+    fval = _safe_float(val)
+    if fval is not None:
+        return f"{fval:{spec}}"
+    return str(val) if val not in (None, "", "—") else "—"
+
 _SECTION_TYPE_MAP = {
     "Double Angles":  "double_angle_long",
     "Angle":          "angle",
@@ -901,12 +915,23 @@ class TransverseMemberDesign(QDialog):
             return
 
         try:
-            from osdagbridge.core.bridge_types.plate_girder.crossbracingforces import CrossBracingForces
-            cb = CrossBracingForces(bridge=backend)
+            from osdagbridge.core.bridge_types.plate_girder.cross_bracing_design import CrossBracingDesign
+            cb = CrossBracingDesign(bridge=backend)
             self._cb_forces_df = cb.compute_panel_forces()
             forces_dict = cb.get_design_forces_dict()
             if not forces_dict or not forces_dict.get("pairs"):
                 return
+
+            try:
+                from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_design import EndDiaphragmDesign
+                edd = EndDiaphragmDesign(bridge=backend)
+                ed_beam_forces = edd.compute_ed_beam_forces()
+                if ed_beam_forces:
+                    for pair, b_data in ed_beam_forces.items():
+                        if pair in forces_dict.get("pairs", {}):
+                            forces_dict["pairs"][pair].update(b_data)
+            except Exception as e_ed:
+                print(f"[TransverseMemberDesign] Note: could not attach ED beam forces: {e_ed}")
 
             all_lcs = [
                 str(lc) for lc in backend.result_data.get("loadcases", [])
@@ -1134,25 +1159,46 @@ class TransverseMemberDesign(QDialog):
         if type_w:
             type_w.setText(ed_type)
 
-        if ed_type == "Welded Beam":
+        if ed_type == "Rolled Beam":
             if not pair_designs:
                 return
-            wb = pair_designs.get("welded_beam", {})
+            from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+            rb = pair_designs.get("flexure", {})
+            rb_summary = _extract_osdag_summary(rb)
+            rb_designation = rb_summary.get("section", "") or ""
+            # is_section: read from Osdag result (section_size.designation or Optimum.Designation)
+            is_sec_w = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_IS_SECTION)
+            if is_sec_w:
+                is_sec_w.setText(rb_designation)
+            self._fill_section_card("ED Rolled Beam", rb_designation, "Rolled Beam")
+
+        elif ed_type == "Welded Beam":
+            if not pair_designs:
+                return
+            from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+            # run_welded_member_design() stores result under "flexure", not "welded_beam"
+            wb = pair_designs.get("flexure", {})
+            wb_summary = _extract_osdag_summary(wb)
+            wb_designation = wb_summary.get("section", "") or ""
+            # Populate section inputs with Osdag PlateGirder result fields where available
+            # (geometry fields like total_depth, web_thickness etc. come from input_dict,
+            # not from the Osdag result; only the designation is in the result dict)
             for key, fid in (
-                ("is_section",        KEY_TD_ED_SECTION_INPUTS_IS_SECTION),
-                ("symmetry",          KEY_TD_ED_SECTION_INPUTS_SYMMETRY),
-                ("total_depth",       KEY_TD_ED_SECTION_INPUTS_TOTAL_DEPTH),
-                ("web_thickness",     KEY_TD_ED_SECTION_INPUTS_WEB_THICKNESS),
-                ("top_flange_width",  KEY_TD_ED_SECTION_INPUTS_TOP_FLANGE_WIDTH),
-                ("top_flange_thk",    KEY_TD_ED_SECTION_INPUTS_TOP_FLANGE_THICKNESS),
-                ("bot_flange_width",  KEY_TD_ED_SECTION_INPUTS_BOTTOM_FLANGE_WIDTH),
-                ("bot_flange_thk",    KEY_TD_ED_SECTION_INPUTS_BOTTOM_FLANGE_THICKNESS),
+                ("Total.Depth",           KEY_TD_ED_SECTION_INPUTS_TOTAL_DEPTH),
+                ("Web.Thickness",         KEY_TD_ED_SECTION_INPUTS_WEB_THICKNESS),
+                ("Topflange.Width",       KEY_TD_ED_SECTION_INPUTS_TOP_FLANGE_WIDTH),
+                ("TopFlange.Thickness",   KEY_TD_ED_SECTION_INPUTS_TOP_FLANGE_THICKNESS),
+                ("Bottomflange.Width",    KEY_TD_ED_SECTION_INPUTS_BOTTOM_FLANGE_WIDTH),
+                ("BottomFlange.Thickness",KEY_TD_ED_SECTION_INPUTS_BOTTOM_FLANGE_THICKNESS),
             ):
                 w = self._widgets.get(fid)
                 if w:
                     val = wb.get(key, "")
                     w.setText(str(val) if val != "" else "")
-            self._fill_section_card("ED Welded Beam", wb.get("designation", ""), "Welded Beam")
+            is_sec_w = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_IS_SECTION)
+            if is_sec_w:
+                is_sec_w.setText(wb_designation)
+            self._fill_section_card("ED Welded Beam", wb_designation, "Welded Beam")
 
         else:  # Cross Bracing
             pair_id = pair_key.replace("-", "")
@@ -1355,13 +1401,15 @@ class TransverseMemberDesign(QDialog):
                     slnd    = res.get("slenderness")
                     conn    = res.get("connection") or "—"
 
-                    cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                    eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                    slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
+                    cap_str  = _safe_fmt(cap_kn, ".2f")
+                    eff_str  = _safe_fmt(eff, ".3f")
+                    slnd_str = _safe_fmt(slnd, ".1f")
+                    force_str = _safe_fmt(force_kn, ".3f")
 
-                    if eff is None:
+                    eff_val = _safe_float(eff)
+                    if eff_val is None:
                         status_color, status = "#888888", "N/A"
-                    elif eff <= 1.0:
+                    elif eff_val <= 1.0:
                         status_color, status = "#3a7d00", "PASS"
                     else:
                         status_color, status = "#c0392b", "FAIL"
@@ -1369,7 +1417,7 @@ class TransverseMemberDesign(QDialog):
                     rows_html.append(
                         f"<tr>"
                         f"<td>{member_id}</td><td>{label} ({force_type})</td>"
-                        f"<td>{force_kn:.3f}</td><td>{section}</td><td>{conn}</td>"
+                        f"<td>{force_str}</td><td>{section}</td><td>{conn}</td>"
                         f"<td>{slnd_str}</td><td>{cap_str}</td><td>{eff_str}</td>"
                         f"<td style='color:{status_color};font-weight:bold;'>{status}</td>"
                         f"</tr>"
@@ -1426,35 +1474,37 @@ class TransverseMemberDesign(QDialog):
         for m_idx in range(n_members):
             member_id = f"E{pair_num}M{m_idx + 1}"   # → E1M1, E1M2 / E2M1, E2M2
 
-            if ed_type == "Welded Beam":
-                member_data = pair_designs.get("welded_beam", {})
+            if ed_type in ("Rolled Beam", "Welded Beam"):
+                member_type_name = "rolled_beam" if ed_type == "Rolled Beam" else "welded_beam"
+                member_data = pair_designs.get(member_type_name, {}) or pair_designs.get("flexure", {})
                 for force_type, force_key in (
-                    ("Tension",     "ed_tension_kN"),
-                    ("Compression", "ed_compression_kN"),
+                    ("Flexure/Shear", "max_Vy_kN"),
                 ):
                     force_kn = vals.get(force_key)
-                    if force_kn is None:
-                        continue
-                    res      = _extract_osdag_summary(member_data.get(force_type.lower()) or {})
+                    res      = _extract_osdag_summary(member_data.get("flexure") or member_data or {})
                     section  = res.get("section")   or "—"
                     cap_kn   = res.get("capacity_kN")
                     eff      = res.get("efficiency")
                     slnd     = res.get("slenderness")
-                    conn     = res.get("connection") or "—"
-                    cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                    eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                    slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
-                    if eff is None:
+                    conn     = "—"  # Connection type N/A for flexural beam members
+                    cap_str  = _safe_fmt(cap_kn, ".2f")
+                    eff_str  = _safe_fmt(eff, ".3f")
+                    slnd_str = _safe_fmt(slnd, ".1f")
+                    force_str = _safe_fmt(force_kn, ".3f")
+
+                    eff_val = _safe_float(eff)
+                    if eff_val is None:
                         status_color, status = "#888888", "N/A"
-                    elif eff <= 1.0:
+                    elif eff_val <= 1.0:
                         status_color, status = "#3a7d00", "PASS"
                     else:
                         status_color, status = "#c0392b", "FAIL"
+
                     rows_html.append(
                         f"<tr><td>{member_id}</td><td>Beam ({force_type})</td>"
-                        f"<td>{force_kn:.3f}</td><td>{section}</td><td>{conn}</td>"
+                        f"<td>{force_str}</td><td>{section}</td><td>{conn}</td>"
                         f"<td>{slnd_str}</td><td>{cap_str}</td><td>{eff_str}</td>"
-                        f"<td style='color:{status_color};font-weight:bold;'>{status}</td></tr>"
+                        f"<td style=\'color:{status_color};font-weight:bold;\'>{status}</td></tr>"
                     )
             else:  # Cross Bracing — same structure as CB but E prefix already handled
                 for label, member_type, t_key, c_key in (
@@ -1475,18 +1525,21 @@ class TransverseMemberDesign(QDialog):
                         eff      = res.get("efficiency")
                         slnd     = res.get("slenderness")
                         conn     = res.get("connection") or "—"
-                        cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                        eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                        slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
-                        if eff is None:
+                        cap_str  = _safe_fmt(cap_kn, ".2f")
+                        eff_str  = _safe_fmt(eff, ".3f")
+                        slnd_str = _safe_fmt(slnd, ".1f")
+                        force_str = _safe_fmt(force_kn, ".3f")
+
+                        eff_val = _safe_float(eff)
+                        if eff_val is None:
                             status_color, status = "#888888", "N/A"
-                        elif eff <= 1.0:
+                        elif eff_val <= 1.0:
                             status_color, status = "#3a7d00", "PASS"
                         else:
                             status_color, status = "#c0392b", "FAIL"
                         rows_html.append(
                             f"<tr><td>{member_id}</td><td>{label} ({force_type})</td>"
-                            f"<td>{force_kn:.3f}</td><td>{section}</td><td>{conn}</td>"
+                            f"<td>{force_str}</td><td>{section}</td><td>{conn}</td>"
                             f"<td>{slnd_str}</td><td>{cap_str}</td><td>{eff_str}</td>"
                             f"<td style='color:{status_color};font-weight:bold;'>{status}</td></tr>"
                         )
@@ -1521,20 +1574,21 @@ class TransverseMemberDesign(QDialog):
         )
     
     def _on_ed_type_changed(self, text: str) -> None:
-        is_welded = text == "Welded Beam"
+        is_beam = text in ("Rolled Beam", "Welded Beam")
+        is_welded_beam = text == "Welded Beam"
 
         # Show/hide left panel field rows
         for wgt in self._ed_group_widgets.get("crossbracing", []):
-            wgt.setVisible(not is_welded)
+            wgt.setVisible(not is_beam)
         for wgt in self._ed_group_widgets.get("welded_beam", []):
-            wgt.setVisible(is_welded)
+            wgt.setVisible(is_welded_beam)
 
         # Switch right panel cards
-        self._switch_ed_right_panel(is_welded)
+        self._switch_ed_right_panel(is_beam)
     
-    def _switch_ed_right_panel(self, is_welded: bool) -> None:
-        self._ed_cards_cb.setVisible(not is_welded)
-        self._ed_cards_wb.setVisible(is_welded)
+    def _switch_ed_right_panel(self, is_beam: bool) -> None:
+        self._ed_cards_cb.setVisible(not is_beam)
+        self._ed_cards_wb.setVisible(is_beam)
 
     def _on_tab_changed(self, index: int):
         tab_key = "cb" if index == 0 else "ed"
