@@ -1,6 +1,6 @@
 """Minimal compatibility constants for the copied IS 800 helper module.
 
-These values mirror the corresponding names from ``osdag_core.Common`` closely
+These values mirror the corresponding names from ``osdag.Common`` closely
 enough for the local fallback copy of ``is800_2007.py`` to import and run in a
 standalone OsdagBridge checkout.
 """

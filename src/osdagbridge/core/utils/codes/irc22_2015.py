@@ -5,10 +5,9 @@ Module for IRC 22:2014 bridge design clauses.
 
 """
 
-try:
-    from osdag_core.utils.common.is800_2007 import IS800_2007
-except ModuleNotFoundError:
-    from osdagbridge.core.utils.codes.is800_2007 import IS800_2007
+# Always use the bridge-owned helper.  Importing the installed version enters
+# Osdag's known Common.py/component.py/is800_2007.py cycle.
+from osdagbridge.core.utils.codes.is800_2007 import IS800_2007
 from osdagbridge.core.utils.codes.keyfile import *
 import math
 

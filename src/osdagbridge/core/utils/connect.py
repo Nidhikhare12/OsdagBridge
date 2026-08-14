@@ -28,12 +28,57 @@ if sys.platform.startswith("win"):
     sys.stdout.reconfigure(encoding="utf-8", errors="ignore")
     sys.stderr.reconfigure(encoding="utf-8", errors="ignore")
 
-from osdag_core.cli import _get_output_dictionary
+try:
+    from osdag.cli import _get_output_dictionary
+except Exception:
+    # Older/newer osdag installations may lack osdag.cli._get_output_dictionary.
+    # Provide a local compatibility shim under osdagbridge.compat as a minimal
+    # fallback so the desktop app can run without modifying the installed
+    # osdag package.
+    from osdagbridge.compat.osdag_cli import _get_output_dictionary
 
-from osdag_core.design_type.compression_member.compression_bolted import Compression_bolted
-from osdag_core.design_type.compression_member.compression_welded import Compression_welded
-from osdag_core.design_type.tension_member.tension_bolted import Tension_bolted
-from osdag_core.design_type.tension_member.tension_welded import Tension_welded
+# Import osdag design classes with robust fallbacks.
+# Some osdag distributions group compression implementations under
+# design_type.compression_member.compression with a Compression class
+# instead of separate compression_bolted/compression_welded modules.
+# Prefer the explicit module names, and fall back to aliases if missing.
+try:
+    from osdag.design_type.compression_member.compression_bolted import Compression_bolted
+    from osdag.design_type.compression_member.compression_welded import Compression_welded
+except Exception:
+    try:
+        # Fall back to the generic Compression class if available and alias it.
+        from osdag.design_type.compression_member.compression import Compression as _Compression
+        Compression_bolted = _Compression
+        Compression_welded = _Compression
+    except Exception:
+        # Provide clear placeholders that raise on instantiation so upstream
+        # code receives an informative ImportError when attempting to use them.
+        class Compression_bolted:
+            def __init__(self, *a, **kw):
+                raise ImportError("osdag compression implementation not available in the environment")
+
+        class Compression_welded(Compression_bolted):
+            pass
+
+try:
+    from osdag.design_type.tension_member.tension_bolted import Tension_bolted
+    from osdag.design_type.tension_member.tension_welded import Tension_welded
+except Exception:
+    # Tension modules are usually present; if not, provide placeholders to
+    # produce informative errors later rather than failing the import step.
+    try:
+        from osdag.design_type.tension_member.tension_bolted import Tension_bolted
+    except Exception:
+        class Tension_bolted:
+            def __init__(self, *a, **kw):
+                raise ImportError("osdag tension_bolted implementation not available in the environment")
+    try:
+        from osdag.design_type.tension_member.tension_welded import Tension_welded
+    except Exception:
+        class Tension_welded:
+            def __init__(self, *a, **kw):
+                raise ImportError("osdag tension_welded implementation not available in the environment")
 
 MODULE_CLASS_MAP = {
     "Tension Member Design - Bolted to End Gusset": Tension_bolted,
@@ -88,7 +133,7 @@ _forkserver_preloaded = False
 
 
 def design_pool(max_workers: int) -> ProcessPoolExecutor:
-    """Executor for osdag_core design checks with a thread-safe start method.
+    """Executor for osdag design checks with a thread-safe start method.
 
     The default fork start method is unsafe here: the design pipeline runs on a
     QThread while the GUI thread spins the Qt event loop, and a fork taken at that
@@ -97,7 +142,7 @@ def design_pool(max_workers: int) -> ProcessPoolExecutor:
 
     forkserver avoids that (the server is launched via fork+exec, so workers fork
     from its clean single-threaded state) while staying fast: this module is
-    preloaded into the server once, so every worker starts with osdag_core already
+    preloaded into the server once, so every worker starts with osdag already
     imported and shares those pages copy-on-write. Windows has no forkserver and
     falls back to spawn — its default start method anyway.
     """
