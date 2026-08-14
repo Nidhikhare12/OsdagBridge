@@ -5,12 +5,12 @@ Started on 01 - Nov - 2018
 @author: ajmalbabums
 """
 import math
-try:
-    from osdag_core.Common import *
-except ModuleNotFoundError:
-    from osdagbridge.core.utils.codes.is800_common_compat import *
+# The current conda ``osdag`` distribution imports this helper from
+# ``osdag.Common`` while ``osdag.Common`` imports component.py, which imports
+# the helper again.  Do not touch that circular dependency: this copied module
+# needs only the small set of constants below.
+from osdagbridge.core.utils.codes.is800_common_compat import *
 import pandas as pd
-# from osdag_core.Common import KEY_DP_FAB_SHOP
 
 
 class IS800_2007(object):

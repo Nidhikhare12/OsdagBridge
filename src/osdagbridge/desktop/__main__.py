@@ -72,6 +72,30 @@ def _ensure_std_streams():
 
 _ensure_std_streams()
 
+
+def _configure_qt_platform_plugins():
+    """Let a conda-launched macOS build find PySide6's Cocoa platform plugin.
+
+    PySide6 is present in the active environment, but its Qt plugin directory
+    is not always discovered when the app is launched via ``python -m``.
+    Preserve an explicit user setting and otherwise use the bundled plugin
+    directory before importing/creating Qt application objects.
+    """
+    if os.environ.get("QT_QPA_PLATFORM_PLUGIN_PATH"):
+        return
+    try:
+        from pathlib import Path
+        import PySide6
+
+        platform_plugins = Path(PySide6.__file__).resolve().parent / "Qt" / "plugins" / "platforms"
+        if platform_plugins.is_dir():
+            os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = str(platform_plugins)
+    except Exception:
+        pass
+
+
+_configure_qt_platform_plugins()
+
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QFile, QTextStream
@@ -197,13 +221,13 @@ def create_sqlite():
 create_sqlite()
 
 
-def ensure_osdag_core_db():
-    """Build the osdag_core sqlite database if it is missing or empty.
+def ensure_osdag_db():
+    """Build the osdag sqlite database if it is missing or empty.
 
     The installed `osdag` package ships a 0-byte placeholder
     `Intg_osdag.sqlite` alongside the `Intg_osdag.sql` that defines its
     tables (Beams, Angles, Columns, ...), but nothing populates it. When the
-    desktop app queries it via osdag_core.Common, every lookup fails with
+    desktop app queries it via osdag.Common, every lookup fails with
     "no such table: Beams/Angles". Build the database from the bundled SQL on
     startup so those section tables are always available.
     """
@@ -211,12 +235,12 @@ def ensure_osdag_core_db():
     from importlib.resources import files
 
     try:
-        db_dir = files('osdag_core.data.ResourceFiles.Database')
+        db_dir = files('osdag.data.ResourceFiles.Database')
         sqlpath = db_dir.joinpath('Intg_osdag.sql')
         sqlitepath = db_dir.joinpath('Intg_osdag.sqlite')
 
         if not sqlpath.exists():
-            print(f"[ERROR] osdag_core SQL file not found: {sqlpath}")
+            print(f"[ERROR] osdag SQL file not found: {sqlpath}")
             return
 
         # Decide whether the database needs (re)building: missing, empty, or
@@ -243,13 +267,13 @@ def ensure_osdag_core_db():
         conn.executescript(sql_content)
         conn.commit()
         conn.close()
-        print("[INFO] osdag_core Intg_osdag sqlite database built from SQL")
+        print("[INFO] osdag Intg_osdag sqlite database built from SQL")
 
     except Exception as e:
-        print(f"[ERROR] osdag_core database setup failed: {e}")
+        print(f"[ERROR] osdag database setup failed: {e}")
 
 
-ensure_osdag_core_db()
+ensure_osdag_db()
 
 # Import template_page
 from osdagbridge.desktop.ui.template_page import CustomWindow
