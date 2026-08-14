@@ -1,27 +1,34 @@
-# OsdagBridge Software Testing - Task 6
+# OsdagBridge Software Testing & Issue Reporting
 
 ## Testing Performed
 
-- Application launch testing
+The OsdagBridge short-span steel girder bridge module was tested through the complete workflow.
+
+Covered areas:
+
+- Application launch verification
 - Input parameter verification
-- 3D bridge model generation
-- Structural design execution
-- Output report generation
+- Bridge design execution
+- 3D CAD model generation
+- Output result verification
+- Design report generation
 
-## Test Input
+## Evidence Included
 
-Highway_Bridge_30m_Chennai.osi
+Screenshots:
+- Application launch
+- Input parameters
+- 3D model generation
+- Design results
+- Output dashboard
 
-## Generated Outputs
+Inputs:
+- Highway_Bridge_30m_Chennai.osi
 
-- PDF Design Report
-- LaTeX Source Report
-- Excel Design Results
+Results:
+- Generated PDF report
+- Generated LaTeX report source
+- Generated Excel results
 
-## Evidence
-
-Screenshots are provided in the Screenshots folder.
-
-## Result
-
-OsdagBridge successfully completed the bridge design workflow and generated structural design outputs.
+Video:
+Software testing demonstration uploaded separately.
