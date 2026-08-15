@@ -6,6 +6,7 @@ from osdagbridge.core.utils.common import (
     KEY_SD_DEFL_TOTAL,
 )
 from osdagbridge.core.reports.report_utils import _tex, _fig_embed
+from osdagbridge.core.reports.styles import make_longtable_header
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -86,16 +87,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.25}
 
-\begin{longtable}{|
->{\centering\arraybackslash}p{3.1cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.6cm}|
->{\centering\arraybackslash}p{1.6cm}|}
+""" + make_longtable_header("Reactions at Supports", ['Load Case', 'Left Support (kN)', 'Right Support (kN)'], "|C{3.1cm}|C{1.7cm}|C{1.2cm}|C{1.3cm}|C{1.7cm}|C{1.2cm}|C{1.3cm}|C{1.6cm}|C{1.6cm}|") + r"""
 
 \caption{\textbf{Summary of Maximum Demands}}\\
 \hline
@@ -141,36 +133,18 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \endgroup
 
 \vspace{1em}
-\begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
-\hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
-\end{longtable}
-
-\vspace{1em}
-\begin{longtable}{|L{7cm}|p{8.5cm}|}
-\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
+""" + make_longtable_header("Deflection Summary (Live Load & Total Load)", ["Parameter", "Value"], "|L{7.0cm}|p{8.5cm}|") + r"""
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]
 \hline
 \textnormal{Live Load Deflection Check Status} & """ + _live_status + r""" \\[6pt]
 \hline
-\textnormal{Deflection due to Total Load, $\delta_{total}$} & """ + _total_str + r""" \\[6pt]
+\textnormal{Total Deflection (Permanent + Live Load)} & """ + _total_str + r""" \\[6pt]
 \hline
-\textnormal{Allowable Total Deflection ($\Delta_{allow}$)} & """ + _allow_total_str + r""" \\[6pt]
+\textnormal{Allowable Total Deflection ($\Delta_{total,allow}$)} & """ + _allow_total_str + r""" \\[6pt]
 \hline
-\textnormal{Total Load Deflection Check Status} & """ + _total_status + r""" \\[6pt]
+\textnormal{Total Deflection Check Status} & """ + _total_status + r""" \\[6pt]
 \hline
 \end{longtable}
 

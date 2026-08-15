@@ -1,16 +1,27 @@
+# =============================================================================
+# Chapter 7: Material Take-off & Quantity Summary
+# Refactored for OsdagBridge LaTeX Report Enhancements:
+#   - LongTable repeated headers across page breaks (\endfirsthead / \endhead)
+#   - Dynamic embedding of Material Quantity Bar Charts
+# =============================================================================
+
+from osdagbridge.core.reports.styles import make_longtable_header
+
 def ch7_quantities(input_dict):
+    hdr_t7_1 = make_longtable_header(
+        "Bill of Materials (Steel, Concrete, and Reinforcement Quantities)",
+        ["S.N.", "Item Description", "Volume", "Quantity", "Total Volume", "Weight (MT)", "Total Weight (MT)"],
+        "|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|"
+    )
+
     return r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
 
-\noindent\textbf{Table 7.1  Bill of Materials (Steel, Concrete, and Reinforcement Quantities)}
+This chapter provides the comprehensive Bill of Materials (BOM) for structural steel elements, concrete volumes, and reinforcement steel weights for the bridge superstructure.
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{longtable}{|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
-\hline
-\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
-\hline
+\vspace{1em}
+""" + hdr_t7_1 + r"""
 1 & Structural Steel (IS 2062) for Girders & """ + str(input_dict.get("steel_girders_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_qty", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_total", "N.A.")) + r""" \\
 \hline
 2(a) & Cross Bracing - Top Chord & """ + str(input_dict.get("bracing_top_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_qty", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_wt_total", "N.A.")) + r""" \\
@@ -28,6 +39,22 @@ def ch7_quantities(input_dict):
 6 & Crash Barrier & """ + str(input_dict.get("crash_barrier_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_qty", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_total", "N.A.")) + r""" \\
 \hline
 \end{longtable}
+
+\section{Material Quantity Visualizations}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.48\textwidth}
+\centering
+\includegraphics[width=\textwidth]{assets/steel_quantities_chart.png}
+\caption*{\small Structural Steel Tonnage Breakdown}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\textwidth}
+\centering
+\includegraphics[width=\textwidth]{assets/concrete_rebar_chart.png}
+\caption*{\small Concrete Volume vs. Reinforcement Steel Weight}
+\end{subfigure}
+\caption*{\small Figure 7.1 -- Material Quantity Breakdown Charts}
+\end{figure}
 """
-
-
