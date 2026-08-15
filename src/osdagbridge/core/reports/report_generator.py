@@ -118,19 +118,23 @@ from osdagbridge.core.utils.common import (
     KEY_TL_TEMP_RISE
 )
 
+from osdagbridge.core.reports.styles import get_latex_style_preamble, cleanup_assets, DOCUMENT_GEOMETRY
+from osdagbridge.core.reports.report_plots import generate_ur_summary_chart, generate_material_quantity_charts
 from osdagbridge.core.reports.report_utils import _tex
-from .executive_summary import executive_summary
-from .chap1 import ch1_project_info
-from .chap2 import ch2_input_parameters
-from .chap3 import ch3_loads
-from .chap4 import ch4_analysis
-from .chap5 import ch5_design_checks
-from .chap6 import ch6_drawings
-from .chap7 import ch7_quantities
-from .chap8 import ch8_design_log
-from .chap9 import references
+
+from osdagbridge.core.reports.executive_summary import executive_summary
+from osdagbridge.core.reports.chap1 import ch1_project_info
+from osdagbridge.core.reports.chap2 import ch2_input_parameters
+from osdagbridge.core.reports.chap3 import ch3_loads
+from osdagbridge.core.reports.chap4 import ch4_analysis
+from osdagbridge.core.reports.chap5 import ch5_design_checks
+from osdagbridge.core.reports.chap6 import ch6_drawings
+from osdagbridge.core.reports.chap7 import ch7_quantities
+from osdagbridge.core.reports.chap8 import ch8_design_log
+from osdagbridge.core.reports.chap9 import references
 
 logger = logging.getLogger(__name__)
+
 
 # --- TEMPLATES START ---
 
@@ -156,7 +160,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[a4paper, top=""" + DOCUMENT_GEOMETRY['top'] + r""", bottom=""" + DOCUMENT_GEOMETRY['bottom'] + r""", left=""" + DOCUMENT_GEOMETRY['left'] + r""", right=""" + DOCUMENT_GEOMETRY['right'] + r""", headheight=""" + DOCUMENT_GEOMETRY['headheight'] + r""", headsep=""" + DOCUMENT_GEOMETRY['headsep'] + r""", footskip=""" + DOCUMENT_GEOMETRY['footskip'] + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -164,9 +168,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{array}
 \usepackage{tabularx}
 \usepackage{float}
-\usepackage{fancyhdr}
 \usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
 \usepackage{caption}
@@ -179,23 +181,15 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 }
 \usepackage{subcaption}
 \usepackage{multirow}
-\usepackage{colortbl}
 \usepackage{longtable}
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
-\usepackage{titlesec}
 \usepackage{titletoc}
 \usepackage{lastpage}
 \usepackage{makecell}
 \usepackage{etoolbox}
-\usepackage{needspace}
 
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
+""" + get_latex_style_preamble() + r"""
 \setlength{\LTpost}{6pt}
 % Table rules (outline thickness) and small extra row height for clarity
 \setlength{\arrayrulewidth}{0.5pt}
@@ -207,6 +201,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
 
 \definecolor{osdagGreen}{HTML}{91B014}
+
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -899,6 +894,13 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
+            # ── Generate dynamic UR & Material Quantity charts ──
+            cleanup_assets(tmp_dir)
+            ur_chart_path = os.path.join(tmp_assets, 'ur_summary_chart.png')
+            generate_ur_summary_chart(payload.output_dict, ur_chart_path)
+            generate_material_quantity_charts(payload.inputs, tmp_assets)
+
+
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
@@ -910,22 +912,25 @@ def generate_report(payload, request):
             if payload.options.include_toc:
                 doc_parts.append(toc_section())
 
-            # Chapter inclusion is driven by the canonical section keys
-            # selected in the report-options dialog (TOC). The first three
-            # chapters are locked in the UI, so they are always present.
-            secs = payload.options.sections
+            secs = [str(s).strip().lower() for s in (payload.options.sections or [])]
+            # Include sections if list is empty/all, or matching key / chapter title
+            inc_all = (not secs) or ('all' in secs)
+            inc_loads = inc_all or any(k in secs for k in ('loads', 'chapter 3', 'chapter 3  loads & load combinations', 'chapter 3 loads & load combinations'))
+            inc_analysis = inc_all or any(k in secs for k in ('analysis', 'chapter 4', 'chapter 4  analysis results', 'chapter 4 analysis results'))
+            inc_checks = inc_all or any(k in secs for k in ('design_checks', 'design checks', 'chapter 5', 'chapter 5  design checks', 'chapter 5 design checks'))
+            inc_drawings = inc_all or any(k in secs for k in ('drawings', 'chapter 6', 'chapter 6  drawings & visualizations', 'chapter 6 drawings & visualizations'))
 
             doc_parts.append(executive_summary(payload.inputs, payload.output_dict, fig_paths))
             doc_parts.append(ch1_project_info(payload.metadata))
             doc_parts.append(ch2_input_parameters(payload.metadata, payload.inputs, payload.output_dict))
 
-            if 'loads' in secs:
+            if inc_loads:
                 doc_parts.append(ch3_loads(payload.inputs))
-            if 'analysis' in secs:
+            if inc_analysis:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
-            if 'design_checks' in secs:
+            if inc_checks:
                 doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
-            if 'drawings' in secs and payload.options.include_figures:
+            if inc_drawings and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
             doc_parts.append(ch7_quantities(payload.inputs))
