@@ -126,6 +126,7 @@ from __future__ import annotations
 import copy
 import json
 import math
+import re
 import time
 import warnings
 from pathlib import Path
@@ -143,6 +144,7 @@ from osdagbridge.core.utils.common import (
     KEY_MP_CB_BRACING_SECTION_TYPE,
     KEY_MP_CB_TOP_CHORD,
     KEY_MP_CB_BOTTOM_CHORD,
+    KEY_MP_CB_BRACING_CONNECTION,
 )
 
 # ---------------------------------------------------------------------------
@@ -596,7 +598,9 @@ class CrossBracingForces:
 
         from osdagbridge.core.utils.connect import (
             design_dict_struts_bolted,
+            design_dict_struts_welded,
             design_dict_tension_bolted,
+            design_dict_tension_welded,
         )
 
         if not forces_dict or not forces_dict.get("pairs"):
@@ -611,18 +615,32 @@ class CrossBracingForces:
         jobs: list[tuple[str, str, str, dict]] = []
 
         for pair, vals in forces_dict["pairs"].items():
+            # Resolve connection type per pair (Bolted/Welded) from bridge input_dict
+            pair_id = pair.replace("-", "")
+            _pm = re.match(r"G(\d+)G\d+", pair_id)
+            mi_suffix = f".{pair_id}.B{_pm.group(1)}M1" if _pm else ""
+            conn_type = str(
+                self.bridge.input_dict.get(f"{KEY_MP_CB_BRACING_CONNECTION}.{pair_id}")
+                or self.bridge.input_dict.get(f"{KEY_MP_CB_BRACING_CONNECTION}{mi_suffix}")
+                or self.bridge.input_dict.get(KEY_MP_CB_BRACING_CONNECTION)
+                or "Bolted"
+            ).strip()
+            is_welded = (conn_type.lower() == "welded")
+            t_base_dict = design_dict_tension_welded if is_welded else design_dict_tension_bolted
+            c_base_dict = design_dict_struts_welded if is_welded else design_dict_struts_bolted
+
             for member, L_mm, t_key, c_key in (
                 ("diagonal", L_diag_mm, "diag_tension_kN",  "diag_compression_kN"),
                 ("chord",    L_chord_mm, "chord_tension_kN", "chord_compression_kN"),
             ):
                 if vals.get(t_key) is not None:
-                    d = copy.deepcopy(design_dict_tension_bolted)
+                    d = copy.deepcopy(t_base_dict)
                     d["Load.Axial"]    = str(float(vals[t_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "tension", d))
 
                 if vals.get(c_key) is not None:
-                    d = copy.deepcopy(design_dict_struts_bolted)
+                    d = copy.deepcopy(c_base_dict)
                     d["Load.Axial"]    = str(float(vals[c_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "compression", d))

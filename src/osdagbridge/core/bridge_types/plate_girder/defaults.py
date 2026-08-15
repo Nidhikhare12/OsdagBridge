@@ -57,6 +57,7 @@ from osdagbridge.core.utils.common import (
     KEY_MP_CB_MEMBER_ID,
     KEY_MP_CB_NO_OF_CROSS_BRACINGS,
     KEY_MP_CB_TYPE,
+    KEY_MP_CB_BRACING_CONNECTION,
     KEY_MP_CB_BRACING_SECTION_TYPE,
     KEY_MP_CB_BRACING_SECTION_DESIGNATION,
     KEY_MP_CB_TOP_CHORD,
@@ -388,6 +389,7 @@ def _update_design_options_cont_defaults(input_dict: dict) -> None:
 # and no_of_cross_bracings/spacing (global / computed values).
 _CB_PROPS = [
     (KEY_MP_CB_TYPE,                        "type"),
+    (KEY_MP_CB_BRACING_CONNECTION,          "bracing_connection"),
     (KEY_MP_CB_BRACING_SECTION_TYPE,        "bracing_section_type"),
     (KEY_MP_CB_BRACING_SECTION_DESIGNATION, "bracing_section_designation"),
     (KEY_MP_CB_TOP_CHORD,                   "top_chord"),

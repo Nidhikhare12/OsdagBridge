@@ -3228,8 +3228,10 @@ TRANSVERSE_MEMBER_DESIGN_SCHEMA = {
                     {"id": KEY_TD_ED_SECTION_INPUTS_BOTTOM_CHORD_SECTION_TYPE,   "label": "Bottom Chord Section Type:",     "type": "line", "read_only": True, "group": "crossbracing"},
                     {"id": KEY_TD_ED_SECTION_INPUTS_BOTTOM_CHORD_SECTION_DESIGNATION, "label": "Bottom Chord Section Designation:", "type": "line", "read_only": True, "group": "crossbracing"},
 
+                    # ── Rolled Beam group ─────────────────────────────────────────────────
+                    {"id": KEY_TD_ED_SECTION_INPUTS_IS_SECTION,              "label": "IS Section Designation:", "type": "line", "read_only": True, "group": "rolled_beam"},
+
                     # ── Welded Beam group ─────────────────────────────────────────────────
-                    {"id": KEY_TD_ED_SECTION_INPUTS_IS_SECTION,              "label": "IS Section Designation:", "type": "line", "read_only": True, "group": "welded_beam"},
                     {"id": KEY_TD_ED_SECTION_INPUTS_SYMMETRY,                "label": "Symmetry:",               "type": "line", "read_only": True, "group": "welded_beam"},
                     {"id": KEY_TD_ED_SECTION_INPUTS_TOTAL_DEPTH,             "label": "Total Depth (mm):",       "type": "line", "read_only": True, "group": "welded_beam"},
                     {"id": KEY_TD_ED_SECTION_INPUTS_WEB_THICKNESS,           "label": "Web Thickness (mm):",     "type": "line", "read_only": True, "group": "welded_beam"},

@@ -62,9 +62,28 @@ from osdagbridge.core.utils.common import (
     KEY_TD_ED_SECTION_PROPS_BOTTOM_CHORD,
     KEY_TD_ED_DESIGN_CHECK_RESULTS,
     KEY_TD_ED_BRACING_DIAGRAM,
+    KEY_MP_CB_BRACING_CONNECTION,
+    KEY_MP_CB_TYPE,
+    KEY_MP_CB_BRACING_SECTION_TYPE,
+    KEY_MP_CB_BRACING_SECTION_DESIGNATION,
+    KEY_MP_CB_TOP_CHORD_SECTION_TYPE,
+    KEY_MP_CB_TOP_CHORD_SECTION_DESIG,
+    KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE,
+    KEY_MP_ED_BRACING_CONNECTION,
     KEY_MP_ED_BRACING_SECTION,
     KEY_MP_ED_TOP_CHORD_SECTION_TYPE,
     KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE,
+    KEY_MP_ED_IS_SECTION,
+    KEY_MP_ED_TYPE,
+    KEY_MP_ED_SYMMETRY,
+    KEY_MP_ED_TOTAL_DEPTH,
+    KEY_MP_ED_WEB_THICKNESS,
+    KEY_MP_ED_TOP_FLANGE_WIDTH,
+    KEY_MP_ED_TOP_FLANGE_THICKNESS,
+    KEY_MP_ED_BOTTOM_FLANGE_WIDTH,
+    KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
+    KEY_TD_ED_PROP_L,
+    KEY_TS_GIRDER_SPACING,
 )
 
 # ── Style constants ───────────────────────────────────────────────────────────
@@ -163,9 +182,12 @@ _PROP_LBL_STYLE = "font-size: 10px; color: #555; border: none; background: trans
 
 _SECTION_TYPE_MAP = {
     "Double Angles":  "double_angle_long",
+    "Double Angle (Long Leg)": "double_angle_long",
+    "Double Angle (Short Leg)": "double_angle_short",
     "Angle":          "angle",
     "Channel":        "channel",
     "Double Channel": "double_channel",
+    "":               "double_angle_long",
 }
 
 # ── Schema reference ──────────────────────────────────────────────────────────
@@ -200,7 +222,7 @@ class TransverseMemberDesign(QDialog):
         self._ed_designs_dict:  dict          = {}
         self._pair_keys:        list[str]     = []
         self._members_per_pair: dict[str, int] = {}
-        self._ed_group_widgets: dict[str, list[QWidget]] = {"crossbracing": [], "welded_beam": []}
+        self._ed_group_widgets: dict[str, list[QWidget]] = {"crossbracing": [], "welded_beam": [], "rolled_beam": []}
         self._backend: object = None
         self._cb_forces_df = None   # full compute_panel_forces() DataFrame for per-LC queries
 
@@ -868,6 +890,14 @@ class TransverseMemberDesign(QDialog):
     def _on_bracing_type_changed(self, _text: str):
         self._refresh_bracing_layout()
 
+    def _on_ed_type_changed(self, ed_type: str):
+        """Toggle End Diaphragm property cards between Cross Bracing and Beam cards."""
+        is_beam = ed_type in ("Welded Beam", "Rolled Beam")
+        if hasattr(self, "_ed_cards_cb") and self._ed_cards_cb:
+            self._ed_cards_cb.setVisible(not is_beam)
+        if hasattr(self, "_ed_cards_wb") and self._ed_cards_wb:
+            self._ed_cards_wb.setVisible(is_beam)
+
     def _refresh_bracing_layout(self):
         # NEW
         is_ed_tab = (self.tabs.currentIndex() == 1)
@@ -894,12 +924,7 @@ class TransverseMemberDesign(QDialog):
 
     def _try_load_data(self):
         backend = getattr(self._main_window, "backend", None)
-        print(f"[DEBUG] backend: {backend}")
-        print(f"[DEBUG] sizing_result: {getattr(backend, 'sizing_result', 'NOT_FOUND') if backend else 'NO_BACKEND'}")
-        if backend is None or getattr(backend, "sizing_result", None) is None:
-            print("[DEBUG] Early return - no backend or sizing_result")
         if backend is None or not getattr(backend, "result_data", None):
-            print("[DEBUG] Early return - no backend or result_data")
             return
 
         try:
@@ -926,14 +951,22 @@ class TransverseMemberDesign(QDialog):
             designs_dict: dict = dict(cb_designs)
             for pair, ed_pair_data in ed_designs.items():
                 pair_id   = pair.replace("-", "")
-                ed_type  = od.get(f"member_properties.end_diaphragm_details.{pair_id}.type") or ed_pair_data.get("ed_type") or ""
+                ed_type  = ed_pair_data.get("ed_type") or od.get(f"member_properties.end_diaphragm_details.{pair_id}.type") or ""
                 ed_btype = od.get(f"member_properties.end_diaphragm_details.{pair_id}.bracing_type") or ""
-                entry = designs_dict.setdefault(pair, {})
-                if ed_type:
-                    entry["ed_type"] = ed_type
 
-                if ed_btype:
-                    entry["ed_bracing_type"] = ed_btype
+                if ed_type in ("Rolled Beam", "Welded Beam"):
+                    # For Beam types, replace pair dict so it ONLY contains beam-relevant keys and ed_type
+                    entry = dict(ed_pair_data)
+                    if ed_type:
+                        entry["ed_type"] = ed_type
+                    designs_dict[pair] = entry
+                else:
+                    entry = designs_dict.setdefault(pair, {})
+                    entry.update(ed_pair_data)
+                    if ed_type:
+                        entry["ed_type"] = ed_type
+                    if ed_btype:
+                        entry["ed_bracing_type"] = ed_btype
 
             self._backend = backend
             members_per_pair = self._compute_members_per_pair(backend, forces_dict)
@@ -1073,28 +1106,84 @@ class TransverseMemberDesign(QDialog):
 
         conn_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_CONNECTION_TYPE)
         if conn_w:
-            conn_w.setText("Bolted")
+            idict    = getattr(self._backend, "input_dict", {}) or {}
+            pair_id  = pair_key.replace("-", "")
+            _pm      = re.match(r"G(\d+)G", pair_id)
+            mi_sfx   = f".{pair_id}.B{_pm.group(1)}M1" if _pm else ""
+            conn_val = (
+                idict.get(f"{KEY_MP_CB_BRACING_CONNECTION}.{pair_id}")
+                or idict.get(f"{KEY_MP_CB_BRACING_CONNECTION}{mi_sfx}")
+                or idict.get(KEY_MP_CB_BRACING_CONNECTION)
+                or "Bolted"
+            )
+            conn_w.setText(str(conn_val))
 
-        # ── Design-data-dependent fields ─────────────────────────────────────
-        if not self._designs_dict:
-            return
+        # ── Design-data-dependent fields & fallbacks ────────────────────────
+        od           = getattr(self._backend, "output_dict", {}) or {}
+        idict        = getattr(self._backend, "input_dict", {}) or {}
+        pair_id      = pair_key.replace("-", "")
+        _pm          = re.match(r"G(\d+)G", pair_id)
+        mi_sfx       = f".{pair_id}.B{_pm.group(1)}M1" if _pm else ""
+        pair_designs = self._designs_dict.get(pair_key, {}) if self._designs_dict else {}
 
-        od      = getattr(self._backend, "output_dict", {}) or {}
-        pair_id = pair_key.replace("-", "")
-        pair_designs = self._designs_dict.get(pair_key, {})
+        diag_des  = self._get_governing_section(pair_designs, "diagonal") if pair_designs else ""
+        chord_des = self._get_governing_section(pair_designs, "chord") if pair_designs else ""
 
-        diag_des  = self._get_governing_section(pair_designs, "diagonal")
-        chord_des = self._get_governing_section(pair_designs, "chord")
+        if not diag_des:
+            diag_des = (
+                od.get(f"member_properties.cross_bracing_details.{pair_id}.diagonal.section_designation")
+                or idict.get(f"{KEY_TD_CB_SECTION_INPUTS_BRACING_SECTION_DESIGNATION}.{pair_id}")
+                or idict.get(f"{KEY_MP_CB_BRACING_SECTION_DESIGNATION}.{pair_id}")
+                or idict.get(f"{KEY_MP_CB_BRACING_SECTION_DESIGNATION}{mi_sfx}")
+                or idict.get(f"member_properties.cross_bracing_details.{pair_id}.bracing_section_designation")
+                or idict.get(KEY_MP_CB_BRACING_SECTION_DESIGNATION)
+                or ""
+            )
+        if not chord_des:
+            chord_des = (
+                od.get(f"member_properties.cross_bracing_details.{pair_id}.top_chord.section_designation")
+                or idict.get(f"{KEY_TD_CB_SECTION_INPUTS_TOP_CHORD_SECTION_DESIGNATION}.{pair_id}")
+                or idict.get(f"{KEY_MP_CB_TOP_CHORD_SECTION_DESIG}.{pair_id}")
+                or idict.get(f"{KEY_MP_CB_TOP_CHORD_SECTION_DESIG}{mi_sfx}")
+                or idict.get(f"member_properties.cross_bracing_details.{pair_id}.top_chord_section_desig")
+                or idict.get(KEY_MP_CB_TOP_CHORD_SECTION_DESIG)
+                or ""
+            )
 
-        # Read actual section types — backend writes these as literal strings
-        diag_type_lbl = self._section_type_label(
-            od.get(f"member_properties.cross_bracing_details.{pair_id}.diagonal.section_type", ""))
-        tc_type_lbl   = self._section_type_label(
-            od.get(f"member_properties.cross_bracing_details.{pair_id}.top_chord.section_type", ""))
-        bc_type_lbl   = self._section_type_label(
-            od.get(f"member_properties.cross_bracing_details.{pair_id}.bottom_chord.section_type", ""))
+        btype_raw = pair_designs.get("cb_type") if pair_designs else None
+        if not btype_raw:
+            btype_raw = idict.get(f"{KEY_MP_CB_TYPE}.{pair_id}") or idict.get(f"{KEY_MP_CB_TYPE}{mi_sfx}") or idict.get(KEY_MP_CB_TYPE)
+        brace_lbl = "X-Bracing" if not btype_raw or "X" in str(btype_raw).upper() else "K-Bracing"
+
+        diag_type_raw = (
+            od.get(f"member_properties.cross_bracing_details.{pair_id}.diagonal.section_type")
+            or idict.get(f"{KEY_MP_CB_BRACING_SECTION_TYPE}.{pair_id}")
+            or idict.get(f"{KEY_MP_CB_BRACING_SECTION_TYPE}{mi_sfx}")
+            or idict.get(KEY_MP_CB_BRACING_SECTION_TYPE)
+            or "Double Angles"
+        )
+        diag_type_lbl = self._section_type_label(diag_type_raw)
+
+        tc_type_raw = (
+            od.get(f"member_properties.cross_bracing_details.{pair_id}.top_chord.section_type")
+            or idict.get(f"{KEY_MP_CB_TOP_CHORD_SECTION_TYPE}.{pair_id}")
+            or idict.get(f"{KEY_MP_CB_TOP_CHORD_SECTION_TYPE}{mi_sfx}")
+            or idict.get(KEY_MP_CB_TOP_CHORD_SECTION_TYPE)
+            or "Double Angles"
+        )
+        tc_type_lbl = self._section_type_label(tc_type_raw)
+
+        bc_type_raw = (
+            od.get(f"member_properties.cross_bracing_details.{pair_id}.bottom_chord.section_type")
+            or idict.get(f"{KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE}.{pair_id}")
+            or idict.get(f"{KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE}{mi_sfx}")
+            or idict.get(KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE)
+            or "Double Angles"
+        )
+        bc_type_lbl = self._section_type_label(bc_type_raw)
 
         for fid, val in (
+            (KEY_TD_CB_SECTION_INPUTS_BRACING_TYPE,                      brace_lbl),
             (KEY_TD_CB_SECTION_INPUTS_BRACING_SECTION_TYPE,             diag_type_lbl),
             (KEY_TD_CB_SECTION_INPUTS_TOP_CHORD_SECTION_TYPE,           tc_type_lbl),
             (KEY_TD_CB_SECTION_INPUTS_BOTTOM_CHORD_SECTION_TYPE,        bc_type_lbl),
@@ -1125,33 +1214,132 @@ class TransverseMemberDesign(QDialog):
 
         conn_w = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_CONNECTION_TYPE)
         if conn_w:
-            conn_w.setText("Bolted")
+            idict   = getattr(self._backend, "input_dict", {}) or {}
+            pair_id = pair_key.replace("-", "")
+            _pm     = re.match(r"G(\d+)G", pair_id)
+            mi_sfx  = f".{pair_id}.E{_pm.group(1)}M1" if _pm else ""
+            conn_val = (
+                idict.get(f"{KEY_MP_ED_BRACING_CONNECTION}.{pair_id}")
+                or idict.get(f"{KEY_MP_ED_BRACING_CONNECTION}{mi_sfx}")
+                or idict.get(KEY_MP_ED_BRACING_CONNECTION)
+                or "Bolted"
+            )
+            conn_w.setText(str(conn_val))
 
-        pair_designs = self._designs_dict.get(pair_key, {}) if self._designs_dict else {}
-        ed_type      = pair_designs.get("ed_type") or ""
+        pair_designs = self._ed_designs_dict.get(pair_key, {}) if getattr(self, "_ed_designs_dict", None) else {}
+        od           = getattr(self._backend, "output_dict", {}) or {}
+        idict        = getattr(self._backend, "input_dict", {}) or {}
+        pair_id      = pair_key.replace("-", "")
+        _pm          = re.match(r"G(\d+)G", pair_id)
+        mi_sfx       = f".{pair_id}.E{_pm.group(1)}M1" if _pm else ""
+        ed_type = (
+            pair_designs.get("ed_type")
+            or od.get(f"member_properties.end_diaphragm_details.{pair_id}.type")
+            or idict.get(f"{KEY_MP_ED_TYPE}{mi_sfx}")
+            or idict.get(f"{KEY_MP_ED_TYPE}.{pair_id}")
+            or idict.get(KEY_MP_ED_TYPE)
+            or ""
+        )
+        print(f"[DEBUG _populate_ed_pair_details] pair_key={pair_key}, ed_type='{ed_type}', pair_designs={pair_designs}")
         type_w = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_TYPE)
         if type_w:
             type_w.setText(ed_type)
 
+        # Trigger ED type changed handler so UI layout (groups & cards) updates for ed_type
+        self._on_ed_type_changed(ed_type if ed_type else "Cross Bracing")
+
         if ed_type == "Welded Beam":
-            if not pair_designs:
-                return
-            wb = pair_designs.get("welded_beam", {})
-            for key, fid in (
-                ("is_section",        KEY_TD_ED_SECTION_INPUTS_IS_SECTION),
-                ("symmetry",          KEY_TD_ED_SECTION_INPUTS_SYMMETRY),
-                ("total_depth",       KEY_TD_ED_SECTION_INPUTS_TOTAL_DEPTH),
-                ("web_thickness",     KEY_TD_ED_SECTION_INPUTS_WEB_THICKNESS),
-                ("top_flange_width",  KEY_TD_ED_SECTION_INPUTS_TOP_FLANGE_WIDTH),
-                ("top_flange_thk",    KEY_TD_ED_SECTION_INPUTS_TOP_FLANGE_THICKNESS),
-                ("bot_flange_width",  KEY_TD_ED_SECTION_INPUTS_BOTTOM_FLANGE_WIDTH),
-                ("bot_flange_thk",    KEY_TD_ED_SECTION_INPUTS_BOTTOM_FLANGE_THICKNESS),
-            ):
+            wb = pair_designs.get("beam", {}) if isinstance(pair_designs, dict) else {}
+            depth_val = wb.get("depth_mm") or wb.get("total_depth") or idict.get(f"{KEY_MP_ED_TOTAL_DEPTH}{mi_sfx}") or idict.get(KEY_MP_ED_TOTAL_DEPTH) or 300.0
+            web_t_val = wb.get("web_thk_mm") or wb.get("Web.Thickness") or idict.get(f"{KEY_MP_ED_WEB_THICKNESS}{mi_sfx}") or idict.get(KEY_MP_ED_WEB_THICKNESS) or 8.0
+            top_w_val = wb.get("top_width_mm") or idict.get(f"{KEY_MP_ED_TOP_FLANGE_WIDTH}{mi_sfx}") or idict.get(KEY_MP_ED_TOP_FLANGE_WIDTH) or 150.0
+            top_t_val = wb.get("top_thk_mm") or wb.get("TopFlange.Thickness") or idict.get(f"{KEY_MP_ED_TOP_FLANGE_THICKNESS}{mi_sfx}") or idict.get(KEY_MP_ED_TOP_FLANGE_THICKNESS) or 10.0
+            bot_w_val = wb.get("bot_width_mm") or idict.get(f"{KEY_MP_ED_BOTTOM_FLANGE_WIDTH}{mi_sfx}") or idict.get(KEY_MP_ED_BOTTOM_FLANGE_WIDTH) or 150.0
+            bot_t_val = wb.get("bot_thk_mm") or wb.get("BottomFlange.Thickness") or idict.get(f"{KEY_MP_ED_BOTTOM_FLANGE_THICKNESS}{mi_sfx}") or idict.get(KEY_MP_ED_BOTTOM_FLANGE_THICKNESS) or 10.0
+            symm_val  = wb.get("symmetry") or idict.get(f"{KEY_MP_ED_SYMMETRY}{mi_sfx}") or idict.get(KEY_MP_ED_SYMMETRY) or "Symmetrical"
+
+            # Populate left panel line edits for Welded Beam
+            wb_input_map = {
+                KEY_TD_ED_SECTION_INPUTS_SYMMETRY:               symm_val,
+                KEY_TD_ED_SECTION_INPUTS_TOTAL_DEPTH:             depth_val,
+                KEY_TD_ED_SECTION_INPUTS_WEB_THICKNESS:           web_t_val,
+                KEY_TD_ED_SECTION_INPUTS_TOP_FLANGE_WIDTH:        top_w_val,
+                KEY_TD_ED_SECTION_INPUTS_TOP_FLANGE_THICKNESS:    top_t_val,
+                KEY_TD_ED_SECTION_INPUTS_BOTTOM_FLANGE_WIDTH:     bot_w_val,
+                KEY_TD_ED_SECTION_INPUTS_BOTTOM_FLANGE_THICKNESS: bot_t_val,
+            }
+            for fid, val in wb_input_map.items():
                 w = self._widgets.get(fid)
                 if w:
-                    val = wb.get(key, "")
-                    w.setText(str(val) if val != "" else "")
-            self._fill_section_card("ED Welded Beam", wb.get("designation", ""), "Welded Beam")
+                    w.setText(str(val) if val is not None else "")
+
+            # Calculate physical section properties for property card display
+            try:
+                d_num, wt_num, tw_num, tt_num, bw_num, bt_num = float(depth_val), float(web_t_val), float(top_w_val), float(top_t_val), float(bot_w_val), float(bot_t_val)
+                hw = d_num - tt_num - bt_num
+                area_cm2 = round((tw_num * tt_num + bw_num * bt_num + hw * wt_num) / 100.0, 2)
+                iz_cm4 = round((wt_num * hw**3 / 12.0 + tw_num * tt_num * (hw/2 + tt_num/2)**2 * 2) / 10000.0, 2)
+                mass_kgm = round(area_cm2 * 100.0 * 7850e-9 * 1000.0, 2)
+            except Exception:
+                area_cm2, iz_cm4, mass_kgm = "", "", ""
+
+            wb_card_dict = {
+                "D (mm)":      depth_val,
+                "tw (mm)":     web_t_val,
+                "B_top (mm)":  top_w_val,
+                "tf_top (mm)": top_t_val,
+                "B_bot (mm)":  bot_w_val,
+                "tf_bot (mm)": bot_t_val,
+                "A (cm²)":     area_cm2,
+                "Iz (cm⁴)":    iz_cm4,
+                "M (Kg/m)":    mass_kgm,
+            }
+            wb_fields = self._prop_fields.get("ED Welded Beam", {})
+            for k, v in wb_card_dict.items():
+                field = wb_fields.get(k)
+                if field:
+                    field.setText(str(v) if v != "" else "")
+
+        elif ed_type == "Rolled Beam":
+            # Rolled Beam — find IS section designation from output_dict or input_dict
+            od      = getattr(self._backend, "output_dict", {}) or {}
+            idict   = getattr(self._backend, "input_dict", {}) or {}
+            pair_id = pair_key.replace("-", "")
+            _pm     = re.match(r"G(\d+)G", pair_id)
+            mi_sfx  = f".{pair_id}.E{_pm.group(1)}M1" if _pm else ""
+            beam_dict = pair_designs.get("beam", {}) if isinstance(pair_designs, dict) else {}
+            is_des = (
+                beam_dict.get("designation")
+                or beam_dict.get("Optimum.Designation")
+                or od.get(f"member_properties.end_diaphragm_details.{pair_id}.is_section")
+                or od.get(f"{KEY_MP_ED_IS_SECTION}.{pair_id}")
+                or idict.get(f"{KEY_MP_ED_IS_SECTION}{mi_sfx}")
+                or idict.get(f"{KEY_MP_ED_IS_SECTION}.{pair_id}")
+                or idict.get(KEY_MP_ED_IS_SECTION)
+                or ""
+            )
+
+            # Show IS section designation in the IS Section field
+            is_w = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_IS_SECTION)
+            if is_w:
+                is_w.setText(str(is_des) if is_des else "")
+
+            # Populate section card from database
+            self._fill_section_card("ed_End Diaphragm", is_des, "Rolled Beam")
+            s_val = (
+                od.get(f"{KEY_TD_ED_PROP_L}.{pair_id}")
+                or od.get(KEY_TD_ED_PROP_L)
+                or idict.get(KEY_TS_GIRDER_SPACING)
+            )
+            if s_val is not None:
+                ed_fields = self._prop_fields.get("ed_End Diaphragm", {})
+                l_field = ed_fields.get("L (m)")
+                if l_field:
+                    l_field.setText(f"{float(s_val):.4g}")
+
+            # Top and Bottom Chord cards are not applicable for Rolled Beam
+            self._fill_section_card("ed_Top Chord",    "", "")
+            self._fill_section_card("ed_Bottom Chord", "", "")
 
         else:  # Cross Bracing
             pair_id = pair_key.replace("-", "")
@@ -1168,7 +1356,10 @@ class TransverseMemberDesign(QDialog):
             e_suffix = f".{pair_id}.E{girder_idx}M1"
 
             diag_type_lbl = self._section_type_label(
-                idict.get(f"{KEY_MP_ED_BRACING_SECTION}{e_suffix}", "")
+                idict.get(f"{KEY_MP_ED_BRACING_SECTION}.{pair_id}")
+                or idict.get(f"{KEY_MP_ED_BRACING_SECTION}{e_suffix}")
+                or idict.get(KEY_MP_ED_BRACING_SECTION)
+                or ""
             )
             tc_type_lbl = self._section_type_label(
                 idict.get(f"{KEY_MP_ED_TOP_CHORD_SECTION_TYPE}{e_suffix}", "")
@@ -1220,12 +1411,14 @@ class TransverseMemberDesign(QDialog):
             if designation and props:
                 db_des = props.get("_db_designation", designation)
                 family = props.get("_section_family", "angle")
-                if family == "channel":
+                if family == "beam":
+                    stype = "beam"
+                elif family == "channel":
                     stype = _SECTION_TYPE_MAP.get(section_type_label, "channel")
                     if stype not in ("channel", "double_channel"):
                         stype = "channel"
                 else:
-                    stype = _SECTION_TYPE_MAP.get(section_type_label, "double_angle_long")
+                    stype = _SECTION_TYPE_MAP.get(section_type_label) or "double_angle_long"
                 preview.set_section(stype, db_des)
             else:
                 preview.clear()
@@ -1244,7 +1437,8 @@ class TransverseMemberDesign(QDialog):
         except ImportError:
             return {}
 
-        nums = re.findall(r"\d+(?:\.\d+)?", designation)
+        designation_stripped = str(designation).strip()
+        nums = re.findall(r"\d+(?:\.\d+)?", designation_stripped)
         if not nums:
             return {}
         like_pattern = "%" + "%".join(nums) + "%"
@@ -1253,6 +1447,42 @@ class TransverseMemberDesign(QDialog):
             con = sqlite3.connect(str(DB_PATH))
             cur = con.cursor()
 
+            # ── Try Beams table first (for Rolled Beam IS sections: ISMB, ISLB, MB, etc.) ──
+            cur.execute(
+                'SELECT Designation, Mass, Area, D, B, tw, T, Iz, Iy, rz, ry, Zz, Zy, Zpz, Zpy '
+                'FROM Beams WHERE Designation = ? OR Designation LIKE ?',
+                (designation_stripped, like_pattern),
+            )
+            row = cur.fetchone()
+            if row:
+                con.close()
+                db_des, mass, area, d_val, b, tw, tf, iz, iy, rz, ry, zz, zy, zpz, zpy = row
+                return {
+                    "_db_designation": db_des,
+                    "_section_family": "beam",
+                    "D (mm)":    round(d_val, 2),
+                    "H (m)":     round(d_val / 1000, 4),
+                    "B (m)":     round(b / 1000, 4),
+                    "B_top (mm)": round(b,    2),
+                    "tf_top (mm)": round(tf,  2),
+                    "tw (mm)":   round(tw,    2),
+                    "tw (m)":    round(tw / 1000, 4),
+                    "tF (m)":    round(tf / 1000, 4),
+                    "B_bot (mm)": round(b,    2),
+                    "tf_bot (mm)": round(tf,  2),
+                    "A (cm²)":   round(area,  4),
+                    "Iz (cm⁴)":  round(iz,    4),
+                    "Iv (cm⁴)":  round(iy,    4),
+                    "M (Kg/m)":  round(mass,  4),
+                    "rz (cm)":   rz,
+                    "rv (cm)":   ry,
+                    "Zz (cm³)":  zz,
+                    "Zv (cm³)":  zy,
+                    "Zuz (cm³)": zpz,
+                    "Zuv (cm³)": zpy,
+                }
+
+            # ── Equal/Unequal Angles ──────────────────────────────────────────────────────
             for table in ("EqualAngle", "UnequalAngle"):
                 cur.execute(
                     f'SELECT Designation, Mass, Area, a, b, t, Iz, Iy, "Iv(min)", rz, ry, "rv(min)", '
@@ -1283,6 +1513,7 @@ class TransverseMemberDesign(QDialog):
                         "Zuv (cm³)": zpy,
                     }
 
+            # ── Channels ─────────────────────────────────────────────────────────────────
             cur.execute(
                 'SELECT Designation, Mass, Area, D, B, tw, T, Iz, Iy, rz, ry, Zz, Zy, Zpz, Zpy '
                 'FROM Channels WHERE Designation LIKE ?',
@@ -1354,13 +1585,14 @@ class TransverseMemberDesign(QDialog):
                     slnd    = res.get("slenderness")
                     conn    = res.get("connection") or "—"
 
-                    cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                    eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                    slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
+                    cap_str  = self._fmt_float(cap_kn, 2)
+                    eff_str  = self._fmt_float(eff, 3)
+                    slnd_str = self._fmt_float(slnd, 1)
 
-                    if eff is None:
+                    eff_num = self._to_float(eff)
+                    if eff_num is None:
                         status_color, status = "#888888", "N/A"
-                    elif eff <= 1.0:
+                    elif eff_num <= 1.0:
                         status_color, status = "#3a7d00", "PASS"
                     else:
                         status_color, status = "#c0392b", "FAIL"
@@ -1428,23 +1660,27 @@ class TransverseMemberDesign(QDialog):
             if ed_type in ("Rolled Beam", "Welded Beam"):
                 beam_res = pair_designs.get("beam") or {}
                 res      = _extract_osdag_summary(beam_res)
-                section  = res.get("section")   or "—"
-                cap_kn   = res.get("capacity_kN")
-                eff      = res.get("efficiency")
-                slnd     = res.get("slenderness")
-                conn     = res.get("connection") or "—"
-                cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
-                if eff is None:
+                section  = res.get("section") or "—"
+                cap_kn   = res.get("capacity_kN") or res.get("capacity_kNm") or beam_res.get("Moment.Strength") or beam_res.get("Shear.Strength")
+                eff      = res.get("efficiency") or beam_res.get("Optimum.UR")
+                slnd     = res.get("slenderness") or beam_res.get("ESR")
+                conn     = res.get("connection") or ("Welded" if ed_type == "Welded Beam" else "Bolted")
+                force_val = beam_res.get("Load.Moment") or beam_res.get("Load.Shear")
+                force_str = f"{float(force_val):.3f}" if force_val is not None else "—"
+                cap_str  = self._fmt_float(cap_kn, 2)
+                eff_str  = self._fmt_float(eff, 3)
+                slnd_str = self._fmt_float(slnd, 1)
+
+                eff_num = self._to_float(eff)
+                if eff_num is None:
                     status_color, status = "#888888", "N/A"
-                elif eff <= 1.0:
+                elif eff_num <= 1.0:
                     status_color, status = "#3a7d00", "PASS"
                 else:
                     status_color, status = "#c0392b", "FAIL"
                 rows_html.append(
                     f"<tr><td>{member_id}</td><td>{ed_type}</td>"
-                    f"<td>—</td><td>{section}</td><td>{conn}</td>"
+                    f"<td>{force_str}</td><td>{section}</td><td>{conn}</td>"
                     f"<td>{slnd_str}</td><td>{cap_str}</td><td>{eff_str}</td>"
                     f"<td style='color:{status_color};font-weight:bold;'>{status}</td></tr>"
                 )
@@ -1467,12 +1703,14 @@ class TransverseMemberDesign(QDialog):
                         eff      = res.get("efficiency")
                         slnd     = res.get("slenderness")
                         conn     = res.get("connection") or "—"
-                        cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                        eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                        slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
-                        if eff is None:
+                        cap_str  = self._fmt_float(cap_kn, 2)
+                        eff_str  = self._fmt_float(eff, 3)
+                        slnd_str = self._fmt_float(slnd, 1)
+
+                        eff_num = self._to_float(eff)
+                        if eff_num is None:
                             status_color, status = "#888888", "N/A"
-                        elif eff <= 1.0:
+                        elif eff_num <= 1.0:
                             status_color, status = "#3a7d00", "PASS"
                         else:
                             status_color, status = "#c0392b", "FAIL"
@@ -1513,20 +1751,34 @@ class TransverseMemberDesign(QDialog):
         )
     
     def _on_ed_type_changed(self, text: str) -> None:
-        is_welded = text == "Welded Beam"
+        is_welded = (text == "Welded Beam")
+        is_rolled = (text == "Rolled Beam")
+        is_cb     = not (is_welded or is_rolled)
 
-        # Show/hide left panel field rows
+        # Show/hide left panel field rows per type
         for wgt in self._ed_group_widgets.get("crossbracing", []):
-            wgt.setVisible(not is_welded)
+            wgt.setVisible(is_cb)
         for wgt in self._ed_group_widgets.get("welded_beam", []):
             wgt.setVisible(is_welded)
+        for wgt in self._ed_group_widgets.get("rolled_beam", []):
+            wgt.setVisible(is_rolled)
 
         # Switch right panel cards
-        self._switch_ed_right_panel(is_welded)
-    
-    def _switch_ed_right_panel(self, is_welded: bool) -> None:
+        self._switch_ed_right_panel(text)
+
+    def _switch_ed_right_panel(self, ed_type: str) -> None:
+        is_welded = (ed_type == "Welded Beam")
         self._ed_cards_cb.setVisible(not is_welded)
         self._ed_cards_wb.setVisible(is_welded)
+
+        # Show/hide Top Chord and Bottom Chord cards for Rolled Beam vs Cross Bracing
+        top_chord_card = self._widgets.get(KEY_TD_ED_SECTION_PROPS_TOP_CHORD)
+        bot_chord_card = self._widgets.get(KEY_TD_ED_SECTION_PROPS_BOTTOM_CHORD)
+        is_cb = (ed_type == "Cross Bracing")
+        if top_chord_card is not None:
+            top_chord_card.setVisible(is_cb)
+        if bot_chord_card is not None:
+            bot_chord_card.setVisible(is_cb)
 
     def _on_tab_changed(self, index: int):
         tab_key = "cb" if index == 0 else "ed"
@@ -1538,5 +1790,34 @@ class TransverseMemberDesign(QDialog):
     @staticmethod
     def _section_type_label(backend_type: str) -> str:
         if not backend_type:
-            return ""
-        return "Double Channel" if str(backend_type).upper() == "CHANNEL" else "Double Angles"
+            return "Double Angles"
+        b_upper = str(backend_type).upper()
+        if "DOUBLE CHANNEL" in b_upper:
+            return "Double Channel"
+        elif "CHANNEL" in b_upper:
+            return "Channel"
+        elif "SHORT" in b_upper:
+            return "Double Angle (Short Leg)"
+        elif "DOUBLE" in b_upper or "LONG" in b_upper:
+            return "Double Angles"
+        elif "ANGLE" in b_upper:
+            return "Angle"
+        return str(backend_type)
+
+    @staticmethod
+    def _fmt_float(val, precision: int = 3, default: str = "—") -> str:
+        if val is None or val == "" or val == "—":
+            return default
+        try:
+            return f"{float(val):.{precision}f}"
+        except (ValueError, TypeError):
+            return str(val)
+
+    @staticmethod
+    def _to_float(val) -> float | None:
+        if val is None or val == "" or val == "—":
+            return None
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return None

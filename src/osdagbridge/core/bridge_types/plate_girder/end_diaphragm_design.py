@@ -202,8 +202,12 @@ def design_end_diaphragm(
         _m1 = f".{pair_id}.E{i}M1"
         _m2 = f".{pair_id}.E{i}M2"
         member_suffix = _m1 if bridge.input_dict.get(f"{KEY_MP_ED_TYPE}{_m1}") else _m2
-
-        pair_ed_type = ed_type or bridge.input_dict.get(f"{KEY_MP_ED_TYPE}{member_suffix}") or ""
+        pair_ed_type = (
+            bridge.input_dict.get(f"{KEY_MP_ED_TYPE}{member_suffix}")
+            or bridge.input_dict.get(f"{KEY_MP_ED_TYPE}.{pair_id}")
+            or ed_type
+            or "Cross Bracing"
+        )
         if not pair_ed_type:
             continue
         bridge.output_dict[make_pair_key(KEY_MP_ED_TYPE, pair_id)] = pair_ed_type
@@ -335,7 +339,11 @@ def design_end_diaphragm(
                     bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_IZ, pair_id)] = diag_details["Iz"]
 
         elif pair_ed_type == "Rolled Beam":
-            is_sec_des = bridge.input_dict.get(f"{KEY_MP_ED_IS_SECTION}{member_suffix}")
+            is_sec_des = (
+                bridge.input_dict.get(f"{KEY_MP_ED_IS_SECTION}{member_suffix}")
+                or bridge.input_dict.get(f"{KEY_MP_ED_IS_SECTION}.{pair_id}")
+                or bridge.input_dict.get(KEY_MP_ED_IS_SECTION)
+            )
             if is_sec_des:
                 bridge.output_dict[make_pair_key(KEY_MP_ED_IS_SECTION, pair_id)] = is_sec_des
                 beam_details = bridge._query_rolled_beam_section(is_sec_des)
@@ -367,55 +375,74 @@ def design_end_diaphragm(
                     if my > max_my:
                         max_my = my
 
-            if is_sec_des:
-                res = design_rolled_end_diaphragm(
-                    designation=is_sec_des,
-                    span_m=s,
-                    moment_kNm=max_my,
-                    shear_kN=max_vz,
-                )
-                pair_designs[pair]["beam"] = res
+            print(
+                f"[DEBUG Rolled Beam] Dispatching pair {pair!r}: "
+                f"is_sec_des={is_sec_des}, span={s}, moment={max_my}, shear={max_vz}"
+            )
+
+            try:
+                if is_sec_des:
+                    res = design_rolled_end_diaphragm(
+                        designation=is_sec_des,
+                        span_m=s,
+                        moment_kNm=max_my,
+                        shear_kN=max_vz,
+                    )
+                    pair_designs[pair]["beam"] = res
+                    print(f"[DEBUG Rolled Beam] Result stored for pair {pair!r}: {res}")
+                else:
+                    print(f"[DEBUG Rolled Beam] WARNING: is_sec_des is empty for pair {pair!r}")
+            except Exception:
+                import traceback
+                print(f"[DEBUG Rolled Beam] ERROR in design_rolled_end_diaphragm for pair {pair!r}:")
+                traceback.print_exc()
 
         elif pair_ed_type == "Welded Beam":
-            depth = float(bridge.input_dict.get(f"{KEY_MP_ED_TOTAL_DEPTH}{member_suffix}") or 0.0)
-            web_t = float(bridge.input_dict.get(f"{KEY_MP_ED_WEB_THICKNESS}{member_suffix}") or 0.0)
-            top_w = float(bridge.input_dict.get(f"{KEY_MP_ED_TOP_FLANGE_WIDTH}{member_suffix}") or 0.0)
-            bot_w = float(bridge.input_dict.get(f"{KEY_MP_ED_BOTTOM_FLANGE_WIDTH}{member_suffix}") or 0.0)
-            top_t = float(bridge.input_dict.get(f"{KEY_MP_ED_TOP_FLANGE_THICKNESS}{member_suffix}") or 0.0)
-            bot_t = float(bridge.input_dict.get(f"{KEY_MP_ED_BOTTOM_FLANGE_THICKNESS}{member_suffix}") or 0.0)
+            depth = float(bridge.input_dict.get(f"{KEY_MP_ED_TOTAL_DEPTH}{member_suffix}") or bridge.input_dict.get(KEY_MP_ED_TOTAL_DEPTH) or 300.0)
+            web_t = float(bridge.input_dict.get(f"{KEY_MP_ED_WEB_THICKNESS}{member_suffix}") or bridge.input_dict.get(KEY_MP_ED_WEB_THICKNESS) or 8.0)
+            top_w = float(bridge.input_dict.get(f"{KEY_MP_ED_TOP_FLANGE_WIDTH}{member_suffix}") or bridge.input_dict.get(KEY_MP_ED_TOP_FLANGE_WIDTH) or 150.0)
+            bot_w = float(bridge.input_dict.get(f"{KEY_MP_ED_BOTTOM_FLANGE_WIDTH}{member_suffix}") or bridge.input_dict.get(KEY_MP_ED_BOTTOM_FLANGE_WIDTH) or 150.0)
+            top_t = float(bridge.input_dict.get(f"{KEY_MP_ED_TOP_FLANGE_THICKNESS}{member_suffix}") or bridge.input_dict.get(KEY_MP_ED_TOP_FLANGE_THICKNESS) or 10.0)
+            bot_t = float(bridge.input_dict.get(f"{KEY_MP_ED_BOTTOM_FLANGE_THICKNESS}{member_suffix}") or bridge.input_dict.get(KEY_MP_ED_BOTTOM_FLANGE_THICKNESS) or 10.0)
 
-            if depth > 0:
-                h_w = depth - top_t - bot_t
-                a_f1 = top_w * top_t
-                a_f2 = bot_w * bot_t
-                a_w = h_w * web_t
-                a_total = a_f1 + a_f2 + a_w
+            h_w = depth - top_t - bot_t
+            a_f1 = top_w * top_t
+            a_f2 = bot_w * bot_t
+            a_w = h_w * web_t
+            a_total = a_f1 + a_f2 + a_w
 
-                bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_L, pair_id)] = s
-                bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_H, pair_id)] = depth / 1000.0
-                bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_B, pair_id)] = max(top_w, bot_w) / 1000.0
-                bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_TW, pair_id)] = web_t / 1000.0
-                bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_TF, pair_id)] = max(top_t, bot_t) / 1000.0
-                bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_A, pair_id)] = a_total / 1e6
+            bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_L, pair_id)] = s
+            bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_H, pair_id)] = depth / 1000.0
+            bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_B, pair_id)] = max(top_w, bot_w) / 1000.0
+            bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_TW, pair_id)] = web_t / 1000.0
+            bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_TF, pair_id)] = max(top_t, bot_t) / 1000.0
+            bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_A, pair_id)] = a_total / 1e6
 
-                # Extract forces
-                max_vz = 0.0
-                max_my = 0.0
-                for lc in bridge.result_data.get("loadcases", []):
-                    lc_str = str(lc)
-                    if lc_str.startswith("Envelope"):
+            # Extract forces
+            max_vz = 0.0
+            max_my = 0.0
+            for lc in bridge.result_data.get("loadcases", []):
+                lc_str = str(lc)
+                if lc_str.startswith("Envelope"):
+                    continue
+                for m in elements:
+                    if lc_str not in bridge.result_data.get("forces", {}) or m not in bridge.result_data["forces"][lc_str]:
                         continue
-                    for m in elements:
-                        if lc_str not in bridge.result_data.get("forces", {}) or m not in bridge.result_data["forces"][lc_str]:
-                            continue
-                        f_m = bridge.result_data["forces"][lc_str][m]
-                        vz = max(abs(f_m.get("Vz_i") or 0.0), abs(f_m.get("Vz_j") or 0.0)) / 1000.0
-                        my = max(abs(f_m.get("My_i") or 0.0), abs(f_m.get("My_j") or 0.0)) / 1000.0
-                        if vz > max_vz:
-                            max_vz = vz
-                        if my > max_my:
-                            max_my = my
+                    f_m = bridge.result_data["forces"][lc_str][m]
+                    vz = max(abs(f_m.get("Vz_i") or 0.0), abs(f_m.get("Vz_j") or 0.0)) / 1000.0
+                    my = max(abs(f_m.get("My_i") or 0.0), abs(f_m.get("My_j") or 0.0)) / 1000.0
+                    if vz > max_vz:
+                        max_vz = vz
+                    if my > max_my:
+                        max_my = my
 
+            print(
+                f"[DEBUG Welded Beam] Dispatching pair {pair!r}: "
+                f"depth={depth}, web_t={web_t}, top_w={top_w}, top_t={top_t}, "
+                f"bot_w={bot_w}, bot_t={bot_t}, span={s}, moment={max_my}, shear={max_vz}"
+            )
+
+            try:
                 res = design_welded_end_diaphragm(
                     depth_mm=depth,
                     web_thk_mm=web_t,
@@ -428,5 +455,10 @@ def design_end_diaphragm(
                     shear_kN=max_vz,
                 )
                 pair_designs[pair]["beam"] = res
+                print(f"[DEBUG Welded Beam] Result stored for pair {pair!r}: {res}")
+            except Exception as exc:
+                import traceback
+                print(f"[DEBUG Welded Beam] ERROR calling design_welded_end_diaphragm for {pair!r}: {exc}")
+                traceback.print_exc()
 
     return pair_designs

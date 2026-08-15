@@ -44,6 +44,17 @@ class ChannelSection:
     r2: float  # toe radius (mm)
 
 
+@dataclass
+class BeamSection:
+    designation: str
+    d: float  # depth D (mm)
+    b: float  # flange width B (mm)
+    tw: float  # web thickness tw (mm)
+    tf: float  # flange thickness T (mm)
+    r1: float  # root radius (mm)
+    r2: float  # toe radius (mm)
+
+
 class SectionCatalog:
     """Lightweight access to Osdag section database."""
 
@@ -51,6 +62,7 @@ class SectionCatalog:
         self.db_path = db_path
         self._angles: Dict[str, AngleSection] = {}
         self._channels: Dict[str, ChannelSection] = {}
+        self._beams: Dict[str, BeamSection] = {}
         self._load()
 
     def _load(self) -> None:
@@ -83,6 +95,22 @@ class SectionCatalog:
                 r2=float(r2),
             )
 
+        # Beams
+        try:
+            cur.execute("SELECT Designation, D, B, tw, T, R1, R2 FROM Beams")
+            for des, d, b, tw, tf, r1, r2 in cur.fetchall():
+                self._beams[des.strip()] = BeamSection(
+                    designation=des.strip(),
+                    d=float(d),
+                    b=float(b),
+                    tw=float(tw),
+                    tf=float(tf),
+                    r1=float(r1 or 0),
+                    r2=float(r2 or 0),
+                )
+        except Exception:
+            pass
+
         con.close()
 
     def list_angles(self) -> List[str]:
@@ -92,10 +120,49 @@ class SectionCatalog:
         return sorted(self._channels.keys())
 
     def get_angle(self, designation: str) -> Optional[AngleSection]:
-        return self._angles.get(designation.strip())
+        if not designation:
+            return None
+        des = str(designation).strip()
+        if des in self._angles:
+            return self._angles[des]
+        import re
+        nums = re.findall(r"\d+(?:\.\d+)?", des)
+        if nums:
+            pattern = ".*".join(nums)
+            for k, v in self._angles.items():
+                if re.search(pattern, k):
+                    return v
+        return None
 
     def get_channel(self, designation: str) -> Optional[ChannelSection]:
-        return self._channels.get(designation.strip())
+        if not designation:
+            return None
+        des = str(designation).strip()
+        if des in self._channels:
+            return self._channels[des]
+        import re
+        nums = re.findall(r"\d+(?:\.\d+)?", des)
+        if nums:
+            pattern = ".*".join(nums)
+            for k, v in self._channels.items():
+                if re.search(pattern, k):
+                    return v
+        return None
+
+    def get_beam(self, designation: str) -> Optional[BeamSection]:
+        if not designation:
+            return None
+        des = str(designation).strip()
+        if des in self._beams:
+            return self._beams[des]
+        import re
+        nums = re.findall(r"\d+(?:\.\d+)?", des)
+        if nums:
+            pattern = ".*".join(nums)
+            for k, v in self._beams.items():
+                if re.search(pattern, k):
+                    return v
+        return None
 
 
 class SectionPreviewWidget(QWidget):
@@ -128,6 +195,7 @@ class SectionPreviewWidget(QWidget):
             "double_angle_short",
             "channel",
             "double_channel",
+            "beam",
         )
         self.update()
 
@@ -160,6 +228,11 @@ class SectionPreviewWidget(QWidget):
             if section_type == "double_channel":
                 dims["is_double"] = True
             return dims
+        if section_type == "beam":
+            bm = self._catalog.get_beam(designation)
+            if not bm:
+                return None
+            return {"kind": "channel", "b": bm.b, "d": bm.d, "tw": bm.tw, "tf": bm.tf, "r1": bm.r1, "r2": bm.r2}
         return None
 
     # ---- Geometry builders -------------------------------------------------
@@ -195,7 +268,31 @@ class SectionPreviewWidget(QWidget):
                 p2 = self._build_channel_path(ch, QPointF(0, 0), mirror=True)
                 return [p1, p2]
 
+        if section_type == "beam":
+            bm = self._catalog.get_beam(designation)
+            if not bm:
+                return []
+            return [self._build_beam_path(bm, QPointF(0, 0))]
+
         return []
+
+    def _build_beam_path(self, bm: BeamSection, origin: QPointF) -> QPainterPath:
+        d, b, tw, tf = bm.d, bm.b, bm.tw, bm.tf
+        path = QPainterPath()
+        path.moveTo(origin.x() - b / 2.0, origin.y() - d / 2.0)
+        path.lineTo(origin.x() + b / 2.0, origin.y() - d / 2.0)
+        path.lineTo(origin.x() + b / 2.0, origin.y() - d / 2.0 + tf)
+        path.lineTo(origin.x() + tw / 2.0, origin.y() - d / 2.0 + tf)
+        path.lineTo(origin.x() + tw / 2.0, origin.y() + d / 2.0 - tf)
+        path.lineTo(origin.x() + b / 2.0, origin.y() + d / 2.0 - tf)
+        path.lineTo(origin.x() + b / 2.0, origin.y() + d / 2.0)
+        path.lineTo(origin.x() - b / 2.0, origin.y() + d / 2.0)
+        path.lineTo(origin.x() - b / 2.0, origin.y() + d / 2.0 - tf)
+        path.lineTo(origin.x() - tw / 2.0, origin.y() + d / 2.0 - tf)
+        path.lineTo(origin.x() - tw / 2.0, origin.y() - d / 2.0 + tf)
+        path.lineTo(origin.x() - b / 2.0, origin.y() - d / 2.0 + tf)
+        path.closeSubpath()
+        return path
 
     def _build_angle_path(self, angle: AngleSection, origin: QPointF, mirror_axis: str = None) -> QPainterPath:
         # Outer L profile anchored at origin (0,0) at corner; legs along +x/+y.

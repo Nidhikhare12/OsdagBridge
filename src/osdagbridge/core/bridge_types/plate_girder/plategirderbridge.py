@@ -2324,6 +2324,7 @@ class PlateGirderBridge:
             return {}
 
         cb = CrossBracingForces(bridge=self)
+        self.cross_bracing = cb
         if not cb.get_crossbracing_count():
             print("[CrossBracing] No cross-bracing panels found — skipping.")
             return {}
@@ -2342,6 +2343,7 @@ class PlateGirderBridge:
         bridge_logger.check_cancel()
         from osdagbridge.core.bridge_types.plate_girder.cross_bracing_design import design_cross_bracing
         pair_designs = design_cross_bracing(self)
+        self.crossbracing_design_results = pair_designs
         self.output_dict["crossbracing_forces_dict"] = forces_dict
 
         enrich_crossbracing_dump(pair_designs)
@@ -2593,20 +2595,24 @@ class PlateGirderBridge:
                     "B": val_f(row[4]) / 1000.0,
                     "tw": val_f(row[5]) / 1000.0,
                     "tF": val_f(row[6]) / 1000.0,
-                    "M": val_f(row[2]),
-                    "A": val_f(row[3]),
-                    "Iz": val_f(row[10]),
-                    "Iv": val_f(row[11]),
-                    "rz": val_f(row[12]),
-                    "rv": val_f(row[13]),
-                    "Zz": val_f(row[14]),
-                    "Zv": val_f(row[15]),
-                    "Zuz": val_f(row[16]),
-                    "Zuv": val_f(row[17]),
+                    "M": val_f(row[1]),
+                    "A": val_f(row[2]),
+                    "Iz": val_f(row[7]),
+                    "Iv": val_f(row[8]),
+                    "rz": val_f(row[9]),
+                    "rv": val_f(row[10]),
+                    "Zz": val_f(row[11]),
+                    "Zv": val_f(row[12]),
+                    "Zuz": val_f(row[13]),
+                    "Zuv": val_f(row[14]),
+                    "It": val_f(row[15]),
+                    "Iw": val_f(row[16]),
                 }
             con.close()
         except Exception as exc:
-            print(f"Error querying rolled beam: {exc}")
+            import traceback
+            print(f"Error querying rolled beam for designation {designation!r}: {exc}")
+            traceback.print_exc()
         return None
 
     @staticmethod

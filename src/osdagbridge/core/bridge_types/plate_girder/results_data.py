@@ -649,12 +649,12 @@ def _extract_osdag_summary(result: dict) -> dict:
     else:
         conn = None
 
-    sec = _first("section_size.designation", "Optimum.Designation")
-    eff = _first("Member.efficiency", "Optimum.UR")
-    slnd = _first("Member.Slenderness", "ESR")
+    sec = _first("section_size.designation", "Optimum.Designation", "section", "section_designation")
+    eff = _first("Member.efficiency", "Optimum.UR", "efficiency")
+    slnd = _first("Member.Slenderness", "ESR", "slenderness")
 
     if is_beam:
-        cap_val = _first("Moment.Strength", "Design.Strength")
+        cap_val = _first("Moment.Strength", "Design.Strength", "capacity_kNm", "capacity")
         res_summary = {
             "section": str(sec) if sec is not None else "",
             "capacity_kNm": cap_val,
@@ -662,7 +662,7 @@ def _extract_osdag_summary(result: dict) -> dict:
             "slenderness": slnd,
         }
     else:
-        cap_val = _first("Member.tension_capacity", "Design.Strength")
+        cap_val = _first("Member.tension_capacity", "Design.Strength", "capacity_kN", "capacity")
         res_summary = {
             "section": str(sec) if sec is not None else "",
             "capacity_kN": cap_val,

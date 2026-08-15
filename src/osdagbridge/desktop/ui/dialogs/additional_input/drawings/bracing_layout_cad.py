@@ -129,7 +129,7 @@ class BracingLayoutCadWidget(QWidget):
             if not text:
                 return
             f = painter.font()
-            f.setPointSize(font_size)
+            f.setPointSize(max(6, int(font_size)))
             f.setBold(True)
             painter.setFont(f)
             fm = painter.fontMetrics()

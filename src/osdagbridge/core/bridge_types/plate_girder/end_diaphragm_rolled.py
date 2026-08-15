@@ -36,10 +36,16 @@ def design_rolled_end_diaphragm(
     dict
         Osdag design output dictionary.
     """
+    des = designation.strip()
+    if des.startswith("ISMB"):
+        des = des.replace("ISMB", "MB").strip()
+    elif des.startswith("IS") and not des.startswith("ISL") and not des.startswith("ISM"):
+        des = des[2:].strip()
+
     payload = {
         "Module": "Flexural Members - Simply Supported",
         "Member.Profile": "Beams and Columns",
-        "Member.Designation": [designation],
+        "Member.Designation": [des],
         "Material": material_grade,
         "Member.Material": material_grade,
         "Flexure.Type": "Major Laterally Supported",
