@@ -1,3 +1,35 @@
+from pylatex import LongTable
+
+GLOBAL_GEOMETRY = {
+    "margin": "1in",
+    "top": "1in",
+    "bottom": "1.4in",    # Bottom margin bada kiya taaki text footer se na takraye
+    "footskip": "0.4in"   # Footer aur text ke beech safe gap
+}
+
+def get_repeated_header_table(col_spec, headers, rows):
+    """Programmatically generates a PyLaTeX LongTable with repeated headers across page breaks."""
+    table = LongTable(col_spec)
+    table.append(r"\renewcommand{\arraystretch}{1.2}") # Padding aur row spacing set karne ke liye
+    table.add_hline()
+    
+    # FIRST HEAD (Pehle page par dikhne wala header)
+    table.add_row(headers)
+    table.add_hline()
+    table.append(r"\endfirsthead")
+    
+    # REPEATING HEAD (Agay ke saare pages par repeat hone wala header)
+    table.add_row(headers)
+    table.add_hline()
+    table.append(r"\endhead")
+    
+    # Data Rows
+    for row in rows:
+        table.add_row(row)
+        table.add_hline()
+        
+    return table
+
 from osdagbridge.core.utils.common import (
     KEY_MP_GD_MEMBER_ID,
     KEY_MP_GD_SELECT_GIRDER,

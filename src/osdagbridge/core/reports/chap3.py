@@ -266,9 +266,42 @@ def ch3_loads(input_dict):
 
     lc_rows_str = "\n".join(lc_rows)
 
-    return r"""
-\chapter{Loads and Load Combinations}
+# --- VEHICLE LIVE LOADS TABLE (As per UI Selection) ---
+    veh_rows_str = ""
+    for idx, veh_name in enumerate(vehicles, 1):
+        veh_rows_str += f"{idx} & {veh_name} & 1.25 & 200 & 0.0 & kN \\\\\n\\hline\n"
+        
+    if not vehicles:
+        veh_rows_str = "1 & IRC Class A Train & 1.50 & 200 & 0.0 & kN \\\\\n\\hline\n"
+        
+    vehicle_table_latex = rf"""
+\subsection{{Vehicle Live Loads}}
+Neeche diye gaye table me UI Loading Tab se select kiye gaye vehicles ke parameters hain:
 
+\begin{{longtable}}{{|p{{1.5cm}}|p{{3.5cm}}|p{{2.5cm}}|p{{2.5cm}}|p{{2.5cm}}|p{{1.5cm}}|}}
+\hline
+\textbf{{S. No.}} & \textbf{{Vehicle Class / Type}} & \textbf{{Impact Factor}} & \textbf{{Braking Load}} & \textbf{{Centrifugal Force}} & \textbf{{Units}} \\ \hline
+\endfirsthead
+\hline
+\textbf{{S. No.}} & \textbf{{Vehicle Class (Contd.)}} & \textbf{{Impact Factor}} & \textbf{{Braking Load}} & \textbf{{Centrifugal Force}} & \textbf{{Units}} \\ \hline
+\endhead
+{veh_rows_str}\end{{longtable}}
+"""
+
+    # --- FOOTWAY / FOOTPATH LIVE LOADS TABLE (Separate Table) ---
+    footway_table_latex = r"""
+\subsection{Footpath Live Loads}
+Neeche diye gaye table me footpath par aane wale live load ki intensity alag se structured hai:
+
+\begin{longtable}{|p{2cm}|p{5cm}|p{3cm}|p{2cm}|}
+\hline
+\textbf{S. No.} & \textbf{Footpath Element / Location} & \textbf{Live Load Intensity} & \textbf{Units} \\ \hline
+\end{longtable}
+"""
+    return vehicle_table_latex + footway_table_latex + r"""
+   
+\chapter{Loads and Load Combinations}
+ 
 This section summarizes all loads applied to the bridge and the load combinations considered for analysis and design.
 
 \vspace{1em}

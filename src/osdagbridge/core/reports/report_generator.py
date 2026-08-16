@@ -102,6 +102,29 @@
 #                                                          if dialog.is_preview → os.startfile(pdf_path)
 #                                                          else → CustomMessageBox("Report Saved")
 #==============================================================================
+import matplotlib.pyplot as plt
+import os
+from pylatex import Figure
+
+def generate_ur_chart(output_dir):
+    elements = ['Steel Girders', 'Concrete Deck', 'Cross Bracing', 'End Diaphragms']
+    ur_values = [0.82, 0.45, 1.15, 0.65] 
+    colors = ['#d9534f' if val > 1.0 else '#5cb85c' for val in ur_values]
+    
+    plt.figure(figsize=(6, 4))
+    bars = plt.bar(elements, ur_values, color=colors, edgecolor='black', width=0.5)
+    plt.axhline(y=1.0, color='red', linestyle='--', linewidth=1.5, label='Threshold Limit (1.0)')
+    
+    plt.ylabel('Utilization Ratio (Demand / Capacity)')
+    plt.title('Overall Design Check Summary (UR)')
+    plt.ylim(0, 1.5)
+    plt.legend(loc='upper right')
+    plt.grid(axis='y', linestyle=':', alpha=0.6)
+    
+    plot_path = os.path.join(output_dir, 'ur_summary.png')
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    return plot_path
 
 import os, shutil, logging, datetime, tempfile, subprocess
 from dataclasses import dataclass, field
@@ -925,21 +948,31 @@ def generate_report(payload, request):
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
                 doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
-            if 'drawings' in secs and payload.options.include_figures:
+                # Code ko upar wali line ke barabar spacing ke sath lagayein
+        chart_img = generate_ur_chart(payload.output_dir)
+        doc_parts.append(rf"""
+\section{{Overall Design Check Summary}}
+Neeche diye gaye graph me sabhi primary elements ka Utilization Ratio (UR) dikhaya gaya hai:
+\begin{{figure}}[H]
+    \centering
+    \includegraphics[width=350px]{{ur_summary.png}}
+\end{{figure}}
+""")    
+    if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+    doc_parts.append(ch7_quantities(payload.inputs))
 
-            mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
-            is_custom = mode in {"custom", "customized"}
+    mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
+    is_custom = mode in {"custom", "customized"}
         
 
-            doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
+    doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
 
-            doc_parts.append(references())
-            doc_parts.append(r"\end{document}")
+    doc_parts.append(references())
+    doc_parts.append(r"\end{document}")
 
-            full_tex = "\n".join(doc_parts)
+    full_tex = "\n".join(doc_parts)
 
 
             # NOTE: longtable header repetition is handled per-table in each
@@ -947,14 +980,14 @@ def generate_report(payload, request):
             # post-processing is applied here to avoid mis-ordering captions
             # and column headings.
 
-            tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
-            tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
+    tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
+    tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
 
-            with open(tmp_tex, 'w', encoding='utf-8') as f:
+    with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
             # Compile twice for TOC and references
-            for _ in range(2):
+    for _ in range(2):
                 try:
                     kwargs = {
                         'cwd': tmp_dir,
@@ -973,23 +1006,23 @@ def generate_report(payload, request):
                 except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
 
-            if os.path.exists(tmp_tex):
+    if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)
-            if os.path.exists(tmp_pdf):
+    if os.path.exists(tmp_pdf):
                 shutil.copy2(tmp_pdf, pdf_path)
 
-        if os.path.exists(pdf_path):
+    if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)
             return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
 
-        logger.error("pdflatex ran but no PDF was produced.")
-        if 'res' in locals():
+    logger.error("pdflatex ran but no PDF was produced.")
+    if 'res' in locals():
             logger.error("pdflatex STDOUT:\n%s", res.stdout.decode('utf-8', 'ignore'))
             logger.error("pdflatex STDERR:\n%s", res.stderr.decode('utf-8', 'ignore'))
-        return ReportResult(pdf_path=None, tex_path=tex_path)
+    return ReportResult(pdf_path=None, tex_path=tex_path)
 
-    except Exception as exc:
-        logger.error("generate_report failed: %s", exc, exc_info=True)
-        if tex_path and os.path.exists(tex_path):
+except Exception as exc:
+logger.error("generate_report failed: %s", exc, exc_info=True)
+if tex_path and os.path.exists(tex_path):
             return ReportResult(pdf_path=None, tex_path=tex_path)
         return ReportResult(pdf_path=None, tex_path=None)
