@@ -806,6 +806,7 @@ def build_report_payload(request, input_dict, output_dict):
 
 
 from osdagbridge.core.boq.boq_generator import calculate_material_quantities
+from osdagbridge.core.reports.plot_utils import generate_ur_plots
 
 # ===========================================================================
 # Public entry point
@@ -903,6 +904,25 @@ def generate_report(payload, request):
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
+            # Generating the UR Plots
+            try:
+                ur_girder, ur_deck, ur_cb, ur_ed = generate_ur_plots(bridge)
+                
+                # Write directly to tmp_images
+                fig_paths['ur_detail_girder'] = os.path.join(tmp_images, 'ur_girder.png').replace('\\', '/')
+                with open(fig_paths['ur_detail_girder'], 'wb') as f: f.write(ur_girder)
+
+                fig_paths['ur_detail_deck'] = os.path.join(tmp_images, 'ur_deck.png').replace('\\', '/')
+                with open(fig_paths['ur_detail_deck'], 'wb') as f: f.write(ur_deck)
+
+                fig_paths['ur_detail_cb'] = os.path.join(tmp_images, 'ur_cb.png').replace('\\', '/')
+                with open(fig_paths['ur_detail_cb'], 'wb') as f: f.write(ur_cb)
+
+                fig_paths['ur_detail_ed'] = os.path.join(tmp_images, 'ur_ed.png').replace('\\', '/')
+                with open(fig_paths['ur_detail_ed'], 'wb') as f: f.write(ur_ed)
+            except Exception as e:
+                logger.error(f"Failed to generate UR plots: {e}")
+
             doc_parts = []
             doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
             doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
@@ -924,7 +944,7 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, fig_paths))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 

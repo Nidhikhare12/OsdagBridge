@@ -141,11 +141,11 @@ from osdagbridge.core.utils.common import (
     KEY_UTIL_SHEAR
 )
 
-from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries
+from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries, _fig_embed
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -1500,6 +1500,26 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 """ + t522_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
+
+Section-level detail for each primary element is provided below.
+
+\vspace{8em}
+
+""" + _fig_embed(fig_paths.get('ur_detail_girder') if fig_paths else None, "Figure 5.1 : Utilization Ratio Detail: Girder", height=r"0.40\textheight") + r"""
+
+\vspace{5em}
+
+""" + _fig_embed(fig_paths.get('ur_detail_deck') if fig_paths else None, "Figure 5.2 : Utilization Ratio Detail: Deck Slab", height=r"0.40\textheight") + r"""
+
+\clearpage
+
+\vspace{8em}
+
+""" + _fig_embed(fig_paths.get('ur_detail_cb') if fig_paths else None, "Figure 5.3 : Utilization Ratio Detail: Cross Bracing", height=r"0.40\textheight") + r"""
+
+\vspace{5em}
+
+""" + _fig_embed(fig_paths.get('ur_detail_ed') if fig_paths else None, "Figure 5.4 : Utilization Ratio Detail: End Diaphragm", height=r"0.40\textheight") + r"""
 
 """
 
