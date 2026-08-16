@@ -1,11 +1,7 @@
 from pylatex import LongTable
 
-GLOBAL_GEOMETRY = {
-    "margin": "1in",
-    "top": "1in",
-    "bottom": "1.4in",    # Bottom margin bada kiya taaki text footer se na takraye
-    "footskip": "0.4in"   # Footer aur text ke beech safe gap
-}
+# Purani geometries hata kar top par direct style engine link karein:
+from osdagbridge.core.reports.styles import GLOBAL_GEOMETRY, TABLE_STYLING
 
 def get_repeated_header_table(col_spec, headers, rows):
     """Programmatically generates a PyLaTeX LongTable with repeated headers across page breaks."""
