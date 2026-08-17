@@ -388,7 +388,13 @@ def design_end_diaphragm(
                         moment_kNm=max_my,
                         shear_kN=max_vz,
                     )
+                    res["moment_kNm"] = max_my
+                    res["shear_kN"] = max_vz
+                    res["Load.Moment"] = max_my
+                    res["Load.Shear"] = max_vz
                     pair_designs[pair]["beam"] = res
+                    pair_designs[pair]["moment_kNm"] = max_my
+                    pair_designs[pair]["shear_kN"] = max_vz
                     print(f"[DEBUG Rolled Beam] Result stored for pair {pair!r}: {res}")
                 else:
                     print(f"[DEBUG Rolled Beam] WARNING: is_sec_des is empty for pair {pair!r}")
@@ -454,7 +460,13 @@ def design_end_diaphragm(
                     moment_kNm=max_my,
                     shear_kN=max_vz,
                 )
+                res["moment_kNm"] = max_my
+                res["shear_kN"] = max_vz
+                res["Load.Moment"] = max_my
+                res["Load.Shear"] = max_vz
                 pair_designs[pair]["beam"] = res
+                pair_designs[pair]["moment_kNm"] = max_my
+                pair_designs[pair]["shear_kN"] = max_vz
                 print(f"[DEBUG Welded Beam] Result stored for pair {pair!r}: {res}")
             except Exception as exc:
                 import traceback

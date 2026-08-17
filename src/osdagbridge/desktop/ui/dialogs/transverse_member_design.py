@@ -1665,7 +1665,14 @@ class TransverseMemberDesign(QDialog):
                 eff      = res.get("efficiency") or beam_res.get("Optimum.UR")
                 slnd     = res.get("slenderness") or beam_res.get("ESR")
                 conn     = res.get("connection") or ("Welded" if ed_type == "Welded Beam" else "Bolted")
-                force_val = beam_res.get("Load.Moment") or beam_res.get("Load.Shear")
+                force_val = (
+                    beam_res.get("moment_kNm")
+                    or pair_designs.get("moment_kNm")
+                    or beam_res.get("shear_kN")
+                    or pair_designs.get("shear_kN")
+                    or beam_res.get("Load.Moment")
+                    or beam_res.get("Load.Shear")
+                )
                 force_str = f"{float(force_val):.3f}" if force_val is not None else "—"
                 cap_str  = self._fmt_float(cap_kn, 2)
                 eff_str  = self._fmt_float(eff, 3)
