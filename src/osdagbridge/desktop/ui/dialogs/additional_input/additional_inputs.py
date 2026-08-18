@@ -2455,13 +2455,18 @@ class AdditionalInputs(QDialog):
 
     def _compute_ed_rolled_section_properties(self, working_input_dict: dict) -> dict:  # compute: looks up rolled I-section properties from catalog by designation
         from osdagbridge.core.utils.common import (
-            GirderSectionCatalog, KEY_MP_ED_IS_SECTION,
+            GirderSectionCatalog, KEY_MP_ED_IS_SECTION, KEY_MP_ED_TYPE,
             KEY_MP_ED_MASS, KEY_MP_ED_SECTIONAL_AREA,
             KEY_MP_ED_SECTIONAL_IZ, KEY_MP_ED_SECTIONAL_IY,
             KEY_MP_ED_RADIUS_GYRATION_Z, KEY_MP_ED_RADIUS_GYRATION_Y,
             KEY_MP_ED_ELASTIC_MODULUS_ZZ, KEY_MP_ED_ELASTIC_MODULUS_ZY,
             KEY_MP_ED_PLASTIC_MODULUS_ZUZ, KEY_MP_ED_PLASTIC_MODULUS_ZUY,
         )
+        type_w = self.findChild(QComboBox, KEY_MP_ED_TYPE)
+        ed_type = working_input_dict.get(KEY_MP_ED_TYPE) or (type_w.currentText().strip() if type_w else "Cross Bracing")
+        if ed_type != "Rolled Beam":
+            return {}
+
         # The bare key is only populated when the user changes it live.
         # The per-pair keys (e.g. ...is_section.G1G2.E1M1) are stored in working_input_dict
         # so we also try reading the live QComboBox widget.
@@ -2490,7 +2495,7 @@ class AdditionalInputs(QDialog):
     def _compute_ed_welded_section_properties(self, working_input_dict: dict) -> dict:  # compute: derives welded I-section properties for end diaphragm from flange/web dimensions
         from osdagbridge.core.bridge_types.plate_girder.initial_sizing import BridgeConfigurationSolver
         from osdagbridge.core.utils.common import (
-            KEY_MP_ED_SYMMETRY,
+            KEY_MP_ED_TYPE, KEY_MP_ED_SYMMETRY,
             KEY_MP_ED_TOTAL_DEPTH, KEY_MP_ED_WEB_THICKNESS,
             KEY_MP_ED_TOP_FLANGE_WIDTH, KEY_MP_ED_TOP_FLANGE_THICKNESS,
             KEY_MP_ED_BOTTOM_FLANGE_WIDTH, KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
@@ -2500,6 +2505,11 @@ class AdditionalInputs(QDialog):
             KEY_MP_ED_ELASTIC_MODULUS_ZZ, KEY_MP_ED_ELASTIC_MODULUS_ZY,
             KEY_MP_ED_PLASTIC_MODULUS_ZUZ, KEY_MP_ED_PLASTIC_MODULUS_ZUY,
         )
+
+        type_w = self.findChild(QComboBox, KEY_MP_ED_TYPE)
+        ed_type = working_input_dict.get(KEY_MP_ED_TYPE) or (type_w.currentText().strip() if type_w else "Cross Bracing")
+        if ed_type != "Welded Beam":
+            return {}
 
         def _to_m(key: str) -> float:
             val = working_input_dict.get(key)

@@ -1300,6 +1300,15 @@ class TransverseMemberDesign(QDialog):
                 if field:
                     field.setText(str(v) if v != "" else "")
 
+            # Render 2D CAD section preview drawing for Welded Beam
+            wb_preview = self._section_previews.get("ED Welded Beam")
+            if wb_preview:
+                try:
+                    welded_des = f"PG {int(float(depth_val))}x{int(float(web_t_val))}x{int(float(top_w_val))}x{int(float(top_t_val))}"
+                    wb_preview.set_section("beam", welded_des)
+                except Exception:
+                    wb_preview.set_section("beam", "PG 300x8x150x10")
+
         elif ed_type == "Rolled Beam":
             # Rolled Beam — find IS section designation from output_dict or input_dict
             od      = getattr(self._backend, "output_dict", {}) or {}

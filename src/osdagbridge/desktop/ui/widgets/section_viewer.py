@@ -157,6 +157,19 @@ class SectionCatalog:
             return self._beams[des]
         import re
         nums = re.findall(r"\d+(?:\.\d+)?", des)
+        if len(nums) >= 4:
+            try:
+                return BeamSection(
+                    designation=des,
+                    d=float(nums[0]),
+                    tw=float(nums[1]),
+                    b=float(nums[2]),
+                    tf=float(nums[3]),
+                    r1=0.0,
+                    r2=0.0,
+                )
+            except (ValueError, TypeError):
+                pass
         if nums:
             pattern = ".*".join(nums)
             for k, v in self._beams.items():
