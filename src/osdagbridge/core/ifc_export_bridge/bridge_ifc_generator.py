@@ -661,15 +661,34 @@ class BridgeIfcGenerator:
 
             def _process_pier_cap(item):
                 s = 0.001
-                top_w_m = getattr(item, 'length', 3000.0) * s
+                top_w_m = getattr(item, 'top_width', getattr(item, 'length', 3000.0)) * s
+                bot_w_m = getattr(item, 'bottom_width', top_w_m / s) * s
                 depth_m = item.depth * s
                 height_m = item.height * s
-                vol_m3 = top_w_m * depth_m * height_m
-                prof = self.mapper.create_rectangular_profile(depth_m, top_w_m)
-                scaled_origin = [v * s for v in item.origin]
-                place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, 1), x_dir=(1, 0, 0))
-                local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
-                solid = self.mapper.create_extruded_solid(prof, height_m, local_identity)
+                avg_w_m = (top_w_m + bot_w_m) / 2.0
+                vol_m3 = avg_w_m * depth_m * height_m
+
+                if abs(top_w_m - bot_w_m) > 1e-4:
+                    # Trapezoidal hammerhead profile in the Y-Z plane
+                    pts_2d = [
+                        (-bot_w_m / 2.0, -height_m / 2.0),
+                        (bot_w_m / 2.0, -height_m / 2.0),
+                        (top_w_m / 2.0, height_m / 2.0),
+                        (-top_w_m / 2.0, height_m / 2.0),
+                    ]
+                    prof = self.mapper.create_polygonal_profile(pts_2d, f"PierCapProfile_{item.ifc_name}")
+                    cap_center_z_m = (item.origin[2] + item.height / 2.0) * s
+                    scaled_origin = [(item.origin[0] - item.depth / 2.0) * s, item.origin[1] * s, cap_center_z_m]
+                    place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(1, 0, 0), x_dir=(0, 1, 0))
+                    local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                    solid = self.mapper.create_extruded_solid(prof, depth_m, local_identity)
+                else:
+                    prof = self.mapper.create_rectangular_profile(depth_m, top_w_m)
+                    scaled_origin = [v * s for v in item.origin]
+                    place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                    local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+                    solid = self.mapper.create_extruded_solid(prof, height_m, local_identity)
+
                 shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
                 self.mapper.apply_color(shape, RCC_COLOR)
                 prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
@@ -711,8 +730,10 @@ class BridgeIfcGenerator:
                 length_m = item.length * s
                 vol_m3 = math.pi * (r_m**2) * length_m
                 prof = self.mapper.create_circle_profile(r_m)
-                scaled_origin = [v * s for v in item.origin]
-                place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, -1), x_dir=(1, 0, 0))
+                # In standard IFC, solid cylinders are placed at their base and extruded upwards (+Z).
+                base_z_m = (item.origin[2] - item.length) * s
+                scaled_origin = [item.origin[0] * s, item.origin[1] * s, base_z_m]
+                place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=(0, 0, 1), x_dir=(1, 0, 0))
                 local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
                 solid = self.mapper.create_extruded_solid(prof, length_m, local_identity)
                 shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])

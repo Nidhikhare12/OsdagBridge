@@ -146,6 +146,8 @@ class TestSubstructure(unittest.TestCase):
         self.assertIn("pier_rebar", res)
 
     def test_ifc_export_substructure(self):
+        import ifcopenshell
+
         dto = _make_dummy_dto(with_substructure=True)
         gen = PlateGirderCADGenerator()
         gen.model_data = gen.generate(dto)
@@ -169,6 +171,33 @@ class TestSubstructure(unittest.TestCase):
             ifc_gen.generate_from_extracted_data(extracted, gen)
             self.assertTrue(os.path.exists(ifc_path))
             self.assertGreater(os.path.getsize(ifc_path), 1000)
+
+            # Open and inspect the exported IFC model
+            model = ifcopenshell.open(ifc_path)
+            piles = model.by_type("IfcPile")
+            self.assertGreater(len(piles), 0)
+
+            # Verify that every pile uses an upward +Z extrusion vector and positive depth
+            for pile in piles:
+                placement = pile.ObjectPlacement.RelativePlacement
+                # Axis direction must be positive Z (0, 0, 1) to prevent inverted rendering in BIM viewers
+                self.assertAlmostEqual(placement.Axis.DirectionRatios[0], 0.0)
+                self.assertAlmostEqual(placement.Axis.DirectionRatios[1], 0.0)
+                self.assertAlmostEqual(placement.Axis.DirectionRatios[2], 1.0)
+
+                # Base Z must be lower than pile top (pile extends downward from cap)
+                self.assertLess(placement.Location.Coordinates[2], -4.0)
+
+                # Representation solid depth must equal pile length (5.0 m)
+                rep = pile.Representation.Representations[0]
+                solid = rep.Items[0]
+                self.assertEqual(solid.is_a(), "IfcExtrudedAreaSolid")
+                self.assertAlmostEqual(solid.Depth, 5.0)
+
+            # Verify pier cap beams and footings exist
+            footings = model.by_type("IfcFooting")
+            self.assertGreater(len(footings), 0)
+
         finally:
             if os.path.exists(ifc_path):
                 os.remove(ifc_path)

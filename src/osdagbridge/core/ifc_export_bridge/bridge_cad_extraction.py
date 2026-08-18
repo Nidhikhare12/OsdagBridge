@@ -495,27 +495,34 @@ class PlateGirderIFCExtractor:
         return {"supports_tri": [s for s in supports if s._class_name == "StiffenerPlate"], "supports_cyl": [s for s in supports if s._class_name == "CircularSolid"]}
 
     def _extract_substructure(self):
-        sp = getattr(self.cad, "substructure", None)
+        sp = getattr(self.cad, "substructure", getattr(getattr(self.cad, "design_params", None), "substructure", None))
         if sp is None:
             return {}
 
-        girder_d = getattr(self.cad, "girder_section_d", 1500.0)
-        girder_tf = getattr(self.cad, "girder_section_tf", 25.0)
-        girder_tf_b = getattr(self.cad, "girder_section_tf_b", 25.0)
-        girder_total_depth = girder_d + girder_tf + girder_tf_b
+        params = getattr(self.cad, "design_params", self.cad)
+        girder_d = getattr(self.cad, "girder_section_d", getattr(params, "girder_section_d", 1500.0))
+        girder_tf_b = getattr(self.cad, "girder_section_tf_b", getattr(params, "girder_section_tf_b", 25.0))
+        girder_soffit_z = -(girder_d / 2.0) - girder_tf_b
 
-        pier_cap_top_z = -girder_total_depth
+        pier_cap_top_z = girder_soffit_z
         pier_base_z    = pier_cap_top_z - sp.pier_cap_height - sp.pier_height
         pile_cap_top_z = pier_base_z
         pile_top_z     = pile_cap_top_z - sp.pile_cap_thickness
 
-        span_L = getattr(self.cad, "span_length_L", 20000.0)
-        if sp.pier_x_positions:
+        span_L = getattr(self.cad, "span_length_L", getattr(params, "span_length_L", 20000.0))
+        if getattr(sp, "pier_x_positions", None) is not None:
             x_positions = sp.pier_x_positions
+        elif getattr(sp, "pier_y_positions", None) is not None:
+            x_positions = sp.pier_y_positions
         else:
             n = max(1, int(sp.num_supports))
-            step = span_L / (n + 1)
-            x_positions = [step * (i + 1) for i in range(n)]
+            if n == 1:
+                x_positions = [0.0]
+            elif n == 2:
+                x_positions = [0.0, span_L]
+            else:
+                step = span_L / (n - 1)
+                x_positions = [step * i for i in range(n)]
 
         num_piers = sp.num_piers_per_support
         pier_spacing = sp.pier_spacing
@@ -532,7 +539,9 @@ class PlateGirderIFCExtractor:
             # Pier cap
             pier_caps.append(ExtractedObject(
                 "PierCap",
-                length=sp.pier_cap_length,
+                length=getattr(sp, "pier_cap_length", 3000.0),
+                top_width=getattr(sp, "pier_cap_top_width", 3000.0),
+                bottom_width=getattr(sp, "pier_cap_bottom_width", 1200.0),
                 depth=sp.pier_cap_depth,
                 height=sp.pier_cap_height,
                 origin=[x_pos, 0.0, pier_cap_top_z - sp.pier_cap_height],
@@ -549,7 +558,7 @@ class PlateGirderIFCExtractor:
                 ifc_name=f"Pile Cap {idx+1}"
             ))
 
-            # Piers and rebar
+            # Piers and pier shaft rebar
             for p_idx, y_off in enumerate(y_offsets):
                 pier_shafts.append(ExtractedObject(
                     "PierShaft",
@@ -602,15 +611,57 @@ class PlateGirderIFCExtractor:
             py_offsets = [-total_y_spread / 2.0 + c * sp.pile_spacing_y for c in range(sp.pile_cols)]
 
             p_count = 1
+            pile_base_z = pile_top_z - sp.pile_length
             for dx in px_offsets:
                 for dy in py_offsets:
+                    px = x_pos + dx
+                    py = dy
                     piles.append(ExtractedObject(
                         "Pile",
                         diameter=sp.pile_diameter,
                         length=sp.pile_length,
-                        origin=[x_pos + dx, dy, pile_top_z],
+                        origin=[px, py, pile_top_z],
                         ifc_name=f"Pile {idx+1}.{p_count}"
                     ))
+
+                    # Optional pile rebar cages
+                    if getattr(sp, "include_pile_rebar", False):
+                        cover = getattr(sp, "rebar_cover", 40.0)
+                        p_main_bar_dia = getattr(sp, "main_bar_diameter", 16.0)
+                        p_tie_dia = getattr(sp, "tie_diameter", 8.0)
+                        p_tie_spacing = getattr(sp, "tie_spacing", 150.0)
+                        p_bar_r = p_main_bar_dia / 2.0
+                        p_tie_r = p_tie_dia / 2.0
+                        p_main_ring_r = max((sp.pile_diameter / 2.0) - cover - p_tie_dia - p_bar_r, p_bar_r)
+                        p_tie_ring_r = max((sp.pile_diameter / 2.0) - cover - p_tie_r, p_tie_r)
+
+                        for k in range(8):
+                            angle = 2.0 * math.pi * k / 8.0
+                            bx = px + p_main_ring_r * math.cos(angle)
+                            by = py + p_main_ring_r * math.sin(angle)
+                            rebar.append(ExtractedObject(
+                                "PierRebarMain",
+                                diameter=p_main_bar_dia,
+                                length=sp.pile_length,
+                                origin=[bx, by, pile_base_z],
+                                ifc_name=f"Pile Rebar Main {idx+1}.{p_count}.{k+1}"
+                            ))
+
+                        z_start_t = pile_base_z + cover + p_tie_r
+                        z_end_t = pile_base_z + sp.pile_length - cover - p_tie_r
+                        z_t = z_start_t
+                        t_idx = 1
+                        while z_t <= z_end_t + 1e-3:
+                            rebar.append(ExtractedObject(
+                                "PierRebarTie",
+                                diameter=p_tie_dia,
+                                ring_radius=p_tie_ring_r,
+                                origin=[px, py, z_t],
+                                ifc_name=f"Pile Rebar Tie {idx+1}.{p_count}.{t_idx}"
+                            ))
+                            z_t += p_tie_spacing
+                            t_idx += 1
+
                     p_count += 1
 
         return {

@@ -169,7 +169,8 @@ class BridgeMetadataMapper:
             props["Height"] = self._to_meters(getattr(item, 'height', 3000))
         elif "Pier Cap" in item.ifc_name:
             props["ComponentRole"] = "Pier Cap"
-            props["TopWidth"] = self._to_meters(getattr(item, 'length', 3000))
+            props["TopWidth"] = self._to_meters(getattr(item, 'top_width', getattr(item, 'length', 3000)))
+            props["BottomWidth"] = self._to_meters(getattr(item, 'bottom_width', getattr(item, 'length', 3000)))
             props["Depth"] = self._to_meters(getattr(item, 'depth', 600))
             props["Height"] = self._to_meters(getattr(item, 'height', 600))
         elif "Pile Cap" in item.ifc_name:
