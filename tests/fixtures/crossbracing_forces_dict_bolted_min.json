@@ -1,0 +1,17 @@
+{
+  "brace_type": "X",
+  "top_chord": true,
+  "bottom_chord": true,
+  "geometry": {
+    "diagonal_length_m": 1.5,
+    "horiz_proj_m": 1.0
+  },
+  "pairs": {
+    "G1-G2": {
+      "diag_tension_kN": 10.0,
+      "diag_compression_kN": 20.0,
+      "chord_tension_kN": 5.0,
+      "chord_compression_kN": null
+    }
+  }
+}
