@@ -54,25 +54,18 @@ class _FakeExecutor:
         return _FakeFuture({"mock": True})
 
 
-class _FakeBridge:
-    def __init__(self, input_dict: dict):
-        self.input_dict = input_dict
-
-
 def _run_jobs(forces_dict: dict, input_dict: dict) -> tuple[dict, list[dict]]:
-    from osdagbridge.core.bridge_types.plate_girder.crossbracingforces import (
-        CrossBracingForces,
+    from osdagbridge.core.bridge_types.plate_girder.cross_bracing_design import (
+        run_member_designs,
     )
 
     fake_pool = _FakeExecutor()
-    cb = object.__new__(CrossBracingForces)
-    cb.bridge = _FakeBridge(input_dict)
 
     with patch(
         "osdagbridge.core.utils.connect.design_pool",
         return_value=fake_pool,
     ):
-        results = cb.run_member_designs(forces_dict)
+        results = run_member_designs(forces_dict, input_dict=input_dict)
 
     return results, fake_pool.submitted_dicts
 
@@ -102,8 +95,8 @@ def test_bolted_and_welded_modules_are_registered_in_connect():
 
 def test_run_member_designs_emits_bolted_jobs_for_fixture(bolted_forces_dict):
     """Golden: frozen forces_dict → Bolted tension/compression jobs only."""
-    from osdagbridge.core.bridge_types.plate_girder.crossbracingforces import (
-        CrossBracingForces,
+    from osdagbridge.core.bridge_types.plate_girder.cross_bracing_design import (
+        run_member_designs,
     )
     from osdagbridge.core.utils.connect import (
         design_dict_struts_bolted,
@@ -111,13 +104,12 @@ def test_run_member_designs_emits_bolted_jobs_for_fixture(bolted_forces_dict):
     )
 
     fake_pool = _FakeExecutor()
-    cb = object.__new__(CrossBracingForces)
 
     with patch(
         "osdagbridge.core.utils.connect.design_pool",
         return_value=fake_pool,
     ):
-        results = cb.run_member_designs(bolted_forces_dict)
+        results = run_member_designs(bolted_forces_dict)
 
     assert "G1-G2" in results
     assert results["G1-G2"]["diagonal"]["tension"] == {"mock": True}
