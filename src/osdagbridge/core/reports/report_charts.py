@@ -8,6 +8,9 @@ from collections.abc import Mapping
 from PIL import Image, ImageDraw, ImageFont
 
 from osdagbridge.core.reports.styles import (
+    CHART_FONT_BOLD,
+    CHART_FONT_REGULAR,
+    CHART_FONT_SIZE,
     FAIL_RED,
     GRID_GREY,
     OSDAG_GREEN,
@@ -153,7 +156,7 @@ def collect_utilization_data(output_dict: dict) -> dict[str, list[tuple[str, flo
 
 
 def _font(size: int, bold: bool = False):
-    names = ("arialbd.ttf", "Arial Bold.ttf") if bold else ("arial.ttf", "Arial.ttf")
+    names = CHART_FONT_BOLD if bold else CHART_FONT_REGULAR
     for name in names:
         try:
             return ImageFont.truetype(name, size=size)
@@ -173,26 +176,26 @@ def _dashed_line(draw, xy, fill, width=3, dash=12, gap=8):
 def _draw_panel(draw, box, title: str, records: list[tuple[str, float]]):
     x0, y0, x1, y1 = box
     draw.rounded_rectangle(box, radius=10, outline=GRID_GREY, width=2, fill="white")
-    draw.text(((x0 + x1) / 2, y0 + 12), title, anchor="ma", font=_font(25, True), fill=TEXT_GREY)
+    draw.text(((x0 + x1) / 2, y0 + 12), title, anchor="ma", font=_font(CHART_FONT_SIZE["panel_title"], True), fill=TEXT_GREY)
     plot = (x0 + 72, y0 + 55, x1 - 24, y1 - 86)
     px0, py0, px1, py1 = plot
     values = [value for _, value in records]
     draw.text((px0, py0 - 5), "Utilization Ratio", anchor="lb",
-              font=_font(16, True), fill=TEXT_GREY)
+              font=_font(CHART_FONT_SIZE["axis_title"], True), fill=TEXT_GREY)
     ymax = max(1.25, (max(values) * 1.18 if values else 1.25))
     for tick in range(6):
         value = ymax * tick / 5
         y = py1 - (py1 - py0) * tick / 5
         draw.line((px0, y, px1, y), fill=GRID_GREY, width=1)
-        draw.text((px0 - 10, y), f"{value:.1f}", anchor="rm", font=_font(17), fill=TEXT_GREY)
+        draw.text((px0 - 10, y), f"{value:.1f}", anchor="rm", font=_font(CHART_FONT_SIZE["axis_tick"]), fill=TEXT_GREY)
     limit_y = py1 - (py1 - py0) / ymax
     _dashed_line(draw, (px0, limit_y, px1, limit_y), FAIL_RED, width=3)
-    draw.text((px1 - 4, limit_y - 5), "UR = 1.0", anchor="rb", font=_font(17, True), fill=FAIL_RED)
+    draw.text((px1 - 4, limit_y - 5), "UR = 1.0", anchor="rb", font=_font(CHART_FONT_SIZE["limit_label"], True), fill=FAIL_RED)
     draw.line((px0, py0, px0, py1), fill=TEXT_GREY, width=2)
     draw.line((px0, py1, px1, py1), fill=TEXT_GREY, width=2)
     if not records:
         draw.text(((px0 + px1) / 2, (py0 + py1) / 2), "No design results available",
-                  anchor="mm", font=_font(20), fill=TEXT_GREY)
+                  anchor="mm", font=_font(CHART_FONT_SIZE["empty_state"]), fill=TEXT_GREY)
         return
     count = len(records)
     slot = (px1 - px0) / count
@@ -202,14 +205,14 @@ def _draw_panel(draw, box, title: str, records: list[tuple[str, float]]):
         top = py1 - (py1 - py0) * value / ymax
         colour = PASS_GREEN if value <= 1.0 else FAIL_RED
         draw.rectangle((cx - bar_width / 2, top, cx + bar_width / 2, py1), fill=colour)
-        draw.text((cx, top - 6), f"{value:.2f}", anchor="mb", font=_font(17, True), fill=TEXT_GREY)
-        draw.text((cx, py1 + 10), _safe_name(label, 18), anchor="ma", font=_font(15), fill=TEXT_GREY)
+        draw.text((cx, top - 6), f"{value:.2f}", anchor="mb", font=_font(CHART_FONT_SIZE["value_label"], True), fill=TEXT_GREY)
+        draw.text((cx, py1 + 10), _safe_name(label, 18), anchor="ma", font=_font(CHART_FONT_SIZE["category_label"]), fill=TEXT_GREY)
 
 
 def _draw_quantity_panel(draw, box, title: str, records: list[tuple[str, float]]):
     x0, y0, x1, y1 = box
     draw.rounded_rectangle(box, radius=10, outline=GRID_GREY, width=2, fill="white")
-    draw.text(((x0 + x1) / 2, y0 + 14), title, anchor="ma", font=_font(27, True), fill=TEXT_GREY)
+    draw.text(((x0 + x1) / 2, y0 + 14), title, anchor="ma", font=_font(CHART_FONT_SIZE["quantity_title"], True), fill=TEXT_GREY)
     px0, py0, px1, py1 = x0 + 84, y0 + 70, x1 - 30, y1 - 88
     values = [value for _, value in records]
     ymax = max(max(values, default=0.0) * 1.2, 1.0)
@@ -217,7 +220,7 @@ def _draw_quantity_panel(draw, box, title: str, records: list[tuple[str, float]]
         value = ymax * tick / 5
         y = py1 - (py1 - py0) * tick / 5
         draw.line((px0, y, px1, y), fill=GRID_GREY, width=1)
-        draw.text((px0 - 10, y), f"{value:.1f}", anchor="rm", font=_font(18), fill=TEXT_GREY)
+        draw.text((px0 - 10, y), f"{value:.1f}", anchor="rm", font=_font(CHART_FONT_SIZE["quantity_tick"]), fill=TEXT_GREY)
     draw.line((px0, py0, px0, py1), fill=TEXT_GREY, width=2)
     draw.line((px0, py1, px1, py1), fill=TEXT_GREY, width=2)
     count = max(len(records), 1)
@@ -228,8 +231,8 @@ def _draw_quantity_panel(draw, box, title: str, records: list[tuple[str, float]]
         top = py1 - (py1 - py0) * value / ymax
         width = min(145, slot * 0.56)
         draw.rectangle((cx - width / 2, top, cx + width / 2, py1), fill=colours[index % len(colours)])
-        draw.text((cx, top - 8), f"{value:.2f}", anchor="mb", font=_font(21, True), fill=TEXT_GREY)
-        draw.text((cx, py1 + 12), _safe_name(label, 22), anchor="ma", font=_font(19), fill=TEXT_GREY)
+        draw.text((cx, top - 8), f"{value:.2f}", anchor="mb", font=_font(CHART_FONT_SIZE["quantity_value"], True), fill=TEXT_GREY)
+        draw.text((cx, py1 + 12), _safe_name(label, 22), anchor="ma", font=_font(CHART_FONT_SIZE["quantity_category"]), fill=TEXT_GREY)
 
 
 def generate_utilization_chart(output_dict: dict, output_dir: str) -> str:
@@ -239,7 +242,7 @@ def generate_utilization_chart(output_dict: dict, output_dir: str) -> str:
     image = Image.new("RGB", (1800, 1300), "white")
     draw = ImageDraw.Draw(image)
     draw.text((900, 25), "Overall Utilization Ratio Summary", anchor="ma",
-              font=_font(36, True), fill=TEXT_GREY)
+              font=_font(CHART_FONT_SIZE["overall_title"], True), fill=TEXT_GREY)
     boxes = ((80, 80, 890, 650), (910, 80, 1720, 650),
              (80, 680, 890, 1250), (910, 680, 1720, 1250))
     for box, (title, records) in zip(boxes, data.items()):

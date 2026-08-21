@@ -132,9 +132,9 @@ def ch3_loads(input_dict):
         else:
             impact = "As defined for selected vehicle"
         vehicle_rows.append(
-            _tex(vehicle) + r" & " + _tex(impact) + r" & IRC 6 Cl. 208 \\[6pt]" + "\n\\hline"
+            _tex(vehicle) + r" & " + _tex(impact) + r" & IRC 6 Cl. 208 \reportrow" + "\n\\hline"
         )
-    vehicle_rows_str = "\n".join(vehicle_rows) or (r"None & N/A & --- \\[6pt]" + "\n\\hline")
+    vehicle_rows_str = "\n".join(vehicle_rows) or (r"None & N/A & --- \reportrow" + "\n\\hline")
 
     lanes = input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT)
     braking_force_str = ""
@@ -285,13 +285,13 @@ def ch3_loads(input_dict):
     for i, combo in enumerate(uls_combos, start=1):
         cases = _fmt_factors(combo['factors'])
         lc_rows.append(
-            f"ULS-{i:02d}" + r" & " + cases + r" \\[6pt]" + "\n"
+            f"ULS-{i:02d}" + r" & " + cases + r" \reportrow" + "\n"
             + r"\hline"
         )
     for i, combo in enumerate(sls_combos, start=1):
         cases = _fmt_factors(combo['factors'])
         lc_rows.append(
-            f"SLS-{i:02d}" + r" & " + cases + r" \\[6pt]" + "\n"
+            f"SLS-{i:02d}" + r" & " + cases + r" \reportrow" + "\n"
             + r"\hline"
         )
 
@@ -302,35 +302,35 @@ def ch3_loads(input_dict):
 
 This section summarizes all loads applied to the bridge and the load combinations considered for analysis and design.
 
-\vspace{1em}
+\reportspacelarge
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Dead Load -- Self Weight}}
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+\textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \reportrow
 \hline
-\textnormal{Concrete Deck Weight} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+\textnormal{Concrete Deck Weight} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \reportrow
 \hline
-\textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR)) + r""" \\[6pt]
+\textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR)) + r""" \reportrow
 \hline
 \end{longtable}
 
-\vspace{1em}
+\reportspacelarge
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Dead Load for Surfacing (DW)}}
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Wearing Course Load} & """ + (_render_value(input_dict, KEY_WC_MATERIAL)) + r""" x """ + (_render_value(input_dict, KEY_WC_THICKNESS)) + r""" \\[6pt]
+\textnormal{Wearing Course Load} & """ + (_render_value(input_dict, KEY_WC_MATERIAL)) + r""" x """ + (_render_value(input_dict, KEY_WC_THICKNESS)) + r""" \reportrow
 \hline
-\textnormal{Additional SIDL (Crash Barrier)} & """ + (_render_value(input_dict, KEY_CB_LOAD)) + r""" kN/m per barrier \\[6pt]
+\textnormal{Additional SIDL (Crash Barrier)} & """ + (_render_value(input_dict, KEY_CB_LOAD)) + r""" kN/m per barrier \reportrow
 \hline
-\textnormal{Railing Load} & """ + (_render_value(input_dict, KEY_RL_LOAD_VALUE)) + r""" kN/m\sdstar{} \\[6pt]
+\textnormal{Railing Load} & """ + (_render_value(input_dict, KEY_RL_LOAD_VALUE)) + r""" kN/m\sdstar{} \reportrow
 \hline
 \end{longtable}
 
-\vspace{1em}
+\reportspacelarge
 \begin{longtable}{|L{5.0cm}|C{4.0cm}|L{5.7cm}|}
 \caption{\textbf{Vehicle Live Loads (LL)}}
 \hline
@@ -339,103 +339,103 @@ This section summarizes all loads applied to the bridge and the load combination
 """ + vehicle_rows_str + r"""
 \end{longtable}
 
-\vspace{0.5em}
+\reportspacehalf
 \begin{longtable}{|L{5.0cm}|C{4.0cm}|L{5.7cm}|}
 \caption{\textbf{Associated Vehicle Load Parameters}}
 \hline
 \textbf{Parameter} & \textbf{Value} & \textbf{Unit / Reference} \\
 \hline
-Braking Load & """ + _tex(braking_force_str) + r""" & kN; """ + _tex(braking_force_ref) + r""" \\[6pt]
+Braking Load & """ + _tex(braking_force_str) + r""" & kN; """ + _tex(braking_force_ref) + r""" \reportrow
 \hline
-Centrifugal Force & N/A & Straight bridge alignment; curve radius not provided \\[6pt]
+Centrifugal Force & N/A & Straight bridge alignment; curve radius not provided \reportrow
 \hline
 \end{longtable}
 
-\vspace{0.5em}
+\reportspacehalf
 \begin{longtable}{|L{5.0cm}|C{4.0cm}|L{5.7cm}|}
 \caption{\textbf{Footway Live Load}}
 \hline
 \textbf{Parameter} & \textbf{Value} & \textbf{Unit / Reference} \\
 \hline
-Footway Configuration & """ + _tex(footpath_config) + r""" & Basic Inputs selection \\[6pt]
+Footway Configuration & """ + _tex(footpath_config) + r""" & Basic Inputs selection \reportrow
 \hline
-Nominal Footway Width & """ + _render_value(input_dict, KEY_TS_FOOTPATH_WIDTH) + r""" & m per selected side \\[6pt]
+Nominal Footway Width & """ + _render_value(input_dict, KEY_TS_FOOTPATH_WIDTH) + r""" & m per selected side \reportrow
 \hline
-Footway Live Load Pressure & """ + _tex(fp_str) + r""" & kN/m\textsuperscript{2}; """ + _tex(fp_ref) + r""" \\[6pt]
+Footway Live Load Pressure & """ + _tex(fp_str) + r""" & kN/m\textsuperscript{2}; """ + _tex(fp_ref) + r""" \reportrow
 \hline
 \end{longtable}
 
-\vspace{1em}
+\reportspacelarge
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Wind Load (WL) --- per IRC 6}}
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Basic Wind Speed, Vb} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" [from Project Location] \\[6pt]
+\textnormal{Basic Wind Speed, Vb} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" [from Project Location] \reportrow
 \hline
-\textnormal{Terrain Type} & """ + (_render_value(input_dict, KEY_WL_TERRAIN_TYPE)) + r""" \\[6pt]
+\textnormal{Terrain Type} & """ + (_render_value(input_dict, KEY_WL_TERRAIN_TYPE)) + r""" \reportrow
 \hline
-\textnormal{Average Exposed Height, H (m)} & """ + (_render_value(input_dict, KEY_WL_AVG_EXPOSED_HEIGHT, ' m')) + r""" \\[6pt]
+\textnormal{Average Exposed Height, H (m)} & """ + (_render_value(input_dict, KEY_WL_AVG_EXPOSED_HEIGHT, ' m')) + r""" \reportrow
 \hline
-\textnormal{Hourly Mean Wind Speed, Vz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_MEAN_WIND, ' m/s')) + r""" \\[6pt]
+\textnormal{Hourly Mean Wind Speed, Vz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_MEAN_WIND, ' m/s')) + r""" \reportrow
 \hline
-\textnormal{Hourly Wind Pressure, Pz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_WIND_PRESSURE, ' N/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Hourly Wind Pressure, Pz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_WIND_PRESSURE, ' N/m\\textsuperscript{2}')) + r""" \reportrow
 \hline
-\textnormal{Transverse Wind Force} & """ + (_render_value(input_dict, KEY_WL_TRANSVERSE_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Transverse Wind Force} & """ + (_render_value(input_dict, KEY_WL_TRANSVERSE_WIND_FORCE, ' kN')) + r""" \reportrow
 \hline
-\textnormal{Longitudinal Wind Force} & """ + (_render_value(input_dict, KEY_WL_LONGITUDINAL_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Longitudinal Wind Force} & """ + (_render_value(input_dict, KEY_WL_LONGITUDINAL_WIND_FORCE, ' kN')) + r""" \reportrow
 \hline
-\textnormal{Vertical Wind Force} & """ + (_render_value(input_dict, KEY_WL_VERTICAL_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Vertical Wind Force} & """ + (_render_value(input_dict, KEY_WL_VERTICAL_WIND_FORCE, ' kN')) + r""" \reportrow
 \hline
 \end{longtable}
 
-\vspace{1em}
+\reportspacelarge
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Earthquake Load (EL) --- per IRC 6}}
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone')) + r""" [from Project Location] \\[6pt]
+\textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone')) + r""" [from Project Location] \reportrow
 \hline
-\textnormal{Zone Factor, Z} & """ + (_render_value(input_dict, KEY_SL_ZONE_FACTOR)) + r""" \\[6pt]
+\textnormal{Zone Factor, Z} & """ + (_render_value(input_dict, KEY_SL_ZONE_FACTOR)) + r""" \reportrow
 \hline
-\textnormal{Importance Factor, I} & """ + (_render_value(input_dict, KEY_SL_IMPORTANCE_FACTOR)) + r""" \\[6pt]
+\textnormal{Importance Factor, I} & """ + (_render_value(input_dict, KEY_SL_IMPORTANCE_FACTOR)) + r""" \reportrow
 \hline
-\textnormal{Type of Soil} & """ + (_render_value(input_dict, KEY_SL_SOIL_TYPE)) + r""" \\[6pt]
+\textnormal{Type of Soil} & """ + (_render_value(input_dict, KEY_SL_SOIL_TYPE)) + r""" \reportrow
 \hline
-\textnormal{Sa/g} & """ + (_render_value(input_dict, KEY_SL_SPECTRAL_COEFF)) + r""" \\[6pt]
+\textnormal{Sa/g} & """ + (_render_value(input_dict, KEY_SL_SPECTRAL_COEFF)) + r""" \reportrow
 \hline
-\textnormal{Horizontal Seismic Coefficient, Ah} & """ + (_render_value(input_dict, KEY_SL_HORIZONTAL_COEFF)) + r""" \\[6pt]
+\textnormal{Horizontal Seismic Coefficient, Ah} & """ + (_render_value(input_dict, KEY_SL_HORIZONTAL_COEFF)) + r""" \reportrow
 \hline
-\textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF)) + r""" \\[6pt]
+\textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF)) + r""" \reportrow
 \hline
-\textnormal{Horizontal Seismic Force (longitudinal)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (longitudinal)} & """ + '' + r""" kN \reportrow
 \hline
-\textnormal{Horizontal Seismic Force (transverse)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (transverse)} & """ + '' + r""" kN \reportrow
 \hline
 \end{longtable}
 
-\vspace{1em}
+\reportspacelarge
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Temperature Load (TL) --- per IRC 6}}
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[6pt]
+\textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \reportrow
 \hline
-\textnormal{Minimum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_min')) + r""" $^\circ$C \\[6pt]
+\textnormal{Minimum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_min')) + r""" $^\circ$C \reportrow
 \hline
-\textnormal{Effective Bridge Temp. Range} & """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MIN)) + r""" to """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MAX)) + r""" $^\circ$C \\[6pt]
+\textnormal{Effective Bridge Temp. Range} & """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MIN)) + r""" to """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MAX)) + r""" $^\circ$C \reportrow
 \hline
-\textnormal{Temperature Rise / Fall for Design} & +""" + (_render_value(input_dict, KEY_TL_TEMP_RISE)) + r""" $^\circ$C / \textminus{}""" + (_render_value(input_dict, KEY_TL_TEMP_FALL)) + r""" $^\circ$C \\[6pt]
+\textnormal{Temperature Rise / Fall for Design} & +""" + (_render_value(input_dict, KEY_TL_TEMP_RISE)) + r""" $^\circ$C / \textminus{}""" + (_render_value(input_dict, KEY_TL_TEMP_FALL)) + r""" $^\circ$C \reportrow
 \hline
 \end{longtable}
 
-\vspace{1em}
+\reportspacelarge
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}
 \caption{\textbf{Load Combinations}}
 \hline
-\textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
+\textbf{Combination ID} & \textbf{Load Cases} \reportrow
 \hline
 """ + lc_rows_str + r"""
 \end{longtable}

@@ -15,6 +15,24 @@ PASS_GREEN = "#6E8F00"
 FAIL_RED = "#C62828"
 GRID_GREY = "#D9D9D9"
 TEXT_GREY = "#333333"
+INFO_BLUE = "#1565C0"
+
+CHART_FONT_REGULAR = ("arial.ttf", "Arial.ttf")
+CHART_FONT_BOLD = ("arialbd.ttf", "Arial Bold.ttf")
+CHART_FONT_SIZE = {
+    "overall_title": 36,
+    "panel_title": 25,
+    "axis_title": 16,
+    "axis_tick": 17,
+    "limit_label": 17,
+    "empty_state": 20,
+    "value_label": 17,
+    "category_label": 15,
+    "quantity_title": 27,
+    "quantity_tick": 18,
+    "quantity_value": 21,
+    "quantity_category": 19,
+}
 
 DOCUMENT_CLASS_OPTIONS = "12pt,a4paper"
 DOCUMENT_LINE_SPACING = "1.15"
@@ -59,11 +77,61 @@ def table_layout_latex() -> str:
 \renewcommand{{\arraystretch}}{{{TABLE_ROW_STRETCH}}}
 \setlength{{\LTpre}}{{{TABLE_PRE_SKIP}}}
 \setlength{{\LTpost}}{{{TABLE_POST_SKIP}}}
+\setlength{{\LTleft}}{{\fill}}
+\setlength{{\LTright}}{{\fill}}
 \setlength{{\arrayrulewidth}}{{{TABLE_RULE_WIDTH}}}
 \setlength{{\extrarowheight}}{{{TABLE_EXTRA_ROW_HEIGHT}}}
+\newcolumntype{{L}}[1]{{>{{\raggedright\arraybackslash}}p{{#1}}}}
+\newcolumntype{{C}}[1]{{>{{\centering\arraybackslash}}p{{#1}}}}
+\newcolumntype{{R}}[1]{{>{{\raggedleft\arraybackslash}}p{{#1}}}}
 \BeforeBeginEnvironment{{table}}{{\needspace{{{TABLE_START_RESERVE}\baselineskip}}}}
 \newcommand{{\reportsection}}{{\needspace{{6\baselineskip}}}}
+% Named spacing commands keep chapter generators free of layout literals.
+\newcommand{{\reportrow}}{{\\[6pt]}}
+\newcommand{{\reportrowroomy}}{{\\[8pt]}}
+\newcommand{{\reportrowtight}}{{\\[3pt]}}
+\newcommand{{\reportspacelarge}}{{\vspace{{1em}}}}
+\newcommand{{\reportspacemedium}}{{\vspace{{0.8em}}}}
+\newcommand{{\reportspacecompact}}{{\vspace{{0.4em}}}}
+\newcommand{{\reportspacesmall}}{{\vspace{{0.3em}}}}
+\newcommand{{\reportspacehalf}}{{\vspace{{0.5em}}}}
+\newcommand{{\reportspacesix}}{{\vspace{{0.6em}}}}
+\newcommand{{\reportspacepoint}}{{\vspace{{4pt}}}}
+\newcommand{{\reportspaceform}}{{\vspace{{0.4cm}}}}
+\newcommand{{\reportspaceformlarge}}{{\vspace{{0.8cm}}}}
+\newcommand{{\reportspaceformhalf}}{{\vspace{{0.5cm}}}}
+\newcommand{{\reportspacechaptergap}}{{\vspace{{2.2em}}}}
+\newcommand{{\reportspacefigurebefore}}{{\vspace{{-0.5em}}}}
+\newcommand{{\reportspacefigureafter}}{{\vspace{{0.5em}}}}
 """
+
+
+def caption_layout_latex() -> str:
+    """Return the canonical caption typography and alignment rules."""
+    return r"""
+\captionsetup{
+    labelfont=bf,
+    justification=raggedright,
+    singlelinecheck=false,
+    format=plain
+}
+"""
+
+
+def latex_color_definitions() -> str:
+    """Return all named LaTeX colours used by report generators."""
+    colors = {
+        "osdagGreen": OSDAG_GREEN,
+        "reportPass": PASS_GREEN,
+        "reportFail": FAIL_RED,
+        "reportGrid": GRID_GREY,
+        "reportText": TEXT_GREY,
+        "reportInfo": INFO_BLUE,
+    }
+    return "\n".join(
+        rf"\definecolor{{{name}}}{{HTML}}{{{value.lstrip('#')}}}"
+        for name, value in colors.items()
+    )
 
 
 def header_footer_latex(
@@ -126,9 +194,6 @@ def _inject_header_into_longtable(match: re.Match[str]) -> str:
         count=1,
     )
     reserve = rf"\par\Needspace{{{TABLE_START_RESERVE}\baselineskip}}" + "\n"
-    if r"\endhead" in block:
-        return reserve + block
-
     begin_end = block.find("\n")
     if begin_end < 0:
         return reserve + block
@@ -140,13 +205,21 @@ def _inject_header_into_longtable(match: re.Match[str]) -> str:
         return reserve + block
     second_end = second_hline + len(r"\hline")
     header = block[first_hline:second_end]
+    caption = re.search(r"\\caption\{(?:\\textbf\{)?([^}\n]+)", block)
+    table_name = caption.group(1) if caption else "unnamed longtable"
     if r"\textbf" not in header:
-        caption = re.search(r"\\caption\{(?:\\textbf\{)?([^}\n]+)", block)
-        table_name = caption.group(1) if caption else "unnamed longtable"
         raise ValueError(
             f"{table_name} must define an explicit bold column-heading row "
             "between its first two \\hline commands"
         )
+    if r"\endhead" in block:
+        if r"\endfirsthead" not in block:
+            raise ValueError(f"{table_name} defines \\endhead without \\endfirsthead")
+        prefix, remainder = block.split(r"\endfirsthead", 1)
+        repeated_header, suffix = remainder.split(r"\endhead", 1)
+        if r"\textbf" not in repeated_header:
+            block = prefix + r"\endfirsthead" + "\n" + header + "\n" + r"\endhead" + suffix
+        return reserve + block
     repeated = "\n\\endfirsthead\n" + header + "\n\\endhead"
     return reserve + block[:second_end] + repeated + block[second_end:]
 

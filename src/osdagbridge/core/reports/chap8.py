@@ -53,7 +53,7 @@ design modules, and notes the limitations of the current software version.
 The following Indian Road Congress (IRC) codes and Indian Standards (IS) 
 form the basis of all design calculations in this software.
 
-\vspace{0.5cm}
+\reportspaceformhalf
 
 \begingroup
 \begin{table}[H]

@@ -132,10 +132,11 @@ from .chap9 import references
 from .report_charts import generate_material_charts, generate_utilization_chart
 from .styles import (
     DOCUMENT_CLASS_OPTIONS,
-    OSDAG_GREEN,
+    caption_layout_latex,
     ensure_repeated_longtable_headers,
     geometry_options,
     header_footer_latex,
+    latex_color_definitions,
     table_layout_latex,
 )
 
@@ -179,19 +180,11 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{setspace}
 \usepackage{enumitem}
 \usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
+""" + caption_layout_latex() + r"""
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
 \usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
 \usepackage{titlesec}
 \usepackage{titletoc}
 \usepackage{lastpage}
@@ -203,15 +196,12 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{figure}{chapter}
 """ + table_layout_latex() + r"""
 
-\definecolor{osdagGreen}{HTML}{""" + OSDAG_GREEN.lstrip("#") + r"""}
+""" + latex_color_definitions() + r"""
 """ + header_footer_latex(pn, jn, rd, rv) + r"""
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
 \newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
 
 % Software-default asterisk
 \newcommand{\sdstar}{\textsuperscript{*}}
@@ -545,8 +535,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return r"\textcolor{reportText}{PASS}"
+                return r"\textcolor{reportFail}{FAIL}"
         except (TypeError, ValueError):
             pass
         return ""
@@ -649,8 +639,8 @@ class ReportDataBridge:
     def get_ed_status(self, pair: str, member: str, force_type: str) -> str:
         try:
             efficiency = float(self.get_ed_efficiency(pair, member, force_type))
-            return (r"\textcolor{black}{PASS}" if efficiency <= 1.0
-                    else r"\textcolor{red}{FAIL}")
+            return (r"\textcolor{reportText}{PASS}" if efficiency <= 1.0
+                    else r"\textcolor{reportFail}{FAIL}")
         except (TypeError, ValueError):
             return ""
 

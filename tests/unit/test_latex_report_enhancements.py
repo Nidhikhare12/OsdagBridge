@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from osdagbridge.core.reports.chap3 import ch3_loads
@@ -64,6 +65,44 @@ first data value & second data value \\
         assert "explicit bold column-heading row" in str(exc)
     else:
         raise AssertionError("A longtable without column headings was accepted")
+
+
+def test_empty_legacy_continuation_header_is_repaired():
+    source = r"""
+\begin{longtable}{|c|c|}
+\caption{Legacy table}
+\hline
+\textbf{A} & \textbf{B} \\
+\hline
+\endfirsthead
+\endhead
+one & two \\
+\hline
+\end{longtable}
+"""
+    rendered = ensure_repeated_longtable_headers(source)
+    continuation = rendered.split(r"\endfirsthead", 1)[1].split(r"\endhead", 1)[0]
+    assert r"\textbf{A} & \textbf{B}" in continuation
+
+
+def test_chapters_do_not_embed_theme_literals():
+    reports_dir = Path(__file__).parents[2] / "src" / "osdagbridge" / "core" / "reports"
+    chapter_files = list(reports_dir.glob("chap*.py")) + [
+        reports_dir / "executive_summary.py",
+        reports_dir / "report_utils.py",
+    ]
+    banned = (
+        re.compile(r"\\\\\[[0-9.]+pt\]"),
+        re.compile(r"\\vspace\{"),
+        re.compile(r"\\textcolor\{(?:red|black|blue)\}"),
+    )
+    violations = []
+    for path in chapter_files:
+        source = path.read_text(encoding="utf-8")
+        for pattern in banned:
+            if pattern.search(source):
+                violations.append(f"{path.name}: {pattern.pattern}")
+    assert not violations, violations
 
 
 def test_chapter_three_separates_selected_vehicle_and_footway_loads():

@@ -15,7 +15,7 @@ The report generator assembles chapter content, then applies the centralized nor
 3. reserves room before a new table;
 4. removes page-unsafe `multirow` wrappers while retaining their visible labels.
 
-Normalization also validates that the first row is an explicit bold column-heading row. A headerless `longtable` now raises a clear `ValueError` during generation instead of accidentally repeating its first data row. The two legacy exceptions (Stiffener Design Summary and Deck Slab Loading and Geometry) now have explicit headings.
+Normalization also validates that the first row is an explicit bold column-heading row. A headerless `longtable` now raises a clear `ValueError` during generation instead of accidentally repeating its first data row. If a legacy table already contains empty `endfirsthead`/`endhead` markers, normalization repairs the continuation block from the real column heading. The explicit headings added to Stiffener Design Summary and Deck Slab Loading and Geometry are retained.
 
 The last rule fixes the observed G4 footer bleed. A LaTeX `multirow` cannot safely span a `longtable` page break; its label may remain anchored on the previous page and extend into the footer. Ordinary cells allow the table to break cleanly and repeat headings.
 
@@ -63,7 +63,7 @@ End-diaphragm quantity and mass are computed from generated member lengths and d
 
 ### 6. Central style system
 
-Hardcoded per-chapter table padding and row-stretch overrides were removed. Chapters describe content; `styles.py` controls presentation. The document colour definition also consumes the centralized Osdag colour.
+Hardcoded per-chapter table padding, row spacing, vertical spacing, and status colours were replaced with named theme commands. Chart font families and semantic font sizes also live in `styles.py`. Chapters describe content; `styles.py` controls presentation.
 
 ## Additional correctness fix
 
@@ -78,7 +78,7 @@ $env:PYTHONPATH = "src"
 python -m pytest tests/unit/test_latex_report_enhancements.py -q
 ```
 
-If pytest is not installed, the four test functions can be invoked directly; this was done in the development environment.
+If pytest is not installed, the six test functions can be invoked directly; this was done in the development environment.
 
 Generate the saved-case PDF:
 
