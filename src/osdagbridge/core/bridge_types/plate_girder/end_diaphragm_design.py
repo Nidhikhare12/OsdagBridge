@@ -34,6 +34,7 @@ def design_end_diaphragm_members(bridge) -> dict:
         KEY_MP_GIRDER_DEPTH,
         KEY_MP_ED_TYPE,
         KEY_MP_ED_BRACING_TYPE,
+        KEY_MP_ED_BRACING_CONNECTION,
         KEY_MP_ED_BRACING_SECTION_DESIGNATION,
         KEY_MP_ED_TOP_CHORD,
         KEY_MP_ED_TOP_CHORD_SECTION_DESIG,
@@ -244,22 +245,37 @@ def design_end_diaphragm_members(bridge) -> dict:
             # Run Osdag design checks
             from osdagbridge.core.utils.connect import (
                 design_dict_struts_bolted,
+                design_dict_struts_welded,
                 design_dict_tension_bolted,
+                design_dict_tension_welded,
                 design_pool,
                 run_calculation,
             )
+            # Same rule as intermediate CB: only "Welded" selects welded templates;
+            # missing / blank / invalid / "Bolted" → bolted.
+            _conn = str(
+                bridge.input_dict.get(f"{KEY_MP_ED_BRACING_CONNECTION}{member_suffix}")
+                or ""
+            ).strip().lower()
+            if _conn == "welded":
+                tension_template = design_dict_tension_welded
+                strut_template = design_dict_struts_welded
+            else:
+                tension_template = design_dict_tension_bolted
+                strut_template = design_dict_struts_bolted
+
             jobs = []
             for member, L_mm, t_key, c_key in (
                 ("diagonal", round(L_d * 1000), "diag_tension_kN", "diag_compression_kN"),
                 ("chord", round(s * 1000), "chord_tension_kN", "chord_compression_kN"),
             ):
                 if pair_forces.get(t_key) is not None:
-                    d = copy.deepcopy(design_dict_tension_bolted)
+                    d = copy.deepcopy(tension_template)
                     d["Load.Axial"] = str(float(pair_forces[t_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "tension", d))
                 if pair_forces.get(c_key) is not None:
-                    d = copy.deepcopy(design_dict_struts_bolted)
+                    d = copy.deepcopy(strut_template)
                     d["Load.Axial"] = str(float(pair_forces[c_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "compression", d))
