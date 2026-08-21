@@ -2564,7 +2564,7 @@ END_DIAPHRAGM_DETAILS_SCHEMA = {
                     "label": "Type:",
                     "type": TYPE_COMBOBOX,
                     "choices": VALUES_END_DIAPHRAGM_TYPE,
-                    "enabled_choices": ["Cross Bracing"],
+                    "enabled_choices": ["Cross Bracing", "Rolled Beam"],
                     "on_change": "_on_end_diaphragm_type_changed",
                 }]},
  

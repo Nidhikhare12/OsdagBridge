@@ -424,6 +424,11 @@ def design_end_diaphragm_members(bridge) -> dict:
 
         # -- CASE B: ROLLED BEAM DIAPHRAGM --
         elif ed_type == "Rolled Beam":
+            from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_rolled_design import (
+                envelope_end_diaphragm_vy_mz,
+                run_simply_supported_design,
+            )
+
             is_sec_des = bridge.input_dict.get(f"{KEY_MP_ED_IS_SECTION}{member_suffix}")
             if is_sec_des:
                 bridge.output_dict[make_pair_key(KEY_MP_ED_IS_SECTION, pair_id)] = is_sec_des
@@ -444,6 +449,20 @@ def design_end_diaphragm_members(bridge) -> dict:
                     bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_ZV, pair_id)] = beam_details["Zv"]
                     bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_ZUZ, pair_id)] = beam_details["Zuz"]
                     bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_ZUV, pair_id)] = beam_details["Zuv"]
+
+                elements = pair_to_elements.get(pair, [])
+                vy_kN, mz_kNm = envelope_end_diaphragm_vy_mz(bridge.result_data, elements)
+                forces_dict["pairs"][pair] = {
+                    "Vy_kN": vy_kN if vy_kN > 0 else None,
+                    "Mz_kNm": mz_kNm if mz_kNm > 0 else None,
+                }
+                osdag_result = run_simply_supported_design(
+                    vy_kN=vy_kN,
+                    mz_kNm=mz_kNm,
+                    span_m=s,
+                    section_designation=str(is_sec_des),
+                )
+                pair_designs.setdefault(pair, {})["simply_supported"] = osdag_result
 
         # -- CASE C: WELDED BEAM DIAPHRAGM --
         elif ed_type == "Welded Beam":
