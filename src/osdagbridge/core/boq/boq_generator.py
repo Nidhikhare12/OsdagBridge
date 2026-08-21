@@ -11,6 +11,12 @@ from osdagbridge.core.utils.common import (
     KEY_TS_NO_OF_GIRDERS,
     KEY_TS_DECK_THICKNESS,
     KEY_TS_GIRDER_SPACING,
+    KEY_TD_ED_PROP_L,
+    KEY_TD_ED_PROP_M,
+    KEY_TD_ED_TOP_CHORD_PROP_L,
+    KEY_TD_ED_TOP_CHORD_PROP_M,
+    KEY_TD_ED_BOTTOM_CHORD_PROP_L,
+    KEY_TD_ED_BOTTOM_CHORD_PROP_M,
 )
 
 logger = logging.getLogger("osdagbridge.core.boq_generator")
@@ -65,6 +71,9 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         "bracing_diag_vol_total": "N.A.",
         "bracing_diag_wt_single": "N.A.",
         "bracing_diag_wt_total": "N.A.",
+
+        "end_diaphragm_qty": "N.A.",
+        "end_diaphragm_wt_total": "N.A.",
         
         "concrete_deck_vol_formula": r"\placeholder{Width $\times$ Thickness $\times$ Length}",
         "concrete_deck_qty": "N.A.",
@@ -329,6 +338,41 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 quantities[f"{prefix}_vol_total"] = "N.A."
                 quantities[f"{prefix}_wt_single"] = "N.A."
                 quantities[f"{prefix}_wt_total"] = "N.A."
+
+        # 5d. End diaphragms at both supports.  Each adjacent girder pair has
+        # two end frames; an X-braced frame contains two diagonals plus the
+        # enabled top and bottom chords.  Database mass values are kg/m.
+        end_diaphragm_mass_kg = 0.0
+        end_diaphragm_members = 0
+
+        def _pair_property(base_key: str, pair_id: str):
+            prefix, leaf = base_key.rsplit(".", 1)
+            return outputs.get(f"{prefix}.{pair_id}.{leaf}")
+
+        def _add_end_member(pair_id: str, length_key: str, mass_key: str, count: int):
+            nonlocal end_diaphragm_mass_kg, end_diaphragm_members
+            length = _pair_property(length_key, pair_id)
+            mass_per_m = _pair_property(mass_key, pair_id)
+            try:
+                length_f = float(length)
+                mass_f = float(mass_per_m)
+            except (TypeError, ValueError):
+                return
+            if length_f > 0 and mass_f > 0:
+                end_diaphragm_mass_kg += length_f * mass_f * count
+                end_diaphragm_members += count
+
+        for pair_index in range(1, n_girders):
+            pair_id = f"G{pair_index}G{pair_index + 1}"
+            # Two supports x two X-bracing diagonals.
+            _add_end_member(pair_id, KEY_TD_ED_PROP_L, KEY_TD_ED_PROP_M, 4)
+            # Two supports x one chord at each enabled level.
+            _add_end_member(pair_id, KEY_TD_ED_TOP_CHORD_PROP_L, KEY_TD_ED_TOP_CHORD_PROP_M, 2)
+            _add_end_member(pair_id, KEY_TD_ED_BOTTOM_CHORD_PROP_L, KEY_TD_ED_BOTTOM_CHORD_PROP_M, 2)
+
+        if end_diaphragm_members:
+            quantities["end_diaphragm_qty"] = str(end_diaphragm_members)
+            quantities["end_diaphragm_wt_total"] = f"{end_diaphragm_mass_kg / 1000.0:.2f}"
 
         # 6. Crash Barrier (Cu.m) and Weight (MT)
         KEY_CB_AREA = "typical_section.crash_barrier.area"

@@ -263,4 +263,12 @@ src/osdag_map_cache/
 # ospgrillage/
 temp_plot.html
 *.html
-tools/
+tools/*
+!tools/verify_latex_report.py
+
+# Local LaTeX report verification artifacts
+/Report_Before.pdf
+/Report_Before.tex
+/Report_After.pdf
+/Report_After.tex
+/output/
