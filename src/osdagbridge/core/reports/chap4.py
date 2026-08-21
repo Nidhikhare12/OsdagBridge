@@ -39,7 +39,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
             + _tex(bm_d.get('sf_girder', '---')) + r" & "
             + _fmt(bm_d.get('sf_location'))      + r" & "
             + _fmt(rxn_d.get('left_kN'))         + r" & "
-            + _fmt(rxn_d.get('right_kN'))        + r" \\[6pt]"
+            + _fmt(rxn_d.get('right_kN'))        + r" \reportrow"
         )
 
     all_lcs = list(lc_summary.keys()) + [k for k in rxn_summary if k not in lc_summary]
@@ -47,7 +47,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     merged_body = ("\n\\hline\n").join(
         _merged_row(lc, lc_summary.get(lc), rxn_summary.get(lc))
         for lc in all_lcs
-    ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \\[6pt]"
+    ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \reportrow"
 
     _span_m         = float(bridge.input_dict.get(KEY_SPAN, 0) or 0)
     _allow_live_mm  = _span_m * 1000.0 / 800.0
@@ -73,18 +73,16 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "---"
     _allow_live_str  = f"L/800 = {_allow_live_mm:.1f} mm"
     _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
-    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
-    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
+    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{reportFail}{FAIL}") if _live_mm  is not None else "---"
+    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{reportFail}{FAIL}") if _total_mm is not None else "---"
     return r"""
 \chapter{Analysis Results}
 
 A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements --- longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
 
-\vspace{1em}
+\reportspacelarge
 \begingroup
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
 
 \begin{longtable}{|
 >{\centering\arraybackslash}p{3.1cm}|
@@ -140,41 +138,41 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \end{longtable}
 \endgroup
 
-\vspace{1em}
+\reportspacelarge
 \begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
 \caption{\textbf{Reactions at Supports}}
 \hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
+\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \reportrow
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+ & """ + '' + r""" & """ + '' + r""" \reportrow
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+ & """ + '' + r""" & """ + '' + r""" \reportrow
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+ & """ + '' + r""" & """ + '' + r""" \reportrow
 \hline
 \end{longtable}
 
-\vspace{1em}
+\reportspacelarge
 \begin{longtable}{|L{7cm}|p{8.5cm}|}
 \caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
+\textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \reportrow
 \hline
-\textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]
+\textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \reportrow
 \hline
-\textnormal{Live Load Deflection Check Status} & """ + _live_status + r""" \\[6pt]
+\textnormal{Live Load Deflection Check Status} & """ + _live_status + r""" \reportrow
 \hline
-\textnormal{Deflection due to Total Load, $\delta_{total}$} & """ + _total_str + r""" \\[6pt]
+\textnormal{Deflection due to Total Load, $\delta_{total}$} & """ + _total_str + r""" \reportrow
 \hline
-\textnormal{Allowable Total Deflection ($\Delta_{allow}$)} & """ + _allow_total_str + r""" \\[6pt]
+\textnormal{Allowable Total Deflection ($\Delta_{allow}$)} & """ + _allow_total_str + r""" \reportrow
 \hline
-\textnormal{Total Load Deflection Check Status} & """ + _total_status + r""" \\[6pt]
+\textnormal{Total Load Deflection Check Status} & """ + _total_status + r""" \reportrow
 \hline
 \end{longtable}
 
-\vspace{1em}
+\reportspacelarge
 \noindent
 """ + _fig_embed(fig_paths.get('bm_envelope'), 'Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).', width=r'0.75\textwidth') + r"""
 """ + _fig_embed(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=r'0.75\textwidth') + r"""

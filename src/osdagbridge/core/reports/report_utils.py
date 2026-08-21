@@ -100,12 +100,12 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
         if height:
             opts += ',height=' + height + ',keepaspectratio'
         return (r'\begin{figure}[H]' + '\n'
-                r'\vspace{-0.5em}' + '\n'
+                r'\reportspacefigurebefore' + '\n'
                 r'\centering' + '\n'
                 r'\includegraphics[' + opts + ']{' + p + '}\n'
-                r'\vspace{0.5em}' + '\n'
+                r'\reportspacehalf' + '\n'
                 r'\caption*{\small ' + caption + '}\n'
-                r'\vspace{-0.5em}' + '\n'
+                r'\reportspacefigurebefore' + '\n'
                 r'\end{figure}')
     # fbox placeholder — matches template exactly
     return (r'\noindent\fbox{\parbox{0.97\textwidth}{' + '\n'

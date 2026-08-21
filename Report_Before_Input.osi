@@ -1,0 +1,666 @@
+bl_irc_class_sv: true
+design_options.construction.stage: 'Yes'
+design_options.deck.bottom_clear_cover: '50'
+design_options.deck.reinforcement_bounds:
+  lower: null
+  upper: null
+design_options.deck.reinforcement_material: Fe 500
+design_options.deck.side_clear_cover: '50'
+design_options.deck.top_clear_cover: '50'
+design_options.shear_studs.count: '2'
+design_options.shear_studs.diameter: '20'
+design_options.shear_studs.height: '100'
+design_options.shear_studs.transverse_spacing: '100'
+design_options.shear_studs.ultimate_strength: '495'
+design_options.shear_studs.yield_strength: '385'
+design_options_cont.camber.mode: Default
+design_options_cont.fatigue.load_cycles: '2000000'
+design_options_cont.partial_factor.concrete_accidental.gamma_c_accidental: '1.20'
+design_options_cont.partial_factor.concrete_basic.gamma_c_basic: '1.50'
+design_options_cont.partial_factor.fatigue_load.gamma_flt: '1.00'
+design_options_cont.partial_factor.fatigue_strength.gamma_mf: '1.35'
+design_options_cont.partial_factor.reinforcing_steel.gamma_s: '1.15'
+design_options_cont.partial_factor.shear_connectors.gamma_v: '1.25'
+design_options_cont.partial_factor.ultimate_stress.gamma_m1: '1.25'
+design_options_cont.partial_factor.yielding_and_buckling.gamma_m0: '1.10'
+design_options_cont.sls.crack_width: true
+design_options_cont.sls.deflection_control: true
+design_options_cont.sls.longitudinal_shear: true
+design_options_cont.sls.stress_limitation: true
+design_options_cont.uls.bending_resistance: true
+design_options_cont.uls.fatigue: true
+design_options_cont.uls.lateral_torsional_buckling: true
+design_options_cont.uls.longitudinal_shear: true
+design_options_cont.uls.transverse_force: true
+design_options_cont.uls.vertical_shear: true
+geometry.carriageway_width: '7.5'
+geometry.design_mode: Optimized
+geometry.footpath: Both Sides
+geometry.include_median: 'No'
+geometry.skew_angle: '0'
+geometry.span: '30'
+loading.live_load.custom_vehicles: []
+loading.live_load.eccentricity: '1.2'
+loading.live_load.footpath_pressure.mode: As per IRC 6
+loading.live_load.footpath_pressure.value: ''
+loading.live_load.irc.70r_bogie: true
+loading.live_load.irc.70r_tracked: true
+loading.live_load.irc.70r_wheeled: true
+loading.live_load.irc.aa_tracked: true
+loading.live_load.irc.aa_wheeled: true
+loading.live_load.irc.class_a: true
+loading.live_load.irc.class_fatigue: true
+loading.live_load.irc.class_sv: true
+loading.load_combination.combinations: []
+loading.permanent_load.dead_load.self_weight_factor: '1.00'
+loading.seismic_load.computed.horizontal_coeff: '0.224'
+loading.seismic_load.computed.spectral_coeff: '2.8'
+loading.seismic_load.computed.vertical_coeff: '0.1493'
+loading.seismic_load.computed.zone_factor: '0.16'
+loading.seismic_load.damping: '2'
+loading.seismic_load.dead_load.mode: Automatic
+loading.seismic_load.dead_load.value: ''
+loading.seismic_load.importance_factor: '1.0'
+loading.seismic_load.live_load.mode: Automatic
+loading.seismic_load.live_load.value: ''
+loading.seismic_load.response_reduction_factor: '1'
+loading.seismic_load.soil_type: "Type I \u2013 Rocky or Hard"
+loading.seismic_load.time_period: '0.5'
+loading.temperature_load.thermal_coeff_rcc: '11.7e-6'
+loading.temperature_load.thermal_coeff_steel: '11.7e-6'
+loading.wind_load.avg_exposed_height: '10'
+loading.wind_load.drag_coeff.mode: As per IRC 6
+loading.wind_load.drag_coeff.value: ''
+loading.wind_load.drag_coeff_ll.mode: As per IRC 6
+loading.wind_load.drag_coeff_ll.value: ''
+loading.wind_load.exposed_frontal_area.mode: Automatic
+loading.wind_load.exposed_frontal_area.value: ''
+loading.wind_load.gust_factor.mode: As per IRC 6
+loading.wind_load.gust_factor.value: ''
+loading.wind_load.lift_coeff.mode: As per IRC 6
+loading.wind_load.lift_coeff.value: ''
+loading.wind_load.site_topography: Flat
+loading.wind_load.super_area_elev.mode: Automatic
+loading.wind_load.super_area_elev.value: ''
+loading.wind_load.super_area_plain.mode: Automatic
+loading.wind_load.super_area_plain.value: ''
+loading.wind_load.terrain_type: Plain Terrain
+loading.wind_load.wind_ecc_deck.mode: As per IRC 6
+loading.wind_load.wind_ecc_deck.value: ''
+loading.wind_load.wind_ll_ecc.mode: As per IRC 6
+loading.wind_load.wind_ll_ecc.value: ''
+material.cross_bracing: E 350A
+material.cross_bracing.density: '76.4'
+material.cross_bracing.e: '200.0'
+material.cross_bracing.fu: '490.0'
+material.cross_bracing.fy: '350.0'
+material.cross_bracing.g: '76.9'
+material.cross_bracing.poisson: '0.30'
+material.cross_bracing.thermal: '11.7'
+material.deck: M40
+material.deck.density: '24.5'
+material.deck.ecm: '33.0'
+material.deck.fck: '40.0'
+material.deck.fctm: '3.0'
+material.deck.thermal: '11.7'
+material.end_diaphragm: E 350A
+material.end_diaphragm.density: '76.4'
+material.end_diaphragm.e: '200.0'
+material.end_diaphragm.fu: '490.0'
+material.end_diaphragm.fy: '350.0'
+material.end_diaphragm.g: '76.9'
+material.end_diaphragm.poisson: '0.30'
+material.end_diaphragm.thermal: '11.7'
+material.girder: E 350A
+material.girder.density: '76.4'
+material.girder.e: '200.0'
+material.girder.fu: '490.0'
+material.girder.fy: '350.0'
+material.girder.g: '76.9'
+material.girder.poisson: '0.30'
+material.girder.thermal: '11.7'
+member_properties.cross_bracing_details.bottom_chord.G1G2.B1M1: 'Yes'
+member_properties.cross_bracing_details.bottom_chord.G2G3.B2M1: 'Yes'
+member_properties.cross_bracing_details.bottom_chord.G3G4.B3M1: 'Yes'
+member_properties.cross_bracing_details.bottom_chord_section_designation.G1G2.B1M1: IS
+  100 x 100 x 10
+member_properties.cross_bracing_details.bottom_chord_section_designation.G2G3.B2M1: IS
+  100 x 100 x 10
+member_properties.cross_bracing_details.bottom_chord_section_designation.G3G4.B3M1: IS
+  100 x 100 x 10
+member_properties.cross_bracing_details.bottom_chord_section_type.G1G2.B1M1: Double
+  Angle (Long Leg)
+member_properties.cross_bracing_details.bottom_chord_section_type.G2G3.B2M1: Double
+  Angle (Long Leg)
+member_properties.cross_bracing_details.bottom_chord_section_type.G3G4.B3M1: Double
+  Angle (Long Leg)
+member_properties.cross_bracing_details.bracing_section_designation.G1G2.B1M1: IS
+  100 x 100 x 10
+member_properties.cross_bracing_details.bracing_section_designation.G2G3.B2M1: IS
+  100 x 100 x 10
+member_properties.cross_bracing_details.bracing_section_designation.G3G4.B3M1: IS
+  100 x 100 x 10
+member_properties.cross_bracing_details.bracing_section_type.G1G2.B1M1: Double Angle
+  (Long Leg)
+member_properties.cross_bracing_details.bracing_section_type.G2G3.B2M1: Double Angle
+  (Long Leg)
+member_properties.cross_bracing_details.bracing_section_type.G3G4.B3M1: Double Angle
+  (Long Leg)
+member_properties.cross_bracing_details.member_id.G1G2.B1M1: B1M1 to B1M1
+member_properties.cross_bracing_details.member_id.G2G3.B2M1: B2M1 to B2M1
+member_properties.cross_bracing_details.member_id.G3G4.B3M1: B3M1 to B3M1
+member_properties.cross_bracing_details.no_of_cross_bracings: 1
+member_properties.cross_bracing_details.select_girders.G1G2.B1M1: G1 to G2
+member_properties.cross_bracing_details.select_girders.G2G3.B2M1: G2 to G3
+member_properties.cross_bracing_details.select_girders.G3G4.B3M1: G3 to G4
+member_properties.cross_bracing_details.spacing.G1G2.B1M1: 15.0
+member_properties.cross_bracing_details.spacing.G2G3.B2M1: 15.0
+member_properties.cross_bracing_details.spacing.G3G4.B3M1: 15.0
+member_properties.cross_bracing_details.top_chord.G1G2.B1M1: 'Yes'
+member_properties.cross_bracing_details.top_chord.G2G3.B2M1: 'Yes'
+member_properties.cross_bracing_details.top_chord.G3G4.B3M1: 'Yes'
+member_properties.cross_bracing_details.top_chord_section_designation.G1G2.B1M1: IS
+  100 x 100 x 10
+member_properties.cross_bracing_details.top_chord_section_designation.G2G3.B2M1: IS
+  100 x 100 x 10
+member_properties.cross_bracing_details.top_chord_section_designation.G3G4.B3M1: IS
+  100 x 100 x 10
+member_properties.cross_bracing_details.top_chord_section_type.G1G2.B1M1: Double Angle
+  (Long Leg)
+member_properties.cross_bracing_details.top_chord_section_type.G2G3.B2M1: Double Angle
+  (Long Leg)
+member_properties.cross_bracing_details.top_chord_section_type.G3G4.B3M1: Double Angle
+  (Long Leg)
+member_properties.cross_bracing_details.type.G1G2.B1M1: X-Bracing
+member_properties.cross_bracing_details.type.G2G3.B2M1: X-Bracing
+member_properties.cross_bracing_details.type.G3G4.B3M1: X-Bracing
+member_properties.end_diaphragm_details.bottom_chord.G1G2.E1M1: 'Yes'
+member_properties.end_diaphragm_details.bottom_chord.G1G2.E1M2: 'Yes'
+member_properties.end_diaphragm_details.bottom_chord.G2G3.E2M1: 'Yes'
+member_properties.end_diaphragm_details.bottom_chord.G2G3.E2M2: 'Yes'
+member_properties.end_diaphragm_details.bottom_chord.G3G4.E3M1: 'Yes'
+member_properties.end_diaphragm_details.bottom_chord.G3G4.E3M2: 'Yes'
+member_properties.end_diaphragm_details.bottom_chord_section_designation.G1G2.E1M1: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bottom_chord_section_designation.G1G2.E1M2: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bottom_chord_section_designation.G2G3.E2M1: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bottom_chord_section_designation.G2G3.E2M2: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bottom_chord_section_designation.G3G4.E3M1: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bottom_chord_section_designation.G3G4.E3M2: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bottom_chord_section_type.G1G2.E1M1: Double
+  Angle (Long Leg)
+member_properties.end_diaphragm_details.bottom_chord_section_type.G1G2.E1M2: Double
+  Angle (Long Leg)
+member_properties.end_diaphragm_details.bottom_chord_section_type.G2G3.E2M1: Double
+  Angle (Long Leg)
+member_properties.end_diaphragm_details.bottom_chord_section_type.G2G3.E2M2: Double
+  Angle (Long Leg)
+member_properties.end_diaphragm_details.bottom_chord_section_type.G3G4.E3M1: Double
+  Angle (Long Leg)
+member_properties.end_diaphragm_details.bottom_chord_section_type.G3G4.E3M2: Double
+  Angle (Long Leg)
+member_properties.end_diaphragm_details.bottom_flange_thickness.G1G2.E1M1: ''
+member_properties.end_diaphragm_details.bottom_flange_thickness.G1G2.E1M2: ''
+member_properties.end_diaphragm_details.bottom_flange_thickness.G2G3.E2M1: ''
+member_properties.end_diaphragm_details.bottom_flange_thickness.G2G3.E2M2: ''
+member_properties.end_diaphragm_details.bottom_flange_thickness.G3G4.E3M1: ''
+member_properties.end_diaphragm_details.bottom_flange_thickness.G3G4.E3M2: ''
+member_properties.end_diaphragm_details.bottom_flange_width.G1G2.E1M1: ''
+member_properties.end_diaphragm_details.bottom_flange_width.G1G2.E1M2: ''
+member_properties.end_diaphragm_details.bottom_flange_width.G2G3.E2M1: ''
+member_properties.end_diaphragm_details.bottom_flange_width.G2G3.E2M2: ''
+member_properties.end_diaphragm_details.bottom_flange_width.G3G4.E3M1: ''
+member_properties.end_diaphragm_details.bottom_flange_width.G3G4.E3M2: ''
+member_properties.end_diaphragm_details.bracing_connection.G1G2.E1M1: Bolted
+member_properties.end_diaphragm_details.bracing_connection.G1G2.E1M2: Bolted
+member_properties.end_diaphragm_details.bracing_connection.G2G3.E2M1: Bolted
+member_properties.end_diaphragm_details.bracing_connection.G2G3.E2M2: Bolted
+member_properties.end_diaphragm_details.bracing_connection.G3G4.E3M1: Bolted
+member_properties.end_diaphragm_details.bracing_connection.G3G4.E3M2: Bolted
+member_properties.end_diaphragm_details.bracing_section.G1G2.E1M1: Double Angle (Long
+  Leg)
+member_properties.end_diaphragm_details.bracing_section.G1G2.E1M2: Double Angle (Long
+  Leg)
+member_properties.end_diaphragm_details.bracing_section.G2G3.E2M1: Double Angle (Long
+  Leg)
+member_properties.end_diaphragm_details.bracing_section.G2G3.E2M2: Double Angle (Long
+  Leg)
+member_properties.end_diaphragm_details.bracing_section.G3G4.E3M1: Double Angle (Long
+  Leg)
+member_properties.end_diaphragm_details.bracing_section.G3G4.E3M2: Double Angle (Long
+  Leg)
+member_properties.end_diaphragm_details.bracing_section_designation.G1G2.E1M1: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bracing_section_designation.G1G2.E1M2: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bracing_section_designation.G2G3.E2M1: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bracing_section_designation.G2G3.E2M2: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bracing_section_designation.G3G4.E3M1: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bracing_section_designation.G3G4.E3M2: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.bracing_type.G1G2.E1M1: X-Bracing
+member_properties.end_diaphragm_details.bracing_type.G1G2.E1M2: X-Bracing
+member_properties.end_diaphragm_details.bracing_type.G2G3.E2M1: X-Bracing
+member_properties.end_diaphragm_details.bracing_type.G2G3.E2M2: X-Bracing
+member_properties.end_diaphragm_details.bracing_type.G3G4.E3M1: X-Bracing
+member_properties.end_diaphragm_details.bracing_type.G3G4.E3M2: X-Bracing
+member_properties.end_diaphragm_details.is_section.G1G2.E1M1: ''
+member_properties.end_diaphragm_details.is_section.G1G2.E1M2: ''
+member_properties.end_diaphragm_details.is_section.G2G3.E2M1: ''
+member_properties.end_diaphragm_details.is_section.G2G3.E2M2: ''
+member_properties.end_diaphragm_details.is_section.G3G4.E3M1: ''
+member_properties.end_diaphragm_details.is_section.G3G4.E3M2: ''
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zy.G1G2.E1M1: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zy.G1G2.E1M2: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zy.G2G3.E2M1: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zy.G2G3.E2M2: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zy.G3G4.E3M1: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zy.G3G4.E3M2: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zz.G1G2.E1M1: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zz.G1G2.E1M2: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zz.G2G3.E2M1: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zz.G2G3.E2M2: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zz.G3G4.E3M1: 25.3
+member_properties.end_diaphragm_details.material_properties.elastic_modulus_zz.G3G4.E3M2: 25.3
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuy.G1G2.E1M1: 45.5
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuy.G1G2.E1M2: 45.5
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuy.G2G3.E2M1: 45.5
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuy.G2G3.E2M2: 45.5
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuy.G3G4.E3M1: 45.5
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuy.G3G4.E3M2: 45.5
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuz.G1G2.E1M1: 45.4
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuz.G1G2.E1M2: 45.4
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuz.G2G3.E2M1: 45.4
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuz.G2G3.E2M2: 45.4
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuz.G3G4.E3M1: 45.4
+member_properties.end_diaphragm_details.material_properties.plastic_modulus_zuz.G3G4.E3M2: 45.4
+member_properties.end_diaphragm_details.member_id.G1G2.E1M1: E1M1 to E1M2
+member_properties.end_diaphragm_details.member_id.G1G2.E1M2: E1M1 to E1M2
+member_properties.end_diaphragm_details.member_id.G2G3.E2M1: E2M1 to E2M2
+member_properties.end_diaphragm_details.member_id.G2G3.E2M2: E2M1 to E2M2
+member_properties.end_diaphragm_details.member_id.G3G4.E3M1: E3M1 to E3M2
+member_properties.end_diaphragm_details.member_id.G3G4.E3M2: E3M1 to E3M2
+member_properties.end_diaphragm_details.section_properties.area.G1G2.E1M1: 19.1
+member_properties.end_diaphragm_details.section_properties.area.G1G2.E1M2: 19.1
+member_properties.end_diaphragm_details.section_properties.area.G2G3.E2M1: 19.1
+member_properties.end_diaphragm_details.section_properties.area.G2G3.E2M2: 19.1
+member_properties.end_diaphragm_details.section_properties.area.G3G4.E3M1: 19.1
+member_properties.end_diaphragm_details.section_properties.area.G3G4.E3M2: 19.1
+member_properties.end_diaphragm_details.section_properties.iy.G1G2.E1M1: 180.0
+member_properties.end_diaphragm_details.section_properties.iy.G1G2.E1M2: 180.0
+member_properties.end_diaphragm_details.section_properties.iy.G2G3.E2M1: 180.0
+member_properties.end_diaphragm_details.section_properties.iy.G2G3.E2M2: 180.0
+member_properties.end_diaphragm_details.section_properties.iy.G3G4.E3M1: 180.0
+member_properties.end_diaphragm_details.section_properties.iy.G3G4.E3M2: 180.0
+member_properties.end_diaphragm_details.section_properties.iz.G1G2.E1M1: 180.0
+member_properties.end_diaphragm_details.section_properties.iz.G1G2.E1M2: 180.0
+member_properties.end_diaphragm_details.section_properties.iz.G2G3.E2M1: 180.0
+member_properties.end_diaphragm_details.section_properties.iz.G2G3.E2M2: 180.0
+member_properties.end_diaphragm_details.section_properties.iz.G3G4.E3M1: 180.0
+member_properties.end_diaphragm_details.section_properties.iz.G3G4.E3M2: 180.0
+member_properties.end_diaphragm_details.section_properties.mass.G1G2.E1M1: 15.04
+member_properties.end_diaphragm_details.section_properties.mass.G1G2.E1M2: 15.04
+member_properties.end_diaphragm_details.section_properties.mass.G2G3.E2M1: 15.04
+member_properties.end_diaphragm_details.section_properties.mass.G2G3.E2M2: 15.04
+member_properties.end_diaphragm_details.section_properties.mass.G3G4.E3M1: 15.04
+member_properties.end_diaphragm_details.section_properties.mass.G3G4.E3M2: 15.04
+member_properties.end_diaphragm_details.section_properties.radius_gyration_y.G1G2.E1M1: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_y.G1G2.E1M2: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_y.G2G3.E2M1: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_y.G2G3.E2M2: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_y.G3G4.E3M1: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_y.G3G4.E3M2: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_z.G1G2.E1M1: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_z.G1G2.E1M2: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_z.G2G3.E2M1: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_z.G2G3.E2M2: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_z.G3G4.E3M1: 3.07
+member_properties.end_diaphragm_details.section_properties.radius_gyration_z.G3G4.E3M2: 3.07
+member_properties.end_diaphragm_details.select_girders.G1G2.E1M1: G1 to G2
+member_properties.end_diaphragm_details.select_girders.G1G2.E1M2: G1 to G2
+member_properties.end_diaphragm_details.select_girders.G2G3.E2M1: G2 to G3
+member_properties.end_diaphragm_details.select_girders.G2G3.E2M2: G2 to G3
+member_properties.end_diaphragm_details.select_girders.G3G4.E3M1: G3 to G4
+member_properties.end_diaphragm_details.select_girders.G3G4.E3M2: G3 to G4
+member_properties.end_diaphragm_details.symmetry.G1G2.E1M1: ''
+member_properties.end_diaphragm_details.symmetry.G1G2.E1M2: ''
+member_properties.end_diaphragm_details.symmetry.G2G3.E2M1: ''
+member_properties.end_diaphragm_details.symmetry.G2G3.E2M2: ''
+member_properties.end_diaphragm_details.symmetry.G3G4.E3M1: ''
+member_properties.end_diaphragm_details.symmetry.G3G4.E3M2: ''
+member_properties.end_diaphragm_details.top_chord.G1G2.E1M1: 'Yes'
+member_properties.end_diaphragm_details.top_chord.G1G2.E1M2: 'Yes'
+member_properties.end_diaphragm_details.top_chord.G2G3.E2M1: 'Yes'
+member_properties.end_diaphragm_details.top_chord.G2G3.E2M2: 'Yes'
+member_properties.end_diaphragm_details.top_chord.G3G4.E3M1: 'Yes'
+member_properties.end_diaphragm_details.top_chord.G3G4.E3M2: 'Yes'
+member_properties.end_diaphragm_details.top_chord_section_designation.G1G2.E1M1: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.top_chord_section_designation.G1G2.E1M2: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.top_chord_section_designation.G2G3.E2M1: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.top_chord_section_designation.G2G3.E2M2: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.top_chord_section_designation.G3G4.E3M1: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.top_chord_section_designation.G3G4.E3M2: IS
+  100 x 100 x 10
+member_properties.end_diaphragm_details.top_chord_section_type.G1G2.E1M1: Double Angle
+  (Long Leg)
+member_properties.end_diaphragm_details.top_chord_section_type.G1G2.E1M2: Double Angle
+  (Long Leg)
+member_properties.end_diaphragm_details.top_chord_section_type.G2G3.E2M1: Double Angle
+  (Long Leg)
+member_properties.end_diaphragm_details.top_chord_section_type.G2G3.E2M2: Double Angle
+  (Long Leg)
+member_properties.end_diaphragm_details.top_chord_section_type.G3G4.E3M1: Double Angle
+  (Long Leg)
+member_properties.end_diaphragm_details.top_chord_section_type.G3G4.E3M2: Double Angle
+  (Long Leg)
+member_properties.end_diaphragm_details.top_flange_thickness.G1G2.E1M1: ''
+member_properties.end_diaphragm_details.top_flange_thickness.G1G2.E1M2: ''
+member_properties.end_diaphragm_details.top_flange_thickness.G2G3.E2M1: ''
+member_properties.end_diaphragm_details.top_flange_thickness.G2G3.E2M2: ''
+member_properties.end_diaphragm_details.top_flange_thickness.G3G4.E3M1: ''
+member_properties.end_diaphragm_details.top_flange_thickness.G3G4.E3M2: ''
+member_properties.end_diaphragm_details.top_flange_width.G1G2.E1M1: ''
+member_properties.end_diaphragm_details.top_flange_width.G1G2.E1M2: ''
+member_properties.end_diaphragm_details.top_flange_width.G2G3.E2M1: ''
+member_properties.end_diaphragm_details.top_flange_width.G2G3.E2M2: ''
+member_properties.end_diaphragm_details.top_flange_width.G3G4.E3M1: ''
+member_properties.end_diaphragm_details.top_flange_width.G3G4.E3M2: ''
+member_properties.end_diaphragm_details.total_depth.G1G2.E1M1: ''
+member_properties.end_diaphragm_details.total_depth.G1G2.E1M2: ''
+member_properties.end_diaphragm_details.total_depth.G2G3.E2M1: ''
+member_properties.end_diaphragm_details.total_depth.G2G3.E2M2: ''
+member_properties.end_diaphragm_details.total_depth.G3G4.E3M1: ''
+member_properties.end_diaphragm_details.total_depth.G3G4.E3M2: ''
+member_properties.end_diaphragm_details.type.G1G2.E1M1: Cross Bracing
+member_properties.end_diaphragm_details.type.G1G2.E1M2: Cross Bracing
+member_properties.end_diaphragm_details.type.G2G3.E2M1: Cross Bracing
+member_properties.end_diaphragm_details.type.G2G3.E2M2: Cross Bracing
+member_properties.end_diaphragm_details.type.G3G4.E3M1: Cross Bracing
+member_properties.end_diaphragm_details.type.G3G4.E3M2: Cross Bracing
+member_properties.end_diaphragm_details.web_thickness.G1G2.E1M1: ''
+member_properties.end_diaphragm_details.web_thickness.G1G2.E1M2: ''
+member_properties.end_diaphragm_details.web_thickness.G2G3.E2M1: ''
+member_properties.end_diaphragm_details.web_thickness.G2G3.E2M2: ''
+member_properties.end_diaphragm_details.web_thickness.G3G4.E3M1: ''
+member_properties.end_diaphragm_details.web_thickness.G3G4.E3M2: ''
+member_properties.girder_details.material_properties.modulus_of_elasticity_zy: 0.00184266
+member_properties.girder_details.material_properties.modulus_of_elasticity_zy.G1.M1: 0.00184266
+member_properties.girder_details.material_properties.modulus_of_elasticity_zy.G2.M1: 0.00184266
+member_properties.girder_details.material_properties.modulus_of_elasticity_zy.G3.M1: 0.00184266
+member_properties.girder_details.material_properties.modulus_of_elasticity_zy.G4.M1: 0.00184266
+member_properties.girder_details.material_properties.modulus_of_elasticity_zz: 0.02114289
+member_properties.girder_details.material_properties.modulus_of_elasticity_zz.G1.M1: 0.02114289
+member_properties.girder_details.material_properties.modulus_of_elasticity_zz.G2.M1: 0.02114289
+member_properties.girder_details.material_properties.modulus_of_elasticity_zz.G3.M1: 0.02114289
+member_properties.girder_details.material_properties.modulus_of_elasticity_zz.G4.M1: 0.02114289
+member_properties.girder_details.material_properties.plastic_modulus_zuy: 0.00279051
+member_properties.girder_details.material_properties.plastic_modulus_zuy.G1.M1: 0.00279051
+member_properties.girder_details.material_properties.plastic_modulus_zuy.G2.M1: 0.00279051
+member_properties.girder_details.material_properties.plastic_modulus_zuy.G3.M1: 0.00279051
+member_properties.girder_details.material_properties.plastic_modulus_zuy.G4.M1: 0.00279051
+member_properties.girder_details.material_properties.plastic_modulus_zuz: 0.02325689
+member_properties.girder_details.material_properties.plastic_modulus_zuz.G1.M1: 0.02325689
+member_properties.girder_details.material_properties.plastic_modulus_zuz.G2.M1: 0.02325689
+member_properties.girder_details.material_properties.plastic_modulus_zuz.G3.M1: 0.02325689
+member_properties.girder_details.material_properties.plastic_modulus_zuz.G4.M1: 0.02325689
+member_properties.girder_details.member_id.G1.M1: G1M1
+member_properties.girder_details.member_id.G2.M1: G2M1
+member_properties.girder_details.member_id.G3.M1: G3M1
+member_properties.girder_details.member_id.G4.M1: G4M1
+member_properties.girder_details.section_input.bottom_flange_thickness: All
+member_properties.girder_details.section_input.bottom_flange_thickness.G1.M1: All
+member_properties.girder_details.section_input.bottom_flange_thickness.G2.M1: All
+member_properties.girder_details.section_input.bottom_flange_thickness.G3.M1: All
+member_properties.girder_details.section_input.bottom_flange_thickness.G4.M1: All
+member_properties.girder_details.section_input.bottom_flange_width: 510
+member_properties.girder_details.section_input.bottom_flange_width.G1.M1: 510
+member_properties.girder_details.section_input.bottom_flange_width.G2.M1: 510
+member_properties.girder_details.section_input.bottom_flange_width.G3.M1: 510
+member_properties.girder_details.section_input.bottom_flange_width.G4.M1: 510
+member_properties.girder_details.section_input.depth: 1670
+member_properties.girder_details.section_input.depth.G1.M1: 1670
+member_properties.girder_details.section_input.depth.G2.M1: 1670
+member_properties.girder_details.section_input.depth.G3.M1: 1670
+member_properties.girder_details.section_input.depth.G4.M1: 1670
+member_properties.girder_details.section_input.is_section.G1.M1: JB 150
+member_properties.girder_details.section_input.is_section.G2.M1: JB 150
+member_properties.girder_details.section_input.is_section.G3.M1: JB 150
+member_properties.girder_details.section_input.is_section.G4.M1: JB 150
+member_properties.girder_details.section_input.symmetry: Girder Symmetric
+member_properties.girder_details.section_input.symmetry.G1.M1: Girder Symmetric
+member_properties.girder_details.section_input.symmetry.G2.M1: Girder Symmetric
+member_properties.girder_details.section_input.symmetry.G3.M1: Girder Symmetric
+member_properties.girder_details.section_input.symmetry.G4.M1: Girder Symmetric
+member_properties.girder_details.section_input.top_flange_thickness: All
+member_properties.girder_details.section_input.top_flange_thickness.G1.M1: All
+member_properties.girder_details.section_input.top_flange_thickness.G2.M1: All
+member_properties.girder_details.section_input.top_flange_thickness.G3.M1: All
+member_properties.girder_details.section_input.top_flange_thickness.G4.M1: All
+member_properties.girder_details.section_input.top_flange_width: 510
+member_properties.girder_details.section_input.top_flange_width.G1.M1: 510
+member_properties.girder_details.section_input.top_flange_width.G2.M1: 510
+member_properties.girder_details.section_input.top_flange_width.G3.M1: 510
+member_properties.girder_details.section_input.top_flange_width.G4.M1: 510
+member_properties.girder_details.section_input.torsional_restraint.G1.M1: Fully Restrained
+member_properties.girder_details.section_input.torsional_restraint.G2.M1: Fully Restrained
+member_properties.girder_details.section_input.torsional_restraint.G3.M1: Fully Restrained
+member_properties.girder_details.section_input.torsional_restraint.G4.M1: Fully Restrained
+member_properties.girder_details.section_input.type.G1.M1: Welded
+member_properties.girder_details.section_input.type.G2.M1: Welded
+member_properties.girder_details.section_input.type.G3.M1: Welded
+member_properties.girder_details.section_input.type.G4.M1: Welded
+member_properties.girder_details.section_input.warping_restraint.G1.M1: Both Flanges
+  Restrained
+member_properties.girder_details.section_input.warping_restraint.G2.M1: Both Flanges
+  Restrained
+member_properties.girder_details.section_input.warping_restraint.G3.M1: Both Flanges
+  Restrained
+member_properties.girder_details.section_input.warping_restraint.G4.M1: Both Flanges
+  Restrained
+member_properties.girder_details.section_input.web_depth: 1628
+member_properties.girder_details.section_input.web_depth.G1.M1: 1628
+member_properties.girder_details.section_input.web_depth.G2.M1: 1628
+member_properties.girder_details.section_input.web_depth.G3.M1: 1628
+member_properties.girder_details.section_input.web_depth.G4.M1: 1628
+member_properties.girder_details.section_input.web_thickness: All
+member_properties.girder_details.section_input.web_thickness.G1.M1: All
+member_properties.girder_details.section_input.web_thickness.G2.M1: All
+member_properties.girder_details.section_input.web_thickness.G3.M1: All
+member_properties.girder_details.section_input.web_thickness.G4.M1: All
+member_properties.girder_details.section_input.web_type.G1.M1: Thin Web with ITS
+member_properties.girder_details.section_input.web_type.G2.M1: Thin Web with ITS
+member_properties.girder_details.section_input.web_type.G3.M1: Thin Web with ITS
+member_properties.girder_details.section_input.web_type.G4.M1: Thin Web with ITS
+member_properties.girder_details.section_inputs.support_type.G1.M1: Major Laterally
+  Supported
+member_properties.girder_details.section_inputs.support_type.G2.M1: Major Laterally
+  Supported
+member_properties.girder_details.section_inputs.support_type.G3.M1: Major Laterally
+  Supported
+member_properties.girder_details.section_inputs.support_type.G4.M1: Major Laterally
+  Supported
+member_properties.girder_details.section_inputs.support_width.G1.M1: 400.0
+member_properties.girder_details.section_inputs.support_width.G2.M1: 400.0
+member_properties.girder_details.section_inputs.support_width.G3.M1: 400.0
+member_properties.girder_details.section_inputs.support_width.G4.M1: 400.0
+member_properties.girder_details.section_properties.area: 0.03491878
+member_properties.girder_details.section_properties.area.G1.M1: 0.03491878
+member_properties.girder_details.section_properties.area.G2.M1: 0.03491878
+member_properties.girder_details.section_properties.area.G3.M1: 0.03491878
+member_properties.girder_details.section_properties.area.G4.M1: 0.03491878
+member_properties.girder_details.section_properties.iy: 0.0004698787
+member_properties.girder_details.section_properties.iy.G1.M1: 0.0004698787
+member_properties.girder_details.section_properties.iy.G2.M1: 0.0004698787
+member_properties.girder_details.section_properties.iy.G3.M1: 0.0004698787
+member_properties.girder_details.section_properties.iy.G4.M1: 0.0004698787
+member_properties.girder_details.section_properties.iz: 0.0176543143
+member_properties.girder_details.section_properties.iz.G1.M1: 0.0176543143
+member_properties.girder_details.section_properties.iz.G2.M1: 0.0176543143
+member_properties.girder_details.section_properties.iz.G3.M1: 0.0176543143
+member_properties.girder_details.section_properties.iz.G4.M1: 0.0176543143
+member_properties.girder_details.section_properties.mass: 274.1124
+member_properties.girder_details.section_properties.mass.G1.M1: 274.1124
+member_properties.girder_details.section_properties.mass.G2.M1: 274.1124
+member_properties.girder_details.section_properties.mass.G3.M1: 274.1124
+member_properties.girder_details.section_properties.mass.G4.M1: 274.1124
+member_properties.girder_details.section_properties.radius_gyration_y: 0.116001
+member_properties.girder_details.section_properties.radius_gyration_y.G1.M1: 0.116001
+member_properties.girder_details.section_properties.radius_gyration_y.G2.M1: 0.116001
+member_properties.girder_details.section_properties.radius_gyration_y.G3.M1: 0.116001
+member_properties.girder_details.section_properties.radius_gyration_y.G4.M1: 0.116001
+member_properties.girder_details.section_properties.radius_gyration_z: 0.711043
+member_properties.girder_details.section_properties.radius_gyration_z.G1.M1: 0.711043
+member_properties.girder_details.section_properties.radius_gyration_z.G2.M1: 0.711043
+member_properties.girder_details.section_properties.radius_gyration_z.G3.M1: 0.711043
+member_properties.girder_details.section_properties.radius_gyration_z.G4.M1: 0.711043
+member_properties.girder_details.section_properties.torsion_constant_it: 3.554869e-06
+member_properties.girder_details.section_properties.torsion_constant_it.G1.M1: 3.554869e-06
+member_properties.girder_details.section_properties.torsion_constant_it.G2.M1: 3.554869e-06
+member_properties.girder_details.section_properties.torsion_constant_it.G3.M1: 3.554869e-06
+member_properties.girder_details.section_properties.torsion_constant_it.G4.M1: 3.554869e-06
+member_properties.girder_details.section_properties.warping_constant_iw: 0.00031927714998
+member_properties.girder_details.section_properties.warping_constant_iw.G1.M1: 0.00031927714998
+member_properties.girder_details.section_properties.warping_constant_iw.G2.M1: 0.00031927714998
+member_properties.girder_details.section_properties.warping_constant_iw.G3.M1: 0.00031927714998
+member_properties.girder_details.section_properties.warping_constant_iw.G4.M1: 0.00031927714998
+member_properties.girder_details.segment_table.G1:
+- end: 30.0
+  id: G1M1
+  start: 0.0
+member_properties.girder_details.segment_table.G2:
+- end: 30.0
+  id: G2M1
+  start: 0.0
+member_properties.girder_details.segment_table.G3:
+- end: 30.0
+  id: G3M1
+  start: 0.0
+member_properties.girder_details.segment_table.G4:
+- end: 30.0
+  id: G4M1
+  start: 0.0
+member_properties.girder_details.select_girder.G1: G1
+member_properties.girder_details.select_girder.G2: G2
+member_properties.girder_details.select_girder.G3: G3
+member_properties.girder_details.select_girder.G4: G4
+member_properties.stiffener_details.bearing_stiffener_outstand: '250'
+member_properties.stiffener_details.bearing_stiffener_outstand.G1.M1: '250'
+member_properties.stiffener_details.bearing_stiffener_outstand.G2.M1: '250'
+member_properties.stiffener_details.bearing_stiffener_outstand.G3.M1: '250'
+member_properties.stiffener_details.bearing_stiffener_outstand.G4.M1: '250'
+member_properties.stiffener_details.bearing_stiffener_plate_thickness: '10'
+member_properties.stiffener_details.bearing_stiffener_plate_thickness.G1.M1: '10'
+member_properties.stiffener_details.bearing_stiffener_plate_thickness.G2.M1: '10'
+member_properties.stiffener_details.bearing_stiffener_plate_thickness.G3.M1: '10'
+member_properties.stiffener_details.bearing_stiffener_plate_thickness.G4.M1: '10'
+member_properties.stiffener_details.bearing_stiffener_spacing: '100'
+member_properties.stiffener_details.bearing_stiffener_spacing.G1.M1: '100'
+member_properties.stiffener_details.bearing_stiffener_spacing.G2.M1: '100'
+member_properties.stiffener_details.bearing_stiffener_spacing.G3.M1: '100'
+member_properties.stiffener_details.bearing_stiffener_spacing.G4.M1: '100'
+member_properties.stiffener_details.design_method: Simple Post Critical
+member_properties.stiffener_details.design_method.G1.M1: Simple Post Critical
+member_properties.stiffener_details.design_method.G2.M1: Simple Post Critical
+member_properties.stiffener_details.design_method.G3.M1: Simple Post Critical
+member_properties.stiffener_details.design_method.G4.M1: Simple Post Critical
+member_properties.stiffener_details.intermediate_stiffener: 'Yes'
+member_properties.stiffener_details.intermediate_stiffener.G1.M1: 'Yes'
+member_properties.stiffener_details.intermediate_stiffener.G2.M1: 'Yes'
+member_properties.stiffener_details.intermediate_stiffener.G3.M1: 'Yes'
+member_properties.stiffener_details.intermediate_stiffener.G4.M1: 'Yes'
+member_properties.stiffener_details.intermediate_stiffener_outstand: '250'
+member_properties.stiffener_details.intermediate_stiffener_outstand.G1.M1: '250'
+member_properties.stiffener_details.intermediate_stiffener_outstand.G2.M1: '250'
+member_properties.stiffener_details.intermediate_stiffener_outstand.G3.M1: '250'
+member_properties.stiffener_details.intermediate_stiffener_outstand.G4.M1: '250'
+member_properties.stiffener_details.intermediate_stiffener_spacing: '2440'
+member_properties.stiffener_details.intermediate_stiffener_spacing.G1.M1: '2440'
+member_properties.stiffener_details.intermediate_stiffener_spacing.G2.M1: '2440'
+member_properties.stiffener_details.intermediate_stiffener_spacing.G3.M1: '2440'
+member_properties.stiffener_details.intermediate_stiffener_spacing.G4.M1: '2440'
+member_properties.stiffener_details.intermediate_stiffener_thickness: '10'
+member_properties.stiffener_details.intermediate_stiffener_thickness.G1.M1: '10'
+member_properties.stiffener_details.intermediate_stiffener_thickness.G2.M1: '10'
+member_properties.stiffener_details.intermediate_stiffener_thickness.G3.M1: '10'
+member_properties.stiffener_details.intermediate_stiffener_thickness.G4.M1: '10'
+member_properties.stiffener_details.longitudinal_stiffener: 'No'
+member_properties.stiffener_details.longitudinal_stiffener.G1.M1: 'No'
+member_properties.stiffener_details.longitudinal_stiffener.G2.M1: 'No'
+member_properties.stiffener_details.longitudinal_stiffener.G3.M1: 'No'
+member_properties.stiffener_details.longitudinal_stiffener.G4.M1: 'No'
+member_properties.stiffener_details.longitudinal_stiffener_thickness: '8'
+member_properties.stiffener_details.longitudinal_stiffener_thickness.G1.M1: '8'
+member_properties.stiffener_details.longitudinal_stiffener_thickness.G2.M1: '8'
+member_properties.stiffener_details.longitudinal_stiffener_thickness.G3.M1: '8'
+member_properties.stiffener_details.longitudinal_stiffener_thickness.G4.M1: '8'
+member_properties.stiffener_details.no_bearing_stiffeners_each_end: '4'
+member_properties.stiffener_details.no_bearing_stiffeners_each_end.G1.M1: '4'
+member_properties.stiffener_details.no_bearing_stiffeners_each_end.G2.M1: '4'
+member_properties.stiffener_details.no_bearing_stiffeners_each_end.G3.M1: '4'
+member_properties.stiffener_details.no_bearing_stiffeners_each_end.G4.M1: '4'
+member_properties.stiffener_details.select_member_id.G1.M1: G1M1
+member_properties.stiffener_details.select_member_id.G2.M1: G2M1
+member_properties.stiffener_details.select_member_id.G3.M1: G3M1
+member_properties.stiffener_details.select_member_id.G4.M1: G4M1
+project.location:
+  data:
+    district: Mumbai (Colaba)
+    state: Maharashtra
+  display_text: Mumbai (Colaba), Maharashtra
+  method: location_name
+  show_display: true
+  weather_data:
+    latitude: 18.9067
+    longitude: 72.8147
+    max_temp: 40.6
+    min_temp: 11.7
+    wind_speed: 44
+    z_value: 0.16
+    zone: III
+structure.type: Highway Bridge
+support_conditions.bearing_length: '400.00'
+support_conditions.left_support: Pinned
+support_conditions.right_support: Roller
+typical_section.crash_barrier.area: 302282.768
+typical_section.crash_barrier.density: 25
+typical_section.crash_barrier.height: 1.1
+typical_section.crash_barrier.load: 7.557
+typical_section.crash_barrier.post_spacing: 2
+typical_section.crash_barrier.type: IRC 5 - RCC Crash Barrier
+typical_section.crash_barrier.width: 0.45
+typical_section.deck_overhang: 1.5187
+typical_section.deck_thickness: 250.0
+typical_section.footpath_thickness: 100.0
+typical_section.footpath_width: 1.5
+typical_section.girder_spacing: 3.0375
+typical_section.median.area: null
+typical_section.median.density: null
+typical_section.median.height: null
+typical_section.median.load: null
+typical_section.median.post_spacing: null
+typical_section.median.type: null
+typical_section.median.width: 0.0
+typical_section.no_of_footpaths: 2
+typical_section.no_of_girders: 4
+typical_section.overall_bridge_width: 12.149999999999999
+typical_section.railing.height: 1.1
+typical_section.railing.load_mode: As per IRC 6
+typical_section.railing.load_value: 1.4715
+typical_section.railing.type: IRC 5 - RCC Railing
+typical_section.railing.width: 0.375
+typical_section.wearing_course.density: 24.0
+typical_section.wearing_course.material: Concrete
+typical_section.wearing_course.thickness: 50.0

@@ -8,3 +8,4 @@ pydantic
 xarray
 ifcopenshell
 openpyxl
+Pillow>=9.0
