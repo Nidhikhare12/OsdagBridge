@@ -68,6 +68,14 @@ from osdagbridge.core.utils.common import (
     KEY_MP_ED_TOP_CHORD_SECTION_DESIG,
     KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE,
     KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG,
+    KEY_MP_ED_IS_SECTION,
+    KEY_MP_ED_SYMMETRY,
+    KEY_MP_ED_TOTAL_DEPTH,
+    KEY_MP_ED_WEB_THICKNESS,
+    KEY_MP_ED_TOP_FLANGE_WIDTH,
+    KEY_MP_ED_TOP_FLANGE_THICKNESS,
+    KEY_MP_ED_BOTTOM_FLANGE_WIDTH,
+    KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
     KEY_MP_GIRDER_DEPTH,
     KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
     KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS,
@@ -77,6 +85,340 @@ from osdagbridge.core.utils.common import (
 
 BRACE_X = "X"
 BRACE_K = "K"
+
+
+def _calculate_rolled_beam(d_base: dict, is_section: Optional[str]) -> Optional[dict]:
+    from osdagbridge.core.utils.connect import run_calculation
+    from osdagbridge.core.bridge_types.plate_girder.defaults import get_is_section_list
+
+    candidates = []
+    if is_section and is_section not in ("All", "Customized", "", "Auto-optimize", "None"):
+        selected = copy.deepcopy(d_base)
+        selected["Member.Designation"] = [is_section]
+        candidates.append(selected)
+    fallback = copy.deepcopy(d_base)
+    fallback["Member.Designation"] = get_is_section_list()
+    candidates.append(fallback)
+
+    for design in candidates:
+        try:
+            result = run_calculation(design)
+            if result and result.get("Optimum.Designation"):
+                return result
+        except Exception:
+            continue
+    return None
+
+
+def _calculate_welded_beam(d_base: dict) -> Optional[dict]:
+    from osdagbridge.core.utils.connect import run_calculation
+
+    candidates = [copy.deepcopy(d_base)]
+    for thickness in ("12", "14", "16", "18", "20", "22", "25", "28", "32"):
+        design = copy.deepcopy(d_base)
+        design["Web.Thickness"] = thickness
+        candidates.append(design)
+    optimized = copy.deepcopy(d_base)
+    optimized.update({
+        "Total.Design_Type": "Optimized",
+        "Total.Depth": "",
+        "Web.Thickness": "All",
+        "Topflange.Width": "",
+        "TopFlange.Thickness": "All",
+        "Bottomflange.Width": "",
+        "BottomFlange.Thickness": "All",
+    })
+    candidates.append(optimized)
+
+    for design in candidates:
+        try:
+            result = run_calculation(design)
+            if result and result.get("Optimum.Designation"):
+                return result
+        except Exception:
+            continue
+    return None
+
+
+class _BeamEndDiaphragm:
+    """Shared force extraction and envelope logic for beam end diaphragms."""
+
+    ed_type = "Beam"
+
+    def __init__(self, bridge, include_edge_beams: bool = False):
+        self.bridge = bridge
+        self.include_edge_beams = include_edge_beams
+        self._identify_beam_configuration()
+        self._init_beam_geometry()
+
+    def _read_ed_value(self, base_key: str):
+        ai = getattr(self.bridge, "additional_inputs", {}) or {}
+        inp = getattr(self.bridge, "input_dict", {}) or {}
+        for values in (ai, inp):
+            if not isinstance(values, dict):
+                continue
+            if base_key in values and values[base_key] is not None:
+                return values[base_key]
+            for key, value in values.items():
+                if value is None:
+                    continue
+                if re.match(rf"^{re.escape(base_key)}\.G\d+G\d+\.E\d+M[12]$", str(key)):
+                    return value
+                if re.match(rf"^{re.escape(base_key)}\.G\d+G\d+$", str(key)):
+                    return value
+        return None
+
+    def _identify_beam_configuration(self) -> None:
+        self._ed_value = self._read_ed_value
+
+    def _init_beam_geometry(self) -> None:
+        inp = getattr(self.bridge, "input_dict", {}) or {}
+        self.s = float(inp.get(KEY_TS_GIRDER_SPACING, 2.0) or 2.0)
+
+    def _map_edge_elements(self) -> dict[str, list[str]]:
+        rd = getattr(self.bridge, "result_data", {}) or {}
+        girders = rd.get("girders", {})
+        node_to_girder = {
+            node: name
+            for name, data in girders.items()
+            for node in data.get("nodes", [])
+        }
+        model = getattr(getattr(self.bridge, "grillage_model", None), "model", None)
+        elements: list[str] = []
+        if model and hasattr(model, "get_element"):
+            try:
+                elements = [
+                    str(element)
+                    for edge in ("start_edge", "end_edge")
+                    for element in model.get_element(member=edge, options="elements")
+                ]
+            except Exception:
+                elements = []
+        if not elements:
+            elements = [
+                str(member)
+                for member, nodes in rd.get("members", {}).items()
+                if len(nodes) == 2
+                and node_to_girder.get(nodes[0])
+                and node_to_girder.get(nodes[1])
+                and node_to_girder[nodes[0]] != node_to_girder[nodes[1]]
+            ]
+
+        pair_to_elements: dict[str, list[str]] = {}
+        for element in elements:
+            nodes = rd.get("members", {}).get(element)
+            if not nodes or len(nodes) != 2:
+                continue
+            left = node_to_girder.get(nodes[0])
+            right = node_to_girder.get(nodes[1])
+            if not left or not right or left == right:
+                continue
+            if not self.include_edge_beams and (left.startswith("EB") or right.startswith("EB")):
+                continue
+            indices = (girders.get(left, {}).get("index", 0), girders.get(right, {}).get("index", 0))
+            pair = f"{left}-{right}" if indices[0] <= indices[1] else f"{right}-{left}"
+            pair_to_elements.setdefault(pair, []).append(element)
+        return pair_to_elements
+
+    def compute_panel_forces(self, load_case_filter: Optional[str] = None) -> pd.DataFrame:
+        rd = getattr(self.bridge, "result_data", {}) or {}
+        forces_data = rd.get("forces", {})
+        rows = []
+        for load_case in rd.get("loadcases", []):
+            load_case = str(load_case)
+            if load_case.startswith("Envelope") or load_case not in forces_data:
+                continue
+            if load_case_filter and load_case_filter not in load_case:
+                continue
+            pair_to_elements = self._map_edge_elements()
+            for pair, elements in pair_to_elements.items():
+                for element in elements:
+                    force = forces_data[load_case].get(element, {})
+                    vy_i, vy_j = force.get("Vy_i"), force.get("Vy_j")
+                    mz_i, mz_j = force.get("Mz_i"), force.get("Mz_j")
+                    rows.append({
+                        "LoadCase": load_case,
+                        "Girder Pair": pair,
+                        "Member": element,
+                        "Vy_i (kN)": round(float(vy_i) / 1000, 4) if vy_i is not None else None,
+                        "Vy_j (kN)": round(float(vy_j) / 1000, 4) if vy_j is not None else None,
+                        "Mz_i (kNm)": round(float(mz_i) / 1000, 4) if mz_i is not None else None,
+                        "Mz_j (kNm)": round(float(mz_j) / 1000, 4) if mz_j is not None else None,
+                        "Vy_max (kN)": max(abs(float(vy_i or 0)), abs(float(vy_j or 0))) / 1000,
+                        "Mz_max (kNm)": max(abs(float(mz_i or 0)), abs(float(mz_j or 0))) / 1000,
+                    })
+        columns = ["LoadCase", "Girder Pair", "Member", "Vy_i (kN)", "Vy_j (kN)", "Mz_i (kNm)", "Mz_j (kNm)", "Vy_max (kN)", "Mz_max (kNm)"]
+        return pd.DataFrame(rows, columns=columns)
+
+    def get_design_forces_dict(self) -> dict:
+        rd = getattr(self.bridge, "result_data", {}) or {}
+        forces_data = rd.get("forces", {})
+        inp = getattr(self.bridge, "input_dict", {}) or {}
+        n_girders = int(inp.get(KEY_TS_NO_OF_GIRDERS, 2) or 2)
+        pairs = {f"G{i}-G{i + 1}": {} for i in range(1, n_girders)}
+        pair_to_elements = self._map_edge_elements()
+        for pair in pairs:
+            vy_max = mz_max = 0.0
+            vy_lc = mz_lc = None
+            for load_case in rd.get("loadcases", []):
+                load_case = str(load_case)
+                if load_case.startswith("Envelope") or load_case not in forces_data:
+                    continue
+                for element in pair_to_elements.get(pair, []):
+                    force = forces_data[load_case].get(element, {})
+                    vy = max(abs(float(force.get("Vy_i") or 0)), abs(float(force.get("Vy_j") or 0))) / 1000
+                    mz = max(abs(float(force.get("Mz_i") or 0)), abs(float(force.get("Mz_j") or 0))) / 1000
+                    if vy > vy_max:
+                        vy_max, vy_lc = vy, load_case
+                    if mz > mz_max:
+                        mz_max, mz_lc = mz, load_case
+            pairs[pair] = {
+                "shear_Vy_kN": round(vy_max, 3) if vy_max > 0.005 else 1.0,
+                "shear_Vy_gov_lc": vy_lc or "Manual/Default",
+                "moment_Mz_kNm": round(mz_max, 3) if mz_max > 0.005 else 1.0,
+                "moment_Mz_gov_lc": mz_lc or "Manual/Default",
+            }
+        return {"ed_type": self.ed_type, "geometry": self.get_geometry_info(), "pairs": pairs}
+
+    def get_critical_forces(self, forces_dict: Optional[dict] = None) -> pd.DataFrame:
+        forces_dict = forces_dict or self.get_design_forces_dict()
+        return pd.DataFrame([
+            {
+                "Girder Pair": pair,
+                "Vy (kN)": values.get("shear_Vy_kN"),
+                "Vy Gov. LC": values.get("shear_Vy_gov_lc"),
+                "Mz (kNm)": values.get("moment_Mz_kNm"),
+                "Mz Gov. LC": values.get("moment_Mz_gov_lc"),
+            }
+            for pair, values in forces_dict.get("pairs", {}).items()
+        ])
+
+
+class EndDiaphragmRolled(_BeamEndDiaphragm):
+    ed_type = "Rolled Beam"
+
+    def __init__(self, bridge, is_section: Optional[str] = None, include_edge_beams: bool = False):
+        self.is_section = str(is_section).strip() if is_section is not None else None
+        super().__init__(bridge, include_edge_beams)
+        if self.is_section is None:
+            raw_section = self._ed_value(KEY_MP_ED_IS_SECTION)
+            self.is_section = str(raw_section).strip() if raw_section else None
+
+    def get_geometry_info(self) -> dict:
+        return {
+            "ed_type": self.ed_type,
+            "is_section": self.is_section,
+            "span_length_m": round(self.s, 4),
+            "girder_spacing_m": round(self.s, 4),
+        }
+
+    def run_member_designs(self, forces_dict: dict, dev: bool = False) -> dict:
+        from osdagbridge.core.utils.connect import design_dict_simply_supported, design_pool
+        from osdagbridge.core.bridge_types.plate_girder.defaults import get_is_section_list
+        jobs = []
+        for pair, values in forces_dict.get("pairs", {}).items():
+            design = copy.deepcopy(design_dict_simply_supported)
+            design.update({
+                "Member.Length": str(round(self.s, 3)),
+                "Load.Moment": str(max(round(float(values.get("moment_Mz_kNm") or 1), 3), 1.0)),
+                "Load.Shear": str(max(round(float(values.get("shear_Vy_kN") or 1), 3), 1.0)),
+            })
+            jobs.append((pair, design))
+        if not jobs:
+            return {}
+        results = {}
+        with design_pool(min(__import__("os").cpu_count() or 4, len(jobs))) as executor:
+            futures = {}
+            for pair, design in jobs:
+                if self.is_section and self.is_section not in ("All", "Customized", "", "Auto-optimize", "None"):
+                    design["Member.Designation"] = [self.is_section]
+                else:
+                    design["Member.Designation"] = get_is_section_list()
+                futures[executor.submit(_calculate_rolled_beam, design, self.is_section)] = pair
+            for future, pair in futures.items():
+                try:
+                    results.setdefault(pair, {})["beam"] = future.result()
+                except Exception:
+                    results.setdefault(pair, {})["beam"] = None
+        return results
+
+    def get_design_forces_dict(self) -> dict:
+        forces = super().get_design_forces_dict()
+        forces["is_section"] = self.is_section
+        return forces
+
+
+class EndDiaphragmWelded(_BeamEndDiaphragm):
+    ed_type = "Welded Beam"
+
+    def __init__(self, bridge, total_depth: Optional[float] = None, web_thickness: Optional[float] = None,
+                 top_flange_width: Optional[float] = None, top_flange_thickness: Optional[float] = None,
+                 bottom_flange_width: Optional[float] = None, bottom_flange_thickness: Optional[float] = None,
+                 symmetry: Optional[str] = None, include_edge_beams: bool = False):
+        self.total_depth = total_depth
+        self.web_thickness = web_thickness
+        self.top_flange_width = top_flange_width
+        self.top_flange_thickness = top_flange_thickness
+        self.bottom_flange_width = bottom_flange_width
+        self.bottom_flange_thickness = bottom_flange_thickness
+        self.symmetry = symmetry
+        super().__init__(bridge, include_edge_beams)
+        for name, key, default in (
+            ("total_depth", KEY_MP_ED_TOTAL_DEPTH, 1200.0),
+            ("web_thickness", KEY_MP_ED_WEB_THICKNESS, 10.0),
+            ("top_flange_width", KEY_MP_ED_TOP_FLANGE_WIDTH, 300.0),
+            ("top_flange_thickness", KEY_MP_ED_TOP_FLANGE_THICKNESS, 16.0),
+            ("bottom_flange_width", KEY_MP_ED_BOTTOM_FLANGE_WIDTH, 300.0),
+            ("bottom_flange_thickness", KEY_MP_ED_BOTTOM_FLANGE_THICKNESS, 16.0),
+        ):
+            value = getattr(self, name)
+            setattr(self, name, float(value if value is not None else (self._ed_value(key) or default)))
+        self.symmetry = self.symmetry or self._ed_value(KEY_MP_ED_SYMMETRY) or "Symmetric"
+        self.L_mm = self.s * 1000.0
+
+    def get_geometry_info(self) -> dict:
+        return {
+            "ed_type": self.ed_type,
+            "total_depth_mm": round(self.total_depth, 2),
+            "web_thickness_mm": round(self.web_thickness, 2),
+            "top_flange_width_mm": round(self.top_flange_width, 2),
+            "top_flange_thickness_mm": round(self.top_flange_thickness, 2),
+            "bottom_flange_width_mm": round(self.bottom_flange_width, 2),
+            "bottom_flange_thickness_mm": round(self.bottom_flange_thickness, 2),
+            "symmetry": self.symmetry,
+            "span_length_mm": round(self.L_mm, 2),
+            "girder_spacing_m": round(self.s, 4),
+        }
+
+    def run_member_designs(self, forces_dict: dict, dev: bool = False) -> dict:
+        from osdagbridge.core.utils.connect import design_dict_plate_girder, design_pool
+        jobs = []
+        for pair, values in forces_dict.get("pairs", {}).items():
+            design = copy.deepcopy(design_dict_plate_girder)
+            design.update({
+                "Member.Length": str(round(self.L_mm)),
+                "Load.Moment": str(max(round(float(values.get("moment_Mz_kNm") or 1), 3), 1.0)),
+                "Load.Shear": str(max(round(float(values.get("shear_Vy_kN") or 1), 3), 1.0)),
+                "Total.Depth": str(round(self.total_depth)),
+                "Total.Design_Type": "Customized",
+                "Web.Thickness": str(round(self.web_thickness)),
+                "Topflange.Width": str(round(self.top_flange_width)),
+                "TopFlange.Thickness": str(round(self.top_flange_thickness)),
+                "Bottomflange.Width": str(round(self.bottom_flange_width)),
+                "BottomFlange.Thickness": str(round(self.bottom_flange_thickness)),
+            })
+            jobs.append((pair, design))
+        if not jobs:
+            return {}
+        results = {}
+        with design_pool(min(__import__("os").cpu_count() or 4, len(jobs))) as executor:
+            futures = {executor.submit(_calculate_welded_beam, design): pair for pair, design in jobs}
+            for future, pair in futures.items():
+                try:
+                    results.setdefault(pair, {})["beam"] = future.result()
+                except Exception:
+                    results.setdefault(pair, {})["beam"] = None
+        return results
 
 
 class EndDiaphragmForces:

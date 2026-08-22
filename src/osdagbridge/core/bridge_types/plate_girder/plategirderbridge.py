@@ -2565,7 +2565,7 @@ class PlateGirderBridge:
         ed_type = _get_ed_type()
 
         if ed_type in ("Rolled Beam", "Rolled"):
-            from osdagbridge.core.bridge_types.plate_girder.enddiaphragmrolled import EndDiaphragmRolled
+            from osdagbridge.core.bridge_types.plate_girder.enddiaphragmforces import EndDiaphragmRolled
 
             ed = EndDiaphragmRolled(bridge=self)
             forces_dict = ed.get_design_forces_dict()
@@ -2588,7 +2588,7 @@ class PlateGirderBridge:
             return pair_designs
 
         elif ed_type in ("Welded Beam", "Welded"):
-            from osdagbridge.core.bridge_types.plate_girder.enddiaphragmwelded import EndDiaphragmWelded
+            from osdagbridge.core.bridge_types.plate_girder.enddiaphragmforces import EndDiaphragmWelded
 
             ed = EndDiaphragmWelded(bridge=self)
             forces_dict = ed.get_design_forces_dict()

@@ -2568,7 +2568,7 @@ END_DIAPHRAGM_DETAILS_SCHEMA = {
                     "Cross Bracing",
                     "Rolled Beam",
                     "Welded Beam",
-                                   ],
+                    ],
                     "on_change": "_on_end_diaphragm_type_changed",
                 }]},
  

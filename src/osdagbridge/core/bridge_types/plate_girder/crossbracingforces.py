@@ -185,12 +185,12 @@ class CrossBracingForces:
     def __init__(
         self,
         bridge,
-        brace_type:      Optional[str]   = None,
+        brace_type:    Optional[str]   = None,
+        top_chord:     Optional[bool]  = None,
+        bottom_chord:  Optional[bool]  = None,
+        cb_spacing:    Optional[float] = None,
+        depth_ratio:   float = 0.85,
         connection_type: Optional[str]   = None,
-        top_chord:       Optional[bool]  = None,
-        bottom_chord:    Optional[bool]  = None,
-        cb_spacing:      Optional[float] = None,
-        depth_ratio:     float = 0.85,
         include_edge_beams: bool = False,
     ):
         self.bridge = bridge
@@ -206,13 +206,13 @@ class CrossBracingForces:
 
     def _identify_configuration(
         self,
-        brace_type:      Optional[str],
+        brace_type:   Optional[str],
         connection_type: Optional[str],
-        top_chord:       Optional[bool],
-        bottom_chord:    Optional[bool],
+        top_chord:    Optional[bool],
+        bottom_chord: Optional[bool],
     ) -> None:
-        ai = getattr(self.bridge, "additional_inputs", {}) or {}
-        inp = getattr(self.bridge, "input_dict", {}) or {}
+        ai = getattr(self.bridge, "additional_inputs", {})
+        inp = getattr(self.bridge, "input_dict", {})
 
         def _cb_value(base_key: str):
             """Resolve a cross-bracing UI value from legacy or per-pair keys."""
@@ -279,7 +279,7 @@ class CrossBracingForces:
             self.cb_spacing = float(cb_spacing)
         else:
             self.cb_spacing = float(
-                (self._cb_value(KEY_MP_CB_SPACING) or 3.0)  # TODO: remove fallback once UI always sets spacing
+                self._cb_value(KEY_MP_CB_SPACING)
             )
 
         # --- Girder section dimensions (metres) ---
@@ -568,12 +568,12 @@ class CrossBracingForces:
             }
 
         return {
-            "brace_type":      self.brace_type,
+            "brace_type":   self.brace_type,
             "connection_type":  self.connection_type,
-            "top_chord":        self.top_chord,
-            "bottom_chord":     self.bottom_chord,
-            "geometry":        self.get_brace_geometry_info(),
-            "pairs":            pairs,
+            "top_chord":    self.top_chord,
+            "bottom_chord": self.bottom_chord,
+            "geometry":     self.get_brace_geometry_info(),
+            "pairs":        pairs,
         }
 
     def get_brace_geometry_info(self) -> dict:
@@ -699,7 +699,6 @@ class CrossBracingForces:
                 except Exception as exc:
                     print(f"  [CrossBracing] SKIP {pair} {member} {force_type}: {exc}")
                     result = None
-
                 results.setdefault(pair, {}).setdefault(member, {})[force_type] = result
 
         print(f"  Total time : {time.perf_counter() - t0:.3f}s  |  {len(jobs)} designs\n{sep}")
@@ -741,3 +740,4 @@ class CrossBracingForces:
         else:
             print(df.to_string(index=False))
         print("=" * 95)
+
