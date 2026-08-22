@@ -639,6 +639,54 @@ def _extract_osdag_summary(result: dict) -> dict:
     }
 
 
+def extract_ed_beam_summary(raw_result: dict, beam_forces: dict) -> dict:
+    """
+    Merge Osdag flexure/plate-girder raw output with demand values from beam_forces
+    into a single enriched dict that the UI and chap5 report can read directly.
+
+    Parameters
+    ----------
+    raw_result   : dict — the dict returned by run_calculation (flexure or PG)
+    beam_forces  : dict — from TransverseMemberDesignUtility.resolve_beam_forces,
+                          with keys ``moment_kNm`` and ``shear_kN``
+
+    Returns
+    -------
+    The same ``raw_result`` dict, with the following keys *added / set*:
+      Moment.Demand   — design moment demand (kNm)
+      Shear.Demand    — design shear demand (kN)
+      Moment.Strength — capacity from Osdag (kNm)
+      Shear.Strength  — capacity from Osdag (kN)
+    Existing keys in ``raw_result`` (e.g. Optimum.Designation, Optimum.UR) are
+    preserved unchanged.
+    """
+    if not raw_result:
+        return {
+            "Moment.Demand":   beam_forces.get("moment_kNm", 0.0),
+            "Shear.Demand":    beam_forces.get("shear_kN", 0.0),
+            "Moment.Strength": None,
+            "Shear.Strength":  None,
+        }
+
+    enriched = dict(raw_result)
+
+    # Demand from grillage analysis
+    enriched["Moment.Demand"] = float(beam_forces.get("moment_kNm") or 0.0)
+    enriched["Shear.Demand"]  = float(beam_forces.get("shear_kN")   or 0.0)
+
+    # Capacity from Osdag — both flexure and plate-girder modules use these keys
+    def _safe_float(v):
+        try:
+            return float(v) if v not in (None, "NA", "N/A", "") else None
+        except (TypeError, ValueError):
+            return None
+
+    enriched.setdefault("Moment.Strength", _safe_float(raw_result.get("Moment.Strength")))
+    enriched.setdefault("Shear.Strength",  _safe_float(raw_result.get("Shear.Strength")))
+
+    return enriched
+
+
 def enrich_crossbracing_dump(pair_designs: dict) -> None:
     """
     Update tools/crossbracing_results.json with Osdag design results.

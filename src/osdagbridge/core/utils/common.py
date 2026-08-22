@@ -1428,6 +1428,10 @@ VALUES_CROSS_BRACING_TYPE = [
     "X-Bracing",
 ]
 VALUES_END_DIAPHRAGM_TYPE = ["Cross Bracing", "Rolled Beam", "Welded Beam"]
+# Canonical string values for the End Diaphragm Type field
+ED_TYPE_CROSS_BRACING = "Cross Bracing"
+ED_TYPE_ROLLED_BEAM   = "Rolled Beam"
+ED_TYPE_WELDED_BEAM   = "Welded Beam"
 VALUES_WEARING_COAT_MATERIAL = ["Concrete", "Bituminous", "Custom"]
 VALUES_RAILING_TYPE = ["IRC 5 - RCC Railing", "IRC 5 - Steel Railing", "Custom"]
 VALUES_CUSTOM_AXLE_TYPE = ["Single", "Bogie"]

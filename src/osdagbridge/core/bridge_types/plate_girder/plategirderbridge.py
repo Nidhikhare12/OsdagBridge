@@ -2316,20 +2316,23 @@ class PlateGirderBridge:
         -------
         dict — nested by pair → member → force_type → Osdag result.
         """
-        from osdagbridge.core.bridge_types.plate_girder.crossbracingforces import CrossBracingForces
+        from osdagbridge.core.bridge_types.plate_girder.transverse_design_utility import TransverseMemberDesignUtility
         from osdagbridge.core.bridge_types.plate_girder.results_data import enrich_crossbracing_dump
+        from osdagbridge.core.utils.common import KEY_MP_CB_BRACING_CONNECTION
 
         if not self.result_data:
             print("[CrossBracing] No analysis results available — skipping.")
             return {}
 
-        cb = CrossBracingForces(bridge=self)
-        if not cb.get_crossbracing_count():
-            print("[CrossBracing] No cross-bracing panels found — skipping.")
-            return {}
+        forces_dict = TransverseMemberDesignUtility.resolve_bracing_forces(
+            result_data=self.result_data,
+            input_dict=self.input_dict,
+            additional_inputs=self.additional_inputs,
+            pair_elements=None
+        )
 
-        forces_dict = cb.get_design_forces_dict()
         if not forces_dict or not forces_dict.get("pairs"):
+            print("[CrossBracing] No cross-bracing panels found — skipping.")
             return {}
         
         # Store configuration in output_dict
@@ -2337,10 +2340,12 @@ class PlateGirderBridge:
         self.output_dict["member_properties.cross_bracing_details.top_chord"] = forces_dict.get("top_chord", True)
         self.output_dict["member_properties.cross_bracing_details.bottom_chord"] = forces_dict.get("bottom_chord", True)
         
-        cb.print_critical_forces(forces_dict)
-
         bridge_logger.check_cancel()
-        pair_designs = cb.run_member_designs(forces_dict)
+        pair_designs = TransverseMemberDesignUtility.run_bracing_designs(
+            forces_dict=forces_dict,
+            ai=self.additional_inputs,
+            connection_key=KEY_MP_CB_BRACING_CONNECTION
+        )
         self.output_dict["crossbracing_forces_dict"] = forces_dict
 
         enrich_crossbracing_dump(pair_designs)
@@ -2544,6 +2549,7 @@ class PlateGirderBridge:
         import sqlite3
         from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
         from osdagbridge.core.bridge_types.plate_girder.plategirderbridge import resolve_girder_value as _gv
+        from osdagbridge.core.bridge_types.plate_girder.transverse_design_utility import TransverseMemberDesignUtility
         from osdagbridge.core.utils.common import (
             KEY_TS_NO_OF_GIRDERS,
             KEY_TS_GIRDER_SPACING,
@@ -2563,6 +2569,7 @@ class PlateGirderBridge:
             KEY_MP_ED_BOTTOM_FLANGE_WIDTH,
             KEY_MP_ED_TOP_FLANGE_THICKNESS,
             KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
+            KEY_MP_ED_BRACING_CONNECTION,
             KEY_TD_ED_PROP_L, KEY_TD_ED_PROP_H, KEY_TD_ED_PROP_B, KEY_TD_ED_PROP_TW, KEY_TD_ED_PROP_TF,
             KEY_TD_ED_PROP_RZ, KEY_TD_ED_PROP_M, KEY_TD_ED_PROP_A, KEY_TD_ED_PROP_IZ, KEY_TD_ED_PROP_IV,
             KEY_TD_ED_PROP_RV, KEY_TD_ED_PROP_ZZ, KEY_TD_ED_PROP_ZV, KEY_TD_ED_PROP_ZUZ, KEY_TD_ED_PROP_ZUV,
@@ -2573,8 +2580,6 @@ class PlateGirderBridge:
             KEY_TD_ED_BOTTOM_CHORD_PROP_RZ, KEY_TD_ED_BOTTOM_CHORD_PROP_M, KEY_TD_ED_BOTTOM_CHORD_PROP_A, KEY_TD_ED_BOTTOM_CHORD_PROP_IZ, KEY_TD_ED_BOTTOM_CHORD_PROP_IV,
             KEY_TD_ED_BOTTOM_CHORD_PROP_RV, KEY_TD_ED_BOTTOM_CHORD_PROP_ZZ, KEY_TD_ED_BOTTOM_CHORD_PROP_ZV, KEY_TD_ED_BOTTOM_CHORD_PROP_ZUZ, KEY_TD_ED_BOTTOM_CHORD_PROP_ZUV,
         )
-        
-
 
         if not self.result_data:
             print("[EndDiaphragm] No analysis results available — skipping.")
@@ -2663,30 +2668,65 @@ class PlateGirderBridge:
             ):
                 self.output_dict[make_pair_key(k, pair_id)] = None
 
-        # 4. Sizing and Geometry
+        # 4. Sizing and Geometry (informational only; geometry used inside EndDiaphragmForces)
         D = float(_gv(self.input_dict, KEY_MP_GIRDER_DEPTH))
         h = D * 0.85  # Default depth ratio
         s = float(self.input_dict[KEY_TS_GIRDER_SPACING])
 
-        # 5. Process design results and queries
-        forces_dict = {"pairs": {}}
-        pair_designs = {}
-        for pair in pairs:
-            pair_designs[pair] = {}
+        # 5. Use the dedicated EndDiaphragmForces class for Cross Bracing type.
+        #    This class reads ONLY KEY_MP_ED_* keys — it never touches KEY_MP_CB_* keys,
+        #    ensuring complete state isolation from intermediate cross-bracing design.
+        from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_design import EndDiaphragmForces
 
+        # Build the ED-only forces object; pair_to_elements already maps edge elements only.
+        ed_forces_obj = EndDiaphragmForces(bridge=self, pair_to_elements=pair_to_elements)
+        ed_forces_dict = ed_forces_obj.resolve_ed_forces()
+
+        pair_designs = {}
         for i, pair in enumerate(pairs, start=1):
             pair_id = pair.replace("-", "")
-            # M1 = start end, M2 = finish end. Both share the same design config
-            # within a pair, so read from whichever slot has data.
             _m1 = f".{pair_id}.E{i}M1"
             _m2 = f".{pair_id}.E{i}M2"
             member_suffix = _m1 if self.input_dict.get(f"{KEY_MP_ED_TYPE}{_m1}") else _m2
+            ed_type = self.input_dict.get(f"{KEY_MP_ED_TYPE}{member_suffix}") or self.input_dict.get(KEY_MP_ED_TYPE) or ""
+            pair_designs[pair] = {}
 
-            ed_type = self.input_dict.get(f"{KEY_MP_ED_TYPE}{member_suffix}") or ""
+        # Filter to Cross Bracing pairs and dispatch designs
+        cb_pairs: dict = {}
+        for i, pair in enumerate(pairs, start=1):
+            pair_id = pair.replace("-", "")
+            _m1 = f".{pair_id}.E{i}M1"
+            _m2 = f".{pair_id}.E{i}M2"
+            _suffix = _m1 if self.input_dict.get(f"{KEY_MP_ED_TYPE}{_m1}") else _m2
+            _ed_type = self.input_dict.get(f"{KEY_MP_ED_TYPE}{_suffix}") or self.input_dict.get(KEY_MP_ED_TYPE) or ""
+            if _ed_type == "Cross Bracing" and pair in ed_forces_dict.get("pairs", {}):
+                cb_pairs[pair] = ed_forces_dict["pairs"][pair]
+
+        if cb_pairs:
+            cb_forces_dict = {
+                "brace_type":   ed_forces_dict.get("brace_type"),
+                "top_chord":    ed_forces_dict.get("top_chord"),
+                "bottom_chord": ed_forces_dict.get("bottom_chord"),
+                "geometry":     ed_forces_dict.get("geometry"),
+                "pairs":        cb_pairs,
+            }
+            brac_res = ed_forces_obj.run_ed_bracing_designs(cb_forces_dict)
+            for p, d_res in brac_res.items():
+                pair_designs[p].update(d_res)
+
+        # Now handle all types and populate properties
+        for i, pair in enumerate(pairs, start=1):
+            pair_id = pair.replace("-", "")
+            _m1 = f".{pair_id}.E{i}M1"
+            _m2 = f".{pair_id}.E{i}M2"
+            member_suffix = _m1 if self.input_dict.get(f"{KEY_MP_ED_TYPE}{_m1}") else _m2
+            ed_type = self.input_dict.get(f"{KEY_MP_ED_TYPE}{member_suffix}") or self.input_dict.get(KEY_MP_ED_TYPE) or ""
             if not ed_type:
-                continue   # no data for this pair, skip cleanly
-            self.output_dict[make_pair_key(KEY_MP_ED_TYPE, pair_id)] = ed_type
+                continue
             
+            self.output_dict[make_pair_key(KEY_MP_ED_TYPE, pair_id)] = ed_type
+            pair_designs[pair]["ed_type"] = ed_type
+
             # -- CASE A: CROSS BRACING DIAPHRAGM --
             if ed_type == "Cross Bracing":
                 bracing_type = self.input_dict.get(f"{KEY_MP_ED_BRACING_TYPE}{member_suffix}")
@@ -2698,102 +2738,6 @@ class PlateGirderBridge:
                 self.output_dict[make_pair_key(KEY_MP_ED_BRACING_TYPE, pair_id)] = bracing_type
                 self.output_dict[make_pair_key(KEY_MP_ED_TOP_CHORD, pair_id)] = top_chord_enabled
                 self.output_dict[make_pair_key(KEY_MP_ED_BOTTOM_CHORD, pair_id)] = bottom_chord_enabled
-
-                # Compute Diagonal length
-                horiz_proj = s if bracing_type in ("X", "X-Bracing") else s / 2.0
-                L_d = math.sqrt(horiz_proj ** 2 + h ** 2)
-                cos_alpha = math.cos(math.atan2(h, horiz_proj))
-
-                # Collect envelope forces over both ends and all load cases
-                elements = pair_to_elements.get(pair, [])
-                diag_tens_max = 0.0
-                diag_comp_max = 0.0
-                chord_tens_max = 0.0
-                chord_comp_max = 0.0
-                diag_tens_lc = None
-                diag_comp_lc = None
-                chord_tens_lc = None
-                chord_comp_lc = None
-                _tol = 0.005
-
-                for lc in self.result_data["loadcases"]:
-                    lc_str = str(lc)
-                    # Envelope pseudo cases copy the governing combination's values;
-                    # skip them so they can't steal the governing-LC label here.
-                    if lc_str.startswith("Envelope"):
-                        continue
-                    for m in elements:
-                        if lc_str not in self.result_data["forces"] or m not in self.result_data["forces"][lc_str]:
-                            continue
-                        vz_i = self.result_data["forces"][lc_str][m].get("Vz_i")
-                        if vz_i is None:
-                            continue
-                        vz_kn = vz_i / 1000.0
-                        f_diag = vz_kn / cos_alpha
-                        f_chord = vz_kn
-
-                        if f_diag > diag_tens_max:
-                            diag_tens_max = f_diag
-                            diag_tens_lc = lc_str
-                        if f_chord > chord_tens_max:
-                            chord_tens_max = f_chord
-                            chord_tens_lc = lc_str
-                        if f_diag < diag_comp_max:
-                            diag_comp_max = f_diag
-                            diag_comp_lc = lc_str
-                        if f_chord < chord_comp_max:
-                            chord_comp_max = f_chord
-                            chord_comp_lc = lc_str
-
-                pair_forces = {
-                    "diag_tension_kN": round(diag_tens_max, 3) if diag_tens_max > _tol else None,
-                    "diag_tension_gov_lc": diag_tens_lc if diag_tens_max > _tol else None,
-                    "diag_compression_kN": round(abs(diag_comp_max), 3) if diag_comp_max < -_tol else None,
-                    "diag_compression_gov_lc": diag_comp_lc if diag_comp_max < -_tol else None,
-                    "chord_tension_kN": round(chord_tens_max, 3) if chord_tens_max > _tol else None,
-                    "chord_tension_gov_lc": chord_tens_lc if chord_tens_max > _tol else None,
-                    "chord_compression_kN": round(abs(chord_comp_max), 3) if chord_comp_max < -_tol else None,
-                    "chord_compression_gov_lc": chord_comp_lc if chord_comp_max < -_tol else None,
-                }
-                forces_dict["pairs"][pair] = pair_forces
-
-                # Run Osdag design checks
-                from osdagbridge.core.utils.connect import (
-                    design_dict_struts_bolted,
-                    design_dict_tension_bolted,
-                    design_pool,
-                    run_calculation,
-                )
-                jobs = []
-                for member, L_mm, t_key, c_key in (
-                    ("diagonal", round(L_d * 1000), "diag_tension_kN", "diag_compression_kN"),
-                    ("chord", round(s * 1000), "chord_tension_kN", "chord_compression_kN"),
-                ):
-                    if pair_forces.get(t_key) is not None:
-                        d = copy.deepcopy(design_dict_tension_bolted)
-                        d["Load.Axial"] = str(float(pair_forces[t_key]))
-                        d["Member.Length"] = str(L_mm)
-                        jobs.append((pair, member, "tension", d))
-                    if pair_forces.get(c_key) is not None:
-                        d = copy.deepcopy(design_dict_struts_bolted)
-                        d["Load.Axial"] = str(float(pair_forces[c_key]))
-                        d["Member.Length"] = str(L_mm)
-                        jobs.append((pair, member, "compression", d))
-
-                if jobs:
-                    cpu_count = __import__("os").cpu_count() or 4
-                    max_workers = min(cpu_count, len(jobs))
-                    # spawn-context pool: forking under the design worker thread
-                    # deadlocks (see connect.design_pool).
-                    with design_pool(max_workers) as executor:
-                        futures = {executor.submit(run_calculation, j[3]): j for j in jobs}
-                        for future, (p, member, force_type, _) in futures.items():
-                            try:
-                                res = future.result()
-                            except Exception as exc:
-                                print(f"  [EndDiaphragm] SKIP {p} {member} {force_type}: {exc}")
-                                res = None
-                            pair_designs.setdefault(p, {}).setdefault(member, {})[force_type] = res
 
                 # Fetch selected designations
                 member_designs = pair_designs.get(pair, {})
@@ -2924,7 +2868,18 @@ class PlateGirderBridge:
 
             # -- CASE B: ROLLED BEAM DIAPHRAGM --
             elif ed_type == "Rolled Beam":
-                is_sec_des = self.input_dict.get(f"{KEY_MP_ED_IS_SECTION}{member_suffix}")
+                from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_rolled import EndDiaphragmRolled
+                ed_rolled_obj = EndDiaphragmRolled(bridge=self, pair_to_elements=pair_to_elements)
+                beam_forces = ed_rolled_obj.resolve_beam_forces_for_pair(pair)
+                ed_forces_dict.setdefault("pairs", {})[pair] = beam_forces
+
+                res_rolled = ed_rolled_obj.run_rolled_beam_design(pair, beam_forces, member_suffix)
+                pair_designs[pair]["rolled_beam"] = res_rolled
+
+                is_sec_des = res_rolled.get("Optimum.Designation")
+                if not is_sec_des:
+                    is_sec_des = self.input_dict.get(f"{KEY_MP_ED_IS_SECTION}{member_suffix}")
+
                 if is_sec_des:
                     self.output_dict[make_pair_key(KEY_MP_ED_IS_SECTION, pair_id)] = is_sec_des
                     beam_details = self._query_rolled_beam_section(is_sec_des)
@@ -2947,6 +2902,14 @@ class PlateGirderBridge:
 
             # -- CASE C: WELDED BEAM DIAPHRAGM --
             elif ed_type == "Welded Beam":
+                from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_welded import EndDiaphragmWelded
+                ed_welded_obj = EndDiaphragmWelded(bridge=self, pair_to_elements=pair_to_elements)
+                beam_forces = ed_welded_obj.resolve_beam_forces_for_pair(pair)
+                ed_forces_dict.setdefault("pairs", {})[pair] = beam_forces
+
+                res_welded = ed_welded_obj.run_welded_beam_design(pair, beam_forces, member_suffix)
+                pair_designs[pair]["welded_beam"] = res_welded
+
                 depth = float(self.input_dict.get(f"{KEY_MP_ED_TOTAL_DEPTH}{member_suffix}") or 0.0)
                 web_t = float(self.input_dict.get(f"{KEY_MP_ED_WEB_THICKNESS}{member_suffix}") or 0.0)
                 top_w = float(self.input_dict.get(f"{KEY_MP_ED_TOP_FLANGE_WIDTH}{member_suffix}") or 0.0)
@@ -3006,10 +2969,10 @@ class PlateGirderBridge:
                     self.output_dict[make_pair_key(KEY_TD_ED_PROP_ZUZ, pair_id)] = z_pz / 1000.0
                     self.output_dict[make_pair_key(KEY_TD_ED_PROP_ZUV, pair_id)] = z_py / 1000.0
 
-        if forces_dict.get("pairs"):
-            self._print_enddiaphragm_design_results(forces_dict, pair_designs)
+        if ed_forces_dict.get("pairs"):
+            self._print_enddiaphragm_design_results(ed_forces_dict, pair_designs)
         
-        self.output_dict["end_diaphragm_forces_dict"] = forces_dict
+        self.output_dict["end_diaphragm_forces_dict"] = ed_forces_dict
         self.end_diaphragm_design_results = pair_designs
         return pair_designs
 
@@ -3062,16 +3025,16 @@ class PlateGirderBridge:
                     "B": val_f(row[4]) / 1000.0,
                     "tw": val_f(row[5]) / 1000.0,
                     "tF": val_f(row[6]) / 1000.0,
-                    "M": val_f(row[2]),
-                    "A": val_f(row[3]),
-                    "Iz": val_f(row[10]),
-                    "Iv": val_f(row[11]),
-                    "rz": val_f(row[12]),
-                    "rv": val_f(row[13]),
-                    "Zz": val_f(row[14]),
-                    "Zv": val_f(row[15]),
-                    "Zuz": val_f(row[16]),
-                    "Zuv": val_f(row[17]),
+                    "M": val_f(row[1]),
+                    "A": val_f(row[2]),
+                    "Iz": val_f(row[7]),
+                    "Iv": val_f(row[8]),
+                    "rz": val_f(row[9]),
+                    "rv": val_f(row[10]),
+                    "Zz": val_f(row[11]),
+                    "Zv": val_f(row[12]),
+                    "Zuz": val_f(row[13]),
+                    "Zuv": val_f(row[14]),
                 }
             con.close()
         except Exception as exc:
