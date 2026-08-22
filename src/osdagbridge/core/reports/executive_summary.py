@@ -28,9 +28,11 @@ def _max_float(values):
 
 
 def _max_member_efficiency(pair_designs):
-    """Maximum Osdag 'efficiency' (utilization ratio) over a cross-bracing or
-    end-diaphragm result dump (nested pair -> member -> force_type -> raw).
-    Reads already-computed results only; nothing is recalculated here."""
+    """Maximum utilization ratio over a cross-bracing or end-diaphragm result
+    dump.  Handles two structures:
+      - Cross bracing: nested pair -> member -> force_type -> raw Osdag output
+      - Beam diaphragm: pair -> {"welded_beam" | "rolled_beam": {"Optimum.UR": ...}}
+    """
     from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
     if not isinstance(pair_designs, dict):
         return None
@@ -38,8 +40,32 @@ def _max_member_efficiency(pair_designs):
     for members in pair_designs.values():
         if not isinstance(members, dict):
             continue
+        # ── Beam diaphragm: {"welded_beam": {...}} or {"rolled_beam": {...}} ──
+        for bkey in ("welded_beam", "rolled_beam"):
+            if bkey in members:
+                bdata = members[bkey]
+                if not isinstance(bdata, dict):
+                    continue
+                ur_val = bdata.get("Optimum.UR")
+                if ur_val is None:
+                    try:
+                        m_cap = float(bdata.get("Moment.Strength") or 0)
+                        m_dem = float(bdata.get("Moment.Demand")   or 0)
+                        ur_val = m_dem / m_cap if m_cap > 0 else None
+                    except (TypeError, ValueError):
+                        ur_val = None
+                try:
+                    if ur_val is not None:
+                        f = float(ur_val)
+                        if best is None or f > best:
+                            best = f
+                except (TypeError, ValueError):
+                    pass
+        # ── Cross bracing: member -> force_type -> raw ────────────────────────
         for force_types in members.values():
             if not isinstance(force_types, dict):
+                continue
+            if any(k in force_types for k in ("Optimum.UR", "Moment.Strength", "Shear.Strength")):
                 continue
             for raw in force_types.values():
                 try:
@@ -52,6 +78,7 @@ def _max_member_efficiency(pair_designs):
                 if best is None or f > best:
                     best = f
     return best
+
 
 
 def executive_summary(input_dict, output_dict, fig_paths) -> str:

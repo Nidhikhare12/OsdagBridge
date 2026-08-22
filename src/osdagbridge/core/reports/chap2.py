@@ -26,6 +26,8 @@ from osdagbridge.core.utils.common import (
     KEY_MP_CB_SPACING,
     KEY_MP_CB_TYPE,
     KEY_MP_ED_BRACING_SECTION_DESIGNATION,
+    KEY_MP_ED_IS_SECTION,
+    KEY_MP_ED_TOTAL_DEPTH,
     KEY_MP_ED_MEMBER_ID,
     KEY_MP_ED_SELECT_GIRDERS,
     KEY_MP_ED_TYPE,
@@ -367,12 +369,30 @@ def _bracing_tables(input_dict, n_girders):
 \hline
 """)
 
-    # Helper: one end-diaphragm row (all locations share same config)
+    # Helper: one end-diaphragm row — designation column adapts to ED type.
     def _ed_row(location, member_ids, i):
-        return (location + r""" & """ + member_ids + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_ED_TYPE}.G{i}G{i+1}.E{i}M1"))
-                + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_ED_BRACING_SECTION_DESIGNATION}.G{i}G{i+1}.E{i}M1"))
+        pair_id = f"G{i}G{i+1}"
+        suffix  = f".{pair_id}.E{i}M1"
+        ed_type = input_dict.get(f"{KEY_MP_ED_TYPE}{suffix}") or ""
+
+        if ed_type == "Rolled Beam":
+            # Show the IS section designation selected/designed for rolled beam
+            designation = (_render_value(input_dict, f"{KEY_MP_ED_IS_SECTION}{suffix}")
+                           or "---")
+        elif ed_type == "Welded Beam":
+            # Show a compact summary of the welded plate girder depth
+            depth_raw = input_dict.get(f"{KEY_MP_ED_TOTAL_DEPTH}{suffix}")
+            designation = (f"D = {depth_raw} mm" if depth_raw else "Custom PG")
+        else:
+            # Cross Bracing — show the bracing section designation
+            designation = _render_value(
+                input_dict,
+                f"{KEY_MP_ED_BRACING_SECTION_DESIGNATION}{suffix}"
+            ) or "---"
+
+        return (location + r" & " + member_ids + r" & "
+                + _render_value(input_dict, f"{KEY_MP_ED_TYPE}{suffix}")
+                + r" & " + designation
                 + r""" \\[6pt]
 \hline
 """)
@@ -403,10 +423,10 @@ def _bracing_tables(input_dict, n_girders):
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
 
-\begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
+\begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{5.0cm}|}
 \caption{\textbf{Member Properties: End Diaphragm Details}}
 \hline
-\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
+\textbf{Location} & \textbf{Member IDs} & \textbf{Type} & \textbf{Section / Designation} \\
 \hline
 """
 + ed_rows
