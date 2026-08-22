@@ -2384,7 +2384,7 @@ CROSS_BRACING_DETAILS_SCHEMA = {
                     "id":      KEY_MP_CB_BRACING_CONNECTION,
                     "label":   "Type of Connection:",
                     "type":    TYPE_COMBOBOX,
-                    "choices": ["Bolted", "Welded"],
+                    "choices": VALUES_CONNECTION_TYPE,
                 }]},
 
                 # ── Bracing section ──────────────────────────────────────────
@@ -2445,12 +2445,12 @@ CROSS_BRACING_DETAILS_SCHEMA = {
                     "label":   "  Bottom Chord Section Type:",
                     "type":    TYPE_COMBOBOX,
                     "choices": [
-                                    "Angle",
-                                    "Double Angle (Long Leg)",
-                                    "Double Angle (Short Leg)",
-                                    "Channel",
-                                    "Double Channel",
-                                ],
+                        "Angle",
+                        "Double Angle (Long Leg)",
+                        "Double Angle (Short Leg)",
+                        "Channel",
+                        "Double Channel",
+                    ],
                 }]},
                 {"fields": [{
                     "id":      KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG,
@@ -2564,7 +2564,7 @@ END_DIAPHRAGM_DETAILS_SCHEMA = {
                     "label": "Type:",
                     "type": TYPE_COMBOBOX,
                     "choices": VALUES_END_DIAPHRAGM_TYPE,
-                    "enabled_choices": ["Cross Bracing"],
+                    "enabled_choices": ["Cross Bracing", "Rolled Beam", "Welded Beam"],
                     "on_change": "_on_end_diaphragm_type_changed",
                 }]},
  
@@ -2583,7 +2583,7 @@ END_DIAPHRAGM_DETAILS_SCHEMA = {
                         "id": KEY_MP_ED_BRACING_CONNECTION,
                         "label": "Type of Connection:",
                         "type": TYPE_COMBOBOX,
-                        "choices": ["Bolted", "Welded"],
+                        "choices": VALUES_CONNECTION_TYPE,
                     }],
                 },
                 {
@@ -3228,8 +3228,10 @@ TRANSVERSE_MEMBER_DESIGN_SCHEMA = {
                     {"id": KEY_TD_ED_SECTION_INPUTS_BOTTOM_CHORD_SECTION_TYPE,   "label": "Bottom Chord Section Type:",     "type": "line", "read_only": True, "group": "crossbracing"},
                     {"id": KEY_TD_ED_SECTION_INPUTS_BOTTOM_CHORD_SECTION_DESIGNATION, "label": "Bottom Chord Section Designation:", "type": "line", "read_only": True, "group": "crossbracing"},
 
+                    # ── Rolled Beam group ─────────────────────────────────────────────────
+                    {"id": KEY_TD_ED_SECTION_INPUTS_IS_SECTION,              "label": "IS Section Designation:", "type": "line", "read_only": True, "group": "rolled_beam"},
+
                     # ── Welded Beam group ─────────────────────────────────────────────────
-                    {"id": KEY_TD_ED_SECTION_INPUTS_IS_SECTION,              "label": "IS Section Designation:", "type": "line", "read_only": True, "group": "welded_beam"},
                     {"id": KEY_TD_ED_SECTION_INPUTS_SYMMETRY,                "label": "Symmetry:",               "type": "line", "read_only": True, "group": "welded_beam"},
                     {"id": KEY_TD_ED_SECTION_INPUTS_TOTAL_DEPTH,             "label": "Total Depth (mm):",       "type": "line", "read_only": True, "group": "welded_beam"},
                     {"id": KEY_TD_ED_SECTION_INPUTS_WEB_THICKNESS,           "label": "Web Thickness (mm):",     "type": "line", "read_only": True, "group": "welded_beam"},

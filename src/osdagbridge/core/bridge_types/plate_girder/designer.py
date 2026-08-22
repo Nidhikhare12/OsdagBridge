@@ -308,12 +308,10 @@ class BridgeConfig:
         # Gs (shear modulus) is a required user/DB input (KEY_MATERIAL_GIRDER_G, stored GPa).
         raw_g = bridge.input_dict.get(KEY_MATERIAL_GIRDER_G)
         if raw_g in (None, ""):
-            raise ValueError(
-                f"Gs (shear modulus) is not set for grade "
-                f"{bridge.basic_inputs.get(KEY_GIRDER)!r}. Populate it in the material "
-                "database before running the design check."
-            )
-        Gs_MPa = float(raw_g) * 1000.0                  # GPa → MPa
+            # Fallback: compute Gs from Es and nu: G = E / (2 * (1 + nu))
+            Gs_MPa = Es_MPa / (2.0 * (1.0 + nu))
+        else:
+            Gs_MPa = float(raw_g) * 1000.0              # GPa → MPa
 
         # Reinforcement grade comes from the Design Options dialog (required). Its yield
         # strength is a property of that grade, looked up from the material DB — never an
@@ -328,13 +326,28 @@ class BridgeConfig:
                 "before running the design check."
             )
 
-        # Concrete fck / fctm / Ecm come straight from the material inputs.
-        fck = float(_req(bridge.input_dict.get(KEY_MATERIAL_DECK_FCK),
-                    KEY_MATERIAL_DECK_FCK, "input_dict"))
-        fctm = float(_req(bridge.input_dict.get(KEY_MATERIAL_DECK_FCTM),
-                    KEY_MATERIAL_DECK_FCTM, "input_dict"))
-        Ecm = float(_req(bridge.input_dict.get(KEY_MATERIAL_DECK_ECM),
-                    KEY_MATERIAL_DECK_ECM, "input_dict")) * 1000.0     # GPa → MPa
+        # Concrete fck / fctm / Ecm come straight from material inputs or DB lookup.
+        raw_fck = bridge.input_dict.get(KEY_MATERIAL_DECK_FCK)
+        if raw_fck in (None, ""):
+            concrete_grade = str(bridge.basic_inputs.get(KEY_DECK_CONCRETE_GRADE_BASIC) or "M 35")
+            fck = float(bridge._lookup_material(concrete_grade, "fck") or 35.0)
+        else:
+            fck = float(raw_fck)
+
+        raw_fctm = bridge.input_dict.get(KEY_MATERIAL_DECK_FCTM)
+        if raw_fctm in (None, ""):
+            concrete_grade = str(bridge.basic_inputs.get(KEY_DECK_CONCRETE_GRADE_BASIC) or "M 35")
+            fctm = float(bridge._lookup_material(concrete_grade, "fctm") or 2.8)
+        else:
+            fctm = float(raw_fctm)
+
+        raw_ecm = bridge.input_dict.get(KEY_MATERIAL_DECK_ECM)
+        if raw_ecm in (None, ""):
+            concrete_grade = str(bridge.basic_inputs.get(KEY_DECK_CONCRETE_GRADE_BASIC) or "M 35")
+            Ecm_GPa = float(bridge._lookup_material(concrete_grade, "Ecm") or 32.0)
+            Ecm = Ecm_GPa * 1000.0
+        else:
+            Ecm = float(raw_ecm) * 1000.0     # GPa → MPa
 
         # Partial safety factors come from the Design Options (Cont.) dialog and are
         # required — a missing/blank value is a hard error, never a silent fallback.

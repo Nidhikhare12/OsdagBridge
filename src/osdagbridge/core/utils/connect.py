@@ -34,12 +34,16 @@ from osdag_core.design_type.compression_member.compression_bolted import Compres
 from osdag_core.design_type.compression_member.compression_welded import Compression_welded
 from osdag_core.design_type.tension_member.tension_bolted import Tension_bolted
 from osdag_core.design_type.tension_member.tension_welded import Tension_welded
+from osdag_core.design_type.flexural_member.flexure import Flexure
+from osdag_core.design_type.plate_girder.weldedPlateGirder import PlateGirderWelded
 
 MODULE_CLASS_MAP = {
     "Tension Member Design - Bolted to End Gusset": Tension_bolted,
     "Tension Member Design - Welded to End Gusset": Tension_welded,
     "Struts Bolted to End Gusset": Compression_bolted,
     "Struts Welded to End Gusset": Compression_welded,
+    "Flexural Members - Simply Supported": Flexure,
+    "PLATE GIRDER": PlateGirderWelded,
 }
 
 # OUTPUT SUPPRESSION
@@ -354,21 +358,27 @@ design_dict_tension_bolted = {
 # TENSION WELDED
 design_dict_tension_welded = {
     "Conn_Location": "Long Leg",
-    "Connector.Material": "E 165 (Fe 290)",
+    "Connector.Material": "E 250 (Fe 410 W)A",
     "Connector.Plate.Thickness_List": ["8", "10", "12"],
     "Design.Design_Method": "Limit State Design",
     "Load.Axial": "5",
-    "Material": "E 165 (Fe 290)",
+    "Material": "E 250 (Fe 410 W)A",
     "Member.Designation": [
-        "20 x 20 x 3",
-        "25 x 25 x 3",
+        "40 x 40 x 3",
+        "45 x 45 x 4",
+        "50 x 50 x 5",
+        "60 x 60 x 6",
+        "65 x 65 x 6",
+        "75 x 75 x 6",
+        "90 x 90 x 8",
+        "100 x 100 x 10",
     ],
-    "Member.Length": "500",
-    "Member.Material": "E 165 (Fe 290)",
+    "Member.Length": "1500",
+    "Member.Material": "E 250 (Fe 410 W)A",
     "Member.Profile": "Angles",
     "Module": "Tension Member Design - Welded to End Gusset",
     "Weld.Fab": "Shop Weld",
-    "Weld.Material_Grade_OverWrite": "290",
+    "Weld.Material_Grade_OverWrite": "410",
     "out_titles_status": [1, 1, 1, 1, 1],
 }
 
@@ -613,18 +623,24 @@ design_dict_struts_welded = {
     "End_2": "Fixed",
     "Load.Axial": "9",
     "Load.Type": "Concentric Load",
-    "Material": "E 165 (Fe 290)",
+    "Material": "E 250 (Fe 410 W)A",
     "Member.Designation": [
-        "25 x 25 x 3",
         "40 x 40 x 3",
+        "45 x 45 x 4",
+        "50 x 50 x 5",
+        "60 x 60 x 6",
+        "65 x 65 x 6",
+        "75 x 75 x 6",
+        "90 x 90 x 8",
+        "100 x 100 x 10",
     ],
-    "Member.Length": "900",
-    "Member.Material": "E 165 (Fe 290)",
+    "Member.Length": "1500",
+    "Member.Material": "E 250 (Fe 410 W)A",
     "Member.Profile": "Angles",
     "Module": "Struts Welded to End Gusset",
     "Optimum.AllowUR": "1.0",
     "Weld.Fab": "Shop Weld",
-    "Weld.Material_Grade_OverWrite": "290",
+    "Weld.Material_Grade_OverWrite": "410",
     "out_titles_status": [1, 1, 1, 1, 1],
 }
 
