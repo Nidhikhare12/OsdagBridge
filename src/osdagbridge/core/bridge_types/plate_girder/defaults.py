@@ -57,6 +57,7 @@ from osdagbridge.core.utils.common import (
     KEY_MP_CB_MEMBER_ID,
     KEY_MP_CB_NO_OF_CROSS_BRACINGS,
     KEY_MP_CB_TYPE,
+    KEY_MP_CB_BRACING_CONNECTION,
     KEY_MP_CB_BRACING_SECTION_TYPE,
     KEY_MP_CB_BRACING_SECTION_DESIGNATION,
     KEY_MP_CB_TOP_CHORD,
@@ -396,6 +397,7 @@ _CB_PROPS = [
     (KEY_MP_CB_BOTTOM_CHORD,                "bottom_chord"),
     (KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE,   "bottom_chord_section_type"),
     (KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG,  "bottom_chord_section_desig"),
+    (KEY_MP_CB_BRACING_CONNECTION,           "bracing_connection"),
 ]
 
 
@@ -936,4 +938,70 @@ def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
 
     # Update Dynamic per-girder/member keys
     _on_no_of_girders_changed(basic_input_dict)
+
+    # Pre-populate material properties from DB if not already present
+    _update_material_properties_defaults(basic_input_dict)
+
+
+def _update_material_properties_defaults(basic_input_dict: dict) -> None:
+    """Pre-populate default material properties for steel and concrete in basic_input_dict."""
+    import sqlite3
+    from pathlib import Path
+    from osdagbridge.core.utils.common import _DB_PATH, KEY_GIRDER, KEY_CROSS_BRACING, KEY_END_DIAPHRAGM, KEY_DECK_CONCRETE_GRADE_BASIC
+
+    if not _DB_PATH.exists():
+        return
+
+    # Steel member material configuration
+    steel_members = [
+        (KEY_GIRDER, "material.girder"),
+        (KEY_CROSS_BRACING, "material.cross_bracing"),
+        (KEY_END_DIAPHRAGM, "material.end_diaphragm"),
+    ]
+
+    try:
+        con = sqlite3.connect(_DB_PATH)
+        cur = con.cursor()
+
+        # Process steel members
+        for mat_key, prefix in steel_members:
+            grade = str(basic_input_dict.get(mat_key) or "").strip()
+            if not grade:
+                continue
+            cur.execute(
+                'SELECT [Yield Strength], [Ultimate Tensile Strength], [Modulus of Elasticity], [Poisson\'s Ratio] '
+                'FROM Steel_Grade_Properties WHERE Grade = ?',
+                (grade,)
+            )
+            row = cur.fetchone()
+            if row:
+                fy, fu, e, poisson = float(row[0]), float(row[1]), float(row[2]), float(row[3])
+                g = round(e / (2 * (1 + poisson)), 1)
+                basic_input_dict.setdefault(f"{prefix}.fy", fy)
+                basic_input_dict.setdefault(f"{prefix}.fu", fu)
+                basic_input_dict.setdefault(f"{prefix}.e", e)
+                basic_input_dict.setdefault(f"{prefix}.g", g)
+                basic_input_dict.setdefault(f"{prefix}.poisson", poisson)
+                basic_input_dict.setdefault(f"{prefix}.density", 76.93)
+                basic_input_dict.setdefault(f"{prefix}.thermal", 11.7)
+
+        # Process concrete deck
+        deck_grade = str(basic_input_dict.get(KEY_DECK_CONCRETE_GRADE_BASIC) or "").strip()
+        if deck_grade:
+            cur.execute(
+                'SELECT fck, fctm, Ecm FROM Concrete_Grade_Properties WHERE Grade = ?',
+                (deck_grade,)
+            )
+            row = cur.fetchone()
+            if row:
+                fck, fctm, ecm = float(row[0]), float(row[1]), float(row[2])
+                basic_input_dict.setdefault("material.deck.fck", fck)
+                basic_input_dict.setdefault("material.deck.fctm", fctm)
+                basic_input_dict.setdefault("material.deck.ecm", ecm)
+                basic_input_dict.setdefault("material.deck.density", 24.5)
+                basic_input_dict.setdefault("material.deck.thermal", 11.7)
+
+        con.close()
+    except sqlite3.Error:
+        pass
 
