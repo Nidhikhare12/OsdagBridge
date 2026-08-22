@@ -6,6 +6,7 @@ from osdagbridge.core.utils.common import (
     KEY_SD_DEFL_TOTAL,
 )
 from osdagbridge.core.reports.report_utils import _tex, _fig_embed
+from osdagbridge.core.reports.styles import TABLE_PADDING, TABLE_ROW_STRETCH
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -83,19 +84,18 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \vspace{1em}
 \begingroup
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
-
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{""" + TABLE_ROW_STRETCH + r"""}
 \begin{longtable}{|
->{\centering\arraybackslash}p{3.1cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.6cm}|
->{\centering\arraybackslash}p{1.6cm}|}
+>{\centering\arraybackslash}p{3.0cm}|
+>{\centering\arraybackslash}p{1.5cm}|
+>{\centering\arraybackslash}p{1.0cm}|
+>{\centering\arraybackslash}p{1.1cm}|
+>{\centering\arraybackslash}p{1.5cm}|
+>{\centering\arraybackslash}p{1.0cm}|
+>{\centering\arraybackslash}p{1.1cm}|
+>{\centering\arraybackslash}p{1.4cm}|
+>{\centering\arraybackslash}p{1.4cm}|}
 
 \caption{\textbf{Summary of Maximum Demands}}\\
 \hline
@@ -146,6 +146,15 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
+\endfirsthead
+
+\hline
+
+\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
+
+\hline
+
+\endhead
  & """ + '' + r""" & """ + '' + r""" \\[6pt]
 \hline
  & """ + '' + r""" & """ + '' + r""" \\[6pt]
@@ -160,6 +169,15 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
+\endfirsthead
+
+\hline
+
+\textbf{parameter} & \textbf{value} \\
+
+\hline
+
+\endhead
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]

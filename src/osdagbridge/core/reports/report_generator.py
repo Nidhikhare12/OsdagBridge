@@ -119,6 +119,18 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from .styles import (
+    PAGE_MARGIN,
+    TABLE_PADDING,
+    TABLE_ROW_STRETCH,
+    LONGTABLE_PRE,
+    LONGTABLE_POST,
+    TABLE_RULE_WIDTH,
+    EXTRA_ROW_HEIGHT,
+    TABLE_NEEDSPACE,
+    OSDAG_GREEN,
+    DOCUMENT_LINE_SPACING,
+)
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -156,7 +168,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[a4paper, margin=""" + PAGE_MARGIN + r""", includefoot]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -193,20 +205,22 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
+\setlength{\tabcolsep}{""" + TABLE_PADDING + r"""}
+\renewcommand{\arraystretch}{""" + TABLE_ROW_STRETCH + r"""}
+\setlength{\LTpre}{""" + LONGTABLE_PRE + r"""}
+\setlength{\LTpost}{""" + LONGTABLE_POST + r"""}
 % Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+\setlength{\arrayrulewidth}{""" + TABLE_RULE_WIDTH + r"""}
+\setlength{\extrarowheight}{""" + EXTRA_ROW_HEIGHT + r"""}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+% Prevent tables from starting too close to the page bottom.
 
-\definecolor{osdagGreen}{HTML}{91B014}
+% Reserve additional vertical space before tables.
+
+\BeforeBeginEnvironment{table}{\needspace{""" + TABLE_NEEDSPACE + r"""}}
+
+\BeforeBeginEnvironment{longtable}{\needspace{""" + TABLE_NEEDSPACE + r"""}}
+\definecolor{osdagGreen}{HTML}{""" + OSDAG_GREEN + r"""}
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -252,7 +266,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{""" + DOCUMENT_LINE_SPACING + r"""}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
@@ -864,17 +878,7 @@ def generate_report(payload, request):
         # Write to temp dir first, compile there, then copy back
         with tempfile.TemporaryDirectory() as tmp_dir:
 
-            # ── Write figure bytes into tmp_dir/images/ then free RAM immediately ──
-            tmp_images = os.path.join(tmp_dir, 'images')
-            os.makedirs(tmp_images, exist_ok=True)
-            fig_paths = {}
-            for attr, img_bytes in list(payload.figure_data.items()):
-                if img_bytes:
-                    p = os.path.join(tmp_images, attr + '.png')
-                    with open(p, 'wb') as fh:
-                        fh.write(img_bytes)
-                    fig_paths[attr] = p.replace('\\', '/')
-            payload.figure_data.clear()  # bytes no longer needed — free RAM now
+           
 
             # ── Write title-page logos into tmp_dir/assets (auto-deleted) ──
             # Nothing is left next to the PDF. Latex paths are relative to tmp_dir.
@@ -898,6 +902,28 @@ def generate_report(payload, request):
             # Compute and inject quantities for Chapter 7
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
+
+            # Generate Chapter 7 material charts using the calculated quantities.
+            ch7_tex = ch7_quantities(payload.inputs, payload.figure_data)
+
+            # Create the data bridge before generating chapter-specific figures.
+            bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
+            span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
+            # Generate Chapter 5 before writing figure bytes to disk.
+            # Chapter 5 creates the overall_ur figure in payload.figure_data.
+            ch5_tex = ch5_design_checks(payload.design_checks, bridge)
+
+            # ── Write figure bytes into tmp_dir/images/ then free RAM immediately ──
+            tmp_images = os.path.join(tmp_dir, 'images')
+            os.makedirs(tmp_images, exist_ok=True)
+            fig_paths = {}
+            for attr, img_bytes in list(payload.figure_data.items()):
+                if img_bytes:
+                    p = os.path.join(tmp_images, attr + '.png')
+                    with open(p, 'wb') as fh:
+                        fh.write(img_bytes)
+                    fig_paths[attr] = p.replace('\\', '/')
+            payload.figure_data.clear()  # bytes no longer needed — free RAM now
 
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
@@ -924,11 +950,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_tex)
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_tex)
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
