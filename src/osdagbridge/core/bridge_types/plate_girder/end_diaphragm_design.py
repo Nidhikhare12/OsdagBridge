@@ -395,7 +395,30 @@ def design_end_diaphragm(
                     pair_designs[pair]["beam"] = res
                     pair_designs[pair]["moment_kNm"] = max_my
                     pair_designs[pair]["shear_kN"] = max_vz
-                    print(f"[DEBUG Rolled Beam] Result stored for pair {pair!r}: {res}")
+
+                    # Post-design validation
+                    if res.get("design_status") is False:
+                        reason = res.get("design_failure_reason", "unknown")
+                        print(
+                            f"[DEBUG Rolled Beam] WARNING: Design FAILED for pair {pair!r}. "
+                            f"Reason: {reason}"
+                        )
+                    else:
+                        attempt = res.get("design_attempt", "unknown")
+                        opt_des = res.get("Optimum.Designation", "?")
+                        opt_ur = res.get("Optimum.UR", "?")
+                        if attempt == "fallback_list":
+                            orig = res.get("original_designation", is_sec_des)
+                            print(
+                                f"[DEBUG Rolled Beam] Pair {pair!r}: User section '{orig}' "
+                                f"was inadequate. Osdag selected '{opt_des}' "
+                                f"(UR={opt_ur}) from fallback list."
+                            )
+                        else:
+                            print(
+                                f"[DEBUG Rolled Beam] Pair {pair!r}: Design OK with "
+                                f"'{opt_des}' (UR={opt_ur})."
+                            )
                 else:
                     print(f"[DEBUG Rolled Beam] WARNING: is_sec_des is empty for pair {pair!r}")
             except Exception:
