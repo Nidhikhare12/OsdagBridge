@@ -35,6 +35,7 @@ from osdag_core.design_type.compression_member.compression_welded import Compres
 from osdag_core.design_type.tension_member.tension_bolted import Tension_bolted
 from osdag_core.design_type.tension_member.tension_welded import Tension_welded
 from osdag_core.design_type.flexural_member.flexure import Flexure
+from osdag_core.design_type.plate_girder.weldedPlateGirder import PlateGirderWelded
 
 MODULE_CLASS_MAP = {
     "Tension Member Design - Bolted to End Gusset": Tension_bolted,
@@ -42,6 +43,7 @@ MODULE_CLASS_MAP = {
     "Struts Bolted to End Gusset": Compression_bolted,
     "Struts Welded to End Gusset": Compression_welded,
     "Flexural Members - Simply Supported": Flexure,
+    "PLATE GIRDER": PlateGirderWelded,
 }
 
 # OUTPUT SUPPRESSION
@@ -620,6 +622,51 @@ design_dict_flexure_simply_supported = {
     "Optimum.Class": "Yes",
     "Bearing.Length": "NA",
     "Design.Design_Method": "Limit State Design",
+}
+
+# PLATE GIRDER — welded built-up (ED Welded Beam); Customized plates only.
+# Pref keys match PlateGirderWelded.get_values_for_design_pref / set_input_values.
+# Geometry, Support.Width, Length (mm), Shear/Moment overwritten per call.
+design_dict_plate_girder_welded = {
+    "Module": "PLATE GIRDER",
+    "Material": "E 250 (Fe 410 W)A",
+    "Total.Design_Type": "Customized",
+    "Total.Depth": "",
+    "Web.Thickness": "8",
+    "Topflange.Width": "",
+    "TopFlange.Thickness": "8",
+    "Bottomflange.Width": "",
+    "BottomFlange.Thickness": "8",
+    "Member.Length": "1",
+    "Flexure.Type": "Major Laterally Supported",
+    "Support.Width": "",
+    "Web.Philosophy": "Thin Web with ITS",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Load.Moment": "1",
+    "Load.Shear": "1",
+    "Bendingmoment.shape": "Uniform Loading with pinned-pinned support",
+    "Optimum.Class": "Yes",
+    "Effective.Area_Para": "1.0",
+    "Length.Overwrite": "NA",
+    "Loading.Condition": "Normal",
+    "Design.Design_Method": "Limit State Design",
+    "Member.Fu": "410",
+    "Member.Fy": "240",
+    "S.B.Methods": "Simple Post Critical",
+    "Girder.Symmetry": "Symmetrical",
+    "IntermediateStiffener.Spacing": "NA",
+    "IntermediateStiffener.Data": "No",
+    "IntermediateStiffener.Thickness": "All",
+    "IntermediateStiffener.Thickness.val": ["8", "10", "12", "14", "16"],
+    "LongitudnalStiffener.Data": "No",
+    "LongitudnalStiffner.Thickness": "All",
+    "LongitudnalStiffner.Thickness.val": ["8", "10", "12", "14", "16"],
+    "Structure.Type": "Highway Bridge",
+    "Design.Load": "Live Load",
+    "Member.Options": "Simple Span",
+    "Supporting.Options": "NA",
+    "Deflection.Max": 600,
 }
 
 # STRUTS WELDED

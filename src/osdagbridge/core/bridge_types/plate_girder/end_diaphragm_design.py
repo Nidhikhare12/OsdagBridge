@@ -48,6 +48,7 @@ def design_end_diaphragm_members(bridge) -> dict:
         KEY_MP_ED_BOTTOM_FLANGE_WIDTH,
         KEY_MP_ED_TOP_FLANGE_THICKNESS,
         KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
+        KEY_SC_BEARING_LENGTH,
         KEY_TD_ED_PROP_L, KEY_TD_ED_PROP_H, KEY_TD_ED_PROP_B, KEY_TD_ED_PROP_TW, KEY_TD_ED_PROP_TF,
         KEY_TD_ED_PROP_RZ, KEY_TD_ED_PROP_M, KEY_TD_ED_PROP_A, KEY_TD_ED_PROP_IZ, KEY_TD_ED_PROP_IV,
         KEY_TD_ED_PROP_RV, KEY_TD_ED_PROP_ZZ, KEY_TD_ED_PROP_ZV, KEY_TD_ED_PROP_ZUZ, KEY_TD_ED_PROP_ZUV,
@@ -524,6 +525,39 @@ def design_end_diaphragm_members(bridge) -> dict:
                 bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_ZV, pair_id)] = z_y / 1000.0
                 bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_ZUZ, pair_id)] = z_pz / 1000.0
                 bridge.output_dict[make_pair_key(KEY_TD_ED_PROP_ZUV, pair_id)] = z_py / 1000.0
+
+            from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_rolled_design import (
+                envelope_end_diaphragm_vy_mz,
+            )
+            from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_welded_design import (
+                run_plate_girder_design,
+            )
+
+            elements = pair_to_elements.get(pair, [])
+            vy_kN, mz_kNm = envelope_end_diaphragm_vy_mz(bridge.result_data, elements)
+            forces_dict["pairs"][pair] = {
+                "Vy_kN": vy_kN if vy_kN > 0 else None,
+                "Mz_kNm": mz_kNm if mz_kNm > 0 else None,
+            }
+
+            try:
+                support_width_mm = float(bridge.input_dict.get(KEY_SC_BEARING_LENGTH) or 0.0)
+            except (TypeError, ValueError):
+                support_width_mm = 0.0
+
+            osdag_result = run_plate_girder_design(
+                vy_kN=vy_kN,
+                mz_kNm=mz_kNm,
+                span_m=s,
+                support_width_mm=support_width_mm,
+                total_depth_mm=depth,
+                web_thickness_mm=web_t,
+                top_flange_width_mm=top_w,
+                top_flange_thickness_mm=top_t,
+                bottom_flange_width_mm=bot_w,
+                bottom_flange_thickness_mm=bot_t,
+            )
+            pair_designs.setdefault(pair, {})["plate_girder"] = osdag_result
 
     if forces_dict.get("pairs"):
         bridge._print_enddiaphragm_design_results(forces_dict, pair_designs)
