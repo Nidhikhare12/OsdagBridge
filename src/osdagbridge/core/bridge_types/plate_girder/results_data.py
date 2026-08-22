@@ -634,7 +634,7 @@ def _extract_osdag_summary(result: dict) -> dict:
         "section":     _first("section_size.designation", "Optimum.Designation"),
         "capacity_kN": _first("Member.tension_capacity",  "Design.Strength"),
         "efficiency":  _first("Member.efficiency",        "Optimum.UR"),
-        "slenderness": result.get("Member.Slenderness"),
+        "slenderness": _first("Member.Slenderness", "ESR"),
         "connection":  "Welded" if "Weld.Type" in result else "Bolted",
     }
 

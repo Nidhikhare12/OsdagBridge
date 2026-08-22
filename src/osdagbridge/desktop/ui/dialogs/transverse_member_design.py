@@ -1072,9 +1072,17 @@ class TransverseMemberDesign(QDialog):
         if no_cb_w:
             no_cb_w.setText(str(self._members_per_pair.get(pair_key, 0)))
 
+        conn_type = "Bolted"
+        if hasattr(self, "_backend") and self._backend:
+            od = getattr(self._backend, "output_dict", {}) or {}
+            conn_type = (
+                od.get("member_properties.cross_bracing_details.connection_type")
+                or od.get("crossbracing_forces_dict", {}).get("connection_type")
+                or "Bolted"
+            )
         conn_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_CONNECTION_TYPE)
         if conn_w:
-            conn_w.setText("Bolted")
+            conn_w.setText(str(conn_type))
 
         # ── Design-data-dependent fields ─────────────────────────────────────
         if not self._designs_dict:

@@ -2334,6 +2334,7 @@ class PlateGirderBridge:
         
         # Store configuration in output_dict
         self.output_dict["member_properties.cross_bracing_details.type"] = forces_dict.get("brace_type", "X")
+        self.output_dict["member_properties.cross_bracing_details.connection_type"] = forces_dict.get("connection_type", "Bolted")
         self.output_dict["member_properties.cross_bracing_details.top_chord"] = forces_dict.get("top_chord", True)
         self.output_dict["member_properties.cross_bracing_details.bottom_chord"] = forces_dict.get("bottom_chord", True)
         

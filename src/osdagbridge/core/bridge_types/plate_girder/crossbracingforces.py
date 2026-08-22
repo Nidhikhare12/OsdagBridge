@@ -126,6 +126,7 @@ from __future__ import annotations
 import copy
 import json
 import math
+import re
 import time
 import warnings
 from pathlib import Path
@@ -136,6 +137,7 @@ import pandas as pd
 from osdagbridge.core.utils.common import (
     KEY_MP_CB_SPACING,
     KEY_MP_CB_TYPE,
+    KEY_MP_CB_BRACING_CONNECTION,
     KEY_MP_GIRDER_DEPTH,
     KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
     KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS,
@@ -183,18 +185,19 @@ class CrossBracingForces:
     def __init__(
         self,
         bridge,
-        brace_type:    Optional[str]   = None,
-        top_chord:     Optional[bool]  = None,
-        bottom_chord:  Optional[bool]  = None,
-        cb_spacing:    Optional[float] = None,
-        depth_ratio:   float = 0.85,
+        brace_type:      Optional[str]   = None,
+        connection_type: Optional[str]   = None,
+        top_chord:       Optional[bool]  = None,
+        bottom_chord:    Optional[bool]  = None,
+        cb_spacing:      Optional[float] = None,
+        depth_ratio:     float = 0.85,
         include_edge_beams: bool = False,
     ):
         self.bridge = bridge
         self.depth_ratio = depth_ratio
         self.include_edge_beams = include_edge_beams
 
-        self._identify_configuration(brace_type, top_chord, bottom_chord)
+        self._identify_configuration(brace_type, connection_type, top_chord, bottom_chord)
         self._init_geometry(cb_spacing)
 
     # =======================================================================
@@ -203,16 +206,44 @@ class CrossBracingForces:
 
     def _identify_configuration(
         self,
-        brace_type:   Optional[str],
-        top_chord:    Optional[bool],
-        bottom_chord: Optional[bool],
+        brace_type:      Optional[str],
+        connection_type: Optional[str],
+        top_chord:       Optional[bool],
+        bottom_chord:    Optional[bool],
     ) -> None:
-        ai = getattr(self.bridge, "additional_inputs", {})
+        ai = getattr(self.bridge, "additional_inputs", {}) or {}
+        inp = getattr(self.bridge, "input_dict", {}) or {}
+
+        def _cb_value(base_key: str):
+            """Resolve a cross-bracing UI value from legacy or per-pair keys."""
+            for d in (ai, inp):
+                if not d or not isinstance(d, dict):
+                    continue
+                if base_key in d and d[base_key] is not None:
+                    return d[base_key]
+                pattern = rf"^{re.escape(base_key)}\.G\d+G\d+\.B\d+M1$"
+                for key, value in d.items():
+                    if value is not None and re.match(pattern, str(key)):
+                        return value
+            return None
+
+        if connection_type is not None:
+            self.connection_type = str(connection_type).strip().title()
+        else:
+            connection = _cb_value(KEY_MP_CB_BRACING_CONNECTION)
+            self.connection_type = str(connection or "Bolted").strip().title()
+        if self.connection_type not in ("Bolted", "Welded"):
+            self.connection_type = "Bolted"
 
         if brace_type is not None:
             raw = str(brace_type).strip().upper()
         else:
-            raw = str(ai.get(KEY_MP_CB_BRACING_SECTION_TYPE)).strip().upper()
+            raw = str(_cb_value(KEY_MP_CB_TYPE) or "").strip().upper()
+
+        if raw.startswith(f"{BRACE_X}-"):
+            raw = BRACE_X
+        elif raw.startswith(f"{BRACE_K}-"):
+            raw = BRACE_K
 
         if raw not in (BRACE_X, BRACE_K):
             raw = BRACE_X  # TODO: remove fallback once UI always sets brace type
@@ -221,14 +252,16 @@ class CrossBracingForces:
         if top_chord is not None:
             self.top_chord = bool(top_chord)
         else:
-            val = ai.get(KEY_MP_CB_TOP_CHORD)
+            val = _cb_value(KEY_MP_CB_TOP_CHORD)
             self.top_chord = str(val).strip().lower() not in ("no", "false", "0")
 
         if bottom_chord is not None:
             self.bottom_chord = bool(bottom_chord)
         else:
-            val = ai.get(KEY_MP_CB_BOTTOM_CHORD)
+            val = _cb_value(KEY_MP_CB_BOTTOM_CHORD)
             self.bottom_chord = str(val).strip().lower() not in ("no", "false", "0")
+
+        self._cb_value = _cb_value
 
     # =======================================================================
     # STEP 2 — BRACE GEOMETRY
@@ -245,9 +278,8 @@ class CrossBracingForces:
         if cb_spacing is not None:
             self.cb_spacing = float(cb_spacing)
         else:
-            ai = getattr(self.bridge, "additional_inputs", {})
             self.cb_spacing = float(
-                ai.get(KEY_MP_CB_SPACING) or 3.0  # TODO: remove fallback once UI always sets spacing
+                (self._cb_value(KEY_MP_CB_SPACING) or 3.0)  # TODO: remove fallback once UI always sets spacing
             )
 
         # --- Girder section dimensions (metres) ---
@@ -536,11 +568,12 @@ class CrossBracingForces:
             }
 
         return {
-            "brace_type":   self.brace_type,
-            "top_chord":    self.top_chord,
-            "bottom_chord": self.bottom_chord,
-            "geometry":     self.get_brace_geometry_info(),
-            "pairs":        pairs,
+            "brace_type":      self.brace_type,
+            "connection_type":  self.connection_type,
+            "top_chord":        self.top_chord,
+            "bottom_chord":     self.bottom_chord,
+            "geometry":        self.get_brace_geometry_info(),
+            "pairs":            pairs,
         }
 
     def get_brace_geometry_info(self) -> dict:
@@ -597,7 +630,16 @@ class CrossBracingForces:
         from osdagbridge.core.utils.connect import (
             design_dict_struts_bolted,
             design_dict_tension_bolted,
+            design_dict_struts_welded,
+            design_dict_tension_welded,
         )
+
+        if self.connection_type == "Welded":
+            tension_design = design_dict_tension_welded
+            compression_design = design_dict_struts_welded
+        else:
+            tension_design = design_dict_tension_bolted
+            compression_design = design_dict_struts_bolted
 
         if not forces_dict or not forces_dict.get("pairs"):
             return {}
@@ -616,13 +658,13 @@ class CrossBracingForces:
                 ("chord",    L_chord_mm, "chord_tension_kN", "chord_compression_kN"),
             ):
                 if vals.get(t_key) is not None:
-                    d = copy.deepcopy(design_dict_tension_bolted)
+                    d = copy.deepcopy(tension_design)
                     d["Load.Axial"]    = str(float(vals[t_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "tension", d))
 
                 if vals.get(c_key) is not None:
-                    d = copy.deepcopy(design_dict_struts_bolted)
+                    d = copy.deepcopy(compression_design)
                     d["Load.Axial"]    = str(float(vals[c_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "compression", d))
@@ -657,6 +699,7 @@ class CrossBracingForces:
                 except Exception as exc:
                     print(f"  [CrossBracing] SKIP {pair} {member} {force_type}: {exc}")
                     result = None
+
                 results.setdefault(pair, {}).setdefault(member, {})[force_type] = result
 
         print(f"  Total time : {time.perf_counter() - t0:.3f}s  |  {len(jobs)} designs\n{sep}")
@@ -672,6 +715,7 @@ class CrossBracingForces:
         print(" " * 18 + "CROSS BRACING CONFIGURATION & GEOMETRY")
         print("=" * 70)
         print(f"  Brace type               : {g['brace_type']}-type")
+        print(f"  Connection type          : {self.connection_type}")
         print(f"  Top chord                : {'Yes' if g['top_chord'] else 'No'}")
         print(f"  Bottom chord             : {'Yes' if g['bottom_chord'] else 'No'}")
         print("-" * 70)
@@ -697,4 +741,3 @@ class CrossBracingForces:
         else:
             print(df.to_string(index=False))
         print("=" * 95)
-
