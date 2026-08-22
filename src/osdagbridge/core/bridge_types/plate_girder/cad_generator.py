@@ -27,6 +27,21 @@ from OCC.Core.Quantity import Quantity_Color, Quantity_TOC_RGB, Quantity_NOC_BLA
 from OCC.Core.TopoDS import TopoDS_Shape
 from OCC.Core.AIS import AIS_Shape
 from OCC.Core.TopAbs import TopAbs_EDGE
+from osdagbridge.core.bridge_components.super_structure.cross_bracing.builder import (
+    build_cross_bracings
+)
+from osdagbridge.core.bridge_components.sub_structure.pier.builder import (
+    build_pier_geometry
+)
+from osdagbridge.core.bridge_components.sub_structure.pier_cap.builder import (
+    build_pier_cap_geometry
+)
+from osdagbridge.core.bridge_components.foundation.pile_cap.builder import (
+    build_pile_cap_geometry
+)
+from osdagbridge.core.bridge_components.foundation.pile.builder import (
+    build_pile_group_geometry
+)
 
 # Component builder imports
 from osdagbridge.core.bridge_components.super_structure.plate_girder.builder import (
@@ -61,6 +76,10 @@ KEY_CAD_CRASH_BARRIER = "Crash Barrier"
 KEY_CAD_RAILING = "Railing"
 KEY_CAD_MEDIAN = "Median"
 KEY_MODULE_PG = "Plate Girder"
+KEY_CAD_PIER = "Pier"
+KEY_CAD_PIER_CAP = "Pier Cap"
+KEY_CAD_PILE_CAP = "Pile Cap"
+KEY_CAD_PILE = "Pile"
 
 
 # CAD GENERATOR CLASS
@@ -906,6 +925,57 @@ class PlateGirderCADGenerator:
                 builder.Add(compound, r)
             railings = [compound]
         
+                # STEP 12: BUILD SUBSTRUCTURE (pier, pier cap, pile cap, piles)
+
+        pier_concrete_all = []
+        pier_rebar_all = []
+        pier_cap_concrete_all = []
+        pier_cap_rebar_all = []
+        pile_cap_concrete_all = []
+        pile_cap_rebar_all = []
+        pile_concrete_all = []
+        pile_rebar_all = []
+
+        z_bearing_seat = -(self.girder_section_d / 2.0 + self.girder_section_tf_b)
+        total_deck_width = deck_out["total_deck_width"]
+
+        for pier_x in [0.0, self.span_length_L]:
+            cap_result = build_pier_cap_geometry(
+                top_width=3000.0, bottom_width=1200.0, depth=600.0, length=total_deck_width,
+                top_center=(pier_x, -total_deck_width / 2.0, z_bearing_seat),
+            )
+            pier_cap_concrete_all.extend(cap_result["pier_cap_concrete"])
+            pier_cap_rebar_all.extend(cap_result["pier_cap_rebar"])
+
+            pier_result = build_pier_geometry(
+                diameter=800.0, height=3000.0,
+                top_center=(pier_x, 0.0, cap_result["pier_cap_bottom_z"]),
+            )
+            pier_concrete_all.extend(pier_result["pier_concrete"])
+            pier_rebar_all.extend(pier_result["pier_rebar"])
+
+            pcap_result = build_pile_cap_geometry(
+                length=2200.0, width=1200.0, depth=600.0,
+                top_center=(pier_x, 0.0, pier_result["pier_bottom_z"]),
+            )
+            pile_cap_concrete_all.extend(pcap_result["pile_cap_concrete"])
+            pile_cap_rebar_all.extend(pcap_result["pile_cap_rebar"])
+
+            pile_result = build_pile_group_geometry(
+                diameter=400.0, length=5000.0, spacing=600.0,
+                top_center=(pier_x, 0.0, pcap_result["pile_cap_bottom_z"]),
+            )
+            pile_concrete_all.extend(pile_result["pile_concrete"])
+            pile_rebar_all.extend(pile_result["pile_rebar"])
+
+        pier_cad = _make_compound(pier_concrete_all)
+        pier_rebar_cad = _make_compound(pier_rebar_all)
+        pier_cap_cad = _make_compound(pier_cap_concrete_all)
+        pier_cap_rebar_cad = _make_compound(pier_cap_rebar_all)
+        pile_cap_cad = _make_compound(pile_cap_concrete_all)
+        pile_cap_rebar_cad = _make_compound(pile_cap_rebar_all)
+        pile_cad = _make_compound(pile_concrete_all)
+        pile_rebar_cad = _make_compound(pile_rebar_all)
         supports = supports_tri + supports_cyl
 
         # RETURN ALL GENERATED COMPONENTS
@@ -956,7 +1026,17 @@ class PlateGirderCADGenerator:
             "median_w_beams": median_w_beams,
             
             # Railings
-            "railings": railings
+          "railings": railings,
+
+            # Substructure
+            "piers": pier_cad,
+            "pier_rebar": pier_rebar_cad,
+            "pier_caps": pier_cap_cad,
+            "pier_cap_rebar": pier_cap_rebar_cad,
+            "pile_caps": pile_cap_cad,
+            "pile_cap_rebar": pile_cap_rebar_cad,
+            "piles": pile_cad,
+            "pile_rebar": pile_rebar_cad
         }
 
     def create3Dcad(self):
@@ -1063,6 +1143,8 @@ class PlateGirderCADGenerator:
         BRACING_COLOR = Quantity_Color(60/255, 60/255, 60/255, Quantity_TOC_RGB)
         RAILING_COLOR = Quantity_Color(120/255, 120/255, 120/255, Quantity_TOC_RGB)
         MEDIAN_COLOR = Quantity_Color(120/255, 120/255, 120/255, Quantity_TOC_RGB)
+        CONCRETE_COLOR = Quantity_Color(0.75, 0.74, 0.70, Quantity_TOC_RGB)
+        REBAR_COLOR = Quantity_Color(0.55, 0.55, 0.58, Quantity_TOC_RGB)
 
         self.component = component  
         
