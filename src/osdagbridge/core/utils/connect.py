@@ -34,12 +34,16 @@ from osdag_core.design_type.compression_member.compression_bolted import Compres
 from osdag_core.design_type.compression_member.compression_welded import Compression_welded
 from osdag_core.design_type.tension_member.tension_bolted import Tension_bolted
 from osdag_core.design_type.tension_member.tension_welded import Tension_welded
+from osdag_core.design_type.flexural_member.flexure import Flexure
+from osdag_core.design_type.plate_girder.weldedPlateGirder import PlateGirderWelded
 
 MODULE_CLASS_MAP = {
     "Tension Member Design - Bolted to End Gusset": Tension_bolted,
     "Tension Member Design - Welded to End Gusset": Tension_welded,
     "Struts Bolted to End Gusset": Compression_bolted,
     "Struts Welded to End Gusset": Compression_welded,
+    "Flexural Members - Simply Supported": Flexure,
+    "PLATE GIRDER": PlateGirderWelded,
 }
 
 # OUTPUT SUPPRESSION
@@ -726,6 +730,63 @@ design_dict_struts_welded = {
     "Weld.Fab": "Shop Weld",
     "Weld.Material_Grade_OverWrite": "290",
     "out_titles_status": [1, 1, 1, 1, 1],
+}
+
+
+design_dict_simply_supported = {
+    "Module": "Flexural Members - Simply Supported",
+    "Member.Profile": "Beams and Columns",
+    "Member.Designation": [
+        "JB 150", "JB 175", "JB 200", "JB 225",
+        "LB 75", "LB 100", "LB 125", "LB 150", "LB 175", "LB 200", "LB 225", "LB 250", "LB 300", "LB 350", "LB 400", "LB 450", "LB 500", "LB 550", "LB 600",
+        "MB 100", "MB 125", "MB 150", "MB 175", "MB 200", "MB 225", "MB 250", "MB 300", "MB 350", "MB 400", "MB 450", "MB 500", "MB 550", "MB 600",
+        "WB 150", "WB 175", "WB 200", "WB 225", "WB 250", "WB 300", "WB 350", "WB 400", "WB 450", "WB 500", "WB 550", "WB 600",
+        "HB 150", "HB 200", "HB 225", "HB 250", "HB 300", "HB 350", "HB 400", "HB 450",
+    ],
+    "Material": "E 250 (Fe 410 W)A",
+    "Member.Material": "E 250 (Fe 410 W)A",
+    "Flexure.Type": "Major Laterally Supported",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Member.Length": "2.0",
+    "Load.Moment": "50.0",
+    "Load.Shear": "30.0",
+    "Length.Overwrite": "NA",
+    "Effective.Area_Para": "1.0",
+    "Optimum.Class": "Plastic",
+    "Bearing.Length": "50.0",
+    "Loading.Condition": "Normal",
+}
+
+design_dict_plate_girder = {
+    "Module": "PLATE GIRDER",
+    "Material": "E 250 (Fe 410 W)A",
+    "Total.Design_Type": "Customized",
+    "Total.Depth": "1200",
+    "Web.Thickness": "10",
+    "Topflange.Width": "300",
+    "TopFlange.Thickness": "16",
+    "Bottomflange.Width": "300",
+    "BottomFlange.Thickness": "16",
+    "Member.Length": "2000",
+    "Flexure.Type": "Major Laterally Supported",
+    "Support.Width": "230",
+    "Web.Philosophy": "Thick Web without ITS",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Load.Moment": "150.0",
+    "Load.Shear": "90.0",
+    "Bendingmoment.shape": "Uniform Loading with pinned-pinned support",
+    "IntermediateStiffener.Thickness": "No",
+    "IntermediateStiffener.Thickness.val": ["8", "10", "12"],
+    "LongitudnalStiffner.Thickness": "No",
+    "LongitudnalStiffner.Thickness.val": ["8", "10", "12"],
+    "Deflection.Max": "Span/300",
+    "Loading.Condition": "Normal",
+    "Optimum.Class": "Plastic",
+    "Girder.Symmetry": "Symmetric",
+    "LongitudnalStiffener.Data": "No",
+    "IntermediateStiffener.Spacing": "1000",
 }
 
 # STANDALONE TESTING

@@ -630,13 +630,28 @@ def _extract_osdag_summary(result: dict) -> dict:
                 return v
         return None
 
-    return {
-        "section":     _first("section_size.designation", "Optimum.Designation"),
-        "capacity_kN": _first("Member.tension_capacity",  "Design.Strength"),
+    sec = _first("section_size.designation", "Optimum.Designation")
+    conn = "Bolted"
+    if "Weld.Type" in result or "WeldTopFlange" in result:
+        conn = "Welded"
+    elif sec and (str(sec).startswith("PG") or "Plate" in str(sec)):
+        conn = "Welded"
+    elif sec and any(str(sec).startswith(p) for p in ("MB", "JB", "LB", "WB", "HB", "ISMB", "ISMC", "ISJB", "ISLB", "ISWB", "ISHB")) and "Weld.Type" not in result:
+        conn = "Rolled"
+
+    summary = {
+        "section":     sec,
+        "capacity_kN": _first("Member.tension_capacity",  "Design.Strength", "Shear.Strength"),
         "efficiency":  _first("Member.efficiency",        "Optimum.UR"),
         "slenderness": _first("Member.Slenderness", "ESR"),
-        "connection":  "Welded" if "Weld.Type" in result else "Bolted",
+        "connection":  conn,
     }
+    if "Moment.Strength" in result or "Member.Moment_Capacity" in result:
+        summary["moment_capacity_kNm"] = _first("Moment.Strength", "Member.Moment_Capacity")
+    if "Shear.Strength" in result or "Member.Shear_Capacity" in result:
+        summary["shear_capacity_kN"] = _first("Shear.Strength", "Member.Shear_Capacity")
+
+    return summary
 
 
 def enrich_crossbracing_dump(pair_designs: dict) -> None:
