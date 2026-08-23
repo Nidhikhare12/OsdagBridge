@@ -293,6 +293,16 @@ class _BeamEndDiaphragm:
             for pair, values in forces_dict.get("pairs", {}).items()
         ])
 
+    def print_critical_forces(self, forces_dict: Optional[dict] = None) -> None:
+        df = self.get_critical_forces(forces_dict)
+        print("\n" + "=" * 95)
+        print(" " * 22 + "END DIAPHRAGM -- CRITICAL DESIGN FORCES")
+        print("=" * 95)
+        if df.empty:
+            print("  No critical forces found.")
+        else:
+            print(df.to_string(index=False))
+        print("=" * 95)
 
 class EndDiaphragmRolled(_BeamEndDiaphragm):
     ed_type = "Rolled Beam"
