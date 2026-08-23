@@ -77,6 +77,26 @@ def run_calculation(design_dict: Dict[str, Any], quiet: bool = True) -> Dict[str
 
         module_instance = module_class()
         module_instance.set_osdaglogger(None, None)
+        # Flexure / plate-girder modules call self.logger.info without a null check.
+        # set_osdaglogger(None, None) leaves logger as None — install a no-op sink.
+        if getattr(module_instance, "logger", None) is None:
+            class _SilentOsdagLogger:
+                def info(self, *args, **kwargs):
+                    pass
+
+                def warning(self, *args, **kwargs):
+                    pass
+
+                def error(self, *args, **kwargs):
+                    pass
+
+                def debug(self, *args, **kwargs):
+                    pass
+
+                def setLevel(self, *args, **kwargs):
+                    pass
+
+            module_instance.logger = _SilentOsdagLogger()
 
         validation_errors = module_instance.func_for_validation(design_dict)
 
