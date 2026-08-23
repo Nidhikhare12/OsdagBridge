@@ -29,7 +29,8 @@ def run_plate_girder_design(
 
     Member.Length is span_m * 1000 (mm). Returns Osdag output dict, or None on skip/failure.
     """
-    if vy_kN <= 0.0 or mz_kNm <= 0.0 or span_m <= 0.0:
+    # Moment is required; shear may be 0 (live Osdag plate-girder accepts it).
+    if mz_kNm <= 0.0 or span_m <= 0.0:
         print(
             f"  [EndDiaphragm Welded] SKIP plate-girder design: "
             f"Vy={vy_kN}, Mz={mz_kNm}, L={span_m}"
@@ -72,7 +73,7 @@ def run_plate_girder_design(
     d["BottomFlange.Thickness"] = str(float(bottom_flange_thickness_mm))
     d["Member.Length"] = str(length_mm)
     d["Support.Width"] = str(float(support_width_mm))
-    d["Load.Shear"] = str(float(vy_kN))
+    d["Load.Shear"] = str(float(max(vy_kN, 0.0)))
     d["Load.Moment"] = str(float(mz_kNm))
 
     try:

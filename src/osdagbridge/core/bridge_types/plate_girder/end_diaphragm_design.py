@@ -427,6 +427,7 @@ def design_end_diaphragm_members(bridge) -> dict:
         elif ed_type == "Rolled Beam":
             from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_rolled_design import (
                 envelope_end_diaphragm_vy_mz,
+                resolve_ed_flexure_demands,
                 run_simply_supported_design,
             )
 
@@ -453,6 +454,7 @@ def design_end_diaphragm_members(bridge) -> dict:
 
                 elements = pair_to_elements.get(pair, [])
                 vy_kN, mz_kNm = envelope_end_diaphragm_vy_mz(bridge.result_data, elements)
+                vy_kN, mz_kNm = resolve_ed_flexure_demands(vy_kN, mz_kNm, s)
                 forces_dict["pairs"][pair] = {
                     "Vy_kN": vy_kN if vy_kN > 0 else None,
                     "Mz_kNm": mz_kNm if mz_kNm > 0 else None,
@@ -528,6 +530,7 @@ def design_end_diaphragm_members(bridge) -> dict:
 
             from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_rolled_design import (
                 envelope_end_diaphragm_vy_mz,
+                resolve_ed_flexure_demands,
             )
             from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_welded_design import (
                 run_plate_girder_design,
@@ -535,6 +538,7 @@ def design_end_diaphragm_members(bridge) -> dict:
 
             elements = pair_to_elements.get(pair, [])
             vy_kN, mz_kNm = envelope_end_diaphragm_vy_mz(bridge.result_data, elements)
+            vy_kN, mz_kNm = resolve_ed_flexure_demands(vy_kN, mz_kNm, s)
             forces_dict["pairs"][pair] = {
                 "Vy_kN": vy_kN if vy_kN > 0 else None,
                 "Mz_kNm": mz_kNm if mz_kNm > 0 else None,

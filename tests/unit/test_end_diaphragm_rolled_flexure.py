@@ -89,6 +89,34 @@ def test_envelope_skips_envelope_lc_and_takes_max_abs():
     assert mz_kNm == 40.0
 
 
+def test_envelope_uses_my_vz_when_mz_vy_absent():
+    """Transverse ED members often store flexure/shear in My / Vz."""
+    result_data = {
+        "loadcases": ["LC1"],
+        "forces": {
+            "LC1": {
+                "101": {"Vz_i": 20000.0, "Vz_j": -8000.0, "My_i": 13759.0, "My_j": 0.0},
+            },
+        },
+    }
+    vy_kN, mz_kNm = envelope_end_diaphragm_vy_mz(result_data, ["101"])
+    assert vy_kN == 20.0
+    assert mz_kNm == 13.759
+
+
+def test_resolve_ed_flexure_demands_estimates_moment_when_analysis_mz_zero():
+    from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_rolled_design import (
+        resolve_ed_flexure_demands,
+    )
+
+    vy, mz = resolve_ed_flexure_demands(85.761, 0.0, 2.225)
+    assert vy == 85.761
+    assert mz == round(85.761 * 2.225 / 4.0, 3)
+
+    vy2, mz2 = resolve_ed_flexure_demands(85.761, 13.7, 2.225)
+    assert (vy2, mz2) == (85.761, 13.7)
+
+
 def test_run_simply_supported_design_submits_flexure_job():
     fake = _FakeExecutor()
     with patch(

@@ -2643,12 +2643,38 @@ class PlateGirderBridge:
                     conn = res.get("connection")  or "—"
 
                     eff_str  = f"  eff={float(eff):.2f}" if eff  not in (None, "") else ""
-                    slnd_str = f"  λ={float(slnd):.1f}"  if slnd not in (None, "") else ""
+                    slnd_str = f"  slend={float(slnd):.1f}"  if slnd not in (None, "") else ""
 
                     print(
                         f"    {label:<8} [{force_type:>11}  {force_kn:>8.3f} kN]"
-                        f"  →  {sec}   cap={cap} kN{eff_str}{slnd_str}  {conn}"
+                        f"  ->  {sec}   cap={cap} kN{eff_str}{slnd_str}  {conn}"
                     )
+
+            # Rolled / Welded beam ED (flexure or plate girder)
+            vy = vals.get("Vy_kN")
+            mz = vals.get("Mz_kNm")
+            for kind, key in (
+                ("Rolled Beam", "simply_supported"),
+                ("Welded Beam", "plate_girder"),
+            ):
+                raw = designs.get(key)
+                if not raw:
+                    continue
+                res = _extract_osdag_summary(raw if isinstance(raw, dict) else {})
+                sec = res.get("section") or (
+                    raw.get("Optimum.Designation") if isinstance(raw, dict) else None
+                ) or "—"
+                ur = res.get("efficiency")
+                if ur in (None, "") and isinstance(raw, dict):
+                    ur = raw.get("Optimum.UR")
+                ur_str = f"  UR={float(ur):.3f}" if ur not in (None, "") else ""
+                force_bits = []
+                if vy is not None:
+                    force_bits.append(f"Vy={float(vy):.3f} kN")
+                if mz is not None:
+                    force_bits.append(f"Mz={float(mz):.3f} kNm")
+                force_str = "  ".join(force_bits) if force_bits else "—"
+                print(f"    {kind:<12} [{force_str}]  ->  {sec}{ur_str}")
 
         print(sep)
 
