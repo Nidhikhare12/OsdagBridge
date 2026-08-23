@@ -604,6 +604,7 @@ design_dict_struts_bolted = {
 }
 
 # FLEXURE — simply supported (ED Rolled Beam)
+# Keys mirror osdag_core Flexure.set_input_values / Common KEY_* names.
 design_dict_flexure_simply_supported = {
     "Module": "Flexural Members - Simply Supported",
     "Member.Profile": "Beams and Columns",
@@ -620,6 +621,7 @@ design_dict_flexure_simply_supported = {
     "Effective.Area_Para": "1.0",
     "Optimum.Class": "Yes",
     "Bearing.Length": "NA",
+    "Loading.Condition": "Normal",
     "Design.Design_Method": "Limit State Design",
 }
 

@@ -469,13 +469,18 @@ def design_end_diaphragm_members(bridge) -> dict:
 
         # -- CASE C: WELDED BEAM DIAPHRAGM --
         elif ed_type == "Welded Beam":
-            depth = float(bridge.input_dict.get(f"{KEY_MP_ED_TOTAL_DEPTH}{member_suffix}") or 0.0)
-            web_t = float(bridge.input_dict.get(f"{KEY_MP_ED_WEB_THICKNESS}{member_suffix}") or 0.0)
-            top_w = float(bridge.input_dict.get(f"{KEY_MP_ED_TOP_FLANGE_WIDTH}{member_suffix}") or 0.0)
-            bot_w = float(bridge.input_dict.get(f"{KEY_MP_ED_BOTTOM_FLANGE_WIDTH}{member_suffix}") or 0.0)
-            top_t = float(bridge.input_dict.get(f"{KEY_MP_ED_TOP_FLANGE_THICKNESS}{member_suffix}") or 0.0)
-            bot_t = float(bridge.input_dict.get(f"{KEY_MP_ED_BOTTOM_FLANGE_THICKNESS}{member_suffix}") or 0.0)
-            
+            from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_welded_design import (
+                resolve_welded_plate_dims_mm,
+            )
+
+            plate = resolve_welded_plate_dims_mm(bridge.input_dict, member_suffix)
+            depth = plate["total_depth_mm"]
+            web_t = plate["web_thickness_mm"]
+            top_w = plate["top_flange_width_mm"]
+            bot_w = plate["bottom_flange_width_mm"]
+            top_t = plate["top_flange_thickness_mm"]
+            bot_t = plate["bottom_flange_thickness_mm"]
+
             if depth > 0:
                 h_w = depth - top_t - bot_t
                 a_f1 = top_w * top_t

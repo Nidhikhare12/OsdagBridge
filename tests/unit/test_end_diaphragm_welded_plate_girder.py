@@ -279,3 +279,62 @@ def test_ed_welded_branch_reaches_design_pool_and_preserves_props():
     h_key = "transverse_member_design.ed.section_properties.end_diaphragm.G1G2.H"
     assert h_key in bridge.output_dict
     assert abs(float(bridge.output_dict[h_key]) - 0.3) < 1e-9
+
+
+def test_resolve_welded_plate_dims_prefers_ed_fields():
+    from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_welded_design import (
+        resolve_welded_plate_dims_mm,
+    )
+    from osdagbridge.core.utils.common import (
+        KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
+        KEY_MP_ED_BOTTOM_FLANGE_WIDTH,
+        KEY_MP_ED_TOP_FLANGE_THICKNESS,
+        KEY_MP_ED_TOP_FLANGE_WIDTH,
+        KEY_MP_ED_TOTAL_DEPTH,
+        KEY_MP_ED_WEB_THICKNESS,
+    )
+
+    suffix = ".G1G2.E1M1"
+    dims = resolve_welded_plate_dims_mm(
+        {
+            f"{KEY_MP_ED_TOTAL_DEPTH}{suffix}": 300,
+            f"{KEY_MP_ED_WEB_THICKNESS}{suffix}": 8,
+            f"{KEY_MP_ED_TOP_FLANGE_WIDTH}{suffix}": 150,
+            f"{KEY_MP_ED_TOP_FLANGE_THICKNESS}{suffix}": 10,
+            f"{KEY_MP_ED_BOTTOM_FLANGE_WIDTH}{suffix}": 150,
+            f"{KEY_MP_ED_BOTTOM_FLANGE_THICKNESS}{suffix}": 10,
+        },
+        suffix,
+    )
+    assert dims["total_depth_mm"] == 300.0
+    assert dims["web_thickness_mm"] == 8.0
+
+
+def test_resolve_welded_plate_dims_falls_back_to_girder():
+    from osdagbridge.core.bridge_types.plate_girder.end_diaphragm_welded_design import (
+        resolve_welded_plate_dims_mm,
+    )
+    from osdagbridge.core.utils.common import (
+        KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS,
+        KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH,
+        KEY_MP_GIRDER_DEPTH,
+        KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
+        KEY_MP_GIRDER_TOP_FLANGE_WIDTH,
+        KEY_MP_GIRDER_WEB_THICKNESS,
+    )
+
+    # metres on girder keys → mm in result
+    dims = resolve_welded_plate_dims_mm(
+        {
+            f"{KEY_MP_GIRDER_DEPTH}.G1.M1": 0.30,
+            f"{KEY_MP_GIRDER_WEB_THICKNESS}.G1.M1": 0.008,
+            f"{KEY_MP_GIRDER_TOP_FLANGE_WIDTH}.G1.M1": 0.15,
+            f"{KEY_MP_GIRDER_TOP_FLANGE_THICKNESS}.G1.M1": 0.01,
+            f"{KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH}.G1.M1": 0.15,
+            f"{KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS}.G1.M1": 0.01,
+        },
+        ".G1G2.E1M1",
+    )
+    assert abs(dims["total_depth_mm"] - 300.0) < 1e-6
+    assert abs(dims["web_thickness_mm"] - 8.0) < 1e-6
+    assert abs(dims["top_flange_width_mm"] - 150.0) < 1e-6

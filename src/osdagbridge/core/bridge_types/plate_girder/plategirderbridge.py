@@ -2587,25 +2587,27 @@ class PlateGirderBridge:
             
             if row:
                 con.close()
+                # SELECT: Designation, Mass, Area, D, B, tw, T, Iz, Iy, rz, ry,
+                #         Zz, Zy, Zpz, Zpy, It, Iw  → indices 0..16
                 def val_f(val):
                     return float(val) if val is not None else 0.0
                 return {
                     "designation": row[0],
                     "type": "BEAM",
-                    "H": val_f(row[3]) / 1000.0,
-                    "B": val_f(row[4]) / 1000.0,
-                    "tw": val_f(row[5]) / 1000.0,
-                    "tF": val_f(row[6]) / 1000.0,
-                    "M": val_f(row[2]),
-                    "A": val_f(row[3]),
-                    "Iz": val_f(row[10]),
-                    "Iv": val_f(row[11]),
-                    "rz": val_f(row[12]),
-                    "rv": val_f(row[13]),
-                    "Zz": val_f(row[14]),
-                    "Zv": val_f(row[15]),
-                    "Zuz": val_f(row[16]),
-                    "Zuv": val_f(row[17]),
+                    "H": val_f(row[3]) / 1000.0,   # D (mm → m)
+                    "B": val_f(row[4]) / 1000.0,   # B (mm → m)
+                    "tw": val_f(row[5]) / 1000.0,  # tw (mm → m)
+                    "tF": val_f(row[6]) / 1000.0,  # T (mm → m)
+                    "M": val_f(row[1]),            # Mass
+                    "A": val_f(row[2]),            # Area
+                    "Iz": val_f(row[7]),
+                    "Iv": val_f(row[8]),           # Iy
+                    "rz": val_f(row[9]),
+                    "rv": val_f(row[10]),          # ry
+                    "Zz": val_f(row[11]),
+                    "Zv": val_f(row[12]),          # Zy
+                    "Zuz": val_f(row[13]),         # Zpz
+                    "Zuv": val_f(row[14]),         # Zpy
                 }
             con.close()
         except Exception as exc:

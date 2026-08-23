@@ -64,6 +64,12 @@ def test_flexure_module_registered_in_connect():
 
     assert design_dict_flexure_simply_supported["Module"] == FLEXURE_MODULE
     assert FLEXURE_MODULE in MODULE_CLASS_MAP
+    assert design_dict_flexure_simply_supported["Loading.Condition"] == "Normal"
+    assert design_dict_flexure_simply_supported["Torsion.restraint"] == "Fully Restrained"
+    assert (
+        design_dict_flexure_simply_supported["Warping.restraint"]
+        == "Both flanges fully restrained"
+    )
 
 
 def test_envelope_skips_envelope_lc_and_takes_max_abs():
