@@ -143,6 +143,7 @@ from osdagbridge.core.utils.common import (
     KEY_MP_CB_BRACING_SECTION_TYPE,
     KEY_MP_CB_TOP_CHORD,
     KEY_MP_CB_BOTTOM_CHORD,
+    KEY_MP_CB_BRACING_CONNECTION,
 )
 
 # ---------------------------------------------------------------------------
@@ -212,11 +213,16 @@ class CrossBracingForces:
         if brace_type is not None:
             raw = str(brace_type).strip().upper()
         else:
-            raw = str(ai.get(KEY_MP_CB_BRACING_SECTION_TYPE)).strip().upper()
+            bt = ai.get(KEY_MP_CB_TYPE)
+            if bt:
+                raw = "K" if "K" in str(bt) else "X"
+            else:
+                raw = str(ai.get(KEY_MP_CB_BRACING_SECTION_TYPE)).strip().upper()
 
         if raw not in (BRACE_X, BRACE_K):
             raw = BRACE_X  # TODO: remove fallback once UI always sets brace type
         self.brace_type: str = raw
+        self.connection_type = str(ai.get(KEY_MP_CB_BRACING_CONNECTION, "Bolted")).strip()
 
         if top_chord is not None:
             self.top_chord = bool(top_chord)
@@ -597,6 +603,8 @@ class CrossBracingForces:
         from osdagbridge.core.utils.connect import (
             design_dict_struts_bolted,
             design_dict_tension_bolted,
+            design_dict_struts_welded,
+            design_dict_tension_welded,
         )
 
         if not forces_dict or not forces_dict.get("pairs"):
@@ -609,20 +617,36 @@ class CrossBracingForces:
         # Build a flat job list so all designs run in one parallel batch.
         # Each job tracks (pair, member_type, force_type) for reassembly.
         jobs: list[tuple[str, str, str, dict]] = []
+        ai = self.bridge.additional_inputs
 
         for pair, vals in forces_dict["pairs"].items():
+            pair_id = pair.replace("-", "")
+            # Determine connection type for this specific pair
+            import re
+            m = re.match(r"G(\d+)G(\d+)", pair_id)
+            if m:
+                g_idx = m.group(1)
+                suffix = f".{pair_id}.B{g_idx}M1"
+            else:
+                suffix = ""
+            pair_conn_key = KEY_MP_CB_BRACING_CONNECTION + suffix
+            pair_conn = ai.get(pair_conn_key)
+            if pair_conn is None:
+                pair_conn = ai.get(KEY_MP_CB_BRACING_CONNECTION, "Bolted")
+            is_welded = str(pair_conn).strip() == "Welded"
+
             for member, L_mm, t_key, c_key in (
                 ("diagonal", L_diag_mm, "diag_tension_kN",  "diag_compression_kN"),
                 ("chord",    L_chord_mm, "chord_tension_kN", "chord_compression_kN"),
             ):
                 if vals.get(t_key) is not None:
-                    d = copy.deepcopy(design_dict_tension_bolted)
+                    d = copy.deepcopy(design_dict_tension_welded if is_welded else design_dict_tension_bolted)
                     d["Load.Axial"]    = str(float(vals[t_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "tension", d))
 
                 if vals.get(c_key) is not None:
-                    d = copy.deepcopy(design_dict_struts_bolted)
+                    d = copy.deepcopy(design_dict_struts_welded if is_welded else design_dict_struts_bolted)
                     d["Load.Axial"]    = str(float(vals[c_key]))
                     d["Member.Length"] = str(L_mm)
                     jobs.append((pair, member, "compression", d))

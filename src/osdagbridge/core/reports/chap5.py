@@ -145,7 +145,146 @@ from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girde
 
 if TYPE_CHECKING:
     pass
+
+
+def _ed_section_latex(bridge) -> str:
+    """Return the LaTeX content for the End Diaphragm Design section.
+
+    If the ED is configured as Cross Bracing the existing tables are reused.
+    For Rolled Beam and Welded Beam configurations a beam-specific section
+    properties table and a capacity summary table are generated instead.
+    """
+    # Detect ED type from input_dict
+    ed_type = ""
+    for k, v in bridge.input_dict.items():
+        if str(k).startswith(KEY_MP_ED_TYPE) and v:
+            ed_type = str(v).strip()
+            break
+
+    is_beam = ed_type.lower() in ("rolled beam", "welded beam")
+
+    if not is_beam:
+        # Cross Bracing — keep the existing tables (content generated in caller)
+        return (
+            r"\noindent" "\n"
+            r"\textit{End Diaphragm configured as Cross Bracing — refer to the "
+            r"Cross Bracing Design section above for all detailed checks.}"
+        )
+
+    # ── Beam diaphragm (Rolled or Welded) ─────────────────────────────────────
+    beam_key   = "welded_beam" if "welded" in ed_type.lower() else "rolled_beam"
+    ed_results = bridge.output_dict.get("end_diaphragm_design_results") or {}
+    od         = bridge.output_dict
+
+    def _dfmt(v, nd=3):
+        try:
+            return f"{float(v):.{nd}f}"
+        except (TypeError, ValueError):
+            return "---"
+
+    # ── Section Properties Table ───────────────────────────────────────────────
+    prop_rows = ""
+    for pair, pdata in (ed_results.items() if ed_results else []):
+        if not isinstance(pdata, dict):
+            continue
+        bdata = pdata.get(beam_key, {})
+        if not isinstance(bdata, dict):
+            continue
+        des = _tex(str(bdata.get("Optimum.Designation") or "---"))
+        pair_id = str(pair).replace("-", "")
+        import re as _re
+        _m = _re.match(r"G(\d+)G", pair_id)
+        gi = _m.group(1) if _m else "1"
+        _mk = lambda k: od.get(f"member_properties.end_diaphragm_details.{pair_id}.E{gi}M1.{k}")
+        d_val  = _dfmt(_mk("total_depth") or od.get(f"td_ed_prop_h.{pair_id}", ""), 1)
+        bf_val = _dfmt(_mk("flange_width") or od.get(f"td_ed_prop_b.{pair_id}", ""), 1)
+        tw_val = _dfmt(_mk("web_thickness") or od.get(f"td_ed_prop_tw.{pair_id}", ""), 1)
+        tf_val = _dfmt(_mk("flange_thickness") or od.get(f"td_ed_prop_tf.{pair_id}", ""), 1)
+        a_val  = _dfmt(od.get(f"td_ed_prop_a.{pair_id}"), 2)
+        iz_val = _dfmt(od.get(f"td_ed_prop_iz.{pair_id}"), 2)
+        prop_rows += (
+            _tex(str(pair)) + r" & " + des + r" & " + d_val + r" & " + bf_val +
+            r" & " + tw_val + r" & " + tf_val +
+            r" & " + a_val + r" & " + iz_val + r" \\[6pt]" "\n" r"\hline" "\n"
+        )
+    if not prop_rows:
+        prop_rows = r"\multicolumn{8}{|c|}{No results available} \\[6pt]" "\n" r"\hline" "\n"
+
+    # ── Capacity Summary Table ─────────────────────────────────────────────────
+    cap_rows = ""
+    for pair, pdata in (ed_results.items() if ed_results else []):
+        if not isinstance(pdata, dict):
+            continue
+        bdata = pdata.get(beam_key, {})
+        if not isinstance(bdata, dict):
+            continue
+        des = _tex(str(bdata.get("Optimum.Designation") or "---"))
+        try:
+            m_cap  = float(bdata.get("Moment.Strength") or 0)
+            m_dem  = float(bdata.get("Moment.Demand")   or 0)
+            m_ur   = m_dem / m_cap if m_cap > 0 else None
+        except (TypeError, ValueError):
+            m_cap = m_dem = 0; m_ur = None
+        try:
+            v_cap  = float(bdata.get("Shear.Strength") or 0)
+            v_dem  = float(bdata.get("Shear.Demand")   or 0)
+            v_ur   = v_dem / v_cap if v_cap > 0 else None
+        except (TypeError, ValueError):
+            v_cap = v_dem = 0; v_ur = None
+
+        def _ur_tex(ur):
+            if ur is None:
+                return "---"
+            s = f"{ur:.3f}"
+            return (r"\textcolor{red}{" + s + "}") if ur > 1.0 else s
+
+        cap_rows += (
+            _tex(str(pair)) + r" & Bending (Mz) & " + des + r" & --- & " +
+            _dfmt(m_dem, 2) + r" kNm & " + _dfmt(m_cap, 2) + r" kNm & " +
+            _ur_tex(m_ur) + r" & " + ("PASS" if m_ur is not None and m_ur <= 1.0 else "---") +
+            r" \\[6pt]" "\n" r"\hline" "\n"
+        )
+        cap_rows += (
+            _tex(str(pair)) + r" & Shear (Vy) & " + des + r" & --- & " +
+            _dfmt(v_dem, 2) + r" kN & " + _dfmt(v_cap, 2) + r" kN & " +
+            _ur_tex(v_ur) + r" & " + ("PASS" if v_ur is not None and v_ur <= 1.0 else "---") +
+            r" \\[6pt]" "\n" r"\hline" "\n"
+        )
+    if not cap_rows:
+        cap_rows = r"\multicolumn{8}{|c|}{No results available} \\[6pt]" "\n" r"\hline" "\n"
+
+    type_note = "Welded plate girder" if "welded" in ed_type.lower() else "Rolled I-section"
+    return (
+        r"\vspace{0.4em}" "\n"
+        r"\noindent" "\n"
+        r"\setlength{\tabcolsep}{4pt}" "\n"
+        r"\setlength{\LTleft}{0pt}" "\n"
+        r"\setlength{\LTright}{\fill}" "\n\n"
+        r"\begin{longtable}{|C{2.0cm}|L{3.0cm}|C{1.5cm}|C{1.5cm}|C{1.5cm}|C{1.5cm}|C{1.5cm}|C{1.8cm}|}" "\n"
+        r"\caption{\textbf{End Diaphragm --- Beam Section Properties}}" "\n"
+        r"\hline" "\n"
+        r"\textbf{Panel} & \textbf{Designation} & \textbf{D (mm)} & \textbf{b$_f$ (mm)}"
+        r" & \textbf{t$_w$ (mm)} & \textbf{t$_f$ (mm)} & \textbf{A (cm\textsuperscript{2})}"
+        r" & \textbf{I$_z$ (cm\textsuperscript{4})} \\[6pt]" "\n"
+        r"\hline" "\n" +
+        prop_rows +
+        r"\end{longtable}" "\n"
+        r"\noindent\textit{Note: " + type_note + r" diaphragm. Properties computed from section geometry.}" "\n\n"
+        r"\vspace{1em}" "\n"
+        r"\begin{longtable}{|C{2.0cm}|L{2.5cm}|L{3.0cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|C{1.2cm}|C{1.5cm}|}" "\n"
+        r"\caption{\textbf{End Diaphragm --- Beam Capacity Summary}}" "\n"
+        r"\hline" "\n"
+        r"\textbf{Panel} & \textbf{Check} & \textbf{Section} & \textbf{Gov.\ LC}"
+        r" & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]" "\n"
+        r"\hline" "\n" +
+        cap_rows +
+        r"\end{longtable}" "\n"
+        r"\noindent\textit{Note: Designed per IS~800:2007 Cl.~8 (flexure) and Cl.~8.4 (shear).}"
+    )
+
+
 def ch5_design_checks(checks_data, bridge) -> str:
+
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -1002,19 +1141,50 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         return label + r" & \multicolumn{4}{c|}{" + msg + r"} \\[6pt]" + "\n\\hline"
 
     # End diaphragm: when configured as Cross Bracing it is designed as bracing
-    # members → mirror the cross-bracing axial rows. For Rolled / Welded beam end
-    # diaphragms the moment/shear design is not implemented yet → show a message.
+    # members. For Rolled / Welded beam end diaphragms, pull moment/shear from
+    # the stored end_diaphragm_design_results (worst pair by UR).
     _ed_type = ""
     for _k, _v in bridge.input_dict.items():
         if str(_k).startswith(KEY_MP_ED_TYPE) and _v:
             _ed_type = str(_v)
             break
     _ed_is_cb = "brac" in _ed_type.strip().lower()
+
+    def _ed_beam_row(force_label, cap_key, demand_key):
+        """Worst pair by UR from end_diaphragm_design_results for beam ED."""
+        _ed_res = (bridge.output_dict.get("end_diaphragm_design_results") or {})
+        _beam_key = "welded_beam" if "welded" in _ed_type.lower() else "rolled_beam"
+        best = None  # (ur, cap, dem, pair)
+        for _pair, _pdata in _ed_res.items():
+            _bdata = (_pdata or {}).get(_beam_key, {}) if isinstance(_pdata, dict) else {}
+            if not _bdata:
+                continue
+            try:
+                _cap = float(_bdata.get(cap_key) or 0)
+                _dem = float(_bdata.get(demand_key) or 0)
+                _ur  = _dem / _cap if _cap > 0 else None
+            except (TypeError, ValueError):
+                continue
+            if _ur is not None and (best is None or _ur > best[0]):
+                best = (_ur, _cap, _dem, _pair)
+        if best is None:
+            return ("---", "---", "---", "---")
+        _ur, _cap, _dem, _ = best
+        _gov = "---"  # governing LC not tracked per-beam yet
+        return (_gov, f"{_dem:.2f} kNm" if force_label == "Moment" else f"{_dem:.2f} kN",
+                f"{_cap:.2f} kNm" if force_label == "Moment" else f"{_cap:.2f} kN",
+                _ur_522(_ur))
+
     if _ed_is_cb:
         _ed_moment_row = _row522(r"End Diaphragm --- Moment", _cb_row("compression"))
         _ed_shear_row  = _row522(r"End Diaphragm --- Shear",  _cb_row("tension"))
+    elif _ed_type.strip().lower() in ("rolled beam", "welded beam"):
+        _ed_moment_row = _row522(r"End Diaphragm --- Moment",
+                                 _ed_beam_row("Moment", "Moment.Strength", "Moment.Demand"))
+        _ed_shear_row  = _row522(r"End Diaphragm --- Shear",
+                                 _ed_beam_row("Shear",  "Shear.Strength",  "Shear.Demand"))
     else:
-        _ed_msg = r"Rolled / Welded section --- design to be added"
+        _ed_msg = r"End Diaphragm type not recognised"
         _ed_moment_row = _row522_msg(r"End Diaphragm --- Moment", _ed_msg)
         _ed_shear_row  = _row522_msg(r"End Diaphragm --- Shear",  _ed_msg)
 
@@ -1450,41 +1620,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{1em}
 
-\vspace{0.4em}
-\noindent
-\setlength{\tabcolsep}{4pt}
-\setlength{\LTleft}{0pt}
-\setlength{\LTright}{\fill}
-
-\begin{longtable}{|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|}
-\caption{\textbf{End Diaphragm --- Connection and Section Properties}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
-\hline
-""" + cb_forces_content + r"""
-\end{longtable}
-\noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
-
-\vspace{1em}
-\begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
-\caption{\textbf{End Diaphragm --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
-\hline
-""" + cb_slenderness_content + r"""
-\end{longtable}
-\noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
-
-\vspace{1em}
-
-\begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
-\caption{\textbf{End Diaphragm Design --- Capacity Summary}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
-\hline
-""" + cb_capacity_content + r"""
-\end{longtable}
-\noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
+""" + _ed_section_latex(bridge) + r"""
 
 % ===========================
 \section{Overall Design Check Summary}

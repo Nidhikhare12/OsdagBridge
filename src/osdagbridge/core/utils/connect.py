@@ -34,12 +34,16 @@ from osdag_core.design_type.compression_member.compression_bolted import Compres
 from osdag_core.design_type.compression_member.compression_welded import Compression_welded
 from osdag_core.design_type.tension_member.tension_bolted import Tension_bolted
 from osdag_core.design_type.tension_member.tension_welded import Tension_welded
+from osdag_core.design_type.flexural_member.flexure import Flexure
+from osdag_core.design_type.plate_girder.weldedPlateGirder import PlateGirderWelded
 
 MODULE_CLASS_MAP = {
     "Tension Member Design - Bolted to End Gusset": Tension_bolted,
     "Tension Member Design - Welded to End Gusset": Tension_welded,
     "Struts Bolted to End Gusset": Compression_bolted,
     "Struts Welded to End Gusset": Compression_welded,
+    "Flexural Members - Simply Supported": Flexure,
+    "PLATE GIRDER": PlateGirderWelded,
 }
 
 # OUTPUT SUPPRESSION
@@ -354,21 +358,21 @@ design_dict_tension_bolted = {
 # TENSION WELDED
 design_dict_tension_welded = {
     "Conn_Location": "Long Leg",
-    "Connector.Material": "E 165 (Fe 290)",
-    "Connector.Plate.Thickness_List": ["8", "10", "12"],
+    "Connector.Material": "E 250 (Fe 410 W)A",
+    "Connector.Plate.Thickness_List": ["8", "10", "12", "14", "16", "18", "20", "22", "25", "28", "32", "36", "40", "45", "50", "56", "63", "75", "80", "90", "100", "110", "120"],
     "Design.Design_Method": "Limit State Design",
     "Load.Axial": "5",
-    "Material": "E 165 (Fe 290)",
+    "Material": "E 250 (Fe 410 W)A",
     "Member.Designation": [
         "20 x 20 x 3",
         "25 x 25 x 3",
     ],
     "Member.Length": "500",
-    "Member.Material": "E 165 (Fe 290)",
-    "Member.Profile": "Angles",
+    "Member.Material": "E 250 (Fe 410 W)A",
+    "Member.Profile": "Back to Back Angles",
     "Module": "Tension Member Design - Welded to End Gusset",
     "Weld.Fab": "Shop Weld",
-    "Weld.Material_Grade_OverWrite": "290",
+    "Weld.Material_Grade_OverWrite": "410",
     "out_titles_status": [1, 1, 1, 1, 1],
 }
 
@@ -613,19 +617,76 @@ design_dict_struts_welded = {
     "End_2": "Fixed",
     "Load.Axial": "9",
     "Load.Type": "Concentric Load",
-    "Material": "E 165 (Fe 290)",
+    "Material": "E 250 (Fe 410 W)A",
     "Member.Designation": [
         "25 x 25 x 3",
         "40 x 40 x 3",
     ],
     "Member.Length": "900",
-    "Member.Material": "E 165 (Fe 290)",
-    "Member.Profile": "Angles",
+    "Member.Material": "E 250 (Fe 410 W)A",
+    "Member.Profile": "Back to Back Angles - Opposite side of gusset",
     "Module": "Struts Welded to End Gusset",
     "Optimum.AllowUR": "1.0",
     "Weld.Fab": "Shop Weld",
-    "Weld.Material_Grade_OverWrite": "290",
+    "Weld.Material_Grade_OverWrite": "410",
     "out_titles_status": [1, 1, 1, 1, 1],
+}
+
+angle_list = list(design_dict_tension_bolted["Member.Designation"])
+design_dict_tension_welded["Member.Designation"] = angle_list
+design_dict_struts_welded["Member.Designation"] = angle_list
+
+from osdagbridge.core.utils.common import get_is_section_list
+
+# FLEXURE
+design_dict_flexure = {
+    "Module": "Flexural Members - Simply Supported",
+    "Member.Profile": "Beams and Columns",
+    "Member.Designation": get_is_section_list(),
+    "Material": "E 250 (Fe 410 W)A",
+    "Member.Material": "E 250 (Fe 410 W)A",
+    "Flexure.Type": "Major Laterally Supported",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Member.Length": "3.0",
+    "Load.Moment": "10.0",
+    "Load.Shear": "5.0",
+    "Length.Overwrite": "No",
+    "Effective.Area_Para": "1.0",
+    "Optimum.Class": "No",
+    "Bearing.Length": "50.0",
+    "Loading.Condition": "Normal",
+}
+
+# PLATE GIRDER WELDED (WELDED BEAM)
+design_dict_plate_girder_welded = {
+    "Module": "PLATE GIRDER",
+    "Material": "E 250 (Fe 410 W)A",
+    "Total.Design_Type": "Customized",
+    "Total.Depth": "600",
+    "Web.Thickness": "10",
+    "Topflange.Width": "200",
+    "TopFlange.Thickness": "12",
+    "Bottomflange.Width": "200",
+    "BottomFlange.Thickness": "12",
+    "Member.Length": "3000",
+    "Flexure.Type": "Major Laterally Supported",
+    "Support.Width": "300",
+    "Web.Philosophy": "Thick Web without ITS",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Load.Moment": "10.0",
+    "Load.Shear": "5.0",
+    "Bendingmoment.shape": "Uniform Loading with pinned-pinned support",
+    "IntermediateStiffener.Thickness": "All",
+    "LongitudnalStiffner.Thickness": "All",
+    "Deflection.Max": 600,
+    "IntermediateStiffener.Spacing": "NA",
+    "IntermediateStiffener.Data": "No",
+    "LongitudnalStiffener.Data": "No",
+    "S.B.Methods": "Simple Post Buckling",
+    "Loading.Condition": "Normal",
+    "Optimum.Class": "No",
 }
 
 # STANDALONE TESTING
