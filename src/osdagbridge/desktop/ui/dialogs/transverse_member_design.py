@@ -1074,7 +1074,11 @@ class TransverseMemberDesign(QDialog):
 
         conn_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_CONNECTION_TYPE)
         if conn_w:
-            conn_w.setText("Bolted")
+            from osdagbridge.core.bridge_types.plate_girder.cross_bracing_design import (
+                _connection_for_pair,
+            )
+            idict = getattr(self._backend, "input_dict", {}) or {}
+            conn_w.setText(_connection_for_pair(pair_key, idict))
 
         # ── Design-data-dependent fields ─────────────────────────────────────
         if not self._designs_dict:
@@ -1124,12 +1128,27 @@ class TransverseMemberDesign(QDialog):
         if no_cb_w:
             no_cb_w.setText("2")
 
-        conn_w = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_CONNECTION_TYPE)
-        if conn_w:
-            conn_w.setText("Bolted")
-
         pair_designs = self._designs_dict.get(pair_key, {}) if self._designs_dict else {}
         ed_type      = pair_designs.get("ed_type") or ""
+
+        conn_w = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_CONNECTION_TYPE)
+        if conn_w:
+            if ed_type in ("Rolled Beam", "Welded Beam"):
+                conn_w.setText("—")
+            else:
+                from osdagbridge.core.utils.common import KEY_MP_ED_BRACING_CONNECTION
+                idict = getattr(self._backend, "input_dict", {}) or {}
+                pair_id = pair_key.replace("-", "")
+                m = re.match(r"G(\d+)-G(\d+)$", pair_key) or re.match(r"G(\d+)G(\d+)$", pair_id)
+                girder_idx = m.group(1) if m else "1"
+                e_suffix = f".{pair_id}.E{girder_idx}M1"
+                conn_val = (
+                    idict.get(f"{KEY_MP_ED_BRACING_CONNECTION}{e_suffix}")
+                    or idict.get(KEY_MP_ED_BRACING_CONNECTION)
+                    or "Bolted"
+                )
+                conn_w.setText(str(conn_val))
+
         type_w = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_TYPE)
         if type_w:
             type_w.setText(ed_type)
@@ -1320,12 +1339,36 @@ class TransverseMemberDesign(QDialog):
 
     # ── Design check HTML (no Pair column) ────────────────────────────────
 
+    @staticmethod
+    def _fmt_design_num(value, spec: str) -> str:
+        """Format a numeric Osdag field; empty/non-numeric → em dash."""
+        if value is None or value == "":
+            return "—"
+        try:
+            return format(float(value), spec)
+        except (TypeError, ValueError):
+            return "—"
+
+    @staticmethod
+    def _as_float_or_none(value):
+        if value is None or value == "":
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
     def _build_cb_design_check_html(self, pair_key: str, forces_dict: dict, designs_dict: dict) -> str:
         from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+        from osdagbridge.core.bridge_types.plate_girder.cross_bracing_design import (
+            _connection_for_pair,
+        )
 
         rows_html = []
         pairs     = forces_dict.get("pairs", {})
         vals      = pairs.get(pair_key, {})
+        idict     = getattr(self._backend, "input_dict", {}) or {}
+        pair_conn = _connection_for_pair(pair_key, idict)
 
         pair_designs = designs_dict.get(pair_key, {})
         n_members = self._members_per_pair.get(pair_key, 1)
@@ -1351,13 +1394,13 @@ class TransverseMemberDesign(QDialog):
                     res     = _extract_osdag_summary(member_data.get(force_type.lower()) or {})
                     section = res.get("section")  or "—"
                     cap_kn  = res.get("capacity_kN")
-                    eff     = res.get("efficiency")
+                    eff     = self._as_float_or_none(res.get("efficiency"))
                     slnd    = res.get("slenderness")
-                    conn    = res.get("connection") or "—"
+                    conn    = res.get("connection") or pair_conn or "—"
 
-                    cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                    eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                    slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
+                    cap_str  = self._fmt_design_num(cap_kn, ".2f")
+                    eff_str  = self._fmt_design_num(eff, ".3f")
+                    slnd_str = self._fmt_design_num(slnd, ".1f")
 
                     if eff is None:
                         status_color, status = "#888888", "N/A"
@@ -1438,12 +1481,12 @@ class TransverseMemberDesign(QDialog):
                     res      = _extract_osdag_summary(member_data.get(force_type.lower()) or {})
                     section  = res.get("section")   or "—"
                     cap_kn   = res.get("capacity_kN")
-                    eff      = res.get("efficiency")
+                    eff      = self._as_float_or_none(res.get("efficiency"))
                     slnd     = res.get("slenderness")
                     conn     = res.get("connection") or "—"
-                    cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                    eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                    slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
+                    cap_str  = self._fmt_design_num(cap_kn, ".2f")
+                    eff_str  = self._fmt_design_num(eff, ".3f")
+                    slnd_str = self._fmt_design_num(slnd, ".1f")
                     if eff is None:
                         status_color, status = "#888888", "N/A"
                     elif eff <= 1.0:
@@ -1472,12 +1515,12 @@ class TransverseMemberDesign(QDialog):
                         res      = _extract_osdag_summary(member_data.get(force_type.lower()) or {})
                         section  = res.get("section")   or "—"
                         cap_kn   = res.get("capacity_kN")
-                        eff      = res.get("efficiency")
+                        eff      = self._as_float_or_none(res.get("efficiency"))
                         slnd     = res.get("slenderness")
                         conn     = res.get("connection") or "—"
-                        cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                        eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                        slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
+                        cap_str  = self._fmt_design_num(cap_kn, ".2f")
+                        eff_str  = self._fmt_design_num(eff, ".3f")
+                        slnd_str = self._fmt_design_num(slnd, ".1f")
                         if eff is None:
                             status_color, status = "#888888", "N/A"
                         elif eff <= 1.0:

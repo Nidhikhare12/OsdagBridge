@@ -356,6 +356,8 @@ design_dict_tension_bolted = {
 }
 
 # TENSION WELDED
+# Member.Designation is synced from the bolted catalogue below so Osdag can
+# pick a feasible section under real bridge loads (tiny 2-section lists fail).
 design_dict_tension_welded = {
     "Conn_Location": "Long Leg",
     "Connector.Material": "E 165 (Fe 290)",
@@ -363,10 +365,7 @@ design_dict_tension_welded = {
     "Design.Design_Method": "Limit State Design",
     "Load.Axial": "5",
     "Material": "E 165 (Fe 290)",
-    "Member.Designation": [
-        "20 x 20 x 3",
-        "25 x 25 x 3",
-    ],
+    "Member.Designation": [],
     "Member.Length": "500",
     "Member.Material": "E 165 (Fe 290)",
     "Member.Profile": "Angles",
@@ -670,6 +669,7 @@ design_dict_plate_girder_welded = {
 }
 
 # STRUTS WELDED
+# Member.Designation synced from bolted catalogue (same reason as tension welded).
 design_dict_struts_welded = {
     " In_Plane": "1.0",
     " Out_of_Plane": "1.0",
@@ -683,10 +683,7 @@ design_dict_struts_welded = {
     "Load.Axial": "9",
     "Load.Type": "Concentric Load",
     "Material": "E 165 (Fe 290)",
-    "Member.Designation": [
-        "25 x 25 x 3",
-        "40 x 40 x 3",
-    ],
+    "Member.Designation": [],
     "Member.Length": "900",
     "Member.Material": "E 165 (Fe 290)",
     "Member.Profile": "Angles",
@@ -696,6 +693,14 @@ design_dict_struts_welded = {
     "Weld.Material_Grade_OverWrite": "290",
     "out_titles_status": [1, 1, 1, 1, 1],
 }
+
+# Reuse the bolted angle catalogue so Welded CB can select the same feasible sizes.
+design_dict_tension_welded["Member.Designation"] = list(
+    design_dict_tension_bolted["Member.Designation"]
+)
+design_dict_struts_welded["Member.Designation"] = list(
+    design_dict_struts_bolted["Member.Designation"]
+)
 
 # STANDALONE TESTING
 if __name__ == "__main__":
