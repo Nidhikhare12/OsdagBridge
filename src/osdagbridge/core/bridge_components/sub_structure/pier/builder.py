@@ -15,7 +15,7 @@ Pattern:
     cylinder via BRepAlgoAPI_Cut).
 
 Units: mm throughout.
-Coordinate system (from GEMINI.md):
+Coordinate system (from  .md):
   X = longitudinal (span direction)
   Y = transverse (deck width direction)
   Z = vertical, positive upward
@@ -83,7 +83,7 @@ def build_pier(
     Columns are centred symmetrically around Y = 0 with
     ``pier_spacing`` centre-to-centre.
 
-    Coordinate system (GEMINI.md):
+    Coordinate system ( .md):
       X = longitudinal (span), Y = transverse, Z = vertical.
 
     Args:

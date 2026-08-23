@@ -21,7 +21,7 @@ Pattern:
   - Returns raw TopoDS_Shapes; no viewer, no fusion, no colour.
 
 Units: mm throughout.
-Coordinate system (from GEMINI.md):
+Coordinate system (from  .md):
   X = longitudinal, Y = transverse, Z = vertical.
   Origin = centre of span at deck level (Z = 0).
   Substructure sits below Z = 0.
@@ -220,7 +220,7 @@ def build_pier_rebar(
     - **Tie rings**: horizontal torus shapes at ``tie_spacing`` intervals
       up the pier height.
 
-    Coordinate system (GEMINI.md):
+    Coordinate system ( .md):
       X = longitudinal (span), Y = transverse, Z = vertical.
 
     Args:

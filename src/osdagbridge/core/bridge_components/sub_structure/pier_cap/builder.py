@@ -17,7 +17,7 @@ Shape:
   The resulting solid looks like a hammerhead / tapered cap beam.
 
 Units: mm throughout.
-Coordinate system (from GEMINI.md):
+Coordinate system (from  .md):
   X = longitudinal, Y = transverse, Z = vertical.
   Origin = centre of span at deck level (Z = 0).
   Pier cap top face is at ``cap_top_z`` (≤ 0, just below girder soffit).

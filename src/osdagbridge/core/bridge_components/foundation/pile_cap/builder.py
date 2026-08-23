@@ -15,7 +15,7 @@ Shape:
   X-position and Y = 0, sitting immediately below the pier base.
 
 Units: mm throughout.
-Coordinate system (from GEMINI.md):
+Coordinate system (from  .md):
   X = longitudinal, Y = transverse, Z = vertical.
   Origin = centre of span at deck level (Z = 0).
   Pile cap top face = pier base Z (negative, below deck level).
