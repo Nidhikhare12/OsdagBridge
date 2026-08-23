@@ -858,12 +858,12 @@ class OutputDock(QWidget):
             combo_design.blockSignals(False)
 
         # 2. Update Analysis Member dropdown
-        from osdagbridge.core.utils.common import KEY_ANALYSIS_MEMBER
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_MEMBER, DISP_TRANSVERSE_MEMBERS
         combo_analysis = self._w(KEY_ANALYSIS_MEMBER)
         if combo_analysis is not None:
             combo_analysis.blockSignals(True)
             combo_analysis.clear()
-            combo_analysis.addItems(["All"] + items)
+            combo_analysis.addItems(["All"] + items + [DISP_TRANSVERSE_MEMBERS])
             combo_analysis.setCurrentIndex(0)
             combo_analysis.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
             combo_analysis.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)

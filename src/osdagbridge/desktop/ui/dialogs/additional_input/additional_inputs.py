@@ -58,6 +58,9 @@ class AdditionalInputs(QDialog):
         # Store all Compute functions to be called at Design
         self._compute_functions = []
 
+        # Dirty state tracking
+        self.is_modified = False
+
         self.setObjectName("AdditionalInputs")
         self.setMinimumSize(900, 520)
         
@@ -77,6 +80,7 @@ class AdditionalInputs(QDialog):
                 border: 1px solid #90AF13;
             }
         """)
+        self.is_modified = False
 
     def setupWrapper(self):  # setup: frameless window wrapper with custom title bar and size grip
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowSystemMenuHint)
@@ -240,6 +244,8 @@ class AdditionalInputs(QDialog):
             KEY_TS_GIRDER_SPACING: self.working_input_dict.get(KEY_TS_GIRDER_SPACING),
             KEY_TS_NO_OF_GIRDERS:  self.working_input_dict.get(KEY_TS_NO_OF_GIRDERS),
         }
+
+        self.is_modified = False
 
         if self.interacted_first:
             self.interacted_first = False
@@ -449,6 +455,7 @@ class AdditionalInputs(QDialog):
         sourced from default_input_dict (populated from defaults.py at startup).
         Does NOT affect fields on other tabs.
         """
+        self.is_modified = True
         active_tab = self.tabs.currentWidget()
         if active_tab is None:
             return
@@ -504,9 +511,98 @@ class AdditionalInputs(QDialog):
             if hasattr(tab_widget, "refresh_active_tab"):
                 tab_widget.refresh_active_tab()
 
+    def closeEvent(self, event):  # Qt event: warns user if unsaved changes exist
+        if getattr(self, "is_modified", False):
+            msg_box = CustomMessageBox(
+                title="Unsaved Changes",
+                text="You have unsaved changes. Closing this window will discard them. Do you want to proceed?",
+                buttons=["Discard", "Cancel"],
+                dialogType=MessageBoxType.Warning,
+            )
+            result = msg_box.exec()
+            if result == "Discard":
+                self.working_input_dict = deepcopy(self.default_input_dict)
+                self.is_modified = False
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()
+
     # ── Dialog Persistence ───────────────────────────────────────────────────────
 
+    def _validate_custom_inputs(self) -> list[str]:
+        """Validate that all active fields set to 'Custom' have non-empty values."""
+        errors = []
+        d = self.working_input_dict
+
+        def _check_empty(key: str, name: str):
+            val = d.get(key)
+            if val is None or str(val).strip() == "":
+                errors.append(f"The custom value for '{name}' cannot be empty.")
+
+        # 1. Crash Barrier (if Type == Custom)
+        if d.get(KEY_CB_TYPE) == VALUE_CUSTOM:
+            _check_empty(KEY_CB_DENSITY, "Crash Barrier Material Density")
+            _check_empty(KEY_CB_WIDTH, "Crash Barrier Width")
+            _check_empty(KEY_CB_HEIGHT, "Crash Barrier Height")
+            _check_empty(KEY_CB_AREA, "Crash Barrier Area")
+            _check_empty(KEY_CB_LOAD, "Crash Barrier Load")
+
+        # 2. Median (if enabled and Type == Custom)
+        if d.get(KEY_INCLUDE_MEDIAN) == VALUES_NO_YES[1] and d.get(KEY_MD_TYPE) == VALUE_CUSTOM:
+            _check_empty(KEY_MD_DENSITY, "Median Material Density")
+            _check_empty(KEY_MD_WIDTH, "Median Width")
+            _check_empty(KEY_MD_HEIGHT, "Median Height")
+            _check_empty(KEY_MD_AREA, "Median Area")
+            _check_empty(KEY_MD_LOAD, "Median Load")
+
+        # 3. Railing (if footpath enabled and Type/Mode == Custom)
+        if d.get(KEY_FOOTPATH) in (VALUES_FOOTPATH[1], VALUES_FOOTPATH[2]):
+            if d.get(KEY_RL_TYPE) == VALUE_CUSTOM:
+                _check_empty(KEY_RL_WIDTH, "Railing Width")
+                _check_empty(KEY_RL_HEIGHT, "Railing Height")
+            if d.get(KEY_RL_LOAD_MODE) == VALUE_CUSTOM:
+                _check_empty(KEY_RL_LOAD_VALUE, "Railing Load")
+
+        # 4. Wearing Course (if Material == Custom)
+        if d.get(KEY_WC_MATERIAL) == VALUE_CUSTOM:
+            _check_empty(KEY_WC_DENSITY, "Wearing Course Density")
+            _check_empty(KEY_WC_THICKNESS, "Wearing Course Thickness")
+
+        # 5. Wind Load Mode-line fields
+        wind_fields = [
+            (KEY_WL_GUST_FACTOR, "Gust Factor, G"),
+            (KEY_WL_DRAG_COEFF, "Drag Coefficient, CD"),
+            (KEY_WL_DRAG_COEFF_LL, "Drag Coefficient against Live Load, CDLL"),
+            (KEY_WL_LIFT_COEFF, "Lift Coefficient, CL"),
+            (KEY_WL_SUPER_AREA_ELEV, "Superstructure Area in Elevation, A1"),
+            (KEY_WL_SUPER_AREA_PLAIN, "Superstructure Area in Plain, A3"),
+            (KEY_WL_EXPOSED_FRONTAL, "Exposed Frontal Area of Live Load, A1LL"),
+            (KEY_WL_WIND_ECC_DECK, "Wind Load Eccentricity from Top of Deck"),
+            (KEY_WL_WIND_LL_ECC, "Wind on Live Load Eccentricity from Top of Deck"),
+        ]
+        for field_id, field_name in wind_fields:
+            if d.get(field_id + ".mode") == VALUE_CUSTOM:
+                _check_empty(field_id + ".value", field_name)
+
+        # 6. Girder custom inputs (if Design Mode == Custom)
+        if d.get(KEY_DESIGN_MODE) == VALUE_CUSTOM:
+            _check_empty(KEY_MP_GIRDER_DEPTH, "Girder Depth")
+            _check_empty(KEY_MP_GIRDER_TOP_FLANGE_WIDTH, "Top Flange Width")
+            _check_empty(KEY_MP_GIRDER_TOP_FLANGE_THICKNESS, "Top Flange Thickness")
+            _check_empty(KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH, "Bottom Flange Width")
+            _check_empty(KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS, "Bottom Flange Thickness")
+            _check_empty(KEY_MP_GIRDER_WEB_THICKNESS, "Web Thickness")
+
+        return errors
+
     def _save_inputs(self):  # on_change: validates all tabs then commits working_input_dict and emits CAD update signal
+        # Validate custom inputs before committing
+        errors = self._validate_custom_inputs()
+        if errors:
+            self._show_validation_errors(errors)
+            return
 
         # Flush the currently-displayed stiffener member's widgets before committing.
         # _save_stiffener_member_data otherwise only runs when switching *away* from a
@@ -517,6 +613,8 @@ class AdditionalInputs(QDialog):
             self._save_stiffener_member_data(combo.currentText().strip())
 
         self.default_input_dict.update(self.working_input_dict)
+        self.is_modified = False
+
         from osdagbridge.desktop.ui.docks.cad_cross_section import CrossSectionCADWidget
         cad = self.findChild(CrossSectionCADWidget, KEY_TS_CAD_PREVIEW)
         if cad:
@@ -530,7 +628,7 @@ class AdditionalInputs(QDialog):
         ).exec()
 
     def _show_validation_errors(self, errors):  # utility: displays validation error list in a warning popup
-        message = "\n\n".join(f"• {err}" for err in errors)
+        message = "\n".join(f"• {err}" for err in errors)
         CustomMessageBox(
             title="Validation Errors",
             text=message,
@@ -598,6 +696,7 @@ class AdditionalInputs(QDialog):
         self._update_additional_input_cad()
 
     def _update_input_dict(self, key: str, value: str):  # utility: writes a value to working_input_dict, falling back to default if empty
+        self.is_modified = True
         if value is None or value == "":
             self.working_input_dict[key] = self.default_input_dict.get(key)
         else:
@@ -1305,6 +1404,7 @@ class AdditionalInputs(QDialog):
         girder_key = f"{KEY_MP_GD_SEGMENT_TABLE}.G{idx + 1}"
 
         self.working_input_dict[girder_key] = segments
+        self.is_modified = True
 
         cad = self.findChild(QWidget, KEY_MP_GD_CAD_PREVIEW)
         cad.update_segments(segments)
@@ -1467,6 +1567,7 @@ class AdditionalInputs(QDialog):
         gi, mi = self._get_current_girder_member_indices()
         suffix = f".G{gi}.M{mi}"
         self.working_input_dict[field_id + suffix] = result
+        self.is_modified = True
         print(f"[BOUNDS_ACCEPTED] {field_id + suffix} = {result}")
 
     def _on_all_custom_selected(self, field_id: str, chosen: list) -> None:  # on_change: stores TYPE_ALL_CUSTOM selection list under the current member's dynamic key
@@ -1474,6 +1575,7 @@ class AdditionalInputs(QDialog):
         suffix = f".G{gi}.M{mi}"
         self.working_input_dict[field_id + ".selected" + suffix] = chosen
         self.working_input_dict[field_id + suffix] = "Custom"
+        self.is_modified = True
         print(f"[ALL_CUSTOM_SELECTED] {field_id}.selected{suffix} = {chosen}")
 
     def _copy_girder_properties(self, source_g: int, target_g: int) -> None:
@@ -1490,6 +1592,7 @@ class AdditionalInputs(QDialog):
         targets = {1, count} - {gi}
         for target_g in targets:
             self._copy_girder_properties(gi, target_g)
+        self.is_modified = True
         print(f"@@: Applied Girder {gi} settings to exterior girders: {targets}")
 
     def _on_apply_interior_clicked(self) -> None:  # on_change: applies current girder settings to all interior girders
@@ -1498,6 +1601,7 @@ class AdditionalInputs(QDialog):
         targets = set(range(2, count)) - {gi}
         for target_g in targets:
             self._copy_girder_properties(gi, target_g)
+        self.is_modified = True
         print(f"@@: Applied Girder {gi} settings to interior girders: {targets}")
 
     def _on_top_flange_changed(self) -> None:
@@ -1939,6 +2043,8 @@ class AdditionalInputs(QDialog):
                     continue
                 for key, val in source_values.items():
                     self.working_input_dict[f"{key}{target_suffix}"] = val
+
+        self.is_modified = True
 
         # Step 4: Reload to refresh UI with updated values
         self._load_stiffener_member_data(source_member_id)

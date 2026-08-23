@@ -5,8 +5,8 @@ Author: Arushi
 """
 from osdagbridge.core.utils.common import *
 import math
-from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
+from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea, QLineEdit, QToolTip
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize, Signal, QEvent, QObject
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon
 from .cad_cross_section import CrossSectionCADWidget
 
@@ -27,6 +27,8 @@ LEADER_TEXT_OFFSET = 25    # leader label distance
 
 class TopViewCADWidget(QWidget):
     """Widget for drawing bridge top view"""
+
+    cad_parameter_edited = Signal(str, float)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -38,6 +40,8 @@ class TopViewCADWidget(QWidget):
         # top view hover tracking 
         self.top_view_hover_zones = []  # list of (QRectF, element_type)
         self.hovered_top_view_element = None
+        self.dimension_callouts = []
+        self._inline_editor = None
         
         # Zoom level for this widget
         self.zoom_level = 1.0
@@ -478,8 +482,9 @@ class TopViewCADWidget(QWidget):
             self.update()
 
     def paintEvent(self, event):
-        # clear hover zones at start of each paint
+        # clear hover zones and dimension callouts at start of each paint
         self.top_view_hover_zones = []
+        self.dimension_callouts = []
         
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -489,7 +494,9 @@ class TopViewCADWidget(QWidget):
         
     def draw_text_with_background(self, painter, x, y, text,
                               bg_color=QColor(255, 255, 255, 230), 
-                              text_color=QColor(0, 0, 0), font_size=9, bold=False):
+                              text_color=QColor(0, 0, 0), font_size=9, bold=False,
+                              param_key=None, display_name="", is_editable=False,
+                              unit="m", current_val=0.0, param_name=""):
 
         # defensive check: font size must be > 0
         font_size = max(1, font_size)
@@ -526,8 +533,18 @@ class TopViewCADWidget(QWidget):
         for i, line in enumerate(lines):
             painter.drawText(int(x), int(first_line_y + i * line_height), line)
 
-    
-    def draw_dimension_arrow(self, painter, x1, y1, x2, y2, text, horizontal=True, offset=0, text_offset=0, draw_extensions=True, extension_direction='down', extension_end_y=None):
+        if param_key or display_name:
+            self.dimension_callouts.append({
+                "param_key": param_key,
+                "display_name": display_name,
+                "rect": bg_rect,
+                "is_editable": is_editable,
+                "unit": unit,
+                "current_val": current_val,
+                "param_name": param_name,
+            })
+
+    def draw_dimension_arrow(self, painter, x1, y1, x2, y2, text, horizontal=True, offset=0, text_offset=0, draw_extensions=True, extension_direction='down', extension_end_y=None, param_key=None, display_name="", is_editable=False, unit="m", current_val=0.0, param_name=""):
         """dimension line with arrows and text with extension lines"""
         painter.setPen(QPen(QColor(0, 0, 0), 0.8))
         
@@ -1282,7 +1299,9 @@ class TopViewCADWidget(QWidget):
             
             self.draw_dimension_arrow_with_extensions_up(
                 painter, x1_brace, dim_y1, x2_brace, dim_y1,
-                label_cb, last_girder_y
+                label_cb, last_girder_y,
+                param_key=None, display_name="Bracing Spacing", is_editable=False,
+                unit="m", current_val=cb_spacing_m, param_name="cross_bracing_spacing"
             )
             dim_y_next = dim_y_base + DIM_STACK_GAP
         else:
@@ -1299,7 +1318,9 @@ class TopViewCADWidget(QWidget):
         
         self.draw_dimension_arrow_with_extensions_up(
             painter, x1_span, dim_y2, x2_span, dim_y2,
-            label_span, last_girder_y
+            label_span, last_girder_y,
+            param_key=KEY_SPAN, display_name="Span Length", is_editable=True,
+            unit="m", current_val=span_m, param_name="span_length"
         )
 
         # GIRDER SPACING dimension (always visible)
@@ -1334,7 +1355,9 @@ class TopViewCADWidget(QWidget):
                 painter, label_x, label_y,
                 label_text,
                 QColor(255, 255, 255, 240),
-                QColor(0, 0, 0), 9, False
+                QColor(0, 0, 0), 9, False,
+                param_key=KEY_TS_GIRDER_SPACING, display_name="Girder Spacing", is_editable=True,
+                unit="m", current_val=gs_m, param_name="girder_spacing"
             )
 
         # CL OF BEARING labels - ALWAYS VISIBLE (moved outside hover condition)
@@ -1410,7 +1433,7 @@ class TopViewCADWidget(QWidget):
             self.draw_clean_leader_line(painter, target_x, target_y, label_x, label_y,
                                     "End Diaphragm", CAD_DARK_GREY, QColor(139, 69, 19))
 
-    def draw_dimension_arrow_with_extensions_up(self, painter, x1, y1, x2, y2, text, girder_y):
+    def draw_dimension_arrow_with_extensions_up(self, painter, x1, y1, x2, y2, text, girder_y, param_key=None, display_name="", is_editable=False, unit="m", current_val=0.0, param_name=""):
         """Dimension line with arrows and extension lines going UP to girder level (dimension below)"""
         painter.setPen(QPen(QColor(0, 0, 0), 1.0))
         
@@ -1462,7 +1485,119 @@ class TopViewCADWidget(QWidget):
         text_width = metrics.boundingRect(text).width()
         
         self.draw_text_with_background(painter, text_x - text_width/2, text_y, text, 
-                                    QColor(255, 255, 255, 240), QColor(0, 0, 0), 9, False)
+                                    QColor(255, 255, 255, 240), QColor(0, 0, 0), 9, False,
+                                    param_key=param_key, display_name=display_name,
+                                    is_editable=is_editable, unit=unit,
+                                    current_val=current_val, param_name=param_name)
+
+    def mouseDoubleClickEvent(self, event):
+        pos = event.position() if hasattr(event, 'position') else event.pos()
+        for callout in reversed(self.dimension_callouts):
+            r = callout["rect"].adjusted(-4, -4, 4, 4)
+            if r.contains(pos):
+                if not callout["is_editable"]:
+                    QToolTip.showText(
+                        self.mapToGlobal(pos.toPoint()),
+                        f"{callout['display_name']} is a locked/derived parameter.",
+                        self,
+                    )
+                    return
+                else:
+                    self._show_inline_editor(callout, pos)
+                    return
+        super().mouseDoubleClickEvent(event)
+
+    def _show_inline_editor(self, callout: dict, screen_pos):
+        if hasattr(self, "_inline_editor") and self._inline_editor:
+            self._inline_editor.deleteLater()
+            self._inline_editor = None
+
+        editor = QLineEdit(self)
+        self._inline_editor = editor
+        editor.setStyleSheet("""
+            QLineEdit {
+                background: #FFFFFF;
+                border: 2px solid #007ACC;
+                border-radius: 4px;
+                padding: 2px 6px;
+                font-family: Arial;
+                font-size: 11px;
+                font-weight: bold;
+                color: #000000;
+            }
+        """)
+        val = callout["current_val"]
+        text_val = f"{val:.2f}" if callout["unit"] == "m" else f"{val:.0f}"
+        editor.setText(text_val)
+        editor.selectAll()
+
+        editor_w = 90
+        editor_h = 26
+        x = int(screen_pos.x() - editor_w / 2)
+        y = int(screen_pos.y() - editor_h / 2)
+        editor.setGeometry(x, y, editor_w, editor_h)
+        editor.show()
+        editor.setFocus()
+
+        def commit_value():
+            if not editor or not editor.isVisible():
+                return
+            raw_text = editor.text().strip()
+            try:
+                new_val = float(raw_text)
+                if new_val <= 0:
+                    raise ValueError("Value must be > 0")
+            except Exception:
+                from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
+                CustomMessageBox(
+                    title="Invalid Input",
+                    text=f"The value for '{callout['display_name']}' must be a positive number greater than 0.",
+                    dialogType=MessageBoxType.Warning,
+                ).exec()
+                editor.setText(text_val)
+                editor.selectAll()
+                editor.setFocus()
+                return
+
+            p_name = callout.get("param_name")
+            if p_name:
+                if callout["unit"] == "m" and p_name in ("span_length", "girder_spacing", "carriageway_width"):
+                    self.params[p_name] = new_val * 1000.0
+                elif p_name == "deck_thickness":
+                    self.params[p_name] = new_val
+
+            editor.deleteLater()
+            self._inline_editor = None
+
+            if callout.get("param_key"):
+                self.cad_parameter_edited.emit(callout["param_key"], new_val)
+
+            self.update()
+
+        editor.returnPressed.connect(commit_value)
+
+        class EditorEventFilter(QObject):
+            def __init__(self, parent_widget, edit_widget):
+                super().__init__(edit_widget)
+                self.parent_widget = parent_widget
+                self.edit_widget = edit_widget
+
+            def eventFilter(self, obj, event):
+                if event.type() == QEvent.KeyPress:
+                    if event.key() == Qt.Key_Escape:
+                        self.edit_widget.deleteLater()
+                        self.parent_widget._inline_editor = None
+                        return True
+                elif event.type() == QEvent.FocusOut:
+                    QTimer.singleShot(150, lambda: self._handle_focus_out())
+                return super().eventFilter(obj, event)
+
+            def _handle_focus_out(self):
+                if self.edit_widget and hasattr(self.parent_widget, "_inline_editor") and self.parent_widget._inline_editor == self.edit_widget:
+                    self.edit_widget.deleteLater()
+                    self.parent_widget._inline_editor = None
+
+        editor.installEventFilter(EditorEventFilter(self, editor))
 
 
     def draw_skewed_dimension_arrow(self, painter, x1, y1, x2, y2, text, skew_rad):

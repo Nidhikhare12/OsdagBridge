@@ -491,6 +491,32 @@ class PlateGirderAnalysisResults:
 
         return girder_map, elements
 
+    def build_transverse_members(self):
+        """Extract and structure all transverse element tags and connected nodes."""
+        nodes, elements, _ = self.build_grillage_connectivity()
+        _z_tol = 1e-3
+        t_elements = []
+        t_nodes_set = set()
+        element_map = []
+        for eid, (n1, n2) in elements.items():
+            if n1 not in nodes or n2 not in nodes:
+                continue
+            c1, c2 = nodes[n1], nodes[n2]
+            # Transverse member: nodes differ in Z or not strictly longitudinal in Z and Y
+            if not (abs(c1[2] - c2[2]) < _z_tol and abs(c1[1] - c2[1]) < _z_tol):
+                t_elements.append(eid)
+                t_nodes_set.add(n1)
+                t_nodes_set.add(n2)
+                element_map.append((eid, n1, n2))
+
+        # Sort nodes by Z coordinate then X
+        sorted_nodes = sorted(list(t_nodes_set), key=lambda n: (nodes[n][2], nodes[n][0]))
+        return {
+            "elements": t_elements,
+            "nodes": sorted_nodes,
+            "element_map": element_map,
+        }
+
     def filter_girders(self, girder_map):
         return girder_map
 
@@ -1241,11 +1267,15 @@ class PlateGirderAnalysisResults:
         return pd.DataFrame(rows)
 
     def _get_forces_df(self, load_case, girder_name, component):
-        """Internal helper to build Internal Force DataFrame for a girder's elements."""
-        g_map, _ = self.build_girders(verbose=False)
-        if girder_name not in g_map: return pd.DataFrame()
+        """Internal helper to build Internal Force DataFrame for a girder's or transverse members' elements."""
+        if girder_name in ("Transverse Members", "transverse_members"):
+            t_map = self.build_transverse_members()
+            elements = t_map.get("elements", [])
+        else:
+            g_map, _ = self.build_girders(verbose=False)
+            if girder_name not in g_map: return pd.DataFrame()
+            elements = g_map[girder_name]["elements"]
 
-        elements = g_map[girder_name]["elements"]
         rows = []
         unit = "kN" if "V" in component else "kNm"
 
@@ -1258,14 +1288,14 @@ class PlateGirderAnalysisResults:
 
     def _get_displacements_df(self, load_case: str, girder_name: str, component: str) -> pd.DataFrame:
         """
-        Build per-node displacement DataFrame for a girder and load case.
+        Build per-node displacement DataFrame for a girder / transverse members and load case.
 
         Parameters
         ----------
         load_case : str
             Load case name as stored in the dataset Loadcase coordinate.
         girder_name : str
-            Girder identifier, e.g. ``"G1"``.
+            Girder identifier, e.g. ``"G1"`` or ``"Transverse Members"``.
         component : str
             Displacement component — ospgrillage stores these as ``"dx"``,
             ``"dy"``, ``"dz"`` (translational) in the ``displacements``
@@ -1275,17 +1305,20 @@ class PlateGirderAnalysisResults:
         -------
         pd.DataFrame
             Columns: ``Node`` (int), ``<component>`` (float, mm).
-            Rows are sorted by node X-coordinate so the array aligns with
-            the longitudinal axis used by GirderGraphEngine.
+            Rows are sorted by node coordinate so the array aligns with
+            the axis used by GirderGraphEngine.
             Empty DataFrame on any failure.
         """
-        g_map, _ = self.build_girders(verbose=False)
-        if girder_name not in g_map:
-            return pd.DataFrame()
+        if girder_name in ("Transverse Members", "transverse_members"):
+            t_map = self.build_transverse_members()
+            node_path = t_map.get("nodes", [])
+        else:
+            g_map, _ = self.build_girders(verbose=False)
+            if girder_name not in g_map:
+                return pd.DataFrame()
+            node_path = g_map[girder_name]["path"]
 
-        node_path = g_map[girder_name]["path"]
-
-        # Build node → X-coord map for sorting
+        # Build node → X/Z-coord map for sorting
         nodes_coords, _, _ = self.build_grillage_connectivity()
 
         disp_da = self.ds.get("displacements")
@@ -1300,6 +1333,7 @@ class PlateGirderAnalysisResults:
         ds_component = _DISP_COMPONENT_MAP.get(component, component)
 
         rows = []
+        is_transverse = girder_name in ("Transverse Members", "transverse_members")
         for nid in node_path:
             try:
                 val_m = float(
@@ -1307,40 +1341,46 @@ class PlateGirderAnalysisResults:
                         Loadcase=load_case, Node=nid, Component=ds_component
                     )
                 )
-                x_coord = nodes_coords[nid][0] if nid in nodes_coords else 0.0
-                rows.append({"Node": nid, "_x": x_coord, component: round(val_m * 1000, 6)})
+                coord = nodes_coords[nid] if nid in nodes_coords else (0.0, 0.0, 0.0)
+                sort_val = coord[2] if is_transverse else coord[0]
+                rows.append({"Node": nid, "_sort": sort_val, component: round(val_m * 1000, 6)})
             except Exception:
                 pass
 
         if not rows:
             return pd.DataFrame()
 
-        df = pd.DataFrame(rows).sort_values("_x").drop(columns="_x").reset_index(drop=True)
+        df = pd.DataFrame(rows).sort_values("_sort").drop(columns="_sort").reset_index(drop=True)
         return df
 
     def _get_node_coords_df(self, girder_name: str) -> pd.DataFrame:
         """
-        Build per-node coordinate DataFrame for a girder.
+        Build per-node coordinate DataFrame for a girder or transverse members.
 
         Parameters
         ----------
         girder_name : str
-            Girder identifier, e.g. ``"G1"``.
+            Girder identifier, e.g. ``"G1"`` or ``"Transverse Members"``.
 
         Returns
         -------
         pd.DataFrame
             Columns: ``Node`` (int), ``X (m)``, ``Y (m)``, ``Z (m)``.
-            Rows are sorted by X-coordinate (longitudinal axis).
-            Empty DataFrame if the girder is not found.
+            Rows are sorted by coordinate axis.
+            Empty DataFrame if not found.
         """
         nodes_coords, _, _ = self.build_grillage_connectivity()
-        g_map, _ = self.build_girders(verbose=False)
-        if girder_name not in g_map:
-            return pd.DataFrame()
+        if girder_name in ("Transverse Members", "transverse_members"):
+            t_map = self.build_transverse_members()
+            nodes_list = t_map.get("nodes", [])
+        else:
+            g_map, _ = self.build_girders(verbose=False)
+            if girder_name not in g_map:
+                return pd.DataFrame()
+            nodes_list = g_map[girder_name]["path"]
 
         rows = []
-        for nid in g_map[girder_name]["path"]:
+        for nid in nodes_list:
             if nid in nodes_coords:
                 x, y, z = nodes_coords[nid]
                 rows.append({"Node": nid, "X (m)": round(x, 6), "Y (m)": round(y, 6), "Z (m)": round(z, 6)})
@@ -1348,6 +1388,8 @@ class PlateGirderAnalysisResults:
         if not rows:
             return pd.DataFrame()
 
+        if girder_name in ("Transverse Members", "transverse_members"):
+            return pd.DataFrame(rows).sort_values(["Z (m)", "X (m)"]).reset_index(drop=True)
         return pd.DataFrame(rows).sort_values("X (m)").reset_index(drop=True)
 
     def _get_girder_sw_df(self, girder_map, nodes):

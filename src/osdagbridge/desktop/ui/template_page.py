@@ -350,6 +350,7 @@ class CustomWindow(QWidget):
         self.cad_comp_widget.setSizePolicy(
             QSizePolicy.Expanding, QSizePolicy.Expanding
         )
+        self.cad_comp_widget.cad_parameter_edited.connect(self._on_cad_parameter_edited)
         self.cad_log_splitter.addWidget(self.cad_comp_widget)
 
         # from osdagbridge.desktop.ui.cad_3d import CAD3DWindow
@@ -900,6 +901,25 @@ class CustomWindow(QWidget):
                 pass
 
         # Apply state to CAD UI & Update Cad-State
+        self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
+
+    def _on_cad_parameter_edited(self, param_key: str, value: float):
+        """Called when a 2D CAD dimension is double-clicked and edited in-place."""
+        self.input_dict[param_key] = value
+
+        # Update matching widget in InputDock if present
+        if self.input_dock:
+            w = self.input_dock._w(param_key)
+            if isinstance(w, QLineEdit):
+                w.blockSignals(True)
+                w.setText(f"{value:.2f}" if isinstance(value, float) and value != int(value) else str(value))
+                w.blockSignals(False)
+
+        # Re-derive parameters and update CAD
+        try:
+            solve_extend_basic_input_dict(self.input_dict)
+        except Exception:
+            pass
         self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
 
     #---------------------------------Docking-Icons-Functionality-START----------------------------------------------
