@@ -1057,8 +1057,13 @@ class BridgeGrillageModel:
         try:
             if vehicle_type == 'ClassA':
                 return float(sum(IRC6_2017.cl_204_1_ClassA_vehicle()['wheel_loads'])) / kN
-            elif vehicle_type == 'Class70R':
+            elif vehicle_type in ('Class70R', 'Class70R_Wheeled'):
                 return float(sum(IRC6_2017.cl_204_1_Class70R_vehicle_wheel()['wheel_loads'])) / kN
+            elif vehicle_type == 'Class70R_Tracked':
+                track_data = IRC6_2017.cl_204_1_Class70R_vehicle_track()
+                # 7.66 t/m * 4.57 m * 2 tracks = 70.0124 t
+                total_load_N = track_data['wheel_loads_udl'] * 4.57 * 2
+                return float(total_load_N) / kN
         except Exception:
             pass
         return 0.0

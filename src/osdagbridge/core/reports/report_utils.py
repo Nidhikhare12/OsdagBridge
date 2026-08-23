@@ -22,6 +22,8 @@ def _tex(value):
                     ('~', r'\textasciitilde{}'), ('^', r'\^{}')]:
         s = s.replace(ch, esc)
     s = s.replace(':', r':\allowbreak{}')
+    s = s.replace('≤', r'$\leq$')
+    s = s.replace('≥', r'$\geq$')
     return s
 
 

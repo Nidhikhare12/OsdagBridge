@@ -55,7 +55,7 @@ from osdagbridge.core.utils.common import (
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value
 
-def ch3_loads(input_dict):
+def ch3_loads(input_dict, bridge):
     # Live load vehicle names mapping
     vehicles = []
     if input_dict.get(KEY_LL_IRC_CLASS_A):
@@ -141,6 +141,98 @@ def ch3_loads(input_dict):
         fp_str = f"{fp_value} kN/m²"
     else:
         fp_str = "N/A"
+
+    # ------------------------------------------------------------------
+    # Requirement 3 (Phase 2): per-vehicle live load table
+    # ------------------------------------------------------------------
+    # Each entry: (selected?, display name, impact-factor formula tag,
+    # braking load considered?). "class_a" uses IRC6 Cl.208.2; the heavy
+    # vehicle classes (70R/AA variants) use Cl.208.3. Class SV and Class
+    # Fatigue are excluded from braking consideration, matching standard
+    # IRC 6 practice (braking is evaluated for the design traffic loads,
+    # not special/fatigue vehicles) and the example table structure given
+    # in the spec (Class SV -> Braking Load Considered = No).
+    #
+    # NOTE: per-vehicle "Total Load (kN)" is not available from any of the
+    # KEY_LL_* input keys currently imported here — those only carry
+    # selection booleans, not the standard IRC 6 axle-load totals for each
+    # vehicle class. That total is presumably computed elsewhere in the
+    # OsdagBridge core (grillage/analysis output) rather than stored on
+    # input_dict. Wire the correct source in once identified; until then
+    # the column renders "See IRC 6" rather than a fabricated number.
+    _vehicle_defs = [
+        (KEY_LL_IRC_CLASS_A,      "Class A",              "class_a", True),
+        (KEY_LL_IRC_70R_WHEELED,  "Class 70R (Wheeled)",  "aa_70r",  True),
+        (KEY_LL_IRC_70R_TRACKED,  "Class 70R (Tracked)",  "aa_70r",  True),
+        (KEY_LL_IRC_AA_WHEELED,   "Class AA (Wheeled)",   "aa_70r",  True),
+        (KEY_LL_IRC_AA_TRACKED,   "Class AA (Tracked)",   "aa_70r",  True),
+        (KEY_LL_IRC_70R_BOGIE,    "Class 70R (Bogie)",    "aa_70r",  True),
+        (KEY_LL_IRC_CLASS_SV,     "Class SV",             None,      False),
+        (KEY_LL_IRC_CLASS_FATIGUE,"Class Fatigue",        None,      False),
+    ]
+
+    def _impact_factor_for(tag):
+        if tag is None or span in (None, ""):
+            return "N/A"
+        try:
+            span_m = float(span)
+            if tag == "class_a":
+                im = IRC6_2017.cl_208_2_impact_factor(span_m)
+            else:
+                im = IRC6_2017.cl_208_3_impact_factor(span_m)
+            return f"{1.0 + im:.3f}"
+        except Exception:
+            return "N/A"
+
+    _vehicle_weight_map = {
+        KEY_LL_IRC_CLASS_A: "ClassA",
+        KEY_LL_IRC_70R_WHEELED: "Class70R",
+        KEY_LL_IRC_70R_TRACKED: "Class70R_Tracked",
+    }
+
+    vehicle_rows = []
+    for key, name, if_tag, braking in _vehicle_defs:
+        if not input_dict.get(key):
+            continue
+        if_str = _impact_factor_for(if_tag)
+        considered_str = "Yes" if braking else "No"
+        value_str = braking_force_str if braking else r"---"
+        # Eccentricity of the braking force above deck level is a fixed
+        # IRC 6 provision (Cl. 211.2/214), not something computed in this
+        # module — left as N/A pending the correct source key, rather than
+        # hardcoding a number here.
+        ecc_str = "N/A" if braking else r"---"
+        
+        weight_key = _vehicle_weight_map.get(key)
+        if weight_key:
+            weight_val = bridge._vehicle_total_weight_kN(weight_key)
+            weight_str = f"{weight_val:.1f}"
+        else:
+            weight_str = r"\makecell{N/A\\\textnormal{not impl.}}"
+
+        vehicle_rows.append(
+            _tex(name) + r" & " + weight_str + r" & " + if_str + r" & " + considered_str
+            + r" & " + value_str + r" & " + ecc_str + r" \\[6pt]" + "\n" + r"\hline"
+        )
+
+    # Custom vehicles (if any) are listed with the fields we can't compute
+    # for an arbitrary user-defined vehicle shown as N/A.
+    custom = input_dict.get(KEY_LL_CUSTOM_VEHICLES)
+    if custom and isinstance(custom, list):
+        for c in custom:
+            if isinstance(c, dict) and c.get('name'):
+                cname = c['name']
+            elif isinstance(c, str):
+                cname = c
+            else:
+                continue
+            vehicle_rows.append(
+                _tex(cname) + r" & \makecell{N/A\\\textnormal{not impl.}} & N/A & N/A & N/A & N/A \\[6pt]" + "\n" + r"\hline"
+            )
+
+    vehicle_rows_str = "\n".join(vehicle_rows) if vehicle_rows else (
+        r"\multicolumn{6}{c}{\textit{No vehicle classes selected}} \\[6pt]" + "\n" + r"\hline"
+    )
 
     # Vz / Pz — prefer stored computed values; fall back to IRC6 Table 12
     vz_val = input_dict.get(KEY_WL_HOURLY_MEAN_WIND)
@@ -300,18 +392,28 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
+\begingroup
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{|L{3.2cm}|C{2.0cm}|C{2.0cm}|C{2.2cm}|C{1.8cm}|C{1.8cm}|}
+\caption{\textbf{Vehicle Live Loads (LL)}}
+\hline
+\multirow{2}{*}{\textbf{Vehicle}} & \multirow{2}{*}{\makecell{\textbf{Total}\\\textbf{Load (kN)}}} & \multirow{2}{*}{\makecell{\textbf{Impact}\\\textbf{Factor}}} & \multicolumn{3}{c|}{\textbf{Braking Load}} \\
+\cline{4-6}
+ & & & \textbf{Considered?} & \textbf{Value} & \textbf{Eccentricity} \\
+\hline
+""" + vehicle_rows_str + r"""
+\end{longtable}
+\endgroup
+
+\vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}
+\caption{\textbf{Footpath Live Load}}
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
+\textnormal{Footpath Provided} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_MODE)) + r""" \\[6pt]
 \hline
-\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
-\hline
-\textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
-\hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Footpath Live Load Pressure} & """ + _tex(fp_str) + r""" \\[6pt]
 \hline
 \end{longtable}
 
@@ -392,5 +494,3 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \noindent\textit{Note: All IRC 6 load combinations are auto-generated by OsdagBridge. User-defined custom combinations, if any, are appended.}
 """
-
-
