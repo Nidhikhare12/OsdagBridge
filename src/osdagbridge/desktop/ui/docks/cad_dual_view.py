@@ -5,7 +5,7 @@ Author: Arushi
 """
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QScrollArea, QHBoxLayout, QPushButton, QLabel
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Signal
 from .cad_cross_section import CrossSectionCADWidget
 from .cad_top_view import TopViewCADWidget
 from osdagbridge.core.utils.common import *
@@ -17,6 +17,8 @@ from osdagbridge.desktop.cad.irc5_geometry import (
 
 class BridgeDualCADWidget(QWidget):
     """Split view widget showing both cross-section and top view with individual controls"""
+
+    cad_parameter_edited = Signal(str, float)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -71,11 +73,36 @@ class BridgeDualCADWidget(QWidget):
         
         self.splitter.addWidget(self.top_scroll)
         
+        # Connect subview parameter edits to keep views synchronized and notify parent
+        self.cross_section_widget.cad_parameter_edited.connect(self._on_subview_cad_parameter_edited)
+        self.top_view_widget.cad_parameter_edited.connect(self._on_subview_cad_parameter_edited)
+
         # Set equal sizes for both views
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
         
         layout.addWidget(self.splitter)
+
+    def _on_subview_cad_parameter_edited(self, param_key: str, value: float):
+        """Synchronize parameter across CAD subviews and emit dual widget signal."""
+        if param_key == KEY_SPAN:
+            self.top_view_widget.params['span_length'] = value * 1000.0
+            self.top_view_widget.update()
+        elif param_key == KEY_TS_GIRDER_SPACING:
+            self.top_view_widget.params['girder_spacing'] = value * 1000.0
+            self.cross_section_widget.params['girder_spacing'] = value * 1000.0
+            self.top_view_widget.update()
+            self.cross_section_widget.update()
+        elif param_key == KEY_CARRIAGEWAY_WIDTH:
+            self.top_view_widget.params['carriageway_width'] = value * 1000.0
+            self.cross_section_widget.params['carriageway_width'] = value * 1000.0
+            self.top_view_widget.update()
+            self.cross_section_widget.update()
+        elif param_key == KEY_TS_DECK_THICKNESS:
+            self.cross_section_widget.params['deck_thickness'] = value
+            self.cross_section_widget.update()
+
+        self.cad_parameter_edited.emit(param_key, value)
     
     def set_cross_section_visible(self, visible):
         self.cross_visible = visible

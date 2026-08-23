@@ -43,6 +43,13 @@ TYPE_SEGMENT_TABLE  = "segment_table"
 TYPE_ADAPTIVE = "adaptive"
 TYPE_ALL_CUSTOM = "all_custom"   # combo [All, Custom] where Custom opens popup dialog
 
+VALUE_CUSTOM = "Custom"
+KEY_CUSTOM = "Custom"
+
+# Transverse member keys for selection & plotting
+KEY_TRANSVERSE_MEMBERS = "Transverse Members"
+DISP_TRANSVERSE_MEMBERS = "Transverse Members"
+
 # ========== Type of Fields End ==========================================================
 
 # Keys for inputs (consistent dot notation for object names)

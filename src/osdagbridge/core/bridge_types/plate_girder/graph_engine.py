@@ -823,14 +823,17 @@ class GirderGraphEngine:
         """
         df = self._call_node_coords(girder=girder)
         if df is not None and not df.empty:
-            xs = df["X (m)"].to_numpy()
-            if len(xs) == n_nodes:
-                return xs
+            coord_col = "Z (m)" if ("Z (m)" in df.columns and girder in ("Transverse Members", "transverse_members")) else "X (m)"
+            coords = df[coord_col].to_numpy()
+            if girder in ("Transverse Members", "transverse_members"):
+                coords = coords - coords.min()
+            if len(coords) == n_nodes:
+                return coords
             else:
                 logger.warning(
                     "_build_x_array: node count mismatch (%d vs %d); "
                     "falling back to linspace",
-                    len(xs), n_nodes,
+                    len(coords), n_nodes,
                 )
 
         # Fallback to older length approximation
@@ -1019,9 +1022,17 @@ class GirderGraphEngine:
         column of the returned DataFrame.
         """
         df = self._call_girder_paths()
-        if df is None:
-            return []
-        return df["Girder"].tolist()
+        keys = []
+        if df is not None and not df.empty:
+            keys = df["Girder"].tolist()
+        if self._result_handler is not None and hasattr(self._result_handler, "build_transverse_members"):
+            try:
+                t_map = self._result_handler.build_transverse_members()
+                if t_map.get("elements"):
+                    keys.append("Transverse Members")
+            except Exception:
+                pass
+        return keys
 
     def get_classified_loadcases(self) -> dict:
         """

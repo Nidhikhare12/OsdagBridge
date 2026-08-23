@@ -373,10 +373,31 @@ def _add_coordinate_triad(ax, nodes, scale=0.12, eng_scale: float = 1.0):
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
     ax.set_zlim(zlim)
-    
+
+from osdagbridge.core.utils.common import DISP_TRANSVERSE_MEMBERS
+
+def _find_transverse_elements(nodes, members, z_tol=1e-3):
+    """Find all transverse member elements."""
+    transverse_elems = []
+    for ele, (n1, n2) in members.items():
+        if n1 not in nodes or n2 not in nodes:
+            continue
+        c1, c2 = nodes[n1], nodes[n2]
+        if not (abs(c1[2] - c2[2]) < z_tol and abs(c1[1] - c2[1]) < z_tol):
+            transverse_elems.append(ele)
+    return transverse_elems
+
 def _get_bg_nodes_members(nodes, members, edge_dist, selected_girder, girder_items):
     if selected_girder == "All":
         return nodes, members
+    if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS):
+        t_elems = _find_transverse_elements(nodes, members)
+        filtered_members = {e: members[e] for e in t_elems if e in members}
+        filtered_nodes = {}
+        for e, (n1, n2) in filtered_members.items():
+            filtered_nodes[n1] = nodes[n1]
+            filtered_nodes[n2] = nodes[n2]
+        return filtered_nodes, filtered_members
     filtered_nodes = {}
     filtered_members = {}
     for i, (z_val, elems) in enumerate(girder_items):
@@ -391,6 +412,8 @@ def _get_bg_nodes_members(nodes, members, edge_dist, selected_girder, girder_ite
 
 def _add_supports(ax, nodes, members, edge_dist=0.0, selected_girder="All"):
     """Draw pin (diamond) and roller (circle) supports at the ends of girders."""
+    if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS):
+        return
     girders = _find_girders(nodes, members)
     girder_items = list(girders.items())
     n_girders = len(girder_items)
@@ -706,13 +729,31 @@ def build_figure_sfd(ds, force_key, nodes, members, edge_dist=0.0, eng_scale=1.0
     global_vmin = 0.0
     global_vmax = 0.0
 
-    for i, (z_val, elems) in enumerate(girder_items):
-        is_edge_beam = edge_dist > 0 and (i == 0 or i == n_girders - 1)
-        girder_name  = f"G{i}" if edge_dist > 0 else f"G{i + 1}"
+    if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS):
+        _z_tol = 1e-3
+        t_lines = defaultdict(list)
+        for ele, (n1, n2) in members.items():
+            if n1 not in nodes or n2 not in nodes:
+                continue
+            c1, c2 = nodes[n1], nodes[n2]
+            if not (abs(c1[2] - c2[2]) < _z_tol and abs(c1[1] - c2[1]) < _z_tol):
+                x_mid = round((c1[0] + c2[0]) / 2.0, 2)
+                t_lines[x_mid].append(ele)
 
-        if selected_girder != "All" and girder_name != selected_girder:
-            continue
+        member_lines = []
+        for x_mid, t_elems in sorted(t_lines.items()):
+            t_elems.sort(key=lambda e: min(nodes[members[e][0]][2], nodes[members[e][1]][2]))
+            member_lines.append((f"X={x_mid:.2f}m", t_elems, False))
+    else:
+        member_lines = []
+        for i, (z_val, elems) in enumerate(girder_items):
+            is_edge_beam = edge_dist > 0 and (i == 0 or i == n_girders - 1)
+            girder_name  = f"G{i}" if edge_dist > 0 else f"G{i + 1}"
+            if selected_girder != "All" and girder_name != selected_girder:
+                continue
+            member_lines.append((girder_name, elems, is_edge_beam))
 
+    for i, (girder_name, elems, is_edge_beam) in enumerate(member_lines):
         xs, ys, zs, Vy, node_ids = _build_polyline(
             elems, members, nodes, comp_i_name, comp_j_name, ds
         )
@@ -725,7 +766,7 @@ def build_figure_sfd(ds, force_key, nodes, members, edge_dist=0.0, eng_scale=1.0
             global_vmax = max(global_vmax, float(np.max(Vy_geom)))
 
         z_base = float(np.mean(zs))
-        z_arr  = np.full_like(xs, z_base)
+        z_arr  = zs if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else np.full_like(xs, z_base)
 
         if is_edge_beam:
             continue
@@ -734,14 +775,17 @@ def build_figure_sfd(ds, force_key, nodes, members, edge_dist=0.0, eng_scale=1.0
                    color=base_color, s=5, zorder=4, depthshade=False, alpha=0.4)
 
         dynamic_zorder = 100 - i  
-        ax.text(xs[0] - (x_range * 0.02), z_base, 0, f"{girder_name}",
-                color="black", fontsize=13, ha="right", va="center",
+        label_x = xs[0] - (x_range * 0.02) if selected_girder not in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else xs[0]
+        label_z = z_base if selected_girder not in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else zs[0]
+        ax.text(label_x, label_z, 0, f"{girder_name}",
+                color="black", fontsize=11 if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else 13,
+                ha="right", va="center",
                 zorder=dynamic_zorder, gid="girder_labels")
 
         x_step  = np.repeat(xs, 2)[1:-1]
+        z_step  = np.repeat(zs, 2)[1:-1] if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else np.full_like(x_step, z_base)
         Vy_step = np.repeat(Vy_geom[:-1], 2)
         y_step  = Vy_step
-        z_step  = np.full_like(x_step, z_base)
 
         ax.plot_surface(
             np.vstack([x_step, x_step]),
@@ -752,8 +796,8 @@ def build_figure_sfd(ds, force_key, nodes, members, edge_dist=0.0, eng_scale=1.0
 
         ax.plot(x_step, z_step, y_step, color=shear_color, linewidth=2.0, zorder=4)
 
-        for xi, vyi_geom in zip(xs, Vy_geom):
-            ax.plot([xi, xi], [z_base, z_base], [0, vyi_geom],
+        for xi, zi, vyi_geom in zip(xs, z_arr, Vy_geom):
+            ax.plot([xi, xi], [zi, zi], [0, vyi_geom],
                     color=shear_color, linewidth=1.2, alpha=0.7, zorder=3)
 
         sc = ax.scatter(xs, z_arr, Vy_geom,
@@ -957,46 +1001,52 @@ def build_figure_bmd(ds, force_key, nodes, members, edge_dist=0.0, eng_scale=1.0
     # Track global scaled z-range for baseline at 0 and cube resizing.
     global_vmin = 0.0
     global_vmax = 0.0
-    for i, (z_val, elems) in enumerate(girder_items_bmd):
-        is_edge_beam = edge_dist > 0 and (i == 0 or i == n_girders_bmd - 1)
-        girder_name  = f"G{i}" if edge_dist > 0 else f"G{i + 1}"
 
-        if selected_girder != "All" and girder_name != selected_girder:
-            continue
+    if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS):
+        _z_tol = 1e-3
+        t_lines = defaultdict(list)
+        for ele, (n1, n2) in members.items():
+            if n1 not in nodes or n2 not in nodes:
+                continue
+            c1, c2 = nodes[n1], nodes[n2]
+            if not (abs(c1[2] - c2[2]) < _z_tol and abs(c1[1] - c2[1]) < _z_tol):
+                x_mid = round((c1[0] + c2[0]) / 2.0, 2)
+                t_lines[x_mid].append(ele)
 
+        member_lines = []
+        for x_mid, t_elems in sorted(t_lines.items()):
+            t_elems.sort(key=lambda e: min(nodes[members[e][0]][2], nodes[members[e][1]][2]))
+            member_lines.append((f"X={x_mid:.2f}m", t_elems, False))
+    else:
+        member_lines = []
+        for i, (z_val, elems) in enumerate(girder_items_bmd):
+            is_edge_beam = edge_dist > 0 and (i == 0 or i == n_girders_bmd - 1)
+            girder_name  = f"G{i}" if edge_dist > 0 else f"G{i + 1}"
+            if selected_girder != "All" and girder_name != selected_girder:
+                continue
+            member_lines.append((girder_name, elems, is_edge_beam))
+
+    for i, (girder_name, elems, is_edge_beam) in enumerate(member_lines):
         xs, ys, zs, Mz, node_ids = _build_polyline(
             elems, members, nodes, comp_i_name, comp_j_name, ds
         )
 
         z_base = float(np.mean(zs))
-        z_arr  = np.full_like(xs, z_base)
+        z_arr  = zs if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else np.full_like(xs, z_base)
 
-        # baseline (solid) - grey for edge beams, green for structural
-        # ax.plot([xs[0], xs[-1]], [z_base, z_base], [0, 0],
-        #         color="slategrey" if is_edge_beam else base_color,
-        #         linewidth=1.0, alpha=0.3, zorder=3)
-
-        # edge beams: baseline only, no markers / label / force diagram
         if is_edge_beam:
             continue
 
         ax.scatter(xs, z_arr, np.zeros_like(xs),
                    color=base_color, s=5, zorder=4, depthshade=False, alpha=0.4)
 
-        # girder label
-        # 1. Reverse the stack: G1 (i=0) gets zorder 100, G2 gets 99, etc.
         dynamic_zorder = 100 - i  
-        
-
-        ax.text(xs[0] - (x_range * 0.02), z_base, 0, f"{girder_name}",
-                color="black", fontsize=13, ha="right", va="center",
+        label_x = xs[0] - (x_range * 0.02) if selected_girder not in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else xs[0]
+        label_z = z_base if selected_girder not in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else zs[0]
+        ax.text(label_x, label_z, 0, f"{girder_name}",
+                color="black", fontsize=11 if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else 13,
+                ha="right", va="center",
                 zorder=dynamic_zorder, gid="girder_labels")
-
-        # val_range = max(Mz) - min(Mz)
-        # if val_range == 0:
-        #     moment_scale = 1.0 if max(Mz) == 0 else 0.1 * abs((max(xs) - min(xs)) / max(Mz))
-        # else:
-        #     moment_scale = 0.1 * abs((max(xs) - min(xs)) / val_range)
 
         y_plot = -Mz * v_scale   # negate: positive moment plots downward
         if y_plot.size:
@@ -1375,13 +1425,31 @@ def build_figure_deflection(ds, disp_key, nodes, members, edge_dist=0.0, eng_sca
     global_vmin = 0.0
     global_vmax = 0.0
 
-    for i, (z_val, elems) in enumerate(girder_items):
-        is_edge_beam = edge_dist > 0 and (i == 0 or i == n_girders - 1)
-        girder_name  = f"G{i}" if edge_dist > 0 else f"G{i + 1}"
+    if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS):
+        _z_tol = 1e-3
+        t_lines = defaultdict(list)
+        for ele, (n1, n2) in members.items():
+            if n1 not in nodes or n2 not in nodes:
+                continue
+            c1, c2 = nodes[n1], nodes[n2]
+            if not (abs(c1[2] - c2[2]) < _z_tol and abs(c1[1] - c2[1]) < _z_tol):
+                x_mid = round((c1[0] + c2[0]) / 2.0, 2)
+                t_lines[x_mid].append(ele)
 
-        if selected_girder != "All" and girder_name != selected_girder:
-            continue
+        member_lines = []
+        for x_mid, t_elems in sorted(t_lines.items()):
+            t_elems.sort(key=lambda e: min(nodes[members[e][0]][2], nodes[members[e][1]][2]))
+            member_lines.append((f"X={x_mid:.2f}m", t_elems, False))
+    else:
+        member_lines = []
+        for i, (z_val, elems) in enumerate(girder_items):
+            is_edge_beam = edge_dist > 0 and (i == 0 or i == n_girders - 1)
+            girder_name  = f"G{i}" if edge_dist > 0 else f"G{i + 1}"
+            if selected_girder != "All" and girder_name != selected_girder:
+                continue
+            member_lines.append((girder_name, elems, is_edge_beam))
 
+    for i, (girder_name, elems, is_edge_beam) in enumerate(member_lines):
         node_list = [members[e][0] for e in elems] + [members[elems[-1]][1]]
         xs = np.array([nodes[n][0] for n in node_list])
         zs = np.array([nodes[n][2] for n in node_list])
@@ -1389,23 +1457,17 @@ def build_figure_deflection(ds, disp_key, nodes, members, edge_dist=0.0, eng_sca
         # Fetch from our safe dictionary (defaults to 0.0 if missing)
         vals  = np.array([disp_dict.get(str(int(n)), 0.0) for n in node_list])
         z_base = float(np.mean(zs))
-        z_arr  = np.full_like(xs, z_base)
-
-        # Draw Baseline
-        # ax.plot([xs[0], xs[-1]], [z_base, z_base], [0, 0],
-        #         color="slategrey" if is_edge_beam else base_color,
-        #         linewidth=1.0, alpha=0.3, zorder=3)
+        z_arr  = zs if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else np.full_like(xs, z_base)
 
         if is_edge_beam:
             continue
 
-        # Draw Girder Label
-        # 1. Reverse the stack: G1 (i=0) gets zorder 100, G2 gets 99, etc.
         dynamic_zorder = 100 - i  
-        
-
-        ax.text(xs[0] - (x_range * 0.02), z_base, 0, f"{girder_name}",
-                color="black", fontsize=13, ha="right", va="center",
+        label_x = xs[0] - (x_range * 0.02) if selected_girder not in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else xs[0]
+        label_z = z_base if selected_girder not in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else zs[0]
+        ax.text(label_x, label_z, 0, f"{girder_name}",
+                color="black", fontsize=11 if selected_girder in ("Transverse Members", "transverse_members", DISP_TRANSVERSE_MEMBERS) else 13,
+                ha="right", va="center",
                 zorder=dynamic_zorder, gid="girder_labels")
 
         y_plot = vals * v_scale
