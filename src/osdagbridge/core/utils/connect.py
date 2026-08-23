@@ -34,12 +34,16 @@ from osdag_core.design_type.compression_member.compression_bolted import Compres
 from osdag_core.design_type.compression_member.compression_welded import Compression_welded
 from osdag_core.design_type.tension_member.tension_bolted import Tension_bolted
 from osdag_core.design_type.tension_member.tension_welded import Tension_welded
+from osdag_core.design_type.flexural_member.flexure import Flexure
+from osdag_core.design_type.plate_girder.weldedPlateGirder import PlateGirderWelded
 
 MODULE_CLASS_MAP = {
     "Tension Member Design - Bolted to End Gusset": Tension_bolted,
     "Tension Member Design - Welded to End Gusset": Tension_welded,
     "Struts Bolted to End Gusset": Compression_bolted,
     "Struts Welded to End Gusset": Compression_welded,
+    "Flexural Members - Simply Supported": Flexure,
+    "PLATE GIRDER": PlateGirderWelded,
 }
 
 # OUTPUT SUPPRESSION
@@ -73,6 +77,26 @@ def run_calculation(design_dict: Dict[str, Any], quiet: bool = True) -> Dict[str
 
         module_instance = module_class()
         module_instance.set_osdaglogger(None, None)
+        # Flexure / plate-girder modules call self.logger.info without a null check.
+        # set_osdaglogger(None, None) leaves logger as None — install a no-op sink.
+        if getattr(module_instance, "logger", None) is None:
+            class _SilentOsdagLogger:
+                def info(self, *args, **kwargs):
+                    pass
+
+                def warning(self, *args, **kwargs):
+                    pass
+
+                def error(self, *args, **kwargs):
+                    pass
+
+                def debug(self, *args, **kwargs):
+                    pass
+
+                def setLevel(self, *args, **kwargs):
+                    pass
+
+            module_instance.logger = _SilentOsdagLogger()
 
         validation_errors = module_instance.func_for_validation(design_dict)
 
@@ -352,6 +376,8 @@ design_dict_tension_bolted = {
 }
 
 # TENSION WELDED
+# Member.Designation is synced from the bolted catalogue below so Osdag can
+# pick a feasible section under real bridge loads (tiny 2-section lists fail).
 design_dict_tension_welded = {
     "Conn_Location": "Long Leg",
     "Connector.Material": "E 165 (Fe 290)",
@@ -359,10 +385,7 @@ design_dict_tension_welded = {
     "Design.Design_Method": "Limit State Design",
     "Load.Axial": "5",
     "Material": "E 165 (Fe 290)",
-    "Member.Designation": [
-        "20 x 20 x 3",
-        "25 x 25 x 3",
-    ],
+    "Member.Designation": [],
     "Member.Length": "500",
     "Member.Material": "E 165 (Fe 290)",
     "Member.Profile": "Angles",
@@ -600,7 +623,75 @@ design_dict_struts_bolted = {
     "is_leg_loaded": "Yes",
 }
 
+# FLEXURE — simply supported (ED Rolled Beam)
+# Keys mirror osdag_core Flexure.set_input_values / Common KEY_* names.
+design_dict_flexure_simply_supported = {
+    "Module": "Flexural Members - Simply Supported",
+    "Member.Profile": "Beams and Columns",
+    "Member.Designation": [],
+    "Material": "E 250 (Fe 410 W)A",
+    "Member.Material": "E 250 (Fe 410 W)A",
+    "Flexure.Type": "Major Laterally Supported",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Member.Length": "1",
+    "Load.Moment": "1",
+    "Load.Shear": "1",
+    "Length.Overwrite": "NA",
+    "Effective.Area_Para": "1.0",
+    "Optimum.Class": "Yes",
+    "Bearing.Length": "NA",
+    "Loading.Condition": "Normal",
+    "Design.Design_Method": "Limit State Design",
+}
+
+# PLATE GIRDER — welded built-up (ED Welded Beam); Customized plates only.
+# Pref keys match PlateGirderWelded.get_values_for_design_pref / set_input_values.
+# Geometry, Support.Width, Length (mm), Shear/Moment overwritten per call.
+design_dict_plate_girder_welded = {
+    "Module": "PLATE GIRDER",
+    "Material": "E 250 (Fe 410 W)A",
+    "Total.Design_Type": "Customized",
+    "Total.Depth": "",
+    "Web.Thickness": "8",
+    "Topflange.Width": "",
+    "TopFlange.Thickness": "8",
+    "Bottomflange.Width": "",
+    "BottomFlange.Thickness": "8",
+    "Member.Length": "1",
+    "Flexure.Type": "Major Laterally Supported",
+    "Support.Width": "",
+    "Web.Philosophy": "Thin Web with ITS",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Load.Moment": "1",
+    "Load.Shear": "1",
+    "Bendingmoment.shape": "Uniform Loading with pinned-pinned support",
+    "Optimum.Class": "Yes",
+    "Effective.Area_Para": "1.0",
+    "Length.Overwrite": "NA",
+    "Loading.Condition": "Normal",
+    "Design.Design_Method": "Limit State Design",
+    "Member.Fu": "410",
+    "Member.Fy": "240",
+    "S.B.Methods": "Simple Post Critical",
+    "Girder.Symmetry": "Symmetrical",
+    "IntermediateStiffener.Spacing": "NA",
+    "IntermediateStiffener.Data": "No",
+    "IntermediateStiffener.Thickness": "All",
+    "IntermediateStiffener.Thickness.val": ["8", "10", "12", "14", "16"],
+    "LongitudnalStiffener.Data": "No",
+    "LongitudnalStiffner.Thickness": "All",
+    "LongitudnalStiffner.Thickness.val": ["8", "10", "12", "14", "16"],
+    "Structure.Type": "Highway Bridge",
+    "Design.Load": "Live Load",
+    "Member.Options": "Simple Span",
+    "Supporting.Options": "NA",
+    "Deflection.Max": 600,
+}
+
 # STRUTS WELDED
+# Member.Designation synced from bolted catalogue (same reason as tension welded).
 design_dict_struts_welded = {
     " In_Plane": "1.0",
     " Out_of_Plane": "1.0",
@@ -614,10 +705,7 @@ design_dict_struts_welded = {
     "Load.Axial": "9",
     "Load.Type": "Concentric Load",
     "Material": "E 165 (Fe 290)",
-    "Member.Designation": [
-        "25 x 25 x 3",
-        "40 x 40 x 3",
-    ],
+    "Member.Designation": [],
     "Member.Length": "900",
     "Member.Material": "E 165 (Fe 290)",
     "Member.Profile": "Angles",
@@ -627,6 +715,14 @@ design_dict_struts_welded = {
     "Weld.Material_Grade_OverWrite": "290",
     "out_titles_status": [1, 1, 1, 1, 1],
 }
+
+# Reuse the bolted angle catalogue so Welded CB can select the same feasible sizes.
+design_dict_tension_welded["Member.Designation"] = list(
+    design_dict_tension_bolted["Member.Designation"]
+)
+design_dict_struts_welded["Member.Designation"] = list(
+    design_dict_struts_bolted["Member.Designation"]
+)
 
 # STANDALONE TESTING
 if __name__ == "__main__":

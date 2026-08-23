@@ -626,16 +626,24 @@ def _extract_osdag_summary(result: dict) -> dict:
     def _first(*keys):
         for k in keys:
             v = result.get(k)
-            if v is not None:
+            if v is not None and v != "":
                 return v
         return None
+
+    module = str(result.get("Module", "") or "")
+    is_welded = (
+        "Weld.Type" in result
+        or "Weld.Fab" in result
+        or "Weld.Size" in result
+        or "welded" in module.lower()
+    )
 
     return {
         "section":     _first("section_size.designation", "Optimum.Designation"),
         "capacity_kN": _first("Member.tension_capacity",  "Design.Strength"),
         "efficiency":  _first("Member.efficiency",        "Optimum.UR"),
-        "slenderness": result.get("Member.Slenderness"),
-        "connection":  "Welded" if "Weld.Type" in result else "Bolted",
+        "slenderness": _first("Member.Slenderness"),
+        "connection":  "Welded" if is_welded else "Bolted",
     }
 
 

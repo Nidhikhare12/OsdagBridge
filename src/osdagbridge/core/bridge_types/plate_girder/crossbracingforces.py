@@ -123,12 +123,8 @@ Usage
 
 from __future__ import annotations
 
-import copy
-import json
 import math
-import time
 import warnings
-from pathlib import Path
 from typing import Optional
 
 import pandas as pd
@@ -561,106 +557,6 @@ class CrossBracingForces:
     def get_crossbracing_count(self) -> int:
         """Return the number of cross-bracing panels in result_data."""
         return len(self.bridge.result_data.get("crossbracings", []))
-
-    def run_member_designs(self, forces_dict: dict, dev: bool = False) -> dict:
-        """
-        Run Osdag member designs for diagonals and chords.
-
-        Tension and compression are designed separately — a member that sees both
-        must satisfy both checks independently. Section selection is left to the user
-        since sections cannot be compared programmatically.
-
-        Parameters
-        ----------
-        forces_dict : dict
-            Output of get_design_forces_dict().
-        dev : bool
-            If True, dump forces_dict as JSON to tools/crossbracing_forces_dict.json.
-
-        Returns
-        -------
-        dict::
-
-            {
-                "G1-G2": {
-                    "diagonal": {"tension": result_or_None, "compression": result_or_None},
-                    "chord":    {"tension": result_or_None, "compression": result_or_None},
-                },
-                ...
-            }
-        """
-        if dev:
-            out = Path(__file__).parents[5] / "tools" / "crossbracing_forces_dict.json"
-            out.write_text(json.dumps(forces_dict, indent=2))
-            print(f"[CrossBracing] dev dump → {out}")
-
-        from osdagbridge.core.utils.connect import (
-            design_dict_struts_bolted,
-            design_dict_tension_bolted,
-        )
-
-        if not forces_dict or not forces_dict.get("pairs"):
-            return {}
-
-        geom       = forces_dict.get("geometry", {})
-        L_diag_mm  = round(geom.get("diagonal_length_m", 0) * 1000)
-        L_chord_mm = round(geom.get("horiz_proj_m",      0) * 1000)
-
-        # Build a flat job list so all designs run in one parallel batch.
-        # Each job tracks (pair, member_type, force_type) for reassembly.
-        jobs: list[tuple[str, str, str, dict]] = []
-
-        for pair, vals in forces_dict["pairs"].items():
-            for member, L_mm, t_key, c_key in (
-                ("diagonal", L_diag_mm, "diag_tension_kN",  "diag_compression_kN"),
-                ("chord",    L_chord_mm, "chord_tension_kN", "chord_compression_kN"),
-            ):
-                if vals.get(t_key) is not None:
-                    d = copy.deepcopy(design_dict_tension_bolted)
-                    d["Load.Axial"]    = str(float(vals[t_key]))
-                    d["Member.Length"] = str(L_mm)
-                    jobs.append((pair, member, "tension", d))
-
-                if vals.get(c_key) is not None:
-                    d = copy.deepcopy(design_dict_struts_bolted)
-                    d["Load.Axial"]    = str(float(vals[c_key]))
-                    d["Member.Length"] = str(L_mm)
-                    jobs.append((pair, member, "compression", d))
-
-        if not jobs:
-            return {}
-
-        sep = "-" * 60
-        print(
-            f"\n{sep}\n"
-            f"  CROSS BRACING DESIGNS  ({len(forces_dict['pairs'])} pair(s))"
-            f"  diag L={L_diag_mm} mm  chord L={L_chord_mm} mm\n"
-            f"{sep}"
-        )
-        from osdagbridge.core.utils.connect import design_pool, run_calculation
-
-        cpu_count = __import__("os").cpu_count() or 4
-        max_workers = min(cpu_count, len(jobs))
-
-        t0 = time.perf_counter()
-        results: dict = {}
-
-        # spawn-context pool: forking under the design worker thread deadlocks (see design_pool).
-        with design_pool(max_workers) as executor:
-            futures = {
-                executor.submit(run_calculation, j[3]): j
-                for j in jobs
-            }
-            for future, (pair, member, force_type, _) in futures.items():
-                try:
-                    result = future.result()
-                except Exception as exc:
-                    print(f"  [CrossBracing] SKIP {pair} {member} {force_type}: {exc}")
-                    result = None
-                results.setdefault(pair, {}).setdefault(member, {})[force_type] = result
-
-        print(f"  Total time : {time.perf_counter() - t0:.3f}s  |  {len(jobs)} designs\n{sep}")
-        return results
 
     # =======================================================================
     # PRINT / REPORT METHODS
