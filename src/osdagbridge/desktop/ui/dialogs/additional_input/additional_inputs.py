@@ -404,10 +404,6 @@ class AdditionalInputs(QDialog):
             KEY_MP_ED_BRACING_SECTION,           KEY_MP_ED_BRACING_SECTION_DESIGNATION,
             KEY_MP_ED_TOP_CHORD_SECTION_TYPE,    KEY_MP_ED_TOP_CHORD_SECTION_DESIG,
             KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE, KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG,
-            KEY_MP_ED_IS_SECTION,
-            KEY_MP_ED_TOTAL_DEPTH,        KEY_MP_ED_WEB_THICKNESS,
-            KEY_MP_ED_TOP_FLANGE_WIDTH,   KEY_MP_ED_TOP_FLANGE_THICKNESS,
-            KEY_MP_ED_BOTTOM_FLANGE_WIDTH, KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
         ]
         for key in ed_disable_keys:
             w = self.findChild(QWidget, key)

@@ -850,6 +850,7 @@ class IRC22CapacityCalculator:
     def compute_shear_capacity(self) -> dict:
         # Delegate entirely to IRC22_2014.cl_603_3_3_2_plastic_shear_resistance.
         # For a welded I-section (plate girder) the shear area is Av = dw × tw (clear web depth).
+
         res = IRC22_2014.cl_603_3_3_2_plastic_shear_resistance(
             section_type="i_major",
             fyw=self.mat.fy,

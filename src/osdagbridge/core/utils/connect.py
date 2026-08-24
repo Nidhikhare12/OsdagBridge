@@ -34,12 +34,16 @@ from osdag_core.design_type.compression_member.compression_bolted import Compres
 from osdag_core.design_type.compression_member.compression_welded import Compression_welded
 from osdag_core.design_type.tension_member.tension_bolted import Tension_bolted
 from osdag_core.design_type.tension_member.tension_welded import Tension_welded
+from osdag_core.design_type.flexural_member.flexure_othersupp import Flexure_Misc
+from osdag_core.design_type.plate_girder.weldedPlateGirder import PlateGirderWelded
 
 MODULE_CLASS_MAP = {
     "Tension Member Design - Bolted to End Gusset": Tension_bolted,
     "Tension Member Design - Welded to End Gusset": Tension_welded,
     "Struts Bolted to End Gusset": Compression_bolted,
     "Struts Welded to End Gusset": Compression_welded,
+    "Flexural Members - Simply Supported": Flexure_Misc,
+    "Plate Girder": PlateGirderWelded,
 }
 
 # OUTPUT SUPPRESSION
@@ -626,6 +630,71 @@ design_dict_struts_welded = {
     "Weld.Fab": "Shop Weld",
     "Weld.Material_Grade_OverWrite": "290",
     "out_titles_status": [1, 1, 1, 1, 1],
+}
+
+# SIMPLY SUPPORTED BEAM (ROLLED SECTION)
+design_dict_simply_supported = {
+    "Module": "Flexural Members - Simply Supported",
+    "Member.Profile": "Beams and Columns",
+    "Member.Designation": ["MB 200"],
+    "Material": "E 350 (Fe 490)",
+    "Flexure.Type": "Major Laterally Supported",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Member.Length": "1.0",
+    "Load.Moment": "1.0",
+    "Load.Shear": "1.0",
+    "out_titles_status": [1, 1, 1, 1, 1],
+}
+
+# WELDED PLATE GIRDER
+design_dict_plate_girder = {
+    "Module": "Plate Girder",
+    "Material": "E 350 (Fe 490)",
+    "Load.Shear": "1.0",
+    "Load.Moment": "1.0",
+    "Member.Length": "1.0",
+    "Plate.Thickness": "16",
+    "Web.Thickness": "8",
+    "Plate.Width": "300",
+    "Web.Depth": "1000",
+    "Weld.Fab": "Shop Weld",
+    "Weld.Material_Grade_OverWrite": "410",
+    "Weld.Type": "Fillet Weld",
+    "out_titles_status": [1, 1, 1, 1, 1],
+    "Total.Design_Type": "Custom",
+    "Total.Depth": "1000",
+    "Total.Width": "300",
+    "Total.Flange_Thickness": "16",
+    "Total.Web_Thickness": "8",
+    "Topflange.Width": "300",
+    "TopFlange.Thickness": "16",
+    "Bottomflange.Width": "300",
+    "BottomFlange.Thickness": "16",
+    "IntermediateStiffener.Thickness": "Customized",
+    "IntermediateStiffener.Thickness.val": [8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32, 36, 40, 45, 50, 56, 63, 75, 80, 90, 100, 110, 120],
+    "LongitudnalStiffner.Thickness": "Customized",
+    "LongitudnalStiffener.Thickness.val": [8, 10, 12, 16],
+    "Deflection.Max": "800",
+    "Bendingmoment.shape": "Uniform Loading with pinned-pinned support",
+    "Flexure.Type": "Major Laterally Supported",
+    "Loading.Condition": "Uniformly Distributed",
+    "Torsion.restraint": "Fully Restrained",
+    "Warping.restraint": "Both flanges fully restrained",
+    "Optimum.Class": "Semi-Compact",
+    "Web.Philosophy": "Thick Web without ITS",
+    "Support.Width": "100",
+    "IntermediateStiffener.Spacing": "1000",
+    "LongitudnalStiffener.Data": "1",
+    "IntermediateStiffener": "No",
+    "TensionField.Design_Method": "Post Critical Method",
+    "TensionField.Transverse_Stiffener": "No",
+    "Stiffener.Intermediate_Status": "No",
+    "Stiffener.Bearing_Status": "No",
+    "Stiffener.Longitudinal_Status": "No",
+    "Weld.Method": "Shop Weld",
+    "Weld.Fabrication": "Shop Weld",
+    "LongitudnalStiffner.Thickness.val": [8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32, 36, 40, 45, 50, 56, 63, 75, 80, 90, 100, 110, 120]
 }
 
 # STANDALONE TESTING
