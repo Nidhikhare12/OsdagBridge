@@ -1,3 +1,4 @@
+from osdagbridge.core.boq.boq_generator import _fmt_math, _fmt_small
 from osdagbridge.core.reports.report_utils import _fig_embed, render_report_table
 from osdagbridge.core.utils.common import (
     KEY_MP_GIRDER_DEPTH,
@@ -57,11 +58,11 @@ def _fmt_qty(prefix, single_vol, qty, total_vol):
     wt_single = single_vol * _STEEL_DENSITY_T_PER_M3
     wt_total = total_vol * _STEEL_DENSITY_T_PER_M3
     return {
-        f"{prefix}_vol_formula": f"${single_vol:.6f}\\text{{ m}}^3 \\times {qty} = {total_vol:.5f}\\text{{ m}}^3$",
+        f"{prefix}_vol_formula": f"${_fmt_math(single_vol, 6)}\\text{{ m}}^3 \\times {qty} = {_fmt_math(total_vol, 5)}\\text{{ m}}^3$",
         f"{prefix}_qty": str(qty),
-        f"{prefix}_vol_total": f"{total_vol:.2f}",
-        f"{prefix}_wt_single": f"{wt_single:.4f}",
-        f"{prefix}_wt_total": f"{wt_total:.2f}",
+        f"{prefix}_vol_total": _fmt_small(total_vol),
+        f"{prefix}_wt_single": _fmt_small(wt_single, 4),
+        f"{prefix}_wt_total": _fmt_small(wt_total),
     }
 
 
@@ -69,11 +70,11 @@ def _fmt_bracing(prefix, area, length, qty, total_vol):
     wt_single = area * length * _STEEL_DENSITY_T_PER_M3
     wt_total = total_vol * _STEEL_DENSITY_T_PER_M3
     return {
-        f"{prefix}_vol_formula": f"${area:.5f}\\text{{ m}}^2 \\times {length:.2f}\\text{{ m}} = {area * length:.5f}\\text{{ m}}^3$",
+        f"{prefix}_vol_formula": f"${_fmt_math(area, 5)}\\text{{ m}}^2 \\times {_fmt_math(length, 2)}\\text{{ m}} = {_fmt_math(area * length, 5)}\\text{{ m}}^3$",
         f"{prefix}_qty": str(qty),
-        f"{prefix}_vol_total": f"{total_vol:.2f}",
-        f"{prefix}_wt_single": f"{wt_single:.4f}",
-        f"{prefix}_wt_total": f"{wt_total:.2f}",
+        f"{prefix}_vol_total": _fmt_small(total_vol),
+        f"{prefix}_wt_single": _fmt_small(wt_single, 4),
+        f"{prefix}_wt_total": _fmt_small(wt_total),
     }
 
 
@@ -201,7 +202,7 @@ def ch7_quantities(input_dict, output_dict=None, chart_paths=None):
         header_rows=[[_qty_header("S.N."), _qty_header(r"Item\\Description"),
                       _qty_header("Volume"), _qty_header("Quantity"),
                       _qty_header(r"Total\\Volume\\(m$^3$)"),
-                      _qty_header(r"Weight\\(T)"), _qty_header(r"Total\\Weight\\(T)")]],
+                      _qty_header(r"Weight\\(t)"), _qty_header(r"Total\\Weight\\(t)")]],
         widths=[1.0, 3.8, 2.5, 2.1, 1.8, 1.7, 1.8],
         align=["C", "L", "C", "C", "C", "C", "C"],
         longtable=True, escape=False) + chart_figures
