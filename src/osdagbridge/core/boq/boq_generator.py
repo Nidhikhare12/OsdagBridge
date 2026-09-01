@@ -22,9 +22,11 @@ from osdagbridge.core.utils.common import (
     KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS,
     KEY_MP_STIFFENER_NO_BEARING_STIFFENERS,
     KEY_SPAN,
+    KEY_TD_CB_BOTTOM_CHORD_PROP_A,
+    KEY_TD_CB_PROP_A,
+    KEY_TD_CB_TOP_CHORD_PROP_A,
     KEY_TS_NO_OF_GIRDERS,
     KEY_TS_DECK_THICKNESS,
-    KEY_TS_GIRDER_SPACING,
 )
 
 logger = logging.getLogger("osdagbridge.core.boq_generator")
@@ -124,8 +126,8 @@ def _plate_quantities(prefix: str, length_mm: float, thickness_mm: float,
     single_vol = length_m * thickness_m * width_m
     return {
         f"{prefix}_vol_formula": (
-            f"${_fmt_math(length_m, 3)}\\text{{ m}} \\times {_fmt_math(thickness_m, 3)}\\text{{ m}}"
-            f" \\times {_fmt_math(width_m, 3)}\\text{{ m}} = {_fmt_math(single_vol, 6)}\\text{{ m}}^3$"
+            f"${_fmt_math(length_m)}\\text{{ m}} \\times {_fmt_math(thickness_m)}\\text{{ m}}"
+            f" \\times {_fmt_math(width_m)}\\text{{ m}} = {_fmt_math(single_vol)}\\text{{ m}}^3$"
         ),
         f"{prefix}_qty": str(qty),
         f"{prefix}_vol_total": _fmt_small(total_vol),
@@ -205,14 +207,83 @@ def calculate_connection_quantities(girder_vol: float, girder_wt: float) -> dict
     pct = f"{CONNECTION_ALLOWANCE * 100:g}"
     return {
         "connections_vol_formula": (
-            f"${pct}\\% \\times {_fmt_math(girder_vol, 5)}\\text{{ m}}^3"
-            f" = {_fmt_math(conn_vol, 5)}\\text{{ m}}^3$"
+            f"${pct}\\% \\times {_fmt_math(girder_vol)}\\text{{ m}}^3"
+            f" = {_fmt_math(conn_vol)}\\text{{ m}}^3$"
         ),
         "connections_qty": "1",
         "connections_vol_total": _fmt_small(conn_vol),
         "connections_wt_single": _fmt_small(conn_wt),
         "connections_wt_total": _fmt_small(conn_wt),
     }
+
+
+def _bracing_member_quantities(prefix: str, area: float, length: float,
+                               qty: int, total_vol: float) -> dict:
+    """Take-off entries for one cross-bracing member type.
+
+    The volume column carries a single member (its section area by its own
+    length); the panel count belongs in the quantity column.
+    """
+    single_vol = area * length
+    return {
+        f"{prefix}_vol_formula": (
+            f"${_fmt_math(area)}\\text{{ m}}^2 \\times {_fmt_math(length)}"
+            f"\\text{{ m}} = {_fmt_math(single_vol)}\\text{{ m}}^3$"
+        ),
+        f"{prefix}_qty": str(qty),
+        f"{prefix}_vol_total": _fmt_small(total_vol),
+        f"{prefix}_wt_single": _fmt_small(single_vol * STEEL_DENSITY_T_PER_M3),
+        f"{prefix}_wt_total": _fmt_small(total_vol * STEEL_DENSITY_T_PER_M3),
+    }
+
+
+def calculate_bracing_quantities(outputs: dict) -> dict:
+    """Cross-bracing take-off, summed over every girder pair.
+
+    Section areas, member lengths and panel counts are read per pair from the
+    cross-bracing design output, so pairs carrying different sections are added
+    up correctly. A chord switched off for a pair contributes nothing to that
+    chord's row; the diagonals come two per panel.
+    """
+    cb_forces = (outputs or {}).get("crossbracing_forces_dict", {}) or {}
+    geometry = cb_forces.get("geometry", {}) or {}
+    pairs = list((cb_forces.get("pairs", {}) or {}).keys())
+    if not pairs:
+        return {}
+
+    def _member(prefix, area_key, length_key, enabled_map=None, per_panel=1):
+        total_qty = 0
+        total_vol = 0.0
+        first_area = first_length = None
+        for pair in pairs:
+            if enabled_map is not None and not _truth((enabled_map or {}).get(pair)):
+                continue
+            pair_id = pair.replace("-", "")
+            area_cm2 = _num(outputs.get(f"{area_key}.{pair_id}"))
+            geom = geometry.get(pair, {}) or {}
+            length = _num(geom.get(length_key))
+            panels = _num(geom.get("no_of_cross_bracings"))
+            if area_cm2 is None or length is None or panels is None:
+                return {}
+            area = area_cm2 / 10000.0
+            qty = int(panels) * per_panel
+            total_qty += qty
+            total_vol += area * length * qty
+            if first_area is None:
+                first_area, first_length = area, length
+        if not total_qty:
+            return {}
+        return _bracing_member_quantities(prefix, first_area, first_length,
+                                          total_qty, total_vol)
+
+    quantities = {}
+    quantities.update(_member("bracing_top", KEY_TD_CB_TOP_CHORD_PROP_A,
+                              "girder_spacing_m", cb_forces.get("top_chord")))
+    quantities.update(_member("bracing_bot", KEY_TD_CB_BOTTOM_CHORD_PROP_A,
+                              "girder_spacing_m", cb_forces.get("bottom_chord")))
+    quantities.update(_member("bracing_diag", KEY_TD_CB_PROP_A,
+                              "diagonal_length_m", per_panel=2))
+    return quantities
 
 
 def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
@@ -232,19 +303,19 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         "steel_bracing_wt_single": "N.A.",
         "steel_bracing_wt_total": "N.A.",
 
-        "bracing_top_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "bracing_top_vol_formula": "N.A.",
         "bracing_top_qty": "N.A.",
         "bracing_top_vol_total": "N.A.",
         "bracing_top_wt_single": "N.A.",
         "bracing_top_wt_total": "N.A.",
 
-        "bracing_bot_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "bracing_bot_vol_formula": "N.A.",
         "bracing_bot_qty": "N.A.",
         "bracing_bot_vol_total": "N.A.",
         "bracing_bot_wt_single": "N.A.",
         "bracing_bot_wt_total": "N.A.",
 
-        "bracing_diag_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "bracing_diag_vol_formula": "N.A.",
         "bracing_diag_qty": "N.A.",
         "bracing_diag_vol_total": "N.A.",
         "bracing_diag_wt_single": "N.A.",
@@ -317,7 +388,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 deck_thickness = float(deck_thickness_val) / 1000.0  # mm to m
                 if overall_width > 0 and deck_thickness > 0:
                     concrete_vol = span * overall_width * deck_thickness
-                    quantities["concrete_deck_vol_formula"] = f"${_fmt_math(overall_width, 2)}\\text{{ m}} \\times {_fmt_math(deck_thickness, 2)}\\text{{ m}} \\times {_fmt_math(span, 2)}\\text{{ m}} = {_fmt_math(concrete_vol, 2)}\\text{{ m}}^3$"
+                    quantities["concrete_deck_vol_formula"] = f"${_fmt_math(overall_width)}\\text{{ m}} \\times {_fmt_math(deck_thickness)}\\text{{ m}} \\times {_fmt_math(span)}\\text{{ m}} = {_fmt_math(concrete_vol)}\\text{{ m}}^3$"
                     quantities["concrete_deck_qty"] = "1"
                     quantities["concrete_deck_vol_total"] = _fmt_small(concrete_vol)
                     quantities["concrete_deck_wt_single"] = _fmt_small((concrete_vol * 2.5))
@@ -327,7 +398,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                     rebar_wt_kg = concrete_vol * 120.0
                     rebar_vol = rebar_wt_kg / 7850.0
                     rebar_area = rebar_vol / span if span > 0 else 0.0
-                    quantities["rebar_deck_vol_formula"] = f"${_fmt_math(rebar_area, 6)}\\text{{ m}}^2 \\times {_fmt_math(span, 2)}\\text{{ m}} = {_fmt_math(rebar_vol, 5)}\\text{{ m}}^3$"
+                    quantities["rebar_deck_vol_formula"] = f"${_fmt_math(rebar_area)}\\text{{ m}}^2 \\times {_fmt_math(span)}\\text{{ m}} = {_fmt_math(rebar_vol)}\\text{{ m}}^3$"
                     quantities["rebar_deck_qty"] = "1"
                     quantities["rebar_deck_vol_total"] = _fmt_small(rebar_vol)
                     
@@ -374,7 +445,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         total_girder_mass = 0.0
         if girder_area > 0:
             girder_vol = girder_area * span
-            quantities["steel_girders_vol_formula"] = f"${_fmt_math(girder_area, 5)}\\text{{ m}}^2 \\times {_fmt_math(span, 2)}\\text{{ m}} = {_fmt_math(girder_vol, 5)}\\text{{ m}}^3$"
+            quantities["steel_girders_vol_formula"] = f"${_fmt_math(girder_area)}\\text{{ m}}^2 \\times {_fmt_math(span)}\\text{{ m}} = {_fmt_math(girder_vol)}\\text{{ m}}^3$"
             quantities["steel_girders_qty"] = str(n_girders)
             
             # calculate tonnage / volume
@@ -426,7 +497,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             
             stud_area = (3.14159 * (stud_d / 1000.0) ** 2) / 4.0
             stud_vol = stud_area * stud_h
-            quantities["shear_studs_vol_formula"] = f"${_fmt_math(stud_area, 6)}\\text{{ m}}^2 \\times {_fmt_math(stud_h, 3)}\\text{{ m}} = {_fmt_math(stud_vol, 6)}\\text{{ m}}^3$"
+            quantities["shear_studs_vol_formula"] = f"${_fmt_math(stud_area)}\\text{{ m}}^2 \\times {_fmt_math(stud_h)}\\text{{ m}} = {_fmt_math(stud_vol)}\\text{{ m}}^3$"
             quantities["shear_studs_qty"] = str(total_studs)
             
             studs_total_vol = total_studs * stud_vol
@@ -444,99 +515,8 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["shear_studs_wt_single"] = "N.A."
             quantities["shear_studs_wt_total"] = "N.A."
 
-        # 5. Steel Bracings (Cu.m) and Weight (t)
-        # Find bracing section properties from outputs or skip if not present
-        bracing_area = 0.0
-        bracing_len = 0.0
-        top_chord_enabled = True
-        bot_chord_enabled = True
-
-        bracing_area_val = outputs.get("transverse_member_design.cb.section_properties.bracing.G1G2.A")
-        cb_forces = outputs.get("crossbracing_forces_dict")
-        bracing_len_val = None
-        if cb_forces:
-            cb_geom = cb_forces.get("geometry")
-            if cb_geom:
-                bracing_len_val = cb_geom.get("diagonal_length_m")
-
-        if bracing_area_val is not None and bracing_len_val is not None:
-            try:
-                bracing_area = float(bracing_area_val) / 10000.0  # Convert cm² to m²
-                bracing_len = float(bracing_len_val)
-            except Exception:
-                pass
-
-        spacing_val = inputs.get(KEY_TS_GIRDER_SPACING)
-        spacing = 0.0
-        if spacing_val is not None:
-            try:
-                spacing = float(spacing_val)
-            except Exception:
-                pass
-
-        # Only perform calculations if bracing is designed (area and length are positive)
-        if bracing_area > 0.0 and bracing_len > 0.0 and spacing > 0.0:
-            cb_forces = outputs.get("crossbracing_forces_dict", {}) or {}
-            cb_geom = cb_forces.get("geometry", {}) or {}
-            cb_spacing_val = cb_geom.get("cb_spacing_m")
-            cb_spacing = 0.0
-            if cb_spacing_val is not None:
-                try:
-                    cb_spacing = float(cb_spacing_val)
-                except Exception:
-                    pass
-                    
-            if cb_spacing > 0.0:
-                n_panels = max(1, round(span / cb_spacing) - 1)
-            else:
-                n_panels = max(3, int(span / 5.0))
-
-            # 5a. Top Chord
-            top_chord_qty = (n_girders - 1) * n_panels if top_chord_enabled else 0
-            top_chord_vol_single = bracing_area * spacing
-            top_chord_vol_total = top_chord_qty * top_chord_vol_single
-            top_chord_wt_single = top_chord_vol_single * 7.85
-            top_chord_wt_total = top_chord_vol_total * 7.85
-            
-            quantities["bracing_top_vol_formula"] = f"${_fmt_math(bracing_area, 5)}\\text{{ m}}^2 \\times {_fmt_math(spacing, 2)}\\text{{ m}} = {_fmt_math(top_chord_vol_single, 5)}\\text{{ m}}^3$"
-            quantities["bracing_top_qty"] = str(top_chord_qty)
-            quantities["bracing_top_vol_total"] = _fmt_small(top_chord_vol_total) if top_chord_enabled else "0.00"
-            quantities["bracing_top_wt_single"] = _fmt_small(top_chord_wt_single)
-            quantities["bracing_top_wt_total"] = _fmt_small(top_chord_wt_total) if top_chord_enabled else "0.00"
-
-            # 5b. Bottom Chord
-            bot_chord_qty = (n_girders - 1) * n_panels if bot_chord_enabled else 0
-            bot_chord_vol_single = bracing_area * spacing
-            bot_chord_vol_total = bot_chord_qty * bot_chord_vol_single
-            bot_chord_wt_single = bot_chord_vol_single * 7.85
-            bot_chord_wt_total = bot_chord_vol_total * 7.85
-            
-            quantities["bracing_bot_vol_formula"] = f"${_fmt_math(bracing_area, 5)}\\text{{ m}}^2 \\times {_fmt_math(spacing, 2)}\\text{{ m}} = {_fmt_math(bot_chord_vol_single, 5)}\\text{{ m}}^3$"
-            quantities["bracing_bot_qty"] = str(bot_chord_qty)
-            quantities["bracing_bot_vol_total"] = _fmt_small(bot_chord_vol_total) if bot_chord_enabled else "0.00"
-            quantities["bracing_bot_wt_single"] = _fmt_small(bot_chord_wt_single)
-            quantities["bracing_bot_wt_total"] = _fmt_small(bot_chord_wt_total) if bot_chord_enabled else "0.00"
-
-            # 5c. Diagonal
-            diags_qty = (n_girders - 1) * n_panels * 2
-            diag_vol_single = bracing_area * bracing_len
-            diag_vol_total = diags_qty * diag_vol_single
-            diag_wt_single = diag_vol_single * 7.85
-            diag_wt_total = diag_vol_total * 7.85
-            
-            quantities["bracing_diag_vol_formula"] = f"${_fmt_math(bracing_area, 5)}\\text{{ m}}^2 \\times {_fmt_math(bracing_len, 2)}\\text{{ m}} = {_fmt_math(diag_vol_single, 5)}\\text{{ m}}^3$"
-            quantities["bracing_diag_qty"] = str(diags_qty)
-            quantities["bracing_diag_vol_total"] = _fmt_small(diag_vol_total)
-            quantities["bracing_diag_wt_single"] = _fmt_small(diag_wt_single)
-            quantities["bracing_diag_wt_total"] = _fmt_small(diag_wt_total)
-        else:
-            # Keep all bracing volumes, quantities, and weights as default placeholder "N.A."
-            for prefix in ("bracing_top", "bracing_bot", "bracing_diag"):
-                quantities[f"{prefix}_vol_formula"] = "N.A."
-                quantities[f"{prefix}_qty"] = "N.A."
-                quantities[f"{prefix}_vol_total"] = "N.A."
-                quantities[f"{prefix}_wt_single"] = "N.A."
-                quantities[f"{prefix}_wt_total"] = "N.A."
+        # 5. Cross bracing: top chord, bottom chord and diagonals
+        quantities.update(calculate_bracing_quantities(outputs))
 
         # 6. Crash Barrier (Cu.m) and Weight (t)
         # Density is entered in kN/m³ (RCC default 25); convert to T/m³ for the take-off.
@@ -575,7 +555,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
 
         if cb_area > 0.0:
             cb_vol = cb_area * span
-            quantities["crash_barrier_vol_formula"] = f"${_fmt_math(cb_area, 5)}\\text{{ m}}^2 \\times {_fmt_math(span, 2)}\\text{{ m}} = {_fmt_math(cb_vol, 5)}\\text{{ m}}^3$"
+            quantities["crash_barrier_vol_formula"] = f"${_fmt_math(cb_area)}\\text{{ m}}^2 \\times {_fmt_math(span)}\\text{{ m}} = {_fmt_math(cb_vol)}\\text{{ m}}^3$"
             quantities["crash_barrier_qty"] = "2"
 
             cb_total_vol = 2 * cb_vol

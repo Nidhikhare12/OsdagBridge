@@ -415,7 +415,13 @@ class ReportChartGenerator:
         text = str(value or "").strip()
         if not text or text.upper() in {"N.A.", "NA", "N/A", "---"}:
             return 0.0
-        match = re.search(r"-?\d+(?:\.\d+)?", text.replace(",", ""))
+        text = text.replace(",", "")
+        # Take-off figures too small for their column arrive in the LaTeX
+        # scientific form, which the plain scan would read as the mantissa.
+        sci = re.search(r"(-?\d+(?:\.\d+)?)\s*\\times\s*10\^\{(-?\d+)\}", text)
+        if sci:
+            return float(sci.group(1)) * (10.0 ** int(sci.group(2)))
+        match = re.search(r"-?\d+(?:\.\d+)?", text)
         return float(match.group(0)) if match else 0.0
 
     def _first_number(self, quantities, keys):
@@ -557,14 +563,14 @@ class ReportChartGenerator:
                     "material_steel_quantities.pdf",
                     ["Girders", "Cross Bracing", "End Diaphragms"],
                     [self._number(quantities.get("steel_girders_wt_total")), bracing, diaphragm],
-                    "Structural Steel Component", "Weight (T)", "Structural Steel Tonnage",
+                    "Structural Steel Component", "Weight (t)", "Structural Steel Tonnage",
                     ["#3b6ea8", "#6aa84f", "#c27c3a"]),
                 "concrete_rebar": self._save_bar_chart(
                     "material_concrete_rebar_quantities.pdf",
                     ["Concrete Volume", "Reinforcement Steel"],
                     [self._number(quantities.get("concrete_deck_vol_total")),
                      self._number(quantities.get("rebar_deck_wt_total"))],
-                    "Material Quantity Type", r"Quantity (m$^3$ / T)", "Concrete Volume and Reinforcement Steel",
+                    "Material Quantity Type", r"Quantity (m$^3$ / t)", "Concrete Volume and Reinforcement Steel",
                     ["#7a9cc6", "#b55353"]),
             }
         except Exception:
