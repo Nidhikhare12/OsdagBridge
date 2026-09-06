@@ -49,10 +49,11 @@ class BridgeGeometryMapper:
         xdr = self.file.createIfcDirection([float(v) for v in x_dir])
         return self.file.createIfcAxis2Placement2D(pt, xdr)
 
-    def apply_color(self, shape_rep, rgb_tuple):
-        """Applies an RGB color to an IfcShapeRepresentation."""
+    def apply_color(self, shape_rep, rgb_tuple, transparency=0.0):
+        """Applies an RGB color to an IfcShapeRepresentation.
+        transparency: 0.0 = fully opaque, 1.0 = fully transparent."""
         rgb = self.file.createIfcColourRgb(None, float(rgb_tuple[0]), float(rgb_tuple[1]), float(rgb_tuple[2]))
-        surf_style = self.file.createIfcSurfaceStyleRendering(SurfaceColour=rgb)
+        surf_style = self.file.createIfcSurfaceStyleRendering(SurfaceColour=rgb, Transparency=float(transparency))
         surface_style = self.file.createIfcSurfaceStyle(None, "BOTH", [surf_style])
         for item in shape_rep.Items:
             self.file.createIfcStyledItem(item, [surface_style], None)
@@ -92,6 +93,14 @@ class BridgeGeometryMapper:
             WebThickness=float(web_thickness),
             FlangeThickness=float(flange_thickness),
             FilletRadius=None, FlangeEdgeRadius=None, FlangeSlope=None
+        )
+
+    def create_circular_profile(self, radius):
+        """Circular cross-section profile, used for piers and piles."""
+        return self.file.createIfcCircleProfileDef(
+            ProfileType="AREA", ProfileName=None,
+            Position=self.create_axis2placement_2d(),
+            Radius=float(radius)
         )
 
     def create_double_angle_profile(self, leg_h, leg_w, thickness, connection_type):

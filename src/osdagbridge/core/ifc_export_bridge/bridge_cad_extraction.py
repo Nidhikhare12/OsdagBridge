@@ -41,6 +41,30 @@ from osdagbridge.desktop.cad.irc5_geometry import (
     RailingGeometry
 )
 
+# --- Hardcoded substructure defaults (mm), per task spec ---
+PIER_DIAMETER = 800.0
+PIER_HEIGHT = 3000.0
+
+PIER_CAP_TOP_WIDTH = 3000.0
+PIER_CAP_BOTTOM_WIDTH = 1200.0
+PIER_CAP_DEPTH = 600.0
+
+PILE_CAP_LENGTH = 2200.0
+PILE_CAP_WIDTH = 1200.0
+PILE_CAP_DEPTH = 600.0
+
+PILE_DIAMETER = 400.0
+PILE_LENGTH = 5000.0
+PILE_SPACING = 600.0
+N_PILES_PER_CAP = 4  # 2x2 grid
+
+REBAR_MAIN_DIA = 16.0
+REBAR_SPACING_LONGITUDINAL = 150.0
+REBAR_TRANSVERSE_DIA = 8.0
+REBAR_SPACING_TRANSVERSE = 200.0
+REBAR_COVER = 40.0
+
+
 class ExtractedObject:
     """A generic mock object to hold geometric parameters for the GeometryMapper."""
     def __init__(self, obj_class, **kwargs):
@@ -110,6 +134,7 @@ class PlateGirderIFCExtractor:
         # Standard Osdag Railing width is 375mm (0.375m)
         actual_railing_width = 375
         return design_dict, actual_base_width, actual_railing_width
+
     def extract(self):
         design_dict, actual_base_width, actual_railing_width = self._build_design_dict()
         
@@ -125,7 +150,8 @@ class PlateGirderIFCExtractor:
             "cross_bracings": self._extract_cross_bracings(n_girders, spacing),
             "deck_slab": self._extract_deck_slab(total_width),
             "crash_barriers": self._extract_safety_components(total_width, actual_base_width, actual_railing_width),
-            "supports": self._extract_supports(n_girders, spacing)
+            "supports": self._extract_supports(n_girders, spacing),
+            "substructure": self._extract_piers(total_width)
         }
 
     def _solve_girder_layout(self, total_width):
@@ -492,3 +518,102 @@ class PlateGirderIFCExtractor:
                 uDir=[0,1,0], wDir=[0,0,1], ifc_name=f"Cylindrical Support {i+1}"))
                 
         return {"supports_tri": [s for s in supports if s._class_name == "StiffenerPlate"], "supports_cyl": [s for s in supports if s._class_name == "CircularSolid"]}
+
+    def _pier_line_positions(self):
+        """
+        X-positions (longitudinal) of each pier line. Hardcoded to the two
+        span ends for this initial version, matching a simply-supported
+        single-span layout (one pier/abutment at each end).
+        """
+        return [0.0, self.cad.span_length_L]
+
+    def _extract_piers(self, total_width):
+        """
+        Builds pier, pier cap, pile cap, and pile (2x2 grid) geometry for
+        each pier line, plus their reinforcement. Everything stacks downward
+        from the bearing seat (where the girder bottom flange sits).
+        """
+        z_bearing_seat = -(self.cad.girder_section_d / 2.0 + self.cad.girder_section_tf_b)
+        components = []
+
+        for pier_x in self._pier_line_positions():
+            # --- Pier Cap (hammerhead), spans the full deck width in Y ---
+            cap_bottom_z = z_bearing_seat - PIER_CAP_DEPTH
+            components.append(ExtractedObject(
+                "TrapezoidalPrism",
+                top_width=PIER_CAP_TOP_WIDTH, bottom_width=PIER_CAP_BOTTOM_WIDTH,
+                depth=PIER_CAP_DEPTH, length=total_width,
+                top_center=[pier_x, -total_width / 2.0, z_bearing_seat],
+                ifc_name=f"Pier Cap {pier_x:.0f}",
+            ))
+            components.append(ExtractedObject(
+                "RebarMesh",
+                length=PIER_CAP_TOP_WIDTH, width=total_width, depth=PIER_CAP_DEPTH,
+                corner=[pier_x - PIER_CAP_TOP_WIDTH / 2.0, -total_width / 2.0, cap_bottom_z],
+                main_dia=REBAR_MAIN_DIA, spacing=REBAR_SPACING_LONGITUDINAL, cover=REBAR_COVER,
+                ifc_name=f"Pier Cap {pier_x:.0f} Rebar",
+            ))
+
+            # --- Pier (circular column) ---
+            pier_top_z = cap_bottom_z
+            pier_bottom_z = pier_top_z - PIER_HEIGHT
+            components.append(ExtractedObject(
+                "CircularColumn",
+                radius=PIER_DIAMETER / 2.0, height=PIER_HEIGHT,
+                top_center=[pier_x, 0.0, pier_top_z],
+                ifc_name=f"Pier {pier_x:.0f}",
+            ))
+            components.append(ExtractedObject(
+                "RebarCage",
+                radius=PIER_DIAMETER / 2.0, height=PIER_HEIGHT,
+                top_center=[pier_x, 0.0, pier_top_z],
+                main_dia=REBAR_MAIN_DIA, spacing_longitudinal=REBAR_SPACING_LONGITUDINAL,
+                transverse_dia=REBAR_TRANSVERSE_DIA, spacing_transverse=REBAR_SPACING_TRANSVERSE,
+                cover=REBAR_COVER,
+                ifc_name=f"Pier {pier_x:.0f} Rebar",
+            ))
+
+            # --- Pile Cap ---
+            pile_cap_top_z = pier_bottom_z
+            pile_cap_bottom_z = pile_cap_top_z - PILE_CAP_DEPTH
+            components.append(ExtractedObject(
+                "BoxSolid",
+                length=PILE_CAP_LENGTH, width=PILE_CAP_WIDTH, depth=PILE_CAP_DEPTH,
+                top_center=[pier_x, 0.0, pile_cap_top_z],
+                ifc_name=f"Pile Cap {pier_x:.0f}",
+            ))
+            components.append(ExtractedObject(
+                "RebarMesh",
+                length=PILE_CAP_LENGTH, width=PILE_CAP_WIDTH, depth=PILE_CAP_DEPTH,
+                corner=[pier_x - PILE_CAP_LENGTH / 2.0, -PILE_CAP_WIDTH / 2.0, pile_cap_bottom_z],
+                main_dia=REBAR_MAIN_DIA, spacing=REBAR_SPACING_LONGITUDINAL, cover=REBAR_COVER,
+                ifc_name=f"Pile Cap {pier_x:.0f} Rebar",
+            ))
+
+            # --- Piles (2x2 grid) ---
+            pile_top_z = pile_cap_bottom_z
+            n_side = int(round(math.sqrt(N_PILES_PER_CAP)))  # 2 for a 2x2 grid
+            x_offsets = [(-0.5 + i) * PILE_SPACING for i in range(n_side)]
+            y_offsets = [(-0.5 + j) * PILE_SPACING for j in range(n_side)]
+            pile_idx = 0
+            for dx in x_offsets:
+                for dy in y_offsets:
+                    pile_idx += 1
+                    p_top = [pier_x + dx, dy, pile_top_z]
+                    components.append(ExtractedObject(
+                        "CircularColumn",
+                        radius=PILE_DIAMETER / 2.0, height=PILE_LENGTH,
+                        top_center=p_top,
+                        ifc_name=f"Pile {pier_x:.0f}-{pile_idx}",
+                    ))
+                    components.append(ExtractedObject(
+                        "RebarCage",
+                        radius=PILE_DIAMETER / 2.0, height=PILE_LENGTH,
+                        top_center=p_top,
+                        main_dia=REBAR_MAIN_DIA, spacing_longitudinal=REBAR_SPACING_LONGITUDINAL,
+                        transverse_dia=REBAR_TRANSVERSE_DIA, spacing_transverse=REBAR_SPACING_TRANSVERSE,
+                        cover=REBAR_COVER,
+                        ifc_name=f"Pile {pier_x:.0f}-{pile_idx} Rebar",
+                    ))
+
+        return components

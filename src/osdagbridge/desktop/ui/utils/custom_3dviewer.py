@@ -316,6 +316,8 @@ class CustomViewer3d(qtViewer3d):
 
         Padding uses the same 96/physical_dpi factor so it stays proportional.
         """
+        return
+    
         if not hasattr(self, "navcube") or not self.navcube:
             return
         vp_logical = min(self.width(), self.height())
