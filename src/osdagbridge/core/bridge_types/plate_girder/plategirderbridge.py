@@ -15,6 +15,7 @@ from .dto import (
     ISectionDimsDTO,
     ShearStudParamsDTO,
     GirderSegmentDTO,
+    SubstructureParametersDTO,
 )
 from .defaults import (
     BASIC_INPUT_DICT,
@@ -875,7 +876,8 @@ class PlateGirderBridge:
             core.cad_widget = off_canvas
 
             for component in ["Girder", "Stiffener", "Cross Bracing",
-                              "Deck", "Crash Barrier", "Railing", "Median"]:
+                              "Deck", "Crash Barrier", "Railing", "Median",
+                              "Pier", "Pier Cap", "Pile Cap", "Pile", "Rebar"]:
                 try:
                     if hasattr(core, 'display_3dModel'):
                         core.display_3dModel(component)
@@ -3642,6 +3644,8 @@ class PlateGirderBridge:
             girder_segments=[girder_segment],
             girder_segments_dict={},
             stiffeners_dict=stiffeners_dict,
+            # --- Substructure ---
+            substructure=SubstructureParametersDTO(),
         )
 
     def get_ifc_export_parameters(self, input_dict: dict | None = None) -> BridgeParametersDTO:

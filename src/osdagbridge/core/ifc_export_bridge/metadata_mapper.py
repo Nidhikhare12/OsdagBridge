@@ -112,6 +112,83 @@ class BridgeMetadataMapper:
             pset
         )
 
+    def assign_quantities(self, element, qto_name, quantities_dict):
+        """Creates an IfcElementQuantity and links it to element via IfcRelDefinesByProperties."""
+        ifc_quantities = []
+        owner_history = getattr(self.mapper, '_owner_history', None)
+        
+        for key, val in quantities_dict.items():
+            if val is None:
+                continue
+            val_f = float(val)
+            if "Volume" in key:
+                q = self.file.createIfcQuantityVolume(key, None, None, val_f)
+            elif "Weight" in key or "Mass" in key:
+                q = self.file.createIfcQuantityWeight(key, None, None, val_f)
+            elif "Count" in key:
+                q = self.file.createIfcQuantityCount(key, None, None, int(val_f))
+            else:
+                q = self.file.createIfcQuantityLength(key, None, None, val_f)
+            ifc_quantities.append(q)
+            
+        if not ifc_quantities:
+            return
+            
+        qto = self.file.createIfcElementQuantity(
+            create_ifc_guid(),
+            owner_history,
+            qto_name,
+            None,
+            None,
+            ifc_quantities
+        )
+        
+        self.file.createIfcRelDefinesByProperties(
+            create_ifc_guid(),
+            owner_history,
+            None,
+            None,
+            [element],
+            qto
+        )
+
+    def map_substructure(self, element, cad, item):
+        if not cad: return
+        concrete_grade = getattr(cad, "concrete_grade", "M35")
+        
+        props = {
+            "Material": concrete_grade,
+            "ComponentName": item.ifc_name,
+        }
+        db_props = self._lookup_material_properties(concrete_grade, is_steel=False)
+        props.update(db_props)
+        
+        if "Pier Shaft" in item.ifc_name:
+            props["ComponentRole"] = "Pier Shaft"
+            props["Diameter"] = self._to_meters(getattr(item, 'diameter', 800))
+            props["Height"] = self._to_meters(getattr(item, 'height', 3000))
+        elif "Pier Cap" in item.ifc_name:
+            props["ComponentRole"] = "Pier Cap"
+            props["TopWidth"] = self._to_meters(getattr(item, 'top_width', getattr(item, 'length', 3000)))
+            props["BottomWidth"] = self._to_meters(getattr(item, 'bottom_width', getattr(item, 'length', 3000)))
+            props["Depth"] = self._to_meters(getattr(item, 'depth', 600))
+            props["Height"] = self._to_meters(getattr(item, 'height', 600))
+        elif "Pile Cap" in item.ifc_name:
+            props["ComponentRole"] = "Pile Cap Footing"
+            props["LengthX"] = self._to_meters(getattr(item, 'len_x', 2200))
+            props["LengthY"] = self._to_meters(getattr(item, 'len_y', 1200))
+            props["Thickness"] = self._to_meters(getattr(item, 'thickness', 600))
+        elif "Pile" in item.ifc_name:
+            props["ComponentRole"] = "Bored Pile"
+            props["Diameter"] = self._to_meters(getattr(item, 'diameter', 400))
+            props["Length"] = self._to_meters(getattr(item, 'length', 5000))
+        elif "Rebar" in item.ifc_name:
+            props["ComponentRole"] = "Reinforcement Bar"
+            props["Material"] = "Fe500 Steel"
+            props["Diameter"] = self._to_meters(getattr(item, 'diameter', 16))
+            
+        self.assign_metadata(element, props)
+
     def map_girder(self, element, cad, ifc_name):
         if not cad: return
         steel_grade = getattr(cad, "steel_grade", "E 250A")
