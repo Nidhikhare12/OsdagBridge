@@ -93,17 +93,6 @@ class InputDock(QWidget):
         self.main_layout.addWidget(self.left_container)
         self._build_toggle_strip()
 
-        # Disable Optimize button and change it to Custom
-        mode_widget = self.input_widget.findChild(QComboBox, KEY_DESIGN_MODE)
-        if mode_widget:
-            mode_widget.blockSignals(True) # to block call to common_design_func()
-            mode_widget.setCurrentText("Custom")
-            model = mode_widget.model()
-            model.item(0).setEnabled(False)
-            mode_widget.blockSignals(False)
-            self._current_design_mode = "Custom" # Change Design Mode
-            self.parent.input_dict[KEY_DESIGN_MODE] = "Custom" # Change Design Mode in input_dict
-
     # ── Widget lookup ─────────────────────────────────────────────────────────
 
     def _w(self, key) -> QWidget | None:
