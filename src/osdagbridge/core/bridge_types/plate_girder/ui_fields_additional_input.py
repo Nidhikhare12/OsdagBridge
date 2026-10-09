@@ -3280,24 +3280,50 @@ DECK_DESIGN_SUMMARY_SCHEMA = {
             {"label": "Grade of Material:", "data_key": "deck_grade"},
             {"label": "Thickness (mm):", "data_key": "deck_thickness"},
             {"label": "Deck Overhang (mm):", "data_key": "deck_overhang"},
+            {"label": "Reinforcement Yield (MPa):", "data_key": "rebar_fy"},
         ]
     },
     "reinforcement_table": {
         "title": "Reinforcement Details:",
         "columns": [
-            "Position",
-            "Material Yield\nStrength (MPa)",
-            "Diameter (mm)",
-            "Spacing (mm)",
-            "Clear Cover\n(mm)",
-            "Area (mm²)"
+            "Direction", "Zone", "Face",
+            "Bar\n(mm)", "Spacing\n(mm)",
+            "Area, prov.\n(mm²/m)", "Area, req.\n(mm²/m)",
+            "Clear cover\n(mm)", "d\n(mm)",
         ],
         "rows": [
-            {"label": "Top Layer", "prefix": "rebar_top"},
-            {"label": "Bottom Layer", "prefix": "rebar_bottom"},
-            {"label": "Overhang", "prefix": "rebar_overhang", "is_overhang": True}
+            {
+                "direction": "Transverse", "zone": "Full deck", "face": "Bottom",
+                "bar_key": "rebar_bottom_dia",   "spacing_key": "rebar_bottom_spacing",
+                "prov_key": "rebar_bottom_area",  "req_key": "rebar_bottom_area_req",
+                "cover_key": "rebar_bottom_cover", "d_key": "rebar_bottom_d",
+            },
+            {
+                "direction": "Transverse", "zone": "Interior", "face": "Top",
+                "bar_key": "rebar_top_dia",       "spacing_key": "rebar_top_spacing",
+                "prov_key": "rebar_top_area",      "req_key": "rebar_top_area_req",
+                "cover_key": "rebar_top_cover",    "d_key": "rebar_top_d",
+            },
+            {
+                "direction": "Transverse", "zone": "Overhang", "face": "Top", "is_overhang": True,
+                "bar_key": "rebar_overhang_dia",     "spacing_key": "rebar_overhang_spacing",
+                "prov_key": "rebar_overhang_area",    "req_key": "rebar_overhang_area_req",
+                "cover_key": "rebar_overhang_cover",  "d_key": "rebar_overhang_d",
+            },
+            {
+                "direction": "Longitudinal", "zone": "Full deck", "face": "Bottom",
+                "bar_key": "rebar_long_dia",      "spacing_key": "rebar_long_spacing",
+                "prov_key": "rebar_long_area",     "req_key": "rebar_long_area_req",
+                "cover_key": "rebar_long_cover",   "d_key": "rebar_long_bot_d",
+            },
+            {
+                "direction": "Longitudinal", "zone": "Full deck", "face": "Top",
+                "bar_key": "rebar_long_dia",      "spacing_key": "rebar_long_spacing",
+                "prov_key": "rebar_long_area",     "req_key": "rebar_long_area_req",
+                "cover_key": "rebar_top_cover",    "d_key": "rebar_long_top_d",
+            },
         ],
-        "data_suffixes": ["yield", "dia", "spacing", "cover", "area"]
+        "overhang_note": "* Only overhang bars apply at the cantilever zone; independent of interior top bars.",
     },
     "utilization_card": {
         "title": "Utilization Summary:",

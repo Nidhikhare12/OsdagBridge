@@ -223,10 +223,13 @@ class DeckDesign(QDialog):
         card_layout.addWidget(self._create_label(reinf_schema.get("title", "Reinforcement Details:")))
 
         rows_def = reinf_schema.get("rows", [])
-        headers = reinf_schema.get("columns", [])
-        
+        headers  = reinf_schema.get("columns", [])
         num_rows = len(rows_def)
         num_cols = len(headers)
+
+        self._overhang_row_idx = next(
+            (i for i, r in enumerate(rows_def) if r.get("is_overhang")), None
+        )
 
         self.rebar_table = NoScrollTable()
         self.rebar_table.setRowCount(num_rows)
@@ -234,18 +237,23 @@ class DeckDesign(QDialog):
         self.rebar_table.setHorizontalHeaderLabels(headers)
 
         for row, row_def in enumerate(rows_def):
-            type_item = QTableWidgetItem(row_def.get("label", ""))
-            type_item.setFlags(Qt.ItemIsEnabled)
-            type_item.setTextAlignment(Qt.AlignCenter)
-            self.rebar_table.setItem(row, 0, type_item)
-
-            for col in range(1, num_cols):
+            for col, text in enumerate([
+                row_def.get("direction", ""),
+                row_def.get("zone", ""),
+                row_def.get("face", ""),
+            ]):
+                item = QTableWidgetItem(text)
+                item.setFlags(Qt.ItemIsEnabled)
+                item.setTextAlignment(Qt.AlignCenter)
+                self.rebar_table.setItem(row, col, item)
+            for col in range(3, num_cols):
                 cell = QTableWidgetItem("")
                 cell.setFlags(Qt.ItemIsEnabled)
                 cell.setTextAlignment(Qt.AlignCenter)
                 self.rebar_table.setItem(row, col, cell)
 
-        self.rebar_table.setRowHidden(2, True)  # Initially hide overhang, index 2
+        if self._overhang_row_idx is not None:
+            self.rebar_table.setRowHidden(self._overhang_row_idx, True)
 
         h_header = self.rebar_table.horizontalHeader()
         h_header.setSectionResizeMode(QHeaderView.Stretch)
@@ -264,8 +272,9 @@ class DeckDesign(QDialog):
         self.rebar_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.rebar_table.setAlternatingRowColors(True)
 
+        n_non_overhang = sum(1 for r in rows_def if not r.get("is_overhang", False))
         self.rebar_table.setFixedHeight(
-            self._REBAR_HEADER_HEIGHT + 2 * self._REBAR_ROW_HEIGHT + 2
+            self._REBAR_HEADER_HEIGHT + n_non_overhang * self._REBAR_ROW_HEIGHT + 2
         )
 
         self.rebar_table.setStyleSheet("""
@@ -293,6 +302,15 @@ class DeckDesign(QDialog):
         """)
 
         card_layout.addWidget(self.rebar_table)
+
+        self._overhang_note = QLabel(reinf_schema.get("overhang_note", ""))
+        self._overhang_note.setStyleSheet(
+            "font-size: 10px; color: #666666; background: transparent; border: none;"
+        )
+        self._overhang_note.setWordWrap(False)
+        self._overhang_note.setVisible(False)
+        card_layout.addWidget(self._overhang_note)
+
         return card
 
     def _build_utilization_section(self) -> QFrame:
@@ -387,34 +405,42 @@ class DeckDesign(QDialog):
 
         # ── Reinforcement table ───────────────────────────────────────────────
         reinf_schema = self.schema.get("reinforcement_table", {})
-        rows_def = reinf_schema.get("rows", [])
-        data_suffixes = reinf_schema.get("data_suffixes", [])
-        
+        rows_def     = reinf_schema.get("rows", [])
+        _DATA_KEYS   = ["bar_key", "spacing_key", "prov_key", "req_key", "cover_key", "d_key"]
+        _FACE_TAG    = {"Bottom": " (bot)", "Top": " (top)"}
+        _OPP_TAG     = {"Bottom": " (top)", "Top": " (bot)"}  # d is from the opposite (compression) face
         has_overhang = False
 
         for row, row_def in enumerate(rows_def):
-            prefix = row_def.get("prefix", "")
             is_overhang = row_def.get("is_overhang", False)
-            
+            face        = row_def.get("face", "")
+
             if is_overhang:
-                # Check if we have overhang data (e.g. rebar_overhang_dia)
-                test_key = f"{prefix}_{data_suffixes[1]}" if len(data_suffixes) > 1 else f"{prefix}_dia"
-                has_overhang = bool(output_dict.get(test_key, ""))
+                has_overhang = bool(output_dict.get(row_def.get("bar_key", ""), ""))
                 self.rebar_table.setRowHidden(row, not has_overhang)
                 if not has_overhang:
                     continue
 
-            for col, suffix in enumerate(data_suffixes, start=1):
-                value = output_dict.get(f"{prefix}_{suffix}", "")
-                item = QTableWidgetItem(str(value))
+            for col_offset, key_name in enumerate(_DATA_KEYS):
+                data_key = row_def.get(key_name, "")
+                raw      = output_dict.get(data_key, "") if data_key else ""
+                if raw and col_offset == 4:       # cover: measured from the bar's own face
+                    value = f"{raw}{_FACE_TAG.get(face, '')}"
+                elif raw and col_offset == 5:     # d: measured from the opposite (compression) face
+                    value = f"{raw}{_OPP_TAG.get(face, '')}"
+                else:
+                    value = str(raw)
+                item = QTableWidgetItem(value)
                 item.setFlags(Qt.ItemIsEnabled)
                 item.setTextAlignment(Qt.AlignCenter)
-                self.rebar_table.setItem(row, col, item)
+                self.rebar_table.setItem(row, 3 + col_offset, item)
 
         n_visible = sum(1 for r in rows_def if not r.get("is_overhang", False)) + (1 if has_overhang else 0)
         self.rebar_table.setFixedHeight(
             self._REBAR_HEADER_HEIGHT + n_visible * self._REBAR_ROW_HEIGHT + 2
         )
+        if hasattr(self, "_overhang_note"):
+            self._overhang_note.setVisible(has_overhang)
 
         # ── Utilization bars ──────────────────────────────────────────────────
         for key, widgets in self._ur_widgets.items():
