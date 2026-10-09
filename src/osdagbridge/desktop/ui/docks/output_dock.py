@@ -200,15 +200,18 @@ class OutputDock(QWidget):
         return btn_layout
 
     # ── Main build loop ───────────────────────────────────────────────────────
-
+    
     def _build_field_loop(self, root_layout: QVBoxLayout):
         """
         Single flat loop — mirrors InputDock._build_field_loop exactly.
         TYPE_TITLE opens a group (analysis or design).
         Every field after it belongs to that group until the next TYPE_TITLE.
 
-        Inside analysis groups, group_title opens a nested bordered subgroup;
-        group_end closes it after that field.
+        Inside a group, group_title opens a nested bordered subgroup relative
+        to whichever subgroup is currently innermost (or the section itself
+        if none is open) — subgroups can nest to any depth. group_end closes
+        the innermost open subgroup; pass an int to close multiple levels
+        at once (e.g. group_end: 2).
         """
         field_list = []
         if self.backend and hasattr(self.backend, "output_values"):
@@ -217,20 +220,17 @@ class OutputDock(QWidget):
             except Exception:
                 pass
 
-        track        = False
-        group        = None
-        glayout      = None
-        # nested subgroup state
-        subgroup     = None
-        sub_layout   = None
+        track          = False
+        group          = None
+        glayout        = None
+        subgroup_stack: list[tuple[QGroupBox, QVBoxLayout]] = []
 
         def close_group():
-            nonlocal track, group, glayout, subgroup, sub_layout
+            nonlocal track, group, glayout
             if track and group:
                 group.setLayout(glayout)
                 track = False
-            subgroup   = None
-            sub_layout = None
+            subgroup_stack.clear()
 
         for defn in field_list:
             if len(defn) < 7:
@@ -253,18 +253,21 @@ class OutputDock(QWidget):
             if not track:
                 continue
 
-            # ── Open nested subgroup if group_title declared ───────────────
+            # ── Open a nested subgroup if group_title declared ─────────────
             if meta.get("group_title"):
-                subgroup   = QGroupBox(meta["group_title"])
-                subgroup.setStyleSheet(SUBGROUP_STYLE)
-                sub_layout = QVBoxLayout()
-                sub_layout.setContentsMargins(8, 8, 8, 8)
-                sub_layout.setSpacing(6)
-                subgroup.setLayout(sub_layout)
-                glayout.addWidget(subgroup)
+                new_group = QGroupBox(meta["group_title"])
+                new_group.setStyleSheet(SUBGROUP_STYLE)
+                new_layout = QVBoxLayout()
+                new_layout.setContentsMargins(8, 8, 8, 8)
+                new_layout.setSpacing(6)
+                new_group.setLayout(new_layout)
 
-            # Route to subgroup if open, otherwise to section layout
-            target = sub_layout if subgroup is not None else glayout
+                parent_layout = subgroup_stack[-1][1] if subgroup_stack else glayout
+                parent_layout.addWidget(new_group)
+                subgroup_stack.append((new_group, new_layout))
+
+            # Route to the innermost open subgroup, else the section layout
+            target = subgroup_stack[-1][1] if subgroup_stack else glayout
 
             # ── Field dispatch ─────────────────────────────────────────────
             if ftype == TYPE_BUTTON:
@@ -286,19 +289,21 @@ class OutputDock(QWidget):
                 cb = QCheckBox(label or "")
                 cb.setObjectName(key)
                 target.addWidget(cb)
-            
+
             elif ftype == TYPE_PERCENT_BAR:
                 bar = PercentBarWidget(label=label or "", value=0.0)
                 bar.setObjectName(key)
                 target.addWidget(bar)
-            
+
             elif ftype == TYPE_ONLY_BUTTON:
                 target.addLayout(self._make_only_button_row(label, meta))
 
-            # ── Close nested subgroup if group_end declared ────────────────
+            # ── Close nested subgroup(s) if group_end declared ──────────────
             if meta.get("group_end"):
-                subgroup   = None
-                sub_layout = None
+                levels = meta["group_end"] if isinstance(meta["group_end"], int) else 1
+                for _ in range(levels):
+                    if subgroup_stack:
+                        subgroup_stack.pop()
 
         close_group()
 
@@ -586,8 +591,8 @@ class OutputDock(QWidget):
 
     def _require_design(self) -> bool:
         """Return True if a design result is available; show an error and return False otherwise."""
-        input_dock = getattr(self.parent, "input_dock", None)
-        if input_dock is None or not input_dock.is_locked:
+        backend = self.parent.backend
+        if not backend.design_completed:
             CustomMessageBox(
                 title="Run Design",
                 text="Please run the design first.",
@@ -596,7 +601,7 @@ class OutputDock(QWidget):
             return False
         return True
 
-    def _on_report_clicked(self):
+    def _capture_data(self):
         """
         Resolve Qt-side objects then delegate entirely to
         template_page.open_report_dialog(). OutputDock owns
@@ -610,10 +615,7 @@ class OutputDock(QWidget):
         # Find cad_3d_widget
         cad_3d_widget = None
         main_window = self.parent
-        while main_window and not hasattr(main_window, 'cad_3d_widget'):
-            main_window = getattr(main_window, 'parent', None)
-        if main_window and hasattr(main_window, 'cad_3d_widget'):
-            cad_3d_widget = main_window.cad_3d_widget
+        cad_3d_widget = main_window.cad_3d_widget
 
         # Capture figures on the main thread — bytes only, nothing written to disk
         cad_generator = None
@@ -764,14 +766,15 @@ class OutputDock(QWidget):
                 'figure_data': figure_data,
             }
             # figure_data local var goes out of scope here; cad_generator holds the only ref
+            
+        return cad_generator
 
+    def _on_report_clicked(self):
+        """Open the report dialog, passing the CAD generator and captured figures."""
         # Find dialog host and trigger
+        cad_generator = self._capture_data()
         main_window = self.parent
-        while main_window and not hasattr(main_window, 'open_report_dialog'):
-            main_window = getattr(main_window, 'parent', None)
-        if main_window and hasattr(main_window, 'open_report_dialog'):
-            main_window.open_report_dialog(cad_generator=cad_generator)
-
+        main_window.open_report_dialog(cad_generator=cad_generator)
 
     def reset(self):
         """Reset output dock to blank defaults when the lock is released."""
@@ -814,7 +817,9 @@ class OutputDock(QWidget):
                 # (which plots real dataset load cases).
                 if key == KEY_OUTPUT_DOCK_LOAD_COMBINATION:
                     combo.addItem("Design Envelope")
-                combo.setCurrentIndex(0)  # first real load case is default
+                    combo.setCurrentText("Design Envelope")  # default for design dropdown
+                else:
+                    combo.setCurrentIndex(0)  # first real load case is default
                 combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
                 combo.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
                 combo.blockSignals(False)
@@ -937,17 +942,7 @@ class OutputDock(QWidget):
         if not self._require_design():
             return
 
-        input_dict   = getattr(self.parent, "input_dict", {})
-        input_d_values = getattr(self.parent.input_dock, "input_dock_values", {})
-
-        ai_dlg  = getattr(self.parent, '_additional_inputs_dialog', None)
-        ai_dict = getattr(ai_dlg, 'working_input_dict', {}) if ai_dlg else {}
-        out_dict = dict(getattr(self.backend, 'output_dict', {}) or {})
-
-        merged = {**input_dict, **ai_dict, **input_d_values, **out_dict}
-        dlg = GenerateResultsDialog(parent=None, input_dict=merged, bridge = self.backend)
+        output_dict = dict(getattr(self.backend, 'output_dict'))
+        dlg = GenerateResultsDialog(parent=None, output_dict=output_dict)
         dlg.exec()
-
-
-
 

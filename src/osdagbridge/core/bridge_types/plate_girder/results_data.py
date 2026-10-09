@@ -17,6 +17,14 @@ from pathlib import Path
 import openseespy.opensees as ops
 
 from .results_data_post_processing import post_process, FORCE_KEEP, DISP_KEEP
+from .initial_sizing import composite_section_properties
+from osdagbridge.core.utils.codes.irc22_2015 import IRC22_2014
+from osdagbridge.core.utils.common import (
+    KEY_COMP_I,
+    KEY_SD_DEFL_LIVE_RAW,
+    KEY_SD_DEFL_TOTAL_RAW,
+    KEY_SD_DEFL_DL_RAW,
+)
 
 
 class LazyLoadcaseResults(Mapping):
@@ -79,6 +87,133 @@ class LazyLoadcaseResults(Mapping):
         return len(self._keys)
 
 _TOOLS_DIR = Path(__file__).resolve().parents[5] / "tools"
+
+# ---------------- LOADCASE CLASSIFICATION ---------------- #
+
+def classify_loadcases(loadcases) -> dict:
+    """
+    Group load-case names into the buckets the design layer scopes its checks by.
+
+    Purely name-based: the only input is the list of load-case names, which is
+    exactly ``result_data["loadcases"]``. Nothing here touches the xarray
+    dataset, so the designer can classify from ``result_data`` alone, with no
+    analysis-results handler in sight.
+
+    Items are returned *as passed in*, never coerced to ``str``, so callers
+    handing in numpy string scalars from ``ds.coords["Loadcase"]`` get those
+    same objects back and can feed them straight to ``.sel()``.
+
+    Returns a dict of ``{group_name: [load cases]}`` — see the literal at the
+    end for the full key set. Every key is always present (empty list when the
+    model carries no case of that kind).
+    """
+    all_lc = list(loadcases)
+
+    vehicle_static    = []
+    dead_loads        = []
+    sw_cases          = []
+    uls_basic         = []
+    uls_accidental    = []
+    uls_seismic       = []
+    sls_frequent      = []
+    sls_rare          = []
+    sls_quasi         = []
+    envelope_uls      = []
+    envelope_sls      = []
+    dl_ll_cases       = []
+    dl_only_cases     = []
+    fatigue_cases     = []
+
+    for lc in all_lc:
+        name       = str(lc)
+        name_lower = name.lower()
+
+        # Fatigue vehicle (IRC:6 Cl.204.6) — the static "Fatigue" case and every
+        # increment of "Moving Fatigue at global position [...]". Matched early:
+        # these names hit none of the rules below and would otherwise fall through
+        # to the dead-load bucket at the end of the loop.
+        if name_lower.startswith("fatigue") or name_lower.startswith("moving fatigue"):
+            fatigue_cases.append(lc)
+            continue
+
+        # Envelope pseudo-LCs injected by create_envelope_load_case()
+        if name == "Envelope ULS":
+            envelope_uls.append(lc)
+            continue
+        if name == "Envelope SLS":
+            envelope_sls.append(lc)
+            continue
+
+        # ULS combinations (BASIC_*, ACCIDENTAL_*, SEISMIC_*)
+        if name.startswith("BASIC_"):
+            uls_basic.append(lc)
+            continue
+        if name.startswith("ACCIDENTAL_"):
+            uls_accidental.append(lc)
+            continue
+        if name.startswith("SEISMIC_"):
+            uls_seismic.append(lc)
+            continue
+
+        # SLS combinations (SLS_FREQUENT_*, SLS_RARE_*, SLS_QP_*)
+        if name.startswith("SLS_FREQUENT_"):
+            sls_frequent.append(lc)
+            continue
+        if name.startswith("SLS_RARE_"):
+            sls_rare.append(lc)
+            continue
+        if name.startswith("SLS_QP_") or name.startswith("SLS_OP_"):
+            sls_quasi.append(lc)
+            continue
+
+        # Total-service combination from create_dl_ll_combination(), e.g. "1.0 DL + 1.0 LL".
+        # Must be checked before the live-load rule below — it also ends in "LL" and
+        # would otherwise be swallowed into vehicle_static (live-load-only) by mistake.
+        if " DL + " in name and name_lower.endswith("ll"):
+            dl_ll_cases.append(lc)
+            continue
+
+        # Live load: Class A, 70R, and LL envelope cases
+        if name_lower.startswith("case") or "classa" in name_lower or "70r" in name_lower or name_lower.endswith("ll"):
+            vehicle_static.append(lc)
+            continue
+
+        # Self-weight individual case
+        if name == "SW":
+            sw_cases.append(lc)
+            dead_loads.append(lc)
+            continue
+
+        # Dead-load-only combination from create_dead_load_combination() — "X.X DL".
+        # The "+" guard rejects a combination that merely ends in a DL term
+        # ("… + 1.0 DL"), which the name test alone would accept. Also kept in
+        # dead_loads, as SW is, so consumers of "dead" are unaffected.
+        if name.strip().upper().endswith(" DL") and "+" not in name:
+            dl_only_cases.append(lc)
+            dead_loads.append(lc)
+            continue
+
+        # Dead loads (DL, DD, DW, SIDL, etc.)
+        dead_loads.append(lc)
+
+    return {
+        "all":                  all_lc,
+        "dead":                 dead_loads,
+        "vehicle_static":       vehicle_static,
+        "vehicle_moving":       [],          # moving load cases removed from analyser
+        "sw":                   sw_cases,
+        "uls_basic":            uls_basic,
+        "uls_accidental":       uls_accidental,
+        "uls_seismic":          uls_seismic,
+        "sls_frequent":         sls_frequent,
+        "sls_rare":             sls_rare,
+        "sls_quasi_permanent":  sls_quasi,
+        "envelope_uls":         envelope_uls,
+        "envelope_sls":         envelope_sls,
+        "dl_ll":                dl_ll_cases,
+        "dl_only":              dl_only_cases,
+        "fatigue":              fatigue_cases,
+    }
 
 
 def _build_nodes_members() -> tuple[dict, dict]:
@@ -623,19 +758,30 @@ def _dump_crossbracing(data: dict) -> None:
 def _extract_osdag_summary(result: dict) -> dict:
     if not result:
         return {}
-    def _first(*keys):
+    def _first(*keys, as_float: bool = False):
         for k in keys:
             v = result.get(k)
-            if v is not None:
+            if v is not None and v != "":
+                if as_float:
+                    try:
+                        return float(v)
+                    except (TypeError, ValueError):
+                        continue
                 return v
         return None
 
+    # A failed Osdag design returns every value as "" (no section satisfied the
+    # demand), so "no values" alone cannot tell failure apart from "not run" —
+    # run_calculation records the module's own design_status for that.
+    status = result.get("design_status")
+
     return {
-        "section":     _first("section_size.designation", "Optimum.Designation"),
-        "capacity_kN": _first("Member.tension_capacity",  "Design.Strength"),
-        "efficiency":  _first("Member.efficiency",        "Optimum.UR"),
-        "slenderness": result.get("Member.Slenderness"),
+        "section":     _first("section_size.designation", "Optimum.Designation", "Section", "Designation"),
+        "capacity_kN": _first("Member.tension_capacity", "Member.compression_capacity", "Member.capacity", "Design.Strength", "Capacity", as_float=True),
+        "efficiency":  _first("Member.efficiency", "Optimum.UR", "Efficiency", "UR", as_float=True),
+        "slenderness": _first("Member.Slenderness", "Member.slenderness", "Slenderness", as_float=True),
         "connection":  "Welded" if "Weld.Type" in result else "Bolted",
+        "design_status": bool(status) if status is not None else None,
     }
 
 
@@ -665,7 +811,10 @@ def enrich_crossbracing_dump(pair_designs: dict) -> None:
         designs = pair_designs.get(pair, {})
 
         diag_designs  = designs.get("diagonal", {})
-        chord_designs = designs.get("chord",    {})
+        # Top/bottom chords are split into their own entries only when their
+        # sections differ; otherwise both share the single "chord" run.
+        chord_designs = designs.get("chord") or designs.get("top_chord") or \
+                        designs.get("bottom_chord") or {}
 
         if entry.get("critical_tension"):
             entry["critical_tension"]["osdag_diagonal"] = _extract_osdag_summary(
@@ -765,71 +914,138 @@ def build_load_effects_cache(result_handler) -> dict:
     return cache
 
 
-def build_deflections_cache(result_handler) -> dict:
+def composite_stiffness_props(config) -> tuple[dict, float]:
+    """Short-term composite section properties + the composite/steel stiffness ratio.
+
+    The grillage is modelled on the BARE STEEL section, so every displacement it
+    reports is a steel-basis value. Dividing by ``I_comp / I_steel`` refers it to
+    the stiffer composite section that actually carries the load — an extraction
+    correction that applies to *every* deflection, which is why it lives here in
+    the results layer and not in the designer.
+
+    Single source of truth: ``build_deflections_cache`` uses it for the cached
+    deflections, and the designer uses it for the per-load-case deflections it
+    reads straight off the dataset — so the two can never disagree.
+
+    Returns ``(props, stiffness_ratio)``. The ratio is floored at 1.0: the
+    composite section is never softer than the bare steel it is built on.
+    """
+    sec, mat, slab, geo = config.section, config.material, config.slab, config.geometry
+    beff_mm = min(geo.span * 1000.0 / 4.0, geo.beam_spacing * 1000.0)
+    mod = IRC22_2014.cl_604_3_modular_ratio(Ecm=mat.Ecm, Kc=0.5)
+    props = composite_section_properties(
+        beff_mm=beff_mm, ds_mm=slab.thickness, h_haunch_mm=slab.haunch_depth,
+        A_steel_mm2=sec.A_steel, Iz_steel_mm4=sec.Iz_steel,
+        y_cg_from_bot_mm=sec.y_cg_from_bot, D_steel_mm=sec.D, n=mod["m_short_term"],
+    )
+    return props, max(props[KEY_COMP_I] / sec.Iz_steel, 1.0)
+
+
+def build_deflections_cache(config, result_data) -> dict:
     """
     Pre-compute maximum vertical (y) deflection per girder for:
-      - live load only  (load case "1.0 LL")
+      - live load only  (worst of every vehicle arrangement)
+      - dead load only  (load case "1.0 DL"    = SW+DC+DD+SIDL, not DW)
       - total load      (load case "1.0 DL + 1.0 LL")
+      - per_lc          (that girder's sag in each individual load case)
 
+    All are divided by the composite/steel stiffness ratio (see
+    ``composite_stiffness_props``) so the values leaving here are already on the
+    composite section — the raw grillage numbers are steel-basis and must never
+    be reported as-is. This is the only place that correction is applied, so
+    per-case and summary values cannot drift apart. Camber is NOT applied here:
+    it is a design decision, and the designer layer subtracts it via
+    ``apply_camber_to_deflections_cache``.
     Returns::
 
         {
-            "G1": {"live_mm": 12.3, "total_mm": 25.6},
+            "G1": {KEY_SD_DEFL_LIVE_RAW: 12.3, KEY_SD_DEFL_TOTAL_RAW: 25.6,
+                   KEY_SD_DEFL_DL_RAW: 13.3,
+                   "per_lc": {"case1": 8.0, "case2": 12.3, ...}},
             "G2": {...},
         }
 
     Values are in mm (converted from metres, which is OpenSees' native unit).
-    Edge-beam girders (EB1/EB2) are skipped; remaining girders are numbered G1…Gn.
+
+    Girders come from ``result_data["girders"]`` (post-processing) — the same skew-safe,
+    transverse-projection source ``_extract_demands_from_result_data`` uses.
     """
-    ds = result_handler.ds
-    if ds is None:
-        return {}
-    disp_da = ds.get("displacements")
-    if disp_da is None:
+    disps = result_data.get("displacements")
+    if not disps:
         return {}
 
-    all_lcs = [str(lc) for lc in ds.coords["Loadcase"].values]
+    all_lcs = [str(lc) for lc in result_data.get("loadcases", [])]
+    lc_groups = classify_loadcases(all_lcs)
 
-    # Governing LL case created by create_governing_ll_load_case(partial_safety_factor=1.0)
-    ll_case = next(
-        (lc for lc in all_lcs if lc.strip() == "1.0 LL"),
-        None,
-    )
+    # All individual vehicle positions — NOT the single "1.0 LL" case, which is the position
+    # with the largest moment, not the largest sag. Deflection needs the worst sag per girder,
+    # so take the max over every position; "1.0 LL" alone can under-report it.
+    live_lcs = list(lc_groups["vehicle_static"])
+
     # DL + LL combination created by create_dl_ll_combination(dl_factor=1.0, ll_factor=1.0)
-    dl_ll_case = next(
-        (lc for lc in all_lcs if " DL + " in lc and lc.strip().endswith("LL")
-         and not lc.startswith(("BASIC_", "SLS_", "SEISMIC_", "ACCIDENTAL_"))),
-        None,
-    )
+    dl_ll_case = next(iter(lc_groups["dl_ll"]), None)
+    # DL-only case created by create_dead_load_combination() — "X.X DL" (no "+").
+    dl_case = next(iter(lc_groups["dl_only"]), None)
 
-    g_map, _ = result_handler.build_girders(verbose=False)
-    node_set = set(disp_da.coords["Node"].values)
+    # Skew-safe girders from post-processing result_data (NOT result_handler.build_girders(),
+    # whose x-equality support detection collapses under skew). Keyed G1..Gn, main girders only.
+    girders  = result_data.get("girders")
+    # Node tags the displacement tables actually carry. Every load case covers the
+    # same nodes, so the first is representative. Tables are keyed by string while
+    # the girders' node lists hold ints, hence the cast.
+    node_set = {int(n) for n in next(iter(disps.values()), {})}
+
+    # Steel-basis → composite-basis correction, applied to every case below.
+    _, stiffness_ratio = composite_stiffness_props(config)
 
     def _max_defl_mm(lc_name: str | None, nodes: list) -> float | None:
         if lc_name is None or not nodes:
             return None
         try:
+            table = disps[str(lc_name)]
             vals = []
             for node in nodes:
                 if node not in node_set:
                     continue
-                v = float(disp_da.sel(Loadcase=lc_name, Node=node, Component="y")) * 1000.0
+                v = float(table[str(node)]["y"]) * 1000.0
                 vals.append(v)
-            return round(max(abs(v) for v in vals), 3) if vals else None
+            return round(max(abs(v) for v in vals) / stiffness_ratio, 3) if vals else None
         except Exception:
             return None
 
+    def _per_lc_defl(nodes: list) -> dict:
+        # Worst sag for one girder in EVERY load case: {lc: mm} — max|y| over the girder's
+        # nodes, case by case. Same composite-basis correction as _max_defl_mm, so per-case
+        # and summary values agree. Scaling by 1000/stiffness_ratio is positive, so taking
+        # the max before it rather than after gives the same answer.
+        valid = [n for n in nodes if n in node_set]
+        if not valid:
+            return {}
+        out: dict = {}
+        for lc in all_lcs:
+            table = disps[lc]
+            worst = max(abs(float(table[str(n)]["y"])) for n in valid)
+            out[lc] = round(worst * 1000.0 / stiffness_ratio, 3)
+        return out
+
+    def _max_defl_over_lcs(lc_names: list, nodes: list) -> float | None:
+        # Worst sag for one girder across the given load cases — the max of each case's own max.
+        # Only ever called with live_lcs (the vehicle arrangements); DL, DL+LL and the ULS/SLS
+        # combinations are separate groups and are never passed in here.
+        vals = [v for v in (_max_defl_mm(lc, nodes) for lc in lc_names) if v is not None]
+        return max(vals) if vals else None
+
     cache: dict = {}
-    gi = 1
-    for girder, gdata in g_map.items():
-        if girder.startswith("EB"):
-            continue
-        girder_label = f"G{gi}"
-        gi += 1
-        nodes = gdata.get("path", [])
+    for girder_label, g in girders.items():
+        nodes = g.get("nodes", [])
         cache[girder_label] = {
-            "live_mm":  _max_defl_mm(ll_case,    nodes),
-            "total_mm": _max_defl_mm(dl_ll_case, nodes),
+            # Keyed by the KEY_SD_DEFL_*_RAW constants: these are the pre-camber,
+            # composite-basis values, which is exactly what those keys name. The
+            # designer subtracts camber and adds its own post-camber fields.
+            KEY_SD_DEFL_LIVE_RAW:  _max_defl_over_lcs(live_lcs, nodes),
+            KEY_SD_DEFL_TOTAL_RAW: _max_defl_mm(dl_ll_case, nodes),
+            KEY_SD_DEFL_DL_RAW:    _max_defl_mm(dl_case,    nodes),
+            "per_lc":              _per_lc_defl(nodes),
         }
 
     return cache
@@ -873,10 +1089,17 @@ def build_forces_summary(result_handler, load_effects_cache: dict) -> dict:
         cache_label_to_gmap_key[f"G{gi}"] = girder_name
         gi += 1
 
-    # Collect the same filtered load case list the cache was built with
-    all_lcs = set()
+    # Collect the same filtered load case list the cache was built with.
+    # Keep classify_loadcases() order; append any cache-only cases without reordering.
+    cache_lcs = {lc for girder_data in load_effects_cache.values() for lc in girder_data.keys()}
+    classified = result_handler.classify_loadcases()
+    all_lcs = [str(lc) for lc in classified.get("all", []) if str(lc) in cache_lcs]
+    seen_lcs = set(all_lcs)
     for girder_data in load_effects_cache.values():
-        all_lcs.update(girder_data.keys())
+        for lc in girder_data.keys():
+            if lc not in seen_lcs:
+                seen_lcs.add(lc)
+                all_lcs.append(lc)
 
     lc_summary = {}
     rxn_summary = {}

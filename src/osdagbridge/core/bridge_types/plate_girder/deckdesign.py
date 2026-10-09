@@ -55,6 +55,11 @@ from osdagbridge.core.utils.common import (
     # Composite interface check output keys — mutated into design_results.
     KEY_SD_TS_VL, KEY_SD_TS_VCAP_CONC, KEY_SD_TS_VCAP_REINF, KEY_SD_TS_VRD,
     KEY_SD_CRACK_AS_MIN, KEY_SD_CRACK_AS_PROV,
+    # Deck verdict keys
+    STATUS_PASS, STATUS_FAIL, KEY_DD_VERDICT,
+    KEY_DD_CHECK_FLEXURE, KEY_DD_CHECK_SHEAR, KEY_DD_CHECK_PUNCHING,
+    KEY_DD_CHECK_STRESS_CONC, KEY_DD_CHECK_STRESS_REINF, KEY_DD_CHECK_CRACK,
+    KEY_DD_CHECK_COMP_TRANS_SHEAR, KEY_DD_CHECK_COMP_CRACK,
 )
 
 # ── constants ─────────────────────────────────────────────────────────────────
@@ -405,6 +410,54 @@ def transverse_shear_check(VL_N_per_mm: float, fck_MPa: float, fy_rebar_MPa: flo
     }
 
 
+# ── deck verdict ──────────────────────────────────────────────────────────────
+
+# Deck check key -> the result-dict UR fields feeding it (worst location governs).
+# Fields absent from result (no overhang / non-composite deck) are skipped.
+_DECK_VERDICT_UR_FIELDS = {
+    KEY_DD_CHECK_FLEXURE:          ("ur_bot_uls", "ur_top_uls", "ur_oh_uls"),
+    KEY_DD_CHECK_SHEAR:            ("ur_bot_shear", "ur_oh_shear"),
+    KEY_DD_CHECK_PUNCHING:         ("ur_bot_punch", "ur_oh_punch"),
+    KEY_DD_CHECK_STRESS_CONC:      ("ur_bot_sls_c", "ur_top_sls_c", "ur_oh_sls_c",
+                                    "ur_composite_conc_stress"),
+    KEY_DD_CHECK_STRESS_REINF:     ("ur_bot_sls_s", "ur_top_sls_s", "ur_oh_sls_s",
+                                    "ur_composite_rebar_stress"),
+    KEY_DD_CHECK_CRACK:            ("ur_bot_crack", "ur_top_crack", "ur_oh_crack"),
+    KEY_DD_CHECK_COMP_TRANS_SHEAR: ("ur_composite_trans_shear",),
+    KEY_DD_CHECK_COMP_CRACK:       ("ur_composite_crack",),
+}
+
+
+def collect_deck_verdict(result: dict) -> dict:
+    """Reduce the deck checks to one PASS/FAIL verdict.
+
+    Reads the UR fields already in ``result``; a check passes when its worst UR
+    (over interior sagging / hogging / overhang) is <= 1.0. Checks with no fields
+    present (no overhang, non-composite deck) are omitted.
+
+    Returns { KEY_DD_CHECK_*: {"pass": bool, "ur": float}, ...,
+              "status": STATUS_PASS | STATUS_FAIL, "max_ur": float }.
+    """
+    cats = {}
+    max_ur = 0.0
+    for key, fields in _DECK_VERDICT_UR_FIELDS.items():
+        urs = [float(result[f]) for f in fields if f in result]
+        if not urs:
+            continue
+        worst = max(urs)
+        max_ur = max(max_ur, worst)
+        cats[key] = {"pass": worst <= 1.0, "ur": round(worst, 3)}
+
+    # `cats and` is load-bearing: all() of an empty dict is True, so without it a
+    # verdict with no checks at all would report PASS.
+    cats["status"] = (STATUS_PASS
+                      if cats and all(c["pass"] for c in cats.values()
+                                      if isinstance(c, dict))
+                      else STATUS_FAIL)
+    cats["max_ur"] = round(max_ur, 3)
+    return cats
+
+
 # ── main design function ──────────────────────────────────────────────────────
 
 def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: float, Ecm: float,
@@ -469,7 +522,8 @@ def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: f
     overhang_m = float(inp[KEY_TS_DECK_OVERHANG])
     deck_t_mm = float(inp[KEY_TS_DECK_THICKNESS])
     wc_t_m = float(inp[KEY_WC_THICKNESS]) / 1000.0   # wearing course thickness (m)
-    cb_spacing_m = float(inp.get(KEY_MP_CB_SPACING) or 3.0)  # longitudinal cross-bracing spacing (m)
+    from osdagbridge.core.bridge_types.plate_girder.plategirderbridge import resolve_cb_value
+    cb_spacing_m = float(resolve_cb_value(inp, KEY_MP_CB_SPACING) or 3.0)  # longitudinal cross-bracing spacing (m)
 
     rebar_grade = str(inp[KEY_DS_REINF_MATERIAL]).strip()
     cover_top_mm = float(inp[KEY_DS_TOP_CLEAR_COVER])
@@ -599,8 +653,8 @@ def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: f
         # Railing dead load — IRC 6:2017 Cl.206.5 (kg/m → kN/m)
         railing_kN_m = IRC6_2017.cl_206_5_railing_load() * 9.81 / 1000.0
 
-        # Crash barrier horizontal moment — IRC 6:2017 Cl.206.4
-        barrier = IRC6_2017.cl_206_4_crash_barrier_load()
+        # Crash barrier horizontal moment — IRC 6:2017 Cl.206.6
+        barrier = IRC6_2017.cl_206_6_crash_barrier_load()
         M_barrier_kNm = barrier["moment_at_base_kNm_per_m"]
 
         # DL cantilever moments at root (kNm/m)
@@ -657,7 +711,7 @@ def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: f
             f"  Overhang length L<sub>oh</sub> : {overhang_m * 1000:.0f} mm  ({overhang_m:.3f} m)",
             f"  Edge clearance f      : {f_edge:.3f} m  [IRC 6:2017 Table 3]",
             f"  Railing DL load       : {railing_kN_m:.3f} kN/m  [IRC 6:2017 Cl.206.5]",
-            f"  Crash barrier moment  : {M_barrier_kNm:.2f} kNm/m  [IRC 6:2017 Cl.206.4]",
+            f"  Crash barrier moment  : {M_barrier_kNm:.2f} kNm/m  [IRC 6:2017 Cl.206.6]",
             f"  Wheel arm from root   : {arm_wheel:.3f} m",
             f"  M<sub>DL</sub> (overhang)       : {M_DL_oh:.3f} kNm/m  (slab {M_DL_slab_oh:.3f} + railing {M_DL_railing_oh:.3f})",
             f"  M<sub>LL</sub> (overhang)       : {M_LL_oh:.3f} kNm/m",
@@ -847,7 +901,7 @@ def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: f
     # design_results (computed in Stage 5).
     if has_composite:
         def _ur(demand, capacity):
-            return round(demand / capacity, 4) if capacity else 0.0
+            return round(demand / capacity, 3) if capacity else 0.0
         ur_composite_trans_shear  = _ur(ts["VL_N_per_mm"], ts["governing_capacity_kN_per_m"])
         ur_composite_crack        = _ur(crack["As_min_mm2"], crack["As_provided_mm2"])
         ur_composite_conc_stress  = _ur(dr.get("sigma_c_actual_MPa") or 0.0,
@@ -1034,6 +1088,9 @@ def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: f
             "ur_composite_conc_stress"  : ur_composite_conc_stress,
             "ur_composite_rebar_stress" : ur_composite_rebar_stress,
         })
+
+    # Deck verdict — per-check PASS/FAIL dict (built from the URs above)
+    result[KEY_DD_VERDICT] = collect_deck_verdict(result)
 
     # ── 14. report values dict (keyed to common.KEY_DD_*) ──────────────
     # Raw numeric values consumed by the report generator (Tables 5.17(a)-(g)),

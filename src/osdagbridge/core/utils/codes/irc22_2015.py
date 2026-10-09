@@ -1641,9 +1641,9 @@ class IRC22_2014:
     @staticmethod
     def cl_606_3_2_stud_connector_fatigue_strength(
         Nsc,
-        tau_fn_MPa=67.0,       # MPa (default per IRC Table 5/8 guidance)
-        stud_d_mm=None,        # 16, 20, 22, 25 (optional for Table 8)
-        use_table8=False       # if True, return Qr from Table 8 also
+        stud_d_mm,     
+        use_table8=False,        # stud shank diameter (mm)
+        tau_fn_MPa=67.0,       # MPa (Cl.605.3 shear fatigue strength at 5e6 cycles)
     ):
         """
         IRC:22-2015
@@ -1652,20 +1652,29 @@ class IRC22_2014:
         Equation:
             tau_f = tau_fn * (5e6 / Nsc)^(1/5)
 
-        Optional:
-            Returns Table 8 nominal fatigue strength Qr (kN) for headed studs (phi 16/20/22/25)
-            using log interpolation for intermediate Nsc.
+        Fatigue strength of one stud (shank area):
+            Qr = tau_f * pi * d^2 / 4
+
+        Valid for any stud diameter (Table 8 only tabulates 16/20/22/25 and is
+        reproduced by this equation within rounding).
         """
 
 
         if Nsc <= 0:
             raise ValueError("Nsc must be positive")
 
+        if stud_d_mm is None or stud_d_mm <= 0:
+            raise ValueError("stud_d_mm must be positive")
+
         # --- Clause equation ---
         tau_f_MPa = tau_fn_MPa * ((5e6 / Nsc) ** (1.0 / 5.0))
 
-        result = {
+        A_shank_mm2 = math.pi * (stud_d_mm ** 2) / 4.0
+        Qr_kN = tau_f_MPa * A_shank_mm2 / 1000.0
+
+        return {
             "tau_f_MPa": round(tau_f_MPa, 3),
+            "Qr_kN": round(Qr_kN, 3),
             "clause": "IRC 22:2015 - 606.3.2"
         }
 
@@ -1784,6 +1793,15 @@ class IRC22_2014:
             "VL_N_per_mm": round(VL_N_per_mm, 3),
             "studs_per_section": studs_per_section,
             "spacing_mm": round(spacing_mm, 2),
+            "V_kN": V_kN,
+            "Aec_mm2": round(Aec, 2),
+            "Y_mm": round(Y, 2),
+            "Ic_mm4": round(Ic_mm4, 2),
+            "t_eff_mm": round(t_eff, 2),
+            "beff_mm": beff_mm,
+            "xu_mm": xu_mm,
+            "t_slab_mm": t_slab_mm,
+            
             "clause": "IRC 22:2015 - 606.4.1 Longitudinal Shear and Spacing"
         }
 
@@ -1846,6 +1864,10 @@ class IRC22_2014:
 
         return {
             "Aec_mm2": round(Aec_mm2, 2),
+            "As_mm2": round(As_mm2, 2),
+            "fyk_MPa": fyk_MPa,
+            "gamma_m": gamma_m,
+            "fck_cu_MPa": fck_cu_MPa,            
             "H1_kN": round(H1_kN, 3),
             "H2_kN": round(H2_kN, 3),
             "H_governing_kN": round(H_kN, 3),
@@ -1904,6 +1926,7 @@ class IRC22_2014:
         spacing_mm = total_Qu_kN / Vr_per_mm_kN
 
         return {
+            "Vr_kN": round(Vr_kN, 2),
             "Aec_mm2": round(Aec_mm2, 2),
             "t_eff_mm": round(t_eff, 2),
             "Y_mm": round(Y_mm, 2),

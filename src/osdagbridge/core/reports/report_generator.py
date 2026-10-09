@@ -103,22 +103,13 @@
 #                                                          else → CustomMessageBox("Report Saved")
 #==============================================================================
 
-import os, shutil, logging, datetime, tempfile, subprocess
+import os, shutil, logging, datetime, tempfile, subprocess, io, re
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
 
-from osdagbridge.core.utils.common import (
-    KEY_DESIGN_MODE,
-    KEY_SPAN,
-    KEY_TL_BRIDGE_TEMP_MAX,
-    KEY_TL_BRIDGE_TEMP_MIN,
-    KEY_TL_HIGHEST_MAX_TEMP,
-    KEY_TL_LOWEST_MIN_TEMP,
-    KEY_TL_TEMP_FALL,
-    KEY_TL_TEMP_RISE
-)
 
-from osdagbridge.core.reports.report_utils import _tex
+
+from osdagbridge.core.reports.report_utils import _tex, ReportChartGenerator, configure_grouped_table_breaks
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -190,7 +181,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{etoolbox}
 \usepackage{needspace}
 
-\numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
 \setlength{\tabcolsep}{6pt}
@@ -200,11 +190,12 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 % Table rules (outline thickness) and small extra row height for clarity
 \setlength{\arrayrulewidth}{0.5pt}
 \setlength{\extrarowheight}{0.6pt}
+\setlength{\footskip}{42pt}
 
 % Prevent tables from overflowing past the page bottom:
 % if fewer than 5 baseline-skips remain, break to the next page first.
 \BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+\BeforeBeginEnvironment{longtable}{\Needspace{5\baselineskip}}
 
 \definecolor{osdagGreen}{HTML}{91B014}
 
@@ -212,16 +203,16 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{Prepared with OsdagBridge}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
+      \vspace{2pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
       \vspace{4pt}%
     }{%
-      \vspace{-8pt}%
+      \vspace{2pt}%
     }%
     \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
   }
@@ -230,16 +221,16 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{Prepared with OsdagBridge}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
+      \vspace{2pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
       \vspace{4pt}%
     }{%
-      \vspace{-8pt}%
+      \vspace{2pt}%
     }%
     \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
   }
@@ -247,7 +238,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \fancypagestyle{firstpage}{
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{Prepared with OsdagBridge}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
 }
@@ -476,15 +467,28 @@ class ReportDataBridge:
         """
         Extract the _extract_osdag_summary dict for one member.
         pair      e.g. "G1-G2"
-        member    "diagonal" or "chord"
+        member    "diagonal", "chord", "top_chord" or "bottom_chord"
         force_type "tension" or "compression"
+
+        Top and bottom chords are designed separately only when their sections
+        differ; otherwise both share the single "chord" run, so "chord" falls
+        back to the top chord (and vice versa).
         """
         from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
-        try:
-            raw = self._cb_pair_designs()[pair][member][force_type]
-            return _extract_osdag_summary(raw or {})
-        except (KeyError, TypeError):
-            return {}
+        designs = self._cb_pair_designs().get(pair) or {}
+        candidates = [member]
+        if member == "chord":
+            candidates += ["top_chord", "bottom_chord"]
+        elif member in ("top_chord", "bottom_chord"):
+            candidates.append("chord")
+        for name in candidates:
+            try:
+                raw = designs[name][force_type]
+            except (KeyError, TypeError):
+                continue
+            if raw:
+                return _extract_osdag_summary(raw)
+        return {}
 
     def get_cb_pairs(self) -> list:
         """Return sorted list of girder pair keys e.g. ['G1-G2', 'G2-G3']."""
@@ -570,12 +574,12 @@ class ReportDataBridge:
     def get_cb_capacity(self, pair: str, member: str, force_type: str) -> str:
         """Capacity in kN."""
         val = self._cb_osdag(pair, member, force_type).get("capacity_kN")
-        return f"{float(val):.3f}" if val is not None else ""
+        return f"{val}" if val is not None else ""
 
     def get_cb_efficiency(self, pair: str, member: str, force_type: str) -> str:
         """Utilization ratio (efficiency)."""
         val = self._cb_osdag(pair, member, force_type).get("efficiency")
-        return f"{float(val):.3f}" if val is not None else ""
+        return f"{val}" if val is not None else ""
 
     def get_cb_slenderness(self, pair: str, member: str) -> str:
         """KL/r — same for tension and compression (geometry-based)."""
@@ -583,7 +587,7 @@ class ReportDataBridge:
         for ft in ("compression", "tension"):
             val = self._cb_osdag(pair, member, ft).get("slenderness")
             if val is not None:
-                return f"{float(val):.1f}"
+                return f"{val}"
         return ""
 
     def get_cb_status(self, pair: str, member: str, force_type: str) -> str:
@@ -737,33 +741,6 @@ def build_report_payload(request, input_dict, output_dict):
         except Exception as e:
             logger.warning(f"Failed to parse project location data: {e}")
 
-        # ── Table 3.6 rows 3 & 4: effective bridge temp range and rise/fall ────
-        # The computed keys live in output_dict (which is a snapshot of input_dict
-        # at design time). Merge them into input_dict if not already present.
-        for _tkey in (KEY_TL_BRIDGE_TEMP_MIN, KEY_TL_BRIDGE_TEMP_MAX,
-                      KEY_TL_TEMP_RISE, KEY_TL_TEMP_FALL):
-            if not input_dict.get(_tkey) and output_dict.get(_tkey):
-                input_dict[_tkey] = output_dict[_tkey]
-
-        # If still missing, compute from whatever temperature inputs are available.
-        if not input_dict.get(KEY_TL_BRIDGE_TEMP_MIN):
-            try:
-                max_str = input_dict.get(KEY_TL_HIGHEST_MAX_TEMP) or input_dict.get('shade_temp_max')
-                min_str = input_dict.get(KEY_TL_LOWEST_MIN_TEMP)  or input_dict.get('shade_temp_min')
-                if max_str and min_str:
-                    from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
-                    res   = IRC6_2017.cl_215_2_effective_bridge_temperature(
-                                float(max_str), float(min_str), 'metallic', False)
-                    t_min = res.get('T_min', 0)
-                    t_max = res.get('T_max', 0)
-                    mean  = (t_max + t_min) / 2.0
-                    input_dict[KEY_TL_BRIDGE_TEMP_MIN] = f"{t_min:.2f}"
-                    input_dict[KEY_TL_BRIDGE_TEMP_MAX] = f"{t_max:.2f}"
-                    input_dict[KEY_TL_TEMP_RISE]       = f"{t_max - mean:.2f}"
-                    input_dict[KEY_TL_TEMP_FALL]       = f"{mean - t_min:.2f}"
-            except Exception as _te:
-                logger.warning(f"Could not compute temperature values for report: {_te}")
-
         asum = {}
         if output_dict:
             asum = output_dict.get('analysis_summary', {})
@@ -870,6 +847,18 @@ def generate_report(payload, request):
             fig_paths = {}
             for attr, img_bytes in list(payload.figure_data.items()):
                 if img_bytes:
+                    if attr == 'final_geometry':
+                        try:
+                            from PIL import Image, ImageOps
+                            with Image.open(io.BytesIO(img_bytes)) as im:
+                                pad_x = max(48, int(im.size[0] * 0.10))
+                                pad_y = max(28, int(im.size[1] * 0.06))
+                                padded = ImageOps.expand(im.convert("RGB"), border=(pad_x, pad_y), fill="white")
+                                out = io.BytesIO()
+                                padded.save(out, format="PNG")
+                                img_bytes = out.getvalue()
+                        except Exception as exc:
+                            logger.warning("Could not pad final_geometry image: %s", exc)
                     p = os.path.join(tmp_images, attr + '.png')
                     with open(p, 'wb') as fh:
                         fh.write(img_bytes)
@@ -897,49 +886,50 @@ def generate_report(payload, request):
 
             # Compute and inject quantities for Chapter 7
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
-            payload.inputs.update(quantities)
+            payload.output_dict["chapter7_material_quantities"] = quantities
+            quantity_chart_paths = ReportChartGenerator(tmp_assets).generate_material_quantity_charts(quantities)
 
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
-            span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
+            ur_chart_paths = ReportChartGenerator(tmp_assets).generate_utilization_ratio_charts(bridge)
 
-            doc_parts = []
-            doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
-            doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
+            def _build_full_tex():
+                doc_parts = []
+                doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
+                doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
 
-            if payload.options.include_toc:
-                doc_parts.append(toc_section())
+                if payload.options.include_toc:
+                    doc_parts.append(toc_section())
 
-            # Chapter inclusion is driven by the canonical section keys
-            # selected in the report-options dialog (TOC). The first three
-            # chapters are locked in the UI, so they are always present.
-            secs = payload.options.sections
+                # Chapter inclusion is driven by the canonical section keys
+                # selected in the report-options dialog (TOC). The first three
+                # chapters are locked in the UI, so they are always present.
+                secs = payload.options.sections
 
-            doc_parts.append(executive_summary(payload.inputs, payload.output_dict, fig_paths))
-            doc_parts.append(ch1_project_info(payload.metadata))
-            doc_parts.append(ch2_input_parameters(payload.metadata, payload.inputs, payload.output_dict))
+                doc_parts.append(executive_summary(payload.inputs, payload.output_dict, fig_paths))
+                doc_parts.append(ch1_project_info(payload.metadata))
+                doc_parts.append(ch2_input_parameters(payload.metadata, payload.inputs, payload.output_dict))
 
-            if 'loads' in secs:
-                doc_parts.append(ch3_loads(payload.inputs))
-            if 'analysis' in secs:
-                doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
-            if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
-            if 'drawings' in secs and payload.options.include_figures:
-                doc_parts.append(ch6_drawings(fig_paths))
+                if 'loads' in secs:
+                    doc_parts.append(ch3_loads(payload.inputs, payload.output_dict))
+                if 'analysis' in secs:
+                    doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge))
+                if 'design_checks' in secs:
+                    doc_parts.append(ch5_design_checks(payload.design_checks, bridge, ur_chart_paths))
+                if 'drawings' in secs and payload.options.include_figures:
+                    doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+                doc_parts.append(ch7_quantities(payload.inputs, payload.output_dict, quantity_chart_paths))
 
-            mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
-            is_custom = mode in {"custom", "customized"}
-        
+                
 
-            doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
 
-            doc_parts.append(references())
-            doc_parts.append(r"\end{document}")
+                doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
 
-            full_tex = "\n".join(doc_parts)
+                doc_parts.append(references())
+                doc_parts.append(r"\end{document}")
+
+                return "\n".join(doc_parts)
 
 
             # NOTE: longtable header repetition is handled per-table in each
@@ -950,28 +940,83 @@ def generate_report(payload, request):
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
 
-            with open(tmp_tex, 'w', encoding='utf-8') as f:
-                f.write(full_tex)
+            def _write_tex(tex):
+                with open(tmp_tex, 'w', encoding='utf-8') as f:
+                    f.write(tex)
 
-            # Compile twice for TOC and references
-            for _ in range(2):
-                try:
-                    kwargs = {
-                        'cwd': tmp_dir,
-                        'stdout': subprocess.PIPE,
-                        'stderr': subprocess.PIPE,
-                        'check': False,
-                        'env': os.environ.copy()
-                    }
-                    if os.name == 'nt':
-                        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
-                    res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
-                        **kwargs
-                    )
-                except Exception as exc:
-                    logger.warning(f"pdflatex run failed: {exc}")
+            res = None
+
+            def _run_latex(passes=2):
+                nonlocal res
+                for _ in range(passes):
+                    try:
+                        kwargs = {
+                            'cwd': tmp_dir,
+                            'stdout': subprocess.PIPE,
+                            'stderr': subprocess.PIPE,
+                            'check': False,
+                            'env': os.environ.copy()
+                        }
+                        if os.name == 'nt':
+                            kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+
+                        res = subprocess.run(
+                            [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
+                            **kwargs
+                        )
+                    except Exception as exc:
+                        logger.warning(f"pdflatex run failed: {exc}")
+
+            def _split_breaks_from_aux():
+                aux_path = os.path.join(tmp_dir, request.file_stem + '.aux')
+                if not os.path.exists(aux_path):
+                    return set()
+                with open(aux_path, 'r', encoding='utf-8', errors='ignore') as fh:
+                    aux = fh.read()
+                row_pages = {}
+                start_pages = {}
+                start_pattern = r"\\newlabel\{osdaggrpstart:([^}]+)\}\{\{.*?\}\{(\d+)\}"
+                for table_key, page in re.findall(start_pattern, aux):
+                    start_pages[table_key] = int(page)
+                pattern = r"\\newlabel\{osdaggrp:([^:}]+):(\d+):(\d+):([se])\}\{\{.*?\}\{(\d+)\}"
+                for table_key, group_idx, row_idx, edge, page in re.findall(pattern, aux):
+                    key = (table_key, group_idx)
+                    row_pages.setdefault(key, {}).setdefault(int(row_idx), {})[edge] = int(page)
+
+                breaks = set()
+                for table_key, start_page in start_pages.items():
+                    first_row_page = row_pages.get((table_key, '0'), {}).get(0, {}).get('s')
+                    if first_row_page is not None and first_row_page != start_page:
+                        breaks.add(f"{table_key}:__start__")
+                for (table_key, group_idx), rows in row_pages.items():
+                    current_page = None
+                    for row_idx in sorted(rows):
+                        start_page = rows[row_idx].get('s')
+                        end_page = rows[row_idx].get('e')
+                        if start_page is None:
+                            continue
+                        if current_page is None:
+                            current_page = start_page
+                        if row_idx > 0 and (start_page != current_page or (end_page and end_page != start_page)):
+                            breaks.add(f"{table_key}:{group_idx}:{row_idx}")
+                            current_page = start_page
+                        if end_page:
+                            current_page = end_page
+                return breaks
+
+            try:
+                configure_grouped_table_breaks(probe=True)
+                _write_tex(_build_full_tex())
+                _run_latex(2)
+
+                split_breaks = _split_breaks_from_aux()
+                if split_breaks:
+                    logger.info("Chapter 5 probe detected %d split girder row break(s).", len(split_breaks))
+                configure_grouped_table_breaks(probe=False, breaks=split_breaks)
+                _write_tex(_build_full_tex())
+                _run_latex(2)
+            finally:
+                configure_grouped_table_breaks()
 
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)
@@ -983,7 +1028,7 @@ def generate_report(payload, request):
             return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
 
         logger.error("pdflatex ran but no PDF was produced.")
-        if 'res' in locals():
+        if 'res' in locals() and res is not None:
             logger.error("pdflatex STDOUT:\n%s", res.stdout.decode('utf-8', 'ignore'))
             logger.error("pdflatex STDERR:\n%s", res.stderr.decode('utf-8', 'ignore'))
         return ReportResult(pdf_path=None, tex_path=tex_path)

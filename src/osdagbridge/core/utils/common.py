@@ -95,6 +95,7 @@ KEY_MATERIAL_DECK_FCTM = "material.deck.fctm"
 KEY_MATERIAL_DECK_ECM = "material.deck.ecm"
 KEY_MATERIAL_DECK_THERMAL = "material.deck.thermal"
 KEY_MATERIAL_DECK_DENSITY = "material.deck.density"
+KEY_MATERIAL_DECK_MODULAR = "material.deck.modular_ratio"
 
 # ── Composite section property keys ───────────────────────────────────────────
 # Keys of the dict returned by composite_section_properties() (initial_sizing.py).
@@ -187,20 +188,6 @@ KEY_SD_STIFFENER_COL_SPACING = "steeldesign.details.stiffener.col.spacing"
 
 # Stiffener inputs
 KEY_SD_STIFFENER_DETAILS = "member_properties.stiffener_details.stiffener_details_cad"
-
-# Steel Design Properties
-KEY_SD_SECTION_PROP_MASS = "steeldesign.details.section_properties.mass"
-KEY_SD_SECTION_PROP_AREA = "steeldesign.details.section_properties.area"
-KEY_SD_SECTION_PROP_IZ = "steeldesign.details.section_properties.iz"
-KEY_SD_SECTION_PROP_IV = "steeldesign.details.section_properties.iv"
-KEY_SD_SECTION_PROP_RZ = "steeldesign.details.section_properties.rz"
-KEY_SD_SECTION_PROP_RV = "steeldesign.details.section_properties.rv"
-KEY_SD_SECTION_PROP_ZZ = "steeldesign.details.section_properties.zz"
-KEY_SD_SECTION_PROP_ZV = "steeldesign.details.section_properties.zv"
-KEY_SD_SECTION_PROP_ZUZ = "steeldesign.details.section_properties.zuz"
-KEY_SD_SECTION_PROP_ZUV = "steeldesign.details.section_properties.zuv"
-KEY_SD_SECTION_PROP_IT = "steeldesign.details.section_properties.it"
-KEY_SD_SECTION_PROP_IW = "steeldesign.details.section_properties.iw"
 
 KEY_BTN_STEEL_DESIGN          = "btn.steel_design"
 KEY_BTN_TRANSVERSE_DESIGN     = "btn.transverse_design"
@@ -358,6 +345,14 @@ KEY_DD_STRESS_REINF_BOTTOM    = "deckdesign.stress.reinf.bottom"
 KEY_DD_STRESS_REINF_TOP       = "deckdesign.stress.reinf.top"
 KEY_DD_STRESS_REINF_ALLOWABLE = "deckdesign.stress.reinf.allowable"
 
+# ── Generate-Results Fatigue table keys ───────────────────────────────────────
+# Governing per-girder fatigue assessment supporting calculations (IRC 22 Cl.605).
+# Stored in design_results.
+KEY_SD_FATIGUE_STRESS_RANGE_MPA = "steeldesign.fatigue.stress_range_MPa"
+KEY_SD_FATIGUE_MU_R             = "steeldesign.fatigue.mu_r"
+KEY_SD_FATIGUE_FF_MPA           = "steeldesign.fatigue.f_f_MPa"
+KEY_SD_FATIGUE_FFD_MPA          = "steeldesign.fatigue.f_fd_MPa"
+
 # ── Generate-Results Shear Connector table keys ───────────────────────────────
 # All stored as flat keys in design_results after run_design_check.
 KEY_SD_SC_Qu_kN            = "steeldesign.shear_connector.qu_kN"
@@ -366,8 +361,13 @@ KEY_SD_SC_VL               = "steeldesign.shear_connector.vl_n_per_mm"
 KEY_SD_SC_SL1              = "steeldesign.shear_connector.sl1_mm"
 KEY_SD_SC_SL2              = "steeldesign.shear_connector.sl2_mm"
 KEY_SD_SC_SR               = "steeldesign.shear_connector.sr_mm"
+KEY_SD_SC_AEC_MM2          = "design.shear.connector.aec_mm2"
 KEY_SD_SC_H_kN             = "steeldesign.shear_connector.h_governing_kN"
+KEY_SD_SC_H1_kN            = "steeldesign.shear_connector.h1_kN"
+KEY_SD_SC_H2_kN            = "steeldesign.shear_connector.h2_kN"
+KEY_SD_SC_SHEAR_SPAN       = "steeldesign.shear_connector.shear_span_mm"
 KEY_SD_SC_Vr_kN            = "steeldesign.shear_connector.vr_kN"
+KEY_SD_SC_VR_PER_MM        = "steeldesign.shear_connector.vr_per_mm_kN"
 KEY_SD_SC_LIMIT_600        = "steeldesign.shear_connector.limit_600_mm"
 KEY_SD_SC_LIMIT_3TSLAB     = "steeldesign.shear_connector.limit_3tslab_mm"
 KEY_SD_SC_LIMIT_4HSTUD     = "steeldesign.shear_connector.limit_4hstud_mm"
@@ -384,6 +384,8 @@ KEY_SD_TS_VL         = "steeldesign.transverse_shear.vl_kN_per_m"
 KEY_SD_TS_VCAP_CONC  = "steeldesign.transverse_shear.vcap_concrete_kN_per_m"
 KEY_SD_TS_VCAP_REINF = "steeldesign.transverse_shear.vcap_reinf_kN_per_m"
 KEY_SD_TS_VRD        = "steeldesign.transverse_shear.vrd_kN_per_m"
+KEY_SD_TS_AEC        = "steeldesign.transverse_shear.aec_mm2"
+KEY_SD_TS_Y          = "steeldesign.transverse_shear.y_mm"
 
 # ── Generate-Results Crack Width table keys ───────────────────────────────────
 # Minimum crack-control reinforcement (IRC 22 Cl.604.4) — design_results.
@@ -566,6 +568,8 @@ KEY_SD_LTB_MCR          = "steeldesign.details.ltb.mcr"                     # on
 KEY_SD_LTB_LAMBDA       = "steeldesign.details.ltb.lambda_lt"              # only for report
 KEY_SD_LTB_CHI          = "steeldesign.details.ltb.chi_lt"                 # only for report
 KEY_SD_LTB_MB           = "steeldesign.details.ltb.mb"                      # only for report
+KEY_SD_LTB_LLT          = "steeldesign.details.ltb.llt"                     # only for report
+KEY_SD_LTB_MP           = "steeldesign.details.ltb.mp"                      # only for report
 KEY_SD_STIFF_METHOD     = "steeldesign.details.stiffener_summary.method"        # only for report
 KEY_SD_STIFF_INT_THICK  = "steeldesign.details.stiffener_summary.int_thickness"  # only for report
 KEY_SD_STIFF_INT_SPACING= "steeldesign.details.stiffener_summary.int_spacing"    # only for report
@@ -585,8 +589,19 @@ KEY_SD_CLASS_FLANGE       = "steeldesign.details.classification.flange_class"   
 KEY_SD_CLASS_WEB          = "steeldesign.details.classification.web_class"           # only for report
 KEY_SD_DEFL_LIVE        = "steeldesign.deflection.live_mm"       # only for report
 KEY_SD_DEFL_TOTAL       = "steeldesign.deflection.total_mm"      # only for report
+KEY_SD_DEFL_AFTER_CAMBER = "steeldesign.deflection.dl_mm"        # only for report (post-camber DL deflection)
+KEY_SD_APPLIED_CAMBER   = "steeldesign.deflection.camber_mm"    # only for report (applied camber)
 KEY_SD_DEFL_ALLOW_LIVE  = "steeldesign.deflection.allow_live_mm" # only for report
 KEY_SD_DEFL_ALLOW_TOTAL = "steeldesign.deflection.allow_total_mm"# only for report
+KEY_SD_DEFL_LIVE_RAW    = "steeldesign.deflection.raw.live_mm"   # only for report (pre-camber)
+KEY_SD_DEFL_TOTAL_RAW   = "steeldesign.deflection.raw.total_mm"  # only for report (pre-camber)
+KEY_SD_DEFL_DL_RAW      = "steeldesign.deflection.raw.dl_mm"     # only for report (pre-camber)
+KEY_SD_PERMANENT_DL     = "steeldesign.loads.permanent_dl_kN_m"  # total DL per girder ("<key>.G{i}"), only for report
+KEY_SD_DL_SW            = "steeldesign.loads.sw_kN_m"            # self-weight load per girder ("<key>.G{i}")
+KEY_SD_DL_DC            = "steeldesign.loads.dc_kN_m"            # other steel (bracing + diaphragm), shared
+KEY_SD_DL_DD            = "steeldesign.loads.dd_kN_m"            # deck slab, shared
+KEY_SD_DL_DW            = "steeldesign.loads.dw_kN_m"            # wearing course, shared
+KEY_SD_DL_SIDL          = "steeldesign.loads.sidl_kN_m"         # footpath + barrier + railing + median, shared
 
 #-------------- Stiffener Details Sub-Tab --------------------------------------------
 KEY_SD_STIFFENER_DETAILS            = "member_properties.stiffener_details.stiffener_details_cad"
@@ -649,6 +664,16 @@ KEY_MP_ED_TOP_CHORD_SECTION_DESIG     = "member_properties.end_diaphragm_details
 KEY_MP_ED_BOTTOM_CHORD                = "member_properties.end_diaphragm_details.bottom_chord"
 KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE   = "member_properties.end_diaphragm_details.bottom_chord_section_type"
 KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG  = "member_properties.end_diaphragm_details.bottom_chord_section_designation"
+# Designed output dimension keys (written by design phase, read by builder)
+KEY_MP_ED_DIAGONAL_LEG_H              = "member_properties.end_diaphragm_details.diagonal.leg_h"
+KEY_MP_ED_DIAGONAL_LEG_W              = "member_properties.end_diaphragm_details.diagonal.leg_w"
+KEY_MP_ED_DIAGONAL_THICKNESS          = "member_properties.end_diaphragm_details.diagonal.thickness"
+KEY_MP_ED_TOP_CHORD_LEG_H             = "member_properties.end_diaphragm_details.top_chord.leg_h"
+KEY_MP_ED_TOP_CHORD_LEG_W             = "member_properties.end_diaphragm_details.top_chord.leg_w"
+KEY_MP_ED_TOP_CHORD_THICKNESS         = "member_properties.end_diaphragm_details.top_chord.thickness"
+KEY_MP_ED_BOTTOM_CHORD_LEG_H          = "member_properties.end_diaphragm_details.bottom_chord.leg_h"
+KEY_MP_ED_BOTTOM_CHORD_LEG_W          = "member_properties.end_diaphragm_details.bottom_chord.leg_w"
+KEY_MP_ED_BOTTOM_CHORD_THICKNESS      = "member_properties.end_diaphragm_details.bottom_chord.thickness"
 KEY_MP_ED_SYMMETRY                    = "member_properties.end_diaphragm_details.symmetry"
 KEY_MP_ED_TOTAL_DEPTH                   = "member_properties.end_diaphragm_details.total_depth"
 KEY_MP_ED_WEB_THICKNESS              = "member_properties.end_diaphragm_details.web_thickness"
@@ -695,6 +720,17 @@ KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG   = "member_properties.cross_bracing_detail
 KEY_MP_CB_BOTTOM_CHORD_PREVIEW         = "member_properties.cross_bracing_details.bottom_chord_preview"
 KEY_MP_CB_BOTTOM_CHORD_PREVIEW_SECTION = "member_properties.cross_bracing_details.bottom_chord_preview_section"
 KEY_MP_CB_SPACING                      = "member_properties.cross_bracing_details.spacing"
+# Designed output dimension keys (written by design phase, read by builder)
+KEY_MP_CB_DIAGONAL_LEG_H              = "member_properties.cross_bracing_details.diagonal.leg_h"
+KEY_MP_CB_DIAGONAL_LEG_W              = "member_properties.cross_bracing_details.diagonal.leg_w"
+KEY_MP_CB_DIAGONAL_THICKNESS          = "member_properties.cross_bracing_details.diagonal.thickness"
+KEY_MP_CB_TOP_CHORD_LEG_H             = "member_properties.cross_bracing_details.top_chord.leg_h"
+KEY_MP_CB_TOP_CHORD_LEG_W             = "member_properties.cross_bracing_details.top_chord.leg_w"
+KEY_MP_CB_TOP_CHORD_THICKNESS         = "member_properties.cross_bracing_details.top_chord.thickness"
+KEY_MP_CB_BOTTOM_CHORD_LEG_H          = "member_properties.cross_bracing_details.bottom_chord.leg_h"
+KEY_MP_CB_BOTTOM_CHORD_LEG_W          = "member_properties.cross_bracing_details.bottom_chord.leg_w"
+KEY_MP_CB_BOTTOM_CHORD_THICKNESS      = "member_properties.cross_bracing_details.bottom_chord.thickness"
+
 
 #══════════════MEMBER-PROPERTIES-TAB-KEY-ENDS═══════════════════════════════════════════════════════
 
@@ -718,6 +754,16 @@ KEY_LL_IRC_AA_TRACKED           = "loading.live_load.irc.aa_tracked"
 KEY_LL_IRC_CLASS_SV             = "loading.live_load.irc.class_sv"
 KEY_LL_IRC_70R_BOGIE            = "loading.live_load.irc.70r_bogie"
 KEY_LL_IRC_CLASS_FATIGUE        = "loading.live_load.irc.class_fatigue"
+
+
+# Live Load Report Values
+KEY_LL_IMPACT_FACTOR_CLASS_A = "loading.live_load.impact_factor.class_a"
+KEY_LL_IMPACT_FACTOR_CLASS_AA_70R = "loading.live_load.impact_factor.class_aa_70r"
+KEY_LL_VEHICLE_TOTAL_LOAD_CLASS_A = "loading.live_load.vehicle_total_load.class_a"
+KEY_LL_VEHICLE_TOTAL_LOAD_70R_WHEELED = "loading.live_load.vehicle_total_load.70r_wheeled"
+KEY_LL_VEHICLE_TOTAL_LOAD_70R_TRACKED = "loading.live_load.vehicle_total_load.70r_tracked"
+KEY_LL_VEHICLE_TOTAL_LOAD_FATIGUE = "loading.live_load.vehicle_total_load.fatigue"
+KEY_LL_VEHICLE_TOTAL_LOAD_CLASS_SV = "loading.live_load.vehicle_total_load.class_sv"
 
 # Breaking Load keys — mirror the vehicle class keys
 KEY_BL_IRC_CLASS_A        = "bl_irc_class_a"
@@ -762,6 +808,8 @@ KEY_SL_ZONE_FACTOR              = "loading.seismic_load.computed.zone_factor"
 KEY_SL_SPECTRAL_COEFF           = "loading.seismic_load.computed.spectral_coeff"
 KEY_SL_HORIZONTAL_COEFF         = "loading.seismic_load.computed.horizontal_coeff"
 KEY_SL_VERTICAL_COEFF           = "loading.seismic_load.computed.vertical_coeff"
+KEY_SL_FORCE_LONGITUDINAL       = "loading.seismic_load.computed.force_longitudinal"
+KEY_SL_FORCE_TRANSVERSE         = "loading.seismic_load.computed.force_transverse"
 
 #--------------- Wind Load Sub-Tab -------------------------------------------------
 KEY_WL_TAB                      = "loading.wind_load.tab"
@@ -829,6 +877,7 @@ KEY_TL_TEMP_FALL                = "loading.temperature_load.computed.temp_fall"
 
 KEY_LC_COMBINATIONS   = "loading.load_combination.combinations"
 KEY_LC_TAB            = "loading.load_combination.tab"
+KEY_ALL_LOAD_COMBINATIONS = "loading.load_combination.all_load_combbinations"
 
 # ── ULS Load Combination Case Keys ─────────────────────────────────────────
 
@@ -1189,6 +1238,50 @@ KEY_CHECK_FATIGUE          = "fatigue"
 KEY_CHECK_STRESS           = "stress"
 KEY_CHECK_DEFLECTION       = "deflection"
 
+# =============================================================================
+# GIRDER DESIGN VERDICT  (added)
+# Per-category PASS/FAIL summary of the 8 girder design checks. Built by
+# collect_girder_verdict() in designer.py, stored in design_results and mirrored
+# into output_dict, and rendered by BridgeLogger.girder_verdict(). Stiffener
+# checks (ids 20/21) are intentionally excluded — verdict covers the 8
+# structural categories only.
+# =============================================================================
+STATUS_PASS = "PASS"
+STATUS_FAIL = "FAIL"
+
+# output_dict / design_results key for the verdict dict
+KEY_SD_VERDICT = "steeldesign.verdict"
+
+# DCR category number (1-8, from DCREngine.CATEGORY_MAP) -> check key
+DESIGN_CHECK_CATEGORY_KEYS = {
+    1: KEY_CHECK_FLEXURE,
+    2: KEY_CHECK_SHEAR,
+    3: KEY_CHECK_INTERACTION,
+    4: KEY_CHECK_LTB,
+    5: KEY_CHECK_SHEAR_LONG_TRANS,
+    6: KEY_CHECK_FATIGUE,
+    7: KEY_CHECK_STRESS,
+    8: KEY_CHECK_DEFLECTION,
+}
+
+# =============================================================================
+# DECK DESIGN VERDICT  (added)
+# Per-check PASS/FAIL summary of the deck slab checks. Built by
+# collect_deck_verdict() in deckdesign.py, stored in output_dict, and rendered
+# by BridgeLogger.deck_verdict(). Same shape as the girder verdict.
+# =============================================================================
+KEY_DD_VERDICT = "deckdesign.verdict"
+
+# deck check keys
+KEY_DD_CHECK_FLEXURE          = "deck.flexure"
+KEY_DD_CHECK_SHEAR            = "deck.oneway_shear"
+KEY_DD_CHECK_PUNCHING         = "deck.punching_shear"
+KEY_DD_CHECK_STRESS_CONC      = "deck.sls_stress_concrete"
+KEY_DD_CHECK_STRESS_REINF     = "deck.sls_stress_reinforcement"
+KEY_DD_CHECK_CRACK            = "deck.crack_width"
+KEY_DD_CHECK_COMP_TRANS_SHEAR = "deck.composite_transverse_shear"
+KEY_DD_CHECK_COMP_CRACK       = "deck.composite_crack_control"
+
 # Ordered list used for card layout (left-col, right-col alternating)
 DESIGN_CHECK_ORDER = [
     KEY_CHECK_FLEXURE,
@@ -1237,30 +1330,30 @@ DESIGN_CHECK_UNITS = {
 # ---------------------------------------------------------------------------
 
 # -- Flexure (IRC 22 Cl. 603.3.1 / IS 800 Cl. 8.2.1) ----------------------
-EQ_FLEXURE_LINE_1 = r"M_d \leq M_r"
-EQ_FLEXURE_LINE_2 = r"M_r = \beta_b \cdot Z_p \cdot f_y \;/\; \gamma_{m0}"
+EQ_FLEXURE_LINE_1 = r"M_u \leq M_d"
+EQ_FLEXURE_LINE_2 = r"M_d = \beta_b \cdot Z_p \cdot f_y \;/\; \gamma_{m0}"
 EQ_FLEXURE_LINES  = (EQ_FLEXURE_LINE_1, EQ_FLEXURE_LINE_2)
 
 # -- Shear (IS 800 Cl. 8.4 / IRC 22 Cl. 603.3.3) --------------------------
-EQ_SHEAR_LINE_1 = r"V_d \leq V_r"
-EQ_SHEAR_LINE_2 = r"V_r = \frac{A_v \cdot f_y}{\sqrt{3} \cdot \gamma_{m0}}"
+EQ_SHEAR_LINE_1 = r"V_u \leq V_d"
+EQ_SHEAR_LINE_2 = r"V_d = \frac{A_v \cdot f_y}{\sqrt{3} \cdot \gamma_{m0}}"
 EQ_SHEAR_LINES  = (EQ_SHEAR_LINE_1, EQ_SHEAR_LINE_2)
 
 # -- Interaction (IS 800 Cl. 9.2.2) ----------------------------------------
 EQ_INTERACTION_LINE_1 = (
-    r"\frac{M_d}{\beta_b\,Z_p\,f_y/\gamma_{m0}}"
-    r"+ \frac{V_d}{A_v\,f_y/(\sqrt{3}\,\gamma_{m0})} \leq 1.0"
+    r"\frac{M_u}{\beta_b\,Z_p\,f_y/\gamma_{m0}}"
+    r"+ \frac{V_u}{A_v\,f_y/(\sqrt{3}\,\gamma_{m0})} \leq 1.0"
 )
 EQ_INTERACTION_LINES  = (EQ_INTERACTION_LINE_1,)
 
 # -- Lateral Torsional Buckling (IRC 22 Cl. 603.3.3.1 / IS 800 Cl. 8.2.2) -
-EQ_LTB_LINE_1 = r"M_d \leq M_{cr}"
+EQ_LTB_LINE_1 = r"M_u \leq M_b"
 EQ_LTB_LINE_2 = r"M_{cr} \approx \frac{\pi^2 E\,I_y}{L_{\mathrm{LTB}}^{\,2}}"
 EQ_LTB_LINES  = (EQ_LTB_LINE_1, EQ_LTB_LINE_2)
 
 # -- Longitudinal & Transverse Shear (IRC 22 Cl. 606.4.1) ------------------
 EQ_SHEAR_LONG_TRANS_LINE_1 = r"V_L \leq n \cdot Q_u \;/\; s"
-EQ_SHEAR_LONG_TRANS_LINE_2 = r"V_L = V_d \cdot A_{ec} \cdot \bar{y} \;/\; I_c"
+EQ_SHEAR_LONG_TRANS_LINE_2 = r"V_L = V_u \cdot A_{ec} \cdot \bar{y} \;/\; I_c"
 EQ_SHEAR_LONG_TRANS_LINE_3 = (
     r"Q_u = \min\!\left("
     r"0.8\,f_u\,A_s,\;"
@@ -1279,7 +1372,7 @@ EQ_FATIGUE_LINE_2 = r"\Delta\sigma_{\mathrm{allowable}} = \Delta\sigma_C \;/\; \
 EQ_FATIGUE_LINES  = (EQ_FATIGUE_LINE_1, EQ_FATIGUE_LINE_2)
 
 # -- Stress Limitation (IRC 22 Cl. 604.3.1) ---------------------------------
-EQ_STRESS_LINE_1 = r"\sigma = M_d \;/\; Z"
+EQ_STRESS_LINE_1 = r"\sigma = M_u \;/\; Z"
 EQ_STRESS_LINE_2 = r"\sigma \leq f_y \;/\; \gamma_{m0}"
 EQ_STRESS_LINES  = (EQ_STRESS_LINE_1, EQ_STRESS_LINE_2)
 
@@ -1369,18 +1462,18 @@ DESIGN_CHECK_EQ_HTML = {
 # Demand / capacity prefix labels  (HTML, for the value lines in each card)
 # ---------------------------------------------------------------------------
 DESIGN_CHECK_DEM_PFX = {
-    KEY_CHECK_FLEXURE:          "<i>M<sub>d</sub></i>",
-    KEY_CHECK_SHEAR:            "<i>V<sub>d</sub></i>",
-    KEY_CHECK_LTB:              "<i>M<sub>d</sub></i>",
+    KEY_CHECK_FLEXURE:          "<i>M<sub>u</sub></i>",
+    KEY_CHECK_SHEAR:            "<i>V<sub>u</sub></i>",
+    KEY_CHECK_LTB:              "<i>M<sub>u</sub></i>",
     KEY_CHECK_SHEAR_LONG_TRANS: "<i>V<sub>L</sub></i>",
     KEY_CHECK_FATIGUE:          "&Delta;<i>&sigma;</i>",
     KEY_CHECK_STRESS:           "<i>&sigma;</i>",
     KEY_CHECK_DEFLECTION:       "<i>&delta;</i>",
 }
 DESIGN_CHECK_CAP_PFX = {
-    KEY_CHECK_FLEXURE:          "<i>M<sub>r</sub></i>",
-    KEY_CHECK_SHEAR:            "<i>V<sub>r</sub></i>",
-    KEY_CHECK_LTB:              "<i>M<sub>cr</sub></i>",
+    KEY_CHECK_FLEXURE:          "<i>M<sub>d</sub></i>",
+    KEY_CHECK_SHEAR:            "<i>V<sub>d</sub></i>",
+    KEY_CHECK_LTB:              "<i>M<sub>b</sub></i>",
     KEY_CHECK_SHEAR_LONG_TRANS: "<i>nQ<sub>u</sub>/s</i>",
     KEY_CHECK_FATIGUE:          "&Delta;<i>&sigma;<sub>allowable</sub></i>",
     KEY_CHECK_STRESS:           "<i>f<sub>y</sub> / &gamma;<sub>m</sub></i>",

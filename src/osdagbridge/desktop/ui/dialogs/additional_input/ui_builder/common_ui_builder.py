@@ -18,6 +18,11 @@ ADDITIONAL_INPUTS_SCROLL_STYLE = """
     QScrollArea QScrollBar::handle:vertical:hover { background:#a0a0a0; }
     QScrollArea QScrollBar::add-line:vertical,
     QScrollArea QScrollBar::sub-line:vertical { border:none; background:none; }
+    QScrollArea QScrollBar:horizontal { border:none; background:#f0f0f0; height:8px; }
+    QScrollArea QScrollBar::handle:horizontal { background:#c0c0c0; border-radius:4px; min-width:20px; }
+    QScrollArea QScrollBar::handle:horizontal:hover { background:#a0a0a0; }
+    QScrollArea QScrollBar::add-line:horizontal,
+    QScrollArea QScrollBar::sub-line:horizontal { border:none; background:none; }
 """
 
 from PySide6.QtWidgets import QStackedWidget
@@ -505,9 +510,6 @@ class UIBuilder(QWidget):
                     checkboxes.append(cb)
                 vbox.addStretch()
 
-                bind_name = group.get("bind")
-                if bind_name:
-                    setattr(self.owner, bind_name, checkboxes)
                 groups_layout.addWidget(box)
 
             parent_layout.addLayout(groups_layout)
@@ -722,9 +724,6 @@ class UIBuilder(QWidget):
                     background-color: #ebebeb;
                 }
             """)
-            bind_name = field_def.get("bind")
-            if bind_name:
-                setattr(owner, bind_name, field)
             if ai and field_def.get("id"):
                 field.stateChanged.connect(
                     lambda state, k=field_def.get("id"): ai._on_field_edited(k, bool(state))
@@ -793,9 +792,6 @@ class UIBuilder(QWidget):
                     color: #a8a8a8;
                 }
             """)
-            bind_name = field_def.get("bind")
-            if bind_name:
-                setattr(owner, bind_name, btn)
             on_click = field_def.get("on_click") or ""
             if on_click:
                 btn.clicked.connect(getattr(self.additional_input_instance, on_click))
@@ -932,10 +928,6 @@ class UIBuilder(QWidget):
         tooltip_attr = field_def.get("tooltip")
         if tooltip_attr and hasattr(owner, tooltip_attr):
             field.setToolTip(getattr(owner, tooltip_attr))
-
-        bind_name = field_def.get("bind")
-        if bind_name:
-            setattr(owner, bind_name, field)
 
         field_id = field_def.get("id", "")
 
@@ -1098,7 +1090,6 @@ class UIBuilder(QWidget):
         from osdagbridge.desktop.ui.utils.bounds_selector import BoundsSelectorDialog
 
         field_id    = field_def.get("id", "")
-        bind_name   = field_def.get("bind")
         with_inc    = field_def.get("with_increment", True)
         lower_limit = field_def.get("lower_limit")
         upper_limit = field_def.get("upper_limit")
@@ -1128,9 +1119,6 @@ class UIBuilder(QWidget):
                 color: #a8a8a8;
             }
         """)
-
-        if bind_name:
-            setattr(owner, bind_name, btn)
 
         def _open_bounds(
             _checked,
@@ -1177,8 +1165,6 @@ class UIBuilder(QWidget):
     def _create_mode_line_field(self, field_def: dict, owner, ai) -> QWidget:
         """Combo (mode) + QLineEdit (value) pair."""
         field_id   = field_def.get("id", "")
-        bind_mode  = field_def.get("bind_mode")
-        bind_value = field_def.get("bind_value")
         on_change  = field_def.get("on_mode_change") or ""
         choices    = field_def.get("mode_choices", [])
 
@@ -1203,18 +1189,17 @@ class UIBuilder(QWidget):
         value_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         value_input.setObjectName(field_id + ".value")
         value_input.setEnabled(False)
+        placeholder = field_def.get("placeholder")
+        if placeholder:
+            value_input.setPlaceholderText(str(placeholder))
         if hasattr(owner, "style_input_field"):
             owner.style_input_field(value_input)
         else:
             from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
             apply_field_style(value_input)
 
-        if bind_mode:
-            setattr(owner, bind_mode, mode_combo)
-        if bind_value:
-            setattr(owner, bind_value, value_input)
-
-        def _on_mode_changed(text, _vi=value_input, _choices=choices, _h=h):
+        def _on_mode_changed(text, _vi=value_input, _choices=choices, _h=h, _ai=ai):
+            is_locked = getattr(_ai, "_locked", False) if _ai else False
             if _choices and text == _choices[0]:
                 _vi.hide()
                 _vi.setEnabled(False)
@@ -1222,11 +1207,12 @@ class UIBuilder(QWidget):
                 _h.setStretch(1, 0)
             else:
                 _vi.show()
-                _vi.setEnabled(True)
+                _vi.setEnabled(not is_locked)
                 _h.setStretch(0, 1)
                 _h.setStretch(1, 1)
 
         mode_combo.currentTextChanged.connect(_on_mode_changed)
+        mode_combo._sync_mode = _on_mode_changed
 
         if on_change and hasattr(owner, on_change):
             mode_combo.currentTextChanged.connect(getattr(owner, on_change))
@@ -1234,6 +1220,9 @@ class UIBuilder(QWidget):
         if ai and field_id:
             mode_combo.currentTextChanged.connect(
                 lambda text, k=field_id + ".mode": ai._on_field_edited(k, text)
+            )
+            value_input.textChanged.connect(
+                lambda text, k=field_id + ".value": ai._on_field_editing(text, k)
             )
             value_input.editingFinished.connect(
                 lambda k=field_id + ".value", w=value_input: ai._on_field_edited(k, w)
@@ -1293,13 +1282,9 @@ class UIBuilder(QWidget):
             id             : str           — composite; widgets get '<id>.mode' and '<id>.value'
             mode_choices   : list[str]
             value_choices  : list[str]     — pre-populated; tab may call addItems later
-            bind_mode      : str optional
-            bind_value     : str optional
             on_mode_change : str optional  — owner method name
         """
         field_id      = field_def.get("id", "")
-        bind_mode     = field_def.get("bind_mode")
-        bind_value    = field_def.get("bind_value")
         on_change     = field_def.get("on_mode_change") or ""
         mode_choices  = field_def.get("mode_choices", [])
         value_choices = [str(v) for v in (field_def.get("value_choices") or [])]
@@ -1332,12 +1317,8 @@ class UIBuilder(QWidget):
             from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
             apply_field_style(value_combo)
 
-        if bind_mode:
-            setattr(owner, bind_mode, mode_combo)
-        if bind_value:
-            setattr(owner, bind_value, value_combo)
-
-        def _on_mode_changed(text, _vc=value_combo, _choices=mode_choices, _h=h):
+        def _on_mode_changed(text, _vc=value_combo, _choices=mode_choices, _h=h, _ai=ai):
+            is_locked = getattr(_ai, "_locked", False) if _ai else False
             if _choices and text == _choices[0]:
                 _vc.hide()
                 _vc.setEnabled(False)
@@ -1345,11 +1326,12 @@ class UIBuilder(QWidget):
                 _h.setStretch(1, 0)
             else:
                 _vc.show()
-                _vc.setEnabled(True)
+                _vc.setEnabled(not is_locked)
                 _h.setStretch(0, 1)
                 _h.setStretch(1, 1)
 
         mode_combo.currentTextChanged.connect(_on_mode_changed)
+        mode_combo._sync_mode = _on_mode_changed
 
         if on_change and hasattr(owner, on_change):
             mode_combo.currentTextChanged.connect(getattr(owner, on_change))
@@ -1407,7 +1389,6 @@ class UIBuilder(QWidget):
 
         Schema fields:
             id              : str — objectName
-            bind            : str — owner attribute name
             on_row_select   : str — owner/ai method(row_index, member_id)
             on_data_changed : str — owner/ai method(segments_list)
             min_rows        : int — minimum rows (disable remove below this)
@@ -1417,7 +1398,6 @@ class UIBuilder(QWidget):
         )
 
         field_id        = field_def.get("id", "")
-        bind            = field_def.get("bind")
         on_row_select   = field_def.get("on_row_select") or ""
         on_data_changed = field_def.get("on_data_changed") or ""
         min_rows        = int(field_def.get("min_rows", 1))
@@ -1438,9 +1418,6 @@ class UIBuilder(QWidget):
             parent=owner,
         )
         widget.setObjectName(field_id)
-
-        if bind:
-            setattr(owner, bind, widget)
 
         return widget
 
@@ -1484,6 +1461,13 @@ class UIBuilder(QWidget):
             tab_widget.addTab(widget, title)
             if is_disbled:
                 tab_widget.setTabEnabled(tab_widget.count() - 1, False)
+
+            # Collect this tab's refresh entries once, same as _compute_functions.
+            ai = self.additional_input_instance
+            if ai is not None and hasattr(ai, "_refresh_entries"):
+                for entry in tab_def.get("refresh", []):
+                    if entry not in ai._refresh_entries:
+                        ai._refresh_entries.append(entry)
 
         def _refresh_tab(idx):
             if idx >= len(tabs_def):
@@ -1540,12 +1524,10 @@ class UIBuilder(QWidget):
 
         Schema:
             id   : str
-            bind : str optional
         """
         from osdagbridge.core.utils.common import SAIL_APPROVED_THICKNESS_VALUES
 
         field_id = field_def.get("id", "")
-        bind     = field_def.get("bind")
 
         combo = QComboBox()
         combo.addItems(["All", "Custom"])
@@ -1556,9 +1538,6 @@ class UIBuilder(QWidget):
         else:
             from osdagbridge.desktop.ui.dialogs.tabs.common import apply_field_style
             apply_field_style(combo)
-
-        if bind:
-            setattr(owner, bind, combo)
 
         if ai and field_id:
             combo.currentTextChanged.connect(

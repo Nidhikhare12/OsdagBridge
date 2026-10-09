@@ -1329,12 +1329,15 @@ class GirderGraphEngine:
         # ── A / B labels with separate reaction value line ────────────────────
         ra = reactions.get("Ra") if reactions else None
         rb = reactions.get("Rb") if reactions else None
-        for x, label, val in ((xs[0], "A", ra), (xs[-1], "B", rb)):
+        for x, label, val, ha in (
+            (xs[0],  "A", ra, "left"),
+            (xs[-1], "B", rb, "right"),
+        ):
             # Line 1: "A" or "B" label (normal weight to match 11px UI text)
             ax.text(
                 x, y_label,
                 label,
-                ha="center", va="bottom",
+                ha=ha, va="bottom",
                 fontsize=_STYLE["label_fontsize"],
                 fontweight="normal",          # was "bold"
                 color=_STYLE["label_color"],
@@ -1347,7 +1350,7 @@ class GirderGraphEngine:
                 ax.text(
                     x, y_arrow_base - 0.06,
                     f"{abs(val):.1f} kN",
-                    ha="center", va="top",
+                    ha=ha, va="top",
                     fontsize=_STYLE["reaction_fontsize"],
                     fontweight="normal",
                     color=_STYLE["label_color"],
@@ -1436,8 +1439,7 @@ class GirderGraphEngine:
                 )
 
         # ── Axis limits and frame ─────────────────────────────────────────────
-        pad = span * 0.06
-        ax.set_xlim(xs[0] - pad, xs[-1] + pad)
+        ax.set_xlim(xs[0], xs[-1])
         ax.set_ylim(-0.80, 0.82)
         ax.axis("off")
 

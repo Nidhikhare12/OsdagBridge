@@ -22,7 +22,7 @@ from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builde
 from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import ADDITIONAL_INPUTS_SCHEMA
 from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder._load_combination_widget import LoadCombinationWidget
 from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builder import AdaptiveWidget
-
+from osdagbridge.core.bridge_types.plate_girder.defaults import extend_cb_dynamic_keys
 # =================================================================================
 #   MAIN IMPLEMENTATION
 # =================================================================================
@@ -57,6 +57,9 @@ class AdditionalInputs(QDialog):
  
         # Store all Compute functions to be called at Design
         self._compute_functions = []
+
+        # Store all tab refresh entries to be applied at Design
+        self._refresh_entries = []
 
         self.setObjectName("AdditionalInputs")
         self.setMinimumSize(900, 520)
@@ -159,6 +162,11 @@ class AdditionalInputs(QDialog):
 
         from pprint import pprint
         self.defaults_button.clicked.connect(lambda: pprint(self.working_input_dict))
+
+        # # TEMP: prints working_input_dict without resetting anything — remove before merging.
+        # debug_print_button = QPushButton("Working Dict", action_bar)
+        # debug_print_button.clicked.connect(lambda: pprint(self.working_input_dict))
+        # action_bar.layout().insertWidget(action_bar.layout().count() - 1, debug_print_button)
 
         self.save_button.clicked.connect(self._save_inputs)
         main_layout.addSpacing(6)
@@ -270,6 +278,9 @@ class AdditionalInputs(QDialog):
                         text = str(value).strip()
                     else:
                         text = f"{float(value):.2f}"
+                        # If section properties, than format as .2e
+                        if "section_properties" in name:
+                            text = f"{float(value):.2e}"
                 except (ValueError, TypeError):
                     text = str(value)
                 widget.blockSignals(True)
@@ -280,10 +291,12 @@ class AdditionalInputs(QDialog):
                 widget.blockSignals(True)
                 widget.setCurrentText(str(value))
                 widget.blockSignals(False)
+                if hasattr(widget, "_sync_mode"):
+                    widget._sync_mode(widget.currentText())
 
             elif isinstance(widget, QCheckBox):
                 widget.blockSignals(True)
-                widget.setChecked(bool(value))
+                widget.setChecked(value if isinstance(value, bool) else str(value).strip().lower() in ("yes", "true", "1"))
                 widget.blockSignals(False)
 
             elif isinstance(widget, LoadCombinationWidget):
@@ -387,8 +400,8 @@ class AdditionalInputs(QDialog):
         from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder._segment_table_widget import SegmentTableWidget
         seg_table = self.findChild(SegmentTableWidget, KEY_MP_GD_SEGMENT_TABLE)
         if seg_table is not None:
-            total_span = float(self.working_input_dict.get(KEY_SPAN))
-            seg_table.set_total_span(total_span)
+            # This would prevent stale segment for selected girder on reopen of additional input dialog
+            self._on_girder_segments_load(KEY_MP_GD_SELECT_GIRDER, seg_table)
 
         # End Diaphragm fields — disabled when Optimized----------------------
         from osdagbridge.core.utils.common import (
@@ -453,13 +466,6 @@ class AdditionalInputs(QDialog):
         if active_tab is None:
             return
 
-        if hasattr(active_tab, "reset_active_tab_defaults"):
-            active_tab.reset_active_tab_defaults()
-            return
-        elif hasattr(active_tab, "reset_defaults"):
-            active_tab.reset_defaults()
-            return
-
         for widget in active_tab.findChildren(QWidget):
             name = widget.objectName()
             if not name or name not in self.default_input_dict:
@@ -474,6 +480,9 @@ class AdditionalInputs(QDialog):
                         text = str(value).strip()
                     else:
                         text = f"{float(value):.2f}"
+                        # If section properties, than format as .2e
+                        if "section_properties" in name:
+                            text = f"{float(value):.2e}"
                 except (ValueError, TypeError):
                     text = str(value)
                 widget.blockSignals(True)
@@ -484,10 +493,12 @@ class AdditionalInputs(QDialog):
                 widget.blockSignals(True)
                 widget.setCurrentText(str(value))
                 widget.blockSignals(False)
+                if hasattr(widget, "_sync_mode"):
+                    widget._sync_mode(widget.currentText())
 
             elif isinstance(widget, QCheckBox):
                 widget.blockSignals(True)
-                widget.setChecked(bool(value))
+                widget.setChecked(value if isinstance(value, bool) else str(value).strip().lower() in ("yes", "true", "1"))
                 widget.blockSignals(False)
             elif isinstance(widget, LoadCombinationWidget):
                 widget.blockSignals(True)
@@ -508,6 +519,24 @@ class AdditionalInputs(QDialog):
 
     def _save_inputs(self):  # on_change: validates all tabs then commits working_input_dict and emits CAD update signal
 
+        # Validate custom camber if mode is Custom
+        if self.working_input_dict.get(KEY_DO_CAMBER_MODE) == "Custom":
+            result = self.validator.validate_additional_inputs(KEY_DO_CAMBER_VALUE, self.working_input_dict)
+            if result is not None:
+                corrected, message = result
+                CustomMessageBox(
+                    title="Input Error",
+                    text=message,
+                    dialogType=MessageBoxType.Warning,
+                ).exec()
+                widget = self.findChild(QLineEdit, KEY_DO_CAMBER_VALUE)
+                if widget:
+                    widget.blockSignals(True)
+                    widget.setText(str(corrected))
+                    widget.blockSignals(False)
+                self._update_input_dict(KEY_DO_CAMBER_VALUE, str(corrected))
+                return
+
         # Flush the currently-displayed stiffener member's widgets before committing.
         # _save_stiffener_member_data otherwise only runs when switching *away* from a
         # member (via _on_stiffener_member_load), so the last-viewed girder (e.g. G4)
@@ -517,6 +546,11 @@ class AdditionalInputs(QDialog):
             self._save_stiffener_member_data(combo.currentText().strip())
 
         self.default_input_dict.update(self.working_input_dict)
+        
+        # Purge stale keys natively on the main dictionary using our robust extend_cb function
+        girder_count = int(float(str(self.default_input_dict.get(KEY_TS_NO_OF_GIRDERS) or 1)))
+        cb_count = int(float(str(self.default_input_dict.get(KEY_MP_CB_NO_OF_CROSS_BRACINGS) or 1)))
+        extend_cb_dynamic_keys(self.default_input_dict, girder_count, cb_count)
         from osdagbridge.desktop.ui.docks.cad_cross_section import CrossSectionCADWidget
         cad = self.findChild(CrossSectionCADWidget, KEY_TS_CAD_PREVIEW)
         if cad:
@@ -568,7 +602,7 @@ class AdditionalInputs(QDialog):
         self._update_input_dict(key, current_text)
 
         result = self.validator.validate_additional_inputs(key, self.working_input_dict)
-        print(f"@@: After Edited Validation result for {key} = {result}")
+        # print(f"@@: After Edited Validation result for {key} = {result}")
         if result is not None:
             corrected, message = result
             CustomMessageBox(
@@ -606,6 +640,9 @@ class AdditionalInputs(QDialog):
             except (ValueError, TypeError):
                 try:
                     self.working_input_dict[key] = float(value)
+                    # If section properties, than format as .2e
+                    if "section_properties" in key:
+                        self.working_input_dict[key] = f"{float(value):.2e}"
                 except (ValueError, TypeError):
                     self.working_input_dict[key] = value
 
@@ -893,7 +930,7 @@ class AdditionalInputs(QDialog):
         result = self.compute_crash_barrier_values(self.working_input_dict)
         for k, v in result.items():
             self._update_input_dict(k, str(v))
-        self.update_girder_layout()
+        self.update_girder_layout("spacing")
 
     def compute_crash_barrier_values(self, input_dict: dict) -> dict:
         from osdagbridge.core.utils.codes.irc5_2015 import IRC5_2015
@@ -994,7 +1031,7 @@ class AdditionalInputs(QDialog):
         result = self.compute_median_values(self.working_input_dict)
         for k, v in result.items():
             self._update_input_dict(k, str(v))
-        self.update_girder_layout()
+        self.update_girder_layout("spacing")
 
     def compute_median_values(self, input_dict: dict) -> dict:
         from osdagbridge.core.utils.codes.irc5_2015 import IRC5_2015
@@ -1045,7 +1082,7 @@ class AdditionalInputs(QDialog):
         return {}
 
     def on_layout_width_changed(self):  # on_editing_finished: triggers girder layout recalculation when CB/MD/RL/footpath width is edited
-        self.update_girder_layout()
+        self.update_girder_layout("spacing")
 
     # ── Railing Sub-Tab ──────────────────────────────────────────────────────────────────────
 
@@ -1054,7 +1091,7 @@ class AdditionalInputs(QDialog):
         result = self.compute_railing_values(self.working_input_dict)
         for k, v in result.items():
             self._update_input_dict(k, str(v))
-        self.update_girder_layout()
+        self.update_girder_layout("spacing")
 
     def compute_railing_values(self, input_dict: dict) -> dict:
         from osdagbridge.core.utils.codes.irc5_2015 import IRC5_2015
@@ -1221,6 +1258,11 @@ class AdditionalInputs(QDialog):
 
         count = int(float(str(value)))
         current = current_object.currentText()
+
+        # clear() drops the combo to 0 items -> currentIndex() == -1
+        # And this causes for girder_id G0
+        # Block the signal until combobox has final values
+        current_object.blockSignals(True)
         current_object.clear()
         for i in range(1, count + 1):
             if i == 1 or i == count:
@@ -1229,6 +1271,10 @@ class AdditionalInputs(QDialog):
                 current_object.addItem(f"Girder {i} (Interior)", f"G{i}")
         idx = current_object.findText(current)
         current_object.setCurrentIndex(idx if idx >= 0 else 0)
+        current_object.blockSignals(False)
+
+        # Fire the signal exactly after combo reflects its final correct state
+        current_object.currentTextChanged.emit(current_object.currentText())
 
         cad = self.findChild(QWidget, KEY_MP_GD_CAD_PREVIEW)
         if cad:
@@ -1245,17 +1291,45 @@ class AdditionalInputs(QDialog):
         ]
         rolled_keys = [KEY_MP_GIRDER_IS_SECTION]
 
+        def _live_widget(key: str):
+            # Get actual widget visible
+            # Required due to AdaptiveWidget (QStackedWidget)
+            w = self.findChild(QWidget, key)
+            if isinstance(w, AdaptiveWidget):
+                return w.currentWidget()
+            return w
+
         for key in welded_keys:
             w   = self.findChild(QWidget, key)
             lbl = self.findChild(QLabel, key + "_label")
             if w:   w.setVisible(is_welded)
             if lbl: lbl.setVisible(is_welded)
+            # Block hidden fields' signals so they can't fire while off-screen;
+            # Unblock the ones now shown so they behave normally again.
+            # Especially for Section-Property which changes by both Rolled & Welded fields
+            live = _live_widget(key)
+            if live: live.blockSignals(not is_welded)
 
         for key in rolled_keys:
             w   = self.findChild(QWidget, key)
             lbl = self.findChild(QLabel, key + "_label")
             if w:   w.setVisible(not is_welded)
             if lbl: lbl.setVisible(not is_welded)
+            live = _live_widget(key)
+            if live: live.blockSignals(is_welded)
+
+        if is_welded:
+            # Refresh welded section properties now that Depth is visible/live again.
+            # To Update Section Properties
+            depth_w = _live_widget(KEY_MP_GIRDER_DEPTH)
+            if isinstance(depth_w, QLineEdit):
+                depth_w.textChanged.emit(depth_w.text())
+        else:
+            # Refresh rolled section properties now that IS Section is visible/live again.
+            # To Update Section Properties
+            is_section_w = _live_widget(KEY_MP_GIRDER_IS_SECTION)
+            if isinstance(is_section_w, QComboBox):
+                is_section_w.currentTextChanged.emit(is_section_w.currentText())
 
         self._update_section_drawing()
 
@@ -1273,14 +1347,14 @@ class AdditionalInputs(QDialog):
         seg_key   = f"{KEY_MP_GD_SEGMENT_TABLE}.{girder_id}"
 
         segments = self.working_input_dict.get(seg_key)
-        print(f"@@: Loading segments for {girder_id} with key={seg_key}, segments={segments}")
+        # print(f"@@: Loading segments for {girder_id} with key={seg_key}, segments={segments}")
         total_span = float(self.working_input_dict.get(KEY_SPAN))
         if not segments:
             segments = [{"id": f"{girder_id}M1", "start": 0.0, "end": total_span}]
             self.working_input_dict[seg_key] = segments
 
-        target_widget.set_total_span(total_span)
         target_widget.refresh(segments)
+        target_widget.set_total_span(total_span)
 
         # Highlight the selected girder in the cross-section preview.
         cad = self.findChild(QWidget, KEY_MP_GD_CAD_PREVIEW)
@@ -1314,12 +1388,11 @@ class AdditionalInputs(QDialog):
             return
 
         idx       = self.findChild(QComboBox, KEY_MP_GD_SELECT_GIRDER)
-        girder_id = f"G{idx.currentIndex() + 1}" if idx else "G1"
+        girder_id = f"G{idx.currentIndex() + 1}"
         seg_key   = f"{KEY_MP_GD_SEGMENT_TABLE}.{girder_id}"
-        segments  = self.working_input_dict.get(seg_key, [])
+        segments  = self.working_input_dict.get(seg_key)
 
-        member_ids = [str(seg.get("id", "")) for seg in segments if seg.get("id")]
-
+        member_ids = [str(seg.get("id")) for seg in segments if seg.get("id")]
         current = target_widget.currentText()
         target_widget.clear()
         target_widget.addItems(member_ids)
@@ -1344,11 +1417,12 @@ class AdditionalInputs(QDialog):
         if not match:
             return
         gi, mi = int(match.group(1)), int(match.group(2))
-        print(f"[MEMBER_ID_LOAD] G{gi}.M{mi}")
+        # print(f"[MEMBER_ID_LOAD] G{gi}.M{mi}")
         self._load_member_fields(gi, mi)
         self._update_section_drawing()
 
     def _save_member_fields_connector(self, origin_key: str, target_widget: QWidget) -> None:  # END_CONNECTOR: triggers save of current member's girder fields on any section input change
+        gi, mi = self._get_current_girder_member_indices()
         self._save_member_fields()
 
     def _get_current_girder_member_indices(self) -> tuple[int, int]:  # utility: returns (girder_index, member_index) 1-based from current combo selections
@@ -1372,7 +1446,8 @@ class AdditionalInputs(QDialog):
                     mode = active.currentText()
                     self.working_input_dict[key + suffix] = mode
                 elif isinstance(active, QLineEdit):
-                    self.working_input_dict[key + suffix] = active.text()
+                    text = active.text()
+                    self.working_input_dict[key + suffix] = text
                 elif isinstance(active, QPushButton):
                     existing = self.working_input_dict.get(key)
                     if existing is not None:
@@ -1381,10 +1456,12 @@ class AdditionalInputs(QDialog):
                     print(f"  [SAVE] {key} — AdaptiveWidget active child unknown: {type(active)}")
 
             elif isinstance(w, QComboBox):
-                self.working_input_dict[key + suffix] = w.currentText()
+                text = w.currentText()
+                self.working_input_dict[key + suffix] = text
 
             elif isinstance(w, QLineEdit):
-                self.working_input_dict[key + suffix] = w.text()
+                text = w.text()
+                self.working_input_dict[key + suffix] = text
 
             else:
                 if isinstance(w, QWidget):
@@ -1400,8 +1477,12 @@ class AdditionalInputs(QDialog):
                     print(f"  [SAVE] {key} — widget not found: {type(w)}")
 
     def _load_member_fields(self, gi: int, mi: int) -> None:  # utility: restores Girder Details widgets from working_input_dict G{i}.M{j} keys
+        #  We firstly load all values in block mode and collect all widgets
+        # After loading all values, now reapplying to trigger save for correct values
+        
         suffix = f".G{gi}.M{mi}"
-        # print(f"[LOAD] G{gi}.M{mi}")
+
+        to_apply = []  # collect widgets so we can reapply values once at the end with no signal block
 
         for key in self._MEMBER_FIELD_KEYS:
             value = self.working_input_dict.get(key + suffix)
@@ -1420,10 +1501,12 @@ class AdditionalInputs(QDialog):
                     selected = self.working_input_dict.get(key + ".selected" + suffix)
                     if selected is not None:
                         self.working_input_dict[key + ".selected"] = selected
+                    to_apply.append(active)
                 elif isinstance(active, QLineEdit):
                     active.blockSignals(True)
                     active.setText(str(value))
                     active.blockSignals(False)
+                    to_apply.append(active)
                 elif isinstance(active, QPushButton):
                     if value is not None:
                         self.working_input_dict[key] = value
@@ -1434,13 +1517,16 @@ class AdditionalInputs(QDialog):
                 w.blockSignals(True)
                 w.setCurrentText(str(value))
                 w.blockSignals(False)
+                to_apply.append(w)
 
             elif isinstance(w, QLineEdit):
                 w.blockSignals(True)
                 if ("section_properties" in key or "material_properties" in key) and isinstance(value, (int, float)):
                     w.setText(f"{value:.2e}")
+                    to_apply.append(w)
                 else:
                     w.setText(str(value))
+                    to_apply.append(w)
                 w.blockSignals(False)
 
             else:
@@ -1453,13 +1539,23 @@ class AdditionalInputs(QDialog):
                         inner_combo.blockSignals(True)
                         inner_combo.setCurrentText(str(mode_val))
                         inner_combo.blockSignals(False)
+                        to_apply.append(inner_combo)
                     if inner_line and value_val:
                         inner_line.blockSignals(True)
                         inner_line.setText(str(value_val))
                         inner_line.blockSignals(False)
+                        to_apply.append(inner_line)
                 else:
                     print(f"  [LOAD] {key} — widget not found: {type(w)}")
-        
+
+        # Fire Signal for all the fields to update the related fields
+        for widget in to_apply:
+            if isinstance(widget, QComboBox):
+                widget.currentTextChanged.emit(widget.currentText())
+            elif isinstance(widget, QLineEdit):
+                widget.textChanged.emit(widget.text())
+                widget.editingFinished.emit()
+
         # Update symmetry-dependent widget states after loading
         self._on_symmetry_changed()
 
@@ -1837,6 +1933,7 @@ class AdditionalInputs(QDialog):
             self._set_enabled(lbl, is_yes)
 
         spacing_widget = self.findChild(QWidget, KEY_MP_STIFFENER_INTERMEDIATE_SPACING)
+        outstand_widget = self.findChild(QWidget, KEY_MP_STIFFENER_INTERMEDIATE_OUTSTAND)
         if restore_default:
             if is_yes:
                 # Auto-calculate intermediate spacing = 1.5 × web_depth of active member
@@ -1863,6 +1960,8 @@ class AdditionalInputs(QDialog):
                 # Reset spacing to "NA" when intermediate stiffener is turned off
                 if spacing_widget and isinstance(spacing_widget, QLineEdit):
                     spacing_widget.setText("NA")
+                if outstand_widget and isinstance(outstand_widget, QLineEdit):
+                    outstand_widget.setText("")
                 # Save to working_input_dict
                 combo = self.findChild(QComboBox, KEY_MP_STIFFENER_SELECT_MEMBER_ID)
                 if combo:
@@ -1871,6 +1970,7 @@ class AdditionalInputs(QDialog):
                     if m:
                         suffix = f".G{m.group(1)}.M{m.group(2)}"
                         self.working_input_dict[KEY_MP_STIFFENER_INTERMEDIATE_SPACING + suffix] = "NA"
+                        self.working_input_dict[KEY_MP_STIFFENER_INTERMEDIATE_OUTSTAND + suffix] = ""
 
         self._update_stiffener_cad()
 
@@ -2121,7 +2221,7 @@ class AdditionalInputs(QDialog):
                 if isinstance(w, QComboBox):
                     w.setCurrentText(str(value))
                 elif isinstance(w, QCheckBox):
-                    w.setChecked(bool(value))
+                    w.setChecked(value if isinstance(value, bool) else str(value).strip().lower() in ("yes", "true", "1"))
                 elif isinstance(w, QLineEdit) and not w.isReadOnly():
                     w.setText(str(value))
 
@@ -2569,12 +2669,15 @@ class AdditionalInputs(QDialog):
 
         span = float(self.working_input_dict.get(KEY_SPAN))
         if span > 0:
-            target_widget.setText(f"{span / (count + 1):.3f}")
+            spacing_val = span / (count + 1)
+            target_widget.setText(f"{spacing_val:.3f}")
+            self.working_input_dict[KEY_MP_CB_SPACING] = round(spacing_val, 3)
         else:
             target_widget.setText("")
 
         if count > 0:
             girder_count = int(float(str(self.working_input_dict.get(KEY_TS_NO_OF_GIRDERS) or 1)))
+            self.working_input_dict[KEY_MP_CB_NO_OF_CROSS_BRACINGS] = count
             # Write count at pair-level for every pair — same value for all
             for gi in range(1, girder_count):
                 pair_key = f"{KEY_MP_CB_NO_OF_CROSS_BRACINGS}.G{gi}G{gi + 1}"
@@ -2679,7 +2782,7 @@ class AdditionalInputs(QDialog):
                 if isinstance(w, QComboBox):
                     w.setCurrentText(str(value))
                 elif isinstance(w, QCheckBox):
-                    w.setChecked(bool(value))
+                    w.setChecked(value if isinstance(value, bool) else str(value).strip().lower() in ("yes", "true", "1"))
                 elif isinstance(w, QLineEdit) and not w.isReadOnly():
                     w.setText(str(value))
 
@@ -2974,9 +3077,11 @@ class AdditionalInputs(QDialog):
         height_str = working_input_dict.get(KEY_WL_AVG_EXPOSED_HEIGHT)
         terrain_str = working_input_dict.get(KEY_WL_TERRAIN_TYPE)
 
+        if not basic_wind_speed_str:
+            basic_wind_speed_str = working_input_dict.get("project.location", {}).get("weather_data", {}).get("wind_speed", "")
+        
         if not basic_wind_speed_str or not height_str or not terrain_str:
             return {}
-
         try:
             height = float(height_str)
             basic_wind_speed = float(basic_wind_speed_str)
@@ -3000,8 +3105,12 @@ class AdditionalInputs(QDialog):
 
         max_str = working_input_dict.get(KEY_TL_HIGHEST_MAX_TEMP)
         min_str = working_input_dict.get(KEY_TL_LOWEST_MIN_TEMP)
-        if not max_str or not min_str or max_str == "—" or min_str == "—":
-            return {}
+
+        if max_str is None or max_str == "—":
+            max_str = working_input_dict.get("project.location", {}).get("weather_data", {}).get("max_temp", "")
+        if min_str is None or min_str == "—":
+            min_str = working_input_dict.get("project.location", {}).get("weather_data", {}).get("min_temp", "")
+
 
         try:
             max_temp = float(max_str)

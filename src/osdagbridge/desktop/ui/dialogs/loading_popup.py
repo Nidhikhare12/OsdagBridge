@@ -100,23 +100,12 @@ class AnalysisProgressDialog(QDialog):
         self._spinner = _SpinnerLabel()
         tr_layout.addWidget(self._spinner)
 
-        brand_lbl = QLabel("Osdag")
+        brand_lbl = QLabel("OsdagBridge...")
         brand_lbl.setStyleSheet(
             "color: #90AF13; font-weight: 700; font-size: 12px; "
             "letter-spacing: 1px; border: none; background: transparent;"
         )
         tr_layout.addWidget(brand_lbl)
-
-        dot_lbl = QLabel("·")
-        dot_lbl.setStyleSheet("color: #CCCCCC; font-size: 13px; border: none; background: transparent;")
-        tr_layout.addWidget(dot_lbl)
-
-        title_lbl = QLabel("Analysis running in background")
-        title_lbl.setStyleSheet(
-            f"color: {fg}; font-weight: 600; font-size: 11px; "
-            "border: none; background: transparent;"
-        )
-        tr_layout.addWidget(title_lbl)
         tr_layout.addStretch()
 
         title_row._drag_pos = QPoint()

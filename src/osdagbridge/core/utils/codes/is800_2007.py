@@ -1023,7 +1023,7 @@ class IS800_2007(object):
 
     @staticmethod
     def cl_8_2_1_2_design_bending_strength(section_class, Zp, Ze, fy, gamma_mo, support):
-        beta_b = 1.0 if section_class == KEY_Plastic or KEY_Compact else Ze/Zp
+        beta_b = 1.0 if section_class in (KEY_Plastic, KEY_Compact) else Ze/Zp
         Md = beta_b * Zp * fy / gamma_mo
         if support == KEY_DISP_SUPPORT1 :
             if Md < 1.2 * Ze * fy / gamma_mo:

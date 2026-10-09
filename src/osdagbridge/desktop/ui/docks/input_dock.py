@@ -93,6 +93,17 @@ class InputDock(QWidget):
         self.main_layout.addWidget(self.left_container)
         self._build_toggle_strip()
 
+        # Disable Optimize button and change it to Custom
+        mode_widget = self.input_widget.findChild(QComboBox, KEY_DESIGN_MODE)
+        if mode_widget:
+            mode_widget.blockSignals(True) # to block call to common_design_func()
+            mode_widget.setCurrentText("Custom")
+            model = mode_widget.model()
+            model.item(0).setEnabled(False)
+            mode_widget.blockSignals(False)
+            self._current_design_mode = "Custom" # Change Design Mode
+            self.parent.input_dict[KEY_DESIGN_MODE] = "Custom" # Change Design Mode in input_dict
+
     # ── Widget lookup ─────────────────────────────────────────────────────────
 
     def _w(self, key) -> QWidget | None:
@@ -663,7 +674,6 @@ class InputDock(QWidget):
         # Footpath toggle changes overall bridge width — force defaults re-solve
         # on next Additional Inputs open so the dict has the new geometry.
         self.is_require_field_changed = True
-        self.parent.notify_additional_inputs_footpath(value)
 
     def _on_include_median_changed(self, value=None):
         # Median toggle also changes overall bridge width and the Median sub-tab's
@@ -877,6 +887,9 @@ class InputDock(QWidget):
         self.scroll_area.setDisabled(self.is_locked)
         self.design_btn.setDisabled(self.is_locked)
         self._sync_lock_icon()
+
+        if not self.is_locked:
+            self.backend.design_completed = False
 
     def _apply_lock_state(self):
         self._sync_lock_icon()

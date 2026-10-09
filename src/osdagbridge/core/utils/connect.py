@@ -74,13 +74,28 @@ def run_calculation(design_dict: Dict[str, Any], quiet: bool = True) -> Dict[str
         module_instance = module_class()
         module_instance.set_osdaglogger(None, None)
 
-        validation_errors = module_instance.func_for_validation(design_dict)
+        try:
+            validation_errors = module_instance.func_for_validation(design_dict)
+        except Exception as exc:
+            # Some section families are not implemented in osdag_core and blow
+            # up mid-design (e.g. channels raise UnboundLocalError 'min_rad').
+            # Report that as an un-designable section rather than losing the
+            # result entirely — the caller shows it as a failed check.
+            return {
+                "design_status": False,
+                "design_error": f"{type(exc).__name__}: {exc}",
+            }
 
         if validation_errors:
             print(f"[Osdag] Validation errors: {validation_errors}")
             raise RuntimeError("Validation errors occurred during execution.")
 
         output_dict = _get_output_dictionary(module_instance)
+
+        # On a failed design Osdag returns every value as "", with no flag to
+        # distinguish "failed" from "not run". Carry the module's own pass/fail
+        # status so consumers can report FAIL instead of N/A.
+        output_dict["design_status"] = bool(module_instance.design_status)
 
         return output_dict
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from math import ceil
+import math
 
 from osdagbridge.core.utils.codes.irc5_2015 import IRC5_2015
 from osdagbridge.core.utils.codes.keyfile import (
@@ -15,6 +15,7 @@ from osdagbridge.core.utils.codes.keyfile import (
     KEY_RIGID_CRASH_BARRIER_TYPE,
 )
 from osdagbridge.core.utils.common import (
+    KEY_MODULE_PLATE_GIRDER, KEY_MODULE,
     DEFAULT_GIRDER_SPACING,
     DEFAULT_RAILING_WIDTH,
     KEY_TS_GIRDER_SPACING, KEY_TS_NO_OF_GIRDERS, KEY_TS_DECK_OVERHANG, KEY_TS_OVERALL_WIDTH,
@@ -142,12 +143,13 @@ from osdagbridge.core.utils.common import (
     connectdb,
 )
 steel_properties = connectdb("Steel_Grade_Properties")
-concrete_properies = connectdb("Concrete_Grade_Properties")
+concrete_properties = connectdb("Concrete_Grade_Properties")
 
 # This is default initial dictionary
 BASIC_INPUT_DICT = {
 
     # Input Dock Defaults
+    KEY_MODULE: KEY_MODULE_PLATE_GIRDER,
     KEY_STRUCTURE_TYPE: "Highway Bridge",
     KEY_PROJECT_LOCATION: None,  # Required field will be none by default
     KEY_SPAN: None,
@@ -159,13 +161,38 @@ BASIC_INPUT_DICT = {
     KEY_GIRDER: steel_properties[12],
     KEY_CROSS_BRACING: steel_properties[12],
     KEY_END_DIAPHRAGM: steel_properties[12],
-    KEY_DECK_CONCRETE_GRADE_BASIC: concrete_properies[5],
+    KEY_DECK_CONCRETE_GRADE_BASIC: concrete_properties[5],
 
     # Additional Inputs Defaults
     
 
 }
 #--------------Inp-dict-End----------------
+
+# ── Cross Bracing Defaults ────────────────────────────────────────────────
+def _calc_crossbracing_spacing_and_no(span_m: float) -> tuple[int, float]:
+    """
+    Compute default cross bracing configuration from span.
+
+    Strategy:
+        1. Assume initial spacing of DEFAULT_CROSS_BRACING_SPACING (3.0 m)
+        2. Calculate no. of cross bracings = max(1, ceil(span / 3) - 1)
+        3. Recalculate actual spacing = span / (no_of_cross_bracings + 1)
+           (since count is int, spacing can be float)
+    Args:
+        span_m: Span in meters.
+    Returns:
+        Tuple of (no_of_cross_bracings: int, spacing_m: float).
+    """
+    initial_spacing = DEFAULT_CROSS_BRACING_SPACING  # 3.0 m
+    if span_m <= 0:
+        return 1, initial_spacing
+    # Number of panels = ceil(span / 3); cross bracings = panels - 1
+    no_of_bracings = max(1, math.ceil((span_m / initial_spacing) - 1))
+    # Recalculate actual spacing
+    actual_spacing = round(span_m / (no_of_bracings + 1), 3)
+
+    return no_of_bracings, actual_spacing
 
 def _update_typical_section_defaults(input_dict: dict) -> None:
     """Fill Typical Section tab keys that are None with computed/standard defaults."""
@@ -184,7 +211,7 @@ def _update_typical_section_defaults(input_dict: dict) -> None:
     # --- Deck Detail sub-tab ---
     _update(KEY_TS_DECK_THICKNESS,     250.0)                        # mm
     _update(KEY_TS_FOOTPATH_WIDTH,     IS_DEFAULT_FOOTPATH_WIDTH_M)  # m
-    _update(KEY_TS_FOOTPATH_THICKNESS, 100.0)                        # mm
+    _update(KEY_TS_FOOTPATH_THICKNESS, 250.0)                        # mm
 
     # --- Crash Barrier sub-tab ---
     _cb_dims = IRC5_2015.cl_109_6_3_shapes(
@@ -317,9 +344,6 @@ def _update_loading_tab_defaults(input_dict: dict) -> None:
     _update(KEY_WL_WIND_LL_ECC_MODE,        "As per IRC 6")
     _update(KEY_WL_WIND_LL_ECC_VALUE,       "")
 
-    # ── Temperature Load ───────────────────────────────────────────────────
-    _update(KEY_TL_THERMAL_COEFF_STEEL,     "11.7e-6")
-    _update(KEY_TL_THERMAL_COEFF_RCC,       "11.7e-6")
 
     # ── Load Combination ───────────────────────────────────────────────────
     _update(KEY_LC_COMBINATIONS,            [])
@@ -384,6 +408,24 @@ def _update_design_options_cont_defaults(input_dict: dict) -> None:
     _update(KEY_DO_SLS_DEFLECTION,     True)
     _update(KEY_DO_SLS_CRACK_WIDTH,    True)
 
+def _update_cross_bracing_defaults(basic_input_dict: dict) -> None:
+    """Calculate default cross bracing count and spacing based on span."""
+    span_m = float(str(basic_input_dict.get(KEY_SPAN, 0)).strip() or 0)
+    
+    # Only overwrite the CB count/spacing if the span has actually changed,
+    # so we don't wipe out user's manual edits from Additional Inputs.
+    last_span = basic_input_dict.get("last_computed_span_for_cb")
+    
+    if span_m > 0:
+        if last_span != span_m:
+            default_cb_count, default_cb_spacing = _calc_crossbracing_spacing_and_no(span_m)
+            basic_input_dict[KEY_MP_CB_NO_OF_CROSS_BRACINGS] = default_cb_count
+            basic_input_dict[KEY_MP_CB_SPACING] = default_cb_spacing
+            basic_input_dict["last_computed_span_for_cb"] = span_m
+    else:
+        basic_input_dict.setdefault(KEY_MP_CB_SPACING, DEFAULT_CROSS_BRACING_SPACING)
+        basic_input_dict.setdefault(KEY_MP_CB_NO_OF_CROSS_BRACINGS, 1)
+
 # Per-member CB keys — excludes select_girders/member_id (derived from key structure)
 # and no_of_cross_bracings/spacing (global / computed values).
 _CB_PROPS = [
@@ -408,6 +450,22 @@ def extend_cb_dynamic_keys(working_input_dict: dict, girder_count: int, no_of_br
     """
     no_of_bracings = max(1, int(no_of_bracings))
 
+    # ── Remove ALL stale CB keys (member IDs > no_of_bracings or girder > girder_count) ──
+    stale_cb_keys = []
+    for k in working_input_dict:
+        if k.startswith("member_properties.cross_bracing_details.") and ".G" in k:
+            members = [int(m) for m in re.findall(r'M(\d+)', k)]
+            if any(m > no_of_bracings for m in members):
+                stale_cb_keys.append(k)
+    for k in stale_cb_keys:
+        del working_input_dict[k]
+
+    # ── Remove ALL existing spacing keys and regenerate with new value ──
+    base_spacing_key = KEY_MP_CB_SPACING
+    for k in list(working_input_dict.keys()):
+        if k == base_spacing_key or k.startswith(base_spacing_key + "."):
+            del working_input_dict[k]
+
     # Spacing is not stored by the CB UI form; it is computed and displayed only
     # (_on_cb_spacing_computed). Recompute it here with the same formula so report
     # Table 2.7 reflects the current No. of Cross Bracings: span / (count + 1).
@@ -416,6 +474,10 @@ def extend_cb_dynamic_keys(working_input_dict: dict, girder_count: int, no_of_br
     except (ValueError, TypeError):
         span = 0.0
     cb_spacing = round(span / (no_of_bracings + 1), 3) if span > 0 else ""
+
+    # Ensure the base KEY_MP_CB_SPACING is set so CAD widgets can read it
+    if cb_spacing != "":
+        working_input_dict[KEY_MP_CB_SPACING] = cb_spacing
 
     for girder_idx in range(1, girder_count):
         g_pair      = f"G{girder_idx}G{girder_idx + 1}"
@@ -437,10 +499,8 @@ def extend_cb_dynamic_keys(working_input_dict: dict, girder_count: int, no_of_br
                 seed_key = base_key + seed_suffix
                 if seed_key in working_input_dict:
                     working_input_dict[full_key] = working_input_dict[seed_key]
-                elif section_defaults and defaults_key in section_defaults:
-                    working_input_dict[full_key] = section_defaults[defaults_key]
                 else:
-                    working_input_dict[full_key] = _CB_DEFAULTS[defaults_key]
+                    working_input_dict[full_key] = section_defaults[defaults_key]
 
 
 def _extend_member_field_keys(working_input_dict: dict, girder_id: str, member_field_keys: list) -> None:
@@ -550,7 +610,6 @@ def _on_no_of_girders_changed(working_input_dict: dict) -> None:
 
     # --- Girder selector key + default segment table: only a .G{n} suffix ---
     for girder_idx in range(1, count + 1):
-        working_input_dict[f"{KEY_MP_GD_SELECT_GIRDER}.G{girder_idx}"] = f"G{girder_idx}"
         seg_table_key = f"{KEY_MP_GD_SEGMENT_TABLE}.G{girder_idx}"
         if seg_table_key not in working_input_dict:
             working_input_dict[seg_table_key] = [
@@ -583,14 +642,17 @@ def _on_no_of_girders_changed(working_input_dict: dict) -> None:
             working_input_dict[f"{KEY_MP_GD_MEMBER_ID}.G{girder_idx}.M{member_id}"] = f"G{girder_idx}M{member_id}"
             for base_key, value in MP_GIRDER_INPUT_DEFAULTS:
                 key = f"{base_key}.G{girder_idx}.M{member_id}"
-                if key not in working_input_dict:
+                # Optimized mode only sizes welded girders, enforce Welded here
+                # even if a Rolled section was picked earlier while in Custom mode
+                if base_key == KEY_MP_GIRDER_TYPE and design_mode == 'Optimized':
+                    working_input_dict[key] = "Welded"
+                elif key not in working_input_dict:
                     working_input_dict[key] = value
 
-    # To add a new property in future, just add one line here.
-    # The imported constant's string VALUE is used as the base key,
-    # e.g. KEY_MP_GIRDER_DEPTH = "member_properties.girder_details.section_input.depth"
-    # produces → "member_properties.girder_details.section_input.depth.G1.M1"
-    
+    # Also enforce base key to be 'Welded' on 'Optimized'
+    if design_mode == 'Optimized':
+        working_input_dict[KEY_MP_GIRDER_TYPE] = "Welded"
+
     import math
     from osdagbridge.core.utils.common import SAIL_APPROVED_THICKNESS_VALUES
     
@@ -641,8 +703,7 @@ def _on_no_of_girders_changed(working_input_dict: dict) -> None:
             for member_id in [1]:
                 for base_key, value in MP_GIRDER_PROPS:
                     key = f"{base_key}.G{girder_idx}.M{member_id}"
-                    if design_mode == 'Optimized' or key not in working_input_dict or working_input_dict[key] in (None, "", "All"):
-                        working_input_dict[key] = value
+                    working_input_dict[key] = value
 
         # Sync base (non-dynamic) keys with current mode — edge beams fall back to these
         # when their per-girder key doesn't exist (e.g. G5.M1 for 4-girder bridge).
@@ -744,8 +805,6 @@ def _on_no_of_girders_changed(working_input_dict: dict) -> None:
         "spacing":                      DEFAULT_CROSS_BRACING_SPACING,  # 3.0
     }
 
-    working_input_dict.setdefault(KEY_MP_CB_NO_OF_CROSS_BRACINGS, 1)
-    no_of_bracings = max(1, int(float(str(working_input_dict.get(KEY_MP_CB_NO_OF_CROSS_BRACINGS) or 1))))
     extend_cb_dynamic_keys(working_input_dict, count, no_of_bracings, _CB_DEFAULTS)
 
     # ── End diaphragm ─────────────────────────────────────────────────────────
@@ -865,7 +924,7 @@ def seed_no_of_girders(overall_width: float) -> int:
     """
     if overall_width <= 0:
         raise ValueError("Overall bridge width must be positive.")
-    return max(2, ceil(overall_width / DEFAULT_GIRDER_SPACING))
+    return max(2, math.ceil(overall_width / DEFAULT_GIRDER_SPACING))
 
 def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
     """Parse basic inputs and solve bridge layout. Updates basic_input_dict in-place."""
@@ -891,6 +950,9 @@ def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
     
     _update_design_options_cont_defaults(basic_input_dict)
 
+    # Enforces the _calc_crossbracing_spacing_and_no input into the working dictionary
+    _update_cross_bracing_defaults(basic_input_dict)
+    
     if footpath_str in ('None', ''):
         n_footpaths, footpath_width, railing_width = 0, 0.0, 0.0
     elif 'Both' in footpath_str:
@@ -913,8 +975,7 @@ def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
         n_footpaths=n_footpaths,
     )
     no_of_girders = int(
-        basic_input_dict.get(KEY_TS_NO_OF_GIRDERS)
-        or seed_no_of_girders(solver.calculate_overall_bridge_width())
+        seed_no_of_girders(solver.calculate_overall_bridge_width())
     )
     sizing_result = solver._solve_layout(no_of_girders=no_of_girders, changed_field='girders')
 

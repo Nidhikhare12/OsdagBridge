@@ -65,6 +65,25 @@ from osdagbridge.core.utils.common import (
     KEY_MP_ED_BRACING_SECTION,
     KEY_MP_ED_TOP_CHORD_SECTION_TYPE,
     KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE,
+    KEY_MP_CB_BRACING_SECTION_DESIGNATION,
+    KEY_MP_CB_BRACING_SECTION_TYPE,
+    KEY_MP_CB_TOP_CHORD_SECTION_DESIG,
+    KEY_MP_CB_TOP_CHORD_SECTION_TYPE,
+    KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG,
+    KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE,
+    KEY_MP_CB_TOP_CHORD,
+    KEY_MP_CB_BOTTOM_CHORD,
+    KEY_MP_CB_BRACING_CONNECTION,
+    KEY_MP_ED_BRACING_SECTION_DESIGNATION,
+    KEY_MP_ED_TOP_CHORD_SECTION_DESIG,
+    KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG,
+    KEY_MP_ED_TOP_CHORD,
+    KEY_MP_ED_BOTTOM_CHORD,
+    KEY_MP_ED_TYPE,
+    KEY_MP_ED_BRACING_TYPE,
+    KEY_MP_CB_NO_OF_CROSS_BRACINGS,
+    KEY_MP_CB_SPACING,
+    KEY_DESIGN_MODE,
 )
 
 # ── Style constants ───────────────────────────────────────────────────────────
@@ -162,10 +181,12 @@ _SUBHEAD_STYLE  = "font-size: 11px; font-weight: 600; color: #4b4b4b; border: no
 _PROP_LBL_STYLE = "font-size: 10px; color: #555; border: none; background: transparent;"
 
 _SECTION_TYPE_MAP = {
-    "Double Angles":  "double_angle_long",
-    "Angle":          "angle",
-    "Channel":        "channel",
-    "Double Channel": "double_channel",
+    "Double Angles":            "double_angle_long",
+    "Double Angle (Long Leg)":  "double_angle_long",
+    "Double Angle (Short Leg)": "double_angle_short",
+    "Angle":                    "angle",
+    "Channel":                  "channel",
+    "Double Channel":           "double_channel",
 }
 
 # ── Schema reference ──────────────────────────────────────────────────────────
@@ -786,10 +807,12 @@ class TransverseMemberDesign(QDialog):
     def _on_pair_selected(self, idx: int):
         """Refresh details and bracing layout for the given pair index."""
         pair_key = self._pair_keys[idx] if 0 <= idx < len(self._pair_keys) else None
-        self._refresh_bracing_layout()
         if pair_key:
+            # Populate first so the per-pair chord checkboxes are set before the
+            # bracing diagram is drawn from their state.
             self._populate_cb_pair_details(pair_key)
             self._populate_ed_pair_details(pair_key)
+            self._refresh_bracing_layout()
             if self._forces_dict:   # forces are enough; designs just add capacity column
                 lc_combo = self._widgets.get(KEY_TD_LOAD_COMBINATION)
                 current_lc = lc_combo.currentText() if lc_combo else "Envelope"
@@ -884,9 +907,21 @@ class TransverseMemberDesign(QDialog):
         top     = tc_w.isChecked() if tc_w else True
         bottom  = bc_w.isChecked() if bc_w else True
 
+        pair_combo = self._widgets.get(KEY_TD_SELECT_GIRDER)
+        pair_key = pair_combo.currentText() if pair_combo else ""
+        if not pair_key and self._pair_keys:
+            pair_key = self._pair_keys[0]
+        pair_num = (self._pair_keys.index(pair_key) + 1) if pair_key in self._pair_keys else 1
+        prefix = "E" if is_ed_tab else "B"
+        n_members = 2 if is_ed_tab else self._members_per_pair.get(pair_key, 1)
+        if n_members > 1:
+            member_label = f"{prefix}{pair_num}M1 to {prefix}{pair_num}M{n_members}"
+        else:
+            member_label = f"{prefix}{pair_num}M1"
+
         active_widget = self._tab_bracing_widgets["ed" if is_ed_tab else "cb"]
         if active_widget is not None:
-            active_widget.set_layout(bracing, top, bottom, "", "")
+            active_widget.set_layout(bracing, top, bottom, member_label, pair_key)
 
     # ── Data loading ──────────────────────────────────────────────────────
 
@@ -917,12 +952,16 @@ class TransverseMemberDesign(QDialog):
             ed_designs = getattr(backend, "end_diaphragm_design_results", {}) or {}
             od         = getattr(backend, "output_dict", {}) or {}
 
-            # Merge ED results into designs_dict and tag ed_type / ed_bracing_type
-            designs_dict: dict = dict(cb_designs)
+            # Merge ED results into designs_dict and tag ed_type / ed_bracing_type.
+            # ED designs are kept under their own key: they use the same member
+            # names as cross bracing ("diagonal", "top_chord", ...) but are
+            # different members designed against different sections, so merging
+            # them at the same level would let one tab show the other's result.
+            designs_dict: dict = {p: dict(v) for p, v in cb_designs.items()}
             for pair, ed_pair_data in ed_designs.items():
                 pair_id   = pair.replace("-", "")
-                ed_type  = od.get(f"member_properties.end_diaphragm_details.{pair_id}.type") or ""
-                ed_btype = od.get(f"member_properties.end_diaphragm_details.{pair_id}.bracing_type") or ""
+                ed_type  = od.get(f"{KEY_MP_ED_TYPE}.{pair_id}") or ""
+                ed_btype = od.get(f"{KEY_MP_ED_BRACING_TYPE}.{pair_id}") or ""
                 entry = designs_dict.setdefault(pair, {})
                 # Only attach ED metadata if real ED design exists
                 # ALWAYS store ED type metadata (UI needs this)
@@ -933,40 +972,19 @@ class TransverseMemberDesign(QDialog):
                     entry["ed_bracing_type"] = ed_btype
 
                 if ed_pair_data:
-                    for k, v in ed_pair_data.items():
-                        entry.setdefault(k, v)
+                    entry["ed_designs"] = ed_pair_data
 
             self._backend = backend
-            members_per_pair = self._compute_members_per_pair(backend, forces_dict)
-            self.load_data(forces_dict, designs_dict, members_per_pair, all_lcs=all_lcs)
+            self.load_data(forces_dict, designs_dict, all_lcs=all_lcs)
         except Exception as e:
             import traceback
             print(f"[TransverseMemberDesign] _try_load_data error: {e}")
             traceback.print_exc()
 
-    def _compute_members_per_pair(self, backend, forces_dict: dict) -> dict[str, int]:
-        pairs = list(forces_dict.get("pairs", {}).keys())
-        if not pairs:
-            return {}
-
-        geom       = forces_dict.get("geometry", {})
-        cb_spacing = float(geom.get("cb_spacing_m") or 4.0)
-
-        span   = None
-        sizing = getattr(backend, "sizing_result", None)
-        if sizing is not None:
-            span = getattr(sizing, "span", None)
-        if span is None:
-            span = float(getattr(backend, "basic_inputs", {}).get("span", 30) or 30)
-
-        n = max(1, round(float(span) / cb_spacing) - 1)
-        return {p: n for p in pairs}
-
     def load_data(
         self,
         forces_dict:      dict,
         designs_dict:     dict | None = None,
-        members_per_pair: dict | None = None,
         all_lcs:          list[str] | None = None,
     ) -> None:
         if not forces_dict:
@@ -986,38 +1004,20 @@ class TransverseMemberDesign(QDialog):
                 print(f"[TransverseMemberDesign] DEBUG:   {key} = {value}")
         # --- END DEBUG ---
 
-        geom  = forces_dict.get("geometry", {})
         pairs = forces_dict.get("pairs", {})
 
         self._pair_keys = list(pairs.keys())
 
-        # Set bracing type
-        brace_raw = forces_dict.get("brace_type")
-        if brace_raw:
-            brace_label = "K-Bracing" if "K" in str(brace_raw).upper() else "X-Bracing"
-        else:
-            brace_label = ""
-
-        bracing_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_BRACING_TYPE)
-        if bracing_w:
-            bracing_w.setText(brace_label)
-
-        # Set chord checkboxes
-        tc_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_TOP_CHORD_ENABLED)
-        if tc_w:
-            tc_w.setChecked(bool(forces_dict.get("top_chord", True)))
-        bc_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_BOTTOM_CHORD_ENABLED)
-        if bc_w:
-            bc_w.setChecked(bool(forces_dict.get("bottom_chord", True)))
-
-        # Set spacing
-        spacing = geom.get("cb_spacing_m")
-        spacing_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_SPACING)
-        if spacing is not None and spacing_w:
-            spacing_w.setText(f"{spacing:.3f} m")
+        # Bracing type, chord checkboxes, and spacing are all per-pair (a pair
+        # may be K-Bracing while another is X-Bracing) and are set in
+        # _populate_cb_pair_details, not here.
 
         # members_per_pair tracks how many cross-bracings exist between each girder pair
-        self._members_per_pair = members_per_pair or {p: 1 for p in self._pair_keys}
+        geom_dict = forces_dict.get("geometry", {})
+        self._members_per_pair = {
+            p: int(geom_dict.get(p, {}).get("no_of_cross_bracings", 1))
+            for p in self._pair_keys
+        }
 
         # Populate Load Combination combo — all LCs from backend, or fall back to governing LCs
         load_combo = self._widgets.get(KEY_TD_LOAD_COMBINATION)
@@ -1048,11 +1048,12 @@ class TransverseMemberDesign(QDialog):
             girder_combo.addItems(self._pair_keys)
             girder_combo.setEnabled(bool(self._pair_keys))
 
-        self._refresh_bracing_layout()
-
         if self._pair_keys:
+            # Populate first so per-pair chord checkboxes are set before the
+            # bracing diagram is drawn from their state.
             self._populate_cb_pair_details(self._pair_keys[0])
             self._populate_ed_pair_details(self._pair_keys[0])
+        self._refresh_bracing_layout()
 
         if self._pair_keys:
             cb_html = self._build_cb_design_check_html(self._pair_keys[0], forces_dict, self._designs_dict)
@@ -1072,45 +1073,102 @@ class TransverseMemberDesign(QDialog):
         if no_cb_w:
             no_cb_w.setText(str(self._members_per_pair.get(pair_key, 0)))
 
+        # Brace type and spacing are per-pair (G1-G2 may be K-Bracing while
+        # G2-G3 is X-Bracing), so read this pair's own entry rather than a
+        # single bridge-wide value.
+        brace_raw = self._forces_dict.get("brace_type", {}).get(pair_key)
+        bracing_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_BRACING_TYPE)
+        if bracing_w:
+            brace_label = ("K-Bracing" if "K" in str(brace_raw).upper() else "X-Bracing") if brace_raw else ""
+            bracing_w.setText(brace_label)
+
+        pair_geom = self._forces_dict.get("geometry", {}).get(pair_key, {})
+        spacing = pair_geom.get("cb_spacing_m")
+        spacing_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_SPACING)
+        if spacing is not None and spacing_w:
+            spacing_w.setText(f"{spacing:.3f} m")
+
+        # Per-member input keys (…​.G1G2.B1M1) — what the user set in Additional Inputs
+        od      = getattr(self._backend, "output_dict", {}) or {}
+        pair_id = pair_key.replace("-", "")
+        m = re.match(r"G(\d+)G\d+", pair_id)
+        member_suffix = f".{pair_id}.B{m.group(1)}M1" if m else ""
+
         conn_w = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_CONNECTION_TYPE)
         if conn_w:
-            conn_w.setText("Bolted")
+            conn = str(od.get(f"{KEY_MP_CB_BRACING_CONNECTION}{member_suffix}") or "Bolted")
+            conn_w.setText(conn)
 
         # ── Design-data-dependent fields ─────────────────────────────────────
         if not self._designs_dict:
             return
 
-        od      = getattr(self._backend, "output_dict", {}) or {}
-        pair_id = pair_key.replace("-", "")
         pair_designs = self._designs_dict.get(pair_key, {})
 
-        diag_des  = self._get_governing_section(pair_designs, "diagonal")
-        chord_des = self._get_governing_section(pair_designs, "chord")
+        diag_des = self._resolve_section(
+            self._get_governing_section(pair_designs, "diagonal"),
+            od.get(f"{KEY_MP_CB_BRACING_SECTION_DESIGNATION}{member_suffix}"),
+        )
+        # Top and bottom chords are designed against their own sections.
+        tc_designed = self._get_governing_section(pair_designs, "top_chord")
+        bc_designed = self._get_governing_section(pair_designs, "bottom_chord")
 
-        # Read actual section types — backend writes these as literal strings
-        diag_type_lbl = self._section_type_label(
-            od.get(f"member_properties.cross_bracing_details.{pair_id}.diagonal.section_type", ""))
-        tc_type_lbl   = self._section_type_label(
-            od.get(f"member_properties.cross_bracing_details.{pair_id}.top_chord.section_type", ""))
-        bc_type_lbl   = self._section_type_label(
-            od.get(f"member_properties.cross_bracing_details.{pair_id}.bottom_chord.section_type", ""))
+        # Section types follow the same mode rule as the designations: in
+        # Optimized mode the family of the section Osdag actually picked wins,
+        # otherwise the type and designation shown would disagree (e.g. type
+        # "Channel" left over from a Custom run next to a designed angle).
+        diag_type_lbl = self._resolve_section(
+            self._section_type_label(
+                od.get(f"{KEY_MP_CB_BRACING_SECTION_TYPE}.{pair_id}", "")),
+            od.get(f"{KEY_MP_CB_BRACING_SECTION_TYPE}{member_suffix}"),
+        )
+        tc_type_lbl = self._resolve_section(
+            self._section_type_label(
+                od.get(f"{KEY_MP_CB_TOP_CHORD_SECTION_TYPE}.{pair_id}", "")),
+            od.get(f"{KEY_MP_CB_TOP_CHORD_SECTION_TYPE}{member_suffix}"),
+        )
+        bc_type_lbl = self._resolve_section(
+            self._section_type_label(
+                od.get(f"{KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE}.{pair_id}", "")),
+            od.get(f"{KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE}{member_suffix}"),
+        )
+
+        # Top and bottom chords can be different sections (the user picks each
+        # separately in Custom mode), and each is designed against its own.
+        tc_des_user = str(od.get(f"{KEY_MP_CB_TOP_CHORD_SECTION_DESIG}{member_suffix}") or "").strip()
+        bc_des_user = str(od.get(f"{KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG}{member_suffix}") or "").strip()
+
+        # Chord enable flags are per-pair (G1-G2 may differ from G2-G3), so read
+        # each pair's own input keys rather than the bridge-wide forces_dict flag.
+        top_on    = str(od.get(f"{KEY_MP_CB_TOP_CHORD}{member_suffix}")).strip().lower() not in ("no", "false", "0")
+        bottom_on = str(od.get(f"{KEY_MP_CB_BOTTOM_CHORD}{member_suffix}")).strip().lower() not in ("no", "false", "0")
+        tc_cb = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_TOP_CHORD_ENABLED)
+        if tc_cb:
+            tc_cb.setChecked(top_on)
+        bc_cb = self._widgets.get(KEY_TD_CB_SECTION_INPUTS_BOTTOM_CHORD_ENABLED)
+        if bc_cb:
+            bc_cb.setChecked(bottom_on)
+
+        # A disabled chord has no section — blank its fields and card.
+        tc_des, tc_type = (self._resolve_section(tc_designed, tc_des_user), tc_type_lbl) if top_on    else ("", "")
+        bc_des, bc_type = (self._resolve_section(bc_designed, bc_des_user), bc_type_lbl) if bottom_on else ("", "")
 
         for fid, val in (
             (KEY_TD_CB_SECTION_INPUTS_BRACING_SECTION_TYPE,             diag_type_lbl),
-            (KEY_TD_CB_SECTION_INPUTS_TOP_CHORD_SECTION_TYPE,           tc_type_lbl),
-            (KEY_TD_CB_SECTION_INPUTS_BOTTOM_CHORD_SECTION_TYPE,        bc_type_lbl),
-            (KEY_TD_CB_SECTION_INPUTS_BRACING_SECTION_DESIGNATION,      diag_des  or ""),
-            (KEY_TD_CB_SECTION_INPUTS_TOP_CHORD_SECTION_DESIGNATION,    chord_des or ""),
-            (KEY_TD_CB_SECTION_INPUTS_BOTTOM_CHORD_SECTION_DESIGNATION, chord_des or ""),
+            (KEY_TD_CB_SECTION_INPUTS_TOP_CHORD_SECTION_TYPE,           tc_type),
+            (KEY_TD_CB_SECTION_INPUTS_BOTTOM_CHORD_SECTION_TYPE,        bc_type),
+            (KEY_TD_CB_SECTION_INPUTS_BRACING_SECTION_DESIGNATION,      diag_des),
+            (KEY_TD_CB_SECTION_INPUTS_TOP_CHORD_SECTION_DESIGNATION,    tc_des),
+            (KEY_TD_CB_SECTION_INPUTS_BOTTOM_CHORD_SECTION_DESIGNATION, bc_des),
         ):
             w = self._widgets.get(fid)
             if w:
                 w.setText(val)
 
         for card_name, designation, type_lbl in (
-            ("Bracing",      diag_des,  diag_type_lbl),
-            ("Top Chord",    chord_des, tc_type_lbl),
-            ("Bottom Chord", chord_des, bc_type_lbl),
+            ("Bracing",      diag_des, diag_type_lbl),
+            ("Top Chord",    tc_des,   tc_type),
+            ("Bottom Chord", bc_des,   bc_type),
         ):
             self._fill_section_card(card_name, designation, type_lbl)
 
@@ -1137,7 +1195,7 @@ class TransverseMemberDesign(QDialog):
         if ed_type == "Welded Beam":
             if not pair_designs:
                 return
-            wb = pair_designs.get("welded_beam", {})
+            wb = self._member_designs(pair_designs, "welded_beam", True)
             for key, fid in (
                 ("is_section",        KEY_TD_ED_SECTION_INPUTS_IS_SECTION),
                 ("symmetry",          KEY_TD_ED_SECTION_INPUTS_SYMMETRY),
@@ -1157,50 +1215,97 @@ class TransverseMemberDesign(QDialog):
         else:  # Cross Bracing
             pair_id = pair_key.replace("-", "")
 
-            diag_des  = self._get_governing_section(pair_designs, "diagonal") if pair_designs else ""
-            chord_des = self._get_governing_section(pair_designs, "chord") if pair_designs else ""
+            diag_des  = self._get_governing_section(pair_designs, "diagonal", True) if pair_designs else ""
+            chord_des = self._get_governing_section(pair_designs, "chord", True) if pair_designs else ""
 
             btype_raw = pair_designs.get("ed_bracing_type") if pair_designs else None
             brace_lbl = ("K-Bracing" if "K" in str(btype_raw).upper() else "X-Bracing") if btype_raw else ""
 
-            idict = getattr(self._backend, "input_dict", {}) or {}
+            od = getattr(self._backend, "output_dict", {}) or {}
             m = re.match(r"G(\d+)G", pair_id)
             girder_idx = m.group(1) if m else "1"
             e_suffix = f".{pair_id}.E{girder_idx}M1"
 
-            diag_type_lbl = self._section_type_label(
-                idict.get(f"{KEY_MP_ED_BRACING_SECTION}{e_suffix}", "")
+            # Section types follow the same mode rule as the designations, so
+            # the type and designation shown never disagree (e.g. a "Channel"
+            # left over from a Custom run next to a designed angle).
+            diag_type_lbl = self._resolve_section(
+                self._section_type_label(od.get(f"{KEY_MP_ED_BRACING_SECTION}.{pair_id}", "")),
+                od.get(f"{KEY_MP_ED_BRACING_SECTION}{e_suffix}", ""),
             )
-            tc_type_lbl = self._section_type_label(
-                idict.get(f"{KEY_MP_ED_TOP_CHORD_SECTION_TYPE}{e_suffix}", "")
+            tc_type_lbl = self._resolve_section(
+                self._section_type_label(od.get(f"{KEY_MP_ED_TOP_CHORD_SECTION_TYPE}.{pair_id}", "")),
+                od.get(f"{KEY_MP_ED_TOP_CHORD_SECTION_TYPE}{e_suffix}", ""),
             )
-            bc_type_lbl = self._section_type_label(
-                idict.get(f"{KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE}{e_suffix}", "")
+            bc_type_lbl = self._resolve_section(
+                self._section_type_label(od.get(f"{KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE}.{pair_id}", "")),
+                od.get(f"{KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE}{e_suffix}", ""),
             )
+
+            # Chord enabled flags (per-member ED inputs); disabled chord → blank
+            tc_on = str(od.get(f"{KEY_MP_ED_TOP_CHORD}{e_suffix}")).strip().lower() not in ("no", "false", "0")
+            bc_on = str(od.get(f"{KEY_MP_ED_BOTTOM_CHORD}{e_suffix}")).strip().lower() not in ("no", "false", "0")
+            tc_cb = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_TOP_CHORD_ENABLED)
+            if tc_cb:
+                tc_cb.setChecked(tc_on)
+            bc_cb = self._widgets.get(KEY_TD_ED_SECTION_INPUTS_BOTTOM_CHORD_ENABLED)
+            if bc_cb:
+                bc_cb.setChecked(bc_on)
+            # Optimized: Osdag's designed section wins (user input is only a
+            # fallback when the design produced none). Custom: the user's own
+            # per-member selection wins. Top/bottom chords may differ.
+            diag_des_user = str(od.get(f"{KEY_MP_ED_BRACING_SECTION_DESIGNATION}{e_suffix}") or "").strip()
+            tc_des_user = str(od.get(f"{KEY_MP_ED_TOP_CHORD_SECTION_DESIG}{e_suffix}") or "").strip()
+            bc_des_user = str(od.get(f"{KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG}{e_suffix}") or "").strip()
+            # Each chord is designed against its own section, so read each one's
+            # own result (falling back to the shared "chord" run when they match).
+            tc_designed = self._get_governing_section(pair_designs, "top_chord", True) if pair_designs else ""
+            bc_designed = self._get_governing_section(pair_designs, "bottom_chord", True) if pair_designs else ""
+            diag_des = self._resolve_section(diag_des, diag_des_user)
+            tc_des, tc_type = (self._resolve_section(tc_designed or chord_des, tc_des_user), tc_type_lbl) if tc_on else ("", "")
+            bc_des, bc_type = (self._resolve_section(bc_designed or chord_des, bc_des_user), bc_type_lbl) if bc_on else ("", "")
 
             for fid, val in (
                 (KEY_TD_ED_SECTION_INPUTS_BRACING_TYPE,                  brace_lbl),
                 (KEY_TD_ED_SECTION_INPUTS_BRACING_SECTION_TYPE,          diag_type_lbl),
-                (KEY_TD_ED_SECTION_INPUTS_BRACING_SECTION_DESIGNATION,   diag_des  or ""),
-                (KEY_TD_ED_SECTION_INPUTS_TOP_CHORD_SECTION_TYPE,        tc_type_lbl),
-                (KEY_TD_ED_SECTION_INPUTS_TOP_CHORD_SECTION_DESIGNATION, chord_des or ""),
-                (KEY_TD_ED_SECTION_INPUTS_BOTTOM_CHORD_SECTION_TYPE,     bc_type_lbl),
-                (KEY_TD_ED_SECTION_INPUTS_BOTTOM_CHORD_SECTION_DESIGNATION, chord_des or ""),
+                (KEY_TD_ED_SECTION_INPUTS_BRACING_SECTION_DESIGNATION,   diag_des),
+                (KEY_TD_ED_SECTION_INPUTS_TOP_CHORD_SECTION_TYPE,        tc_type),
+                (KEY_TD_ED_SECTION_INPUTS_TOP_CHORD_SECTION_DESIGNATION, tc_des),
+                (KEY_TD_ED_SECTION_INPUTS_BOTTOM_CHORD_SECTION_TYPE,     bc_type),
+                (KEY_TD_ED_SECTION_INPUTS_BOTTOM_CHORD_SECTION_DESIGNATION, bc_des),
             ):
                 w = self._widgets.get(fid)
                 if w:
                     w.setText(val)
 
             for card_name, designation, type_lbl in (
-                ("ed_End Diaphragm", diag_des,  diag_type_lbl),
-                ("ed_Top Chord",     chord_des, tc_type_lbl),
-                ("ed_Bottom Chord",  chord_des, bc_type_lbl),
+                ("ed_End Diaphragm", diag_des, diag_type_lbl),
+                ("ed_Top Chord",     tc_des,   tc_type),
+                ("ed_Bottom Chord",  bc_des,   bc_type),
             ):
                 self._fill_section_card(card_name, designation, type_lbl)
 
-    def _get_governing_section(self, member_designs: dict, member_type: str) -> str:
+    @staticmethod
+    def _member_designs(pair_designs: dict, member_type: str, end_diaphragm: bool = False) -> dict:
+        """Design results for one member.
+
+        End-diaphragm designs live under "ed_designs" — they reuse the cross
+        bracing member names but are different members designed against
+        different sections, so the two must not be read from the same level.
+
+        Top and bottom chords are designed separately only when their sections
+        differ; otherwise both share the single "chord" run.
+        """
+        scope = (pair_designs.get("ed_designs") or {}) if end_diaphragm else pair_designs
+        data = scope.get(member_type)
+        if not data and member_type in ("top_chord", "bottom_chord"):
+            data = scope.get("chord")
+        return data or {}
+
+    def _get_governing_section(self, member_designs: dict, member_type: str,
+                               end_diaphragm: bool = False) -> str:
         from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
-        type_data = member_designs.get(member_type, {})
+        type_data = self._member_designs(member_designs, member_type, end_diaphragm)
         for force_type in ("tension", "compression"):
             res = _extract_osdag_summary(type_data.get(force_type) or {})
             sec = res.get("section")
@@ -1214,7 +1319,7 @@ class TransverseMemberDesign(QDialog):
         designation:        str,
         section_type_label: str,
     ) -> None:
-        props   = self._query_section_db(designation) if designation else {}
+        props   = self._query_section_db(designation, section_type_label) if designation else {}
         preview = self._section_previews.get(card_name)
 
         if preview is not None:
@@ -1227,6 +1332,8 @@ class TransverseMemberDesign(QDialog):
                         stype = "channel"
                 else:
                     stype = _SECTION_TYPE_MAP.get(section_type_label, "double_angle_long")
+                    if stype in ("channel", "double_channel"):
+                        stype = "angle"
                 preview.set_section(stype, db_des)
             else:
                 preview.clear()
@@ -1236,7 +1343,7 @@ class TransverseMemberDesign(QDialog):
             val = props.get(prop_label)
             field.setText(f"{val:.4g}") if val is not None else field.clear()
 
-    def _query_section_db(self, designation: str) -> dict:
+    def _query_section_db(self, designation: str, section_type_label: str = "") -> dict:
         if not designation:
             return {}
 
@@ -1245,24 +1352,25 @@ class TransverseMemberDesign(QDialog):
         except ImportError:
             return {}
 
+        designation = str(designation).strip()
         nums = re.findall(r"\d+(?:\.\d+)?", designation)
         if not nums:
             return {}
         like_pattern = "%" + "%".join(nums) + "%"
+        # Angle designations carry 3 numbers (leg × leg × t); channels only one
+        # ("JC 100"). Search the right family first or a numbers-only LIKE on
+        # the angle tables shadows channel sections.
+        want_channel = "Channel" in str(section_type_label) or len(nums) < 3
 
-        try:
-            con = sqlite3.connect(str(DB_PATH))
-            cur = con.cursor()
-
+        def _angle_props(cur, where, param) -> dict | None:
             for table in ("EqualAngle", "UnequalAngle"):
                 cur.execute(
                     f'SELECT Designation, Mass, Area, a, b, t, Iz, Iy, "Iv(min)", rz, ry, "rv(min)", '
-                    f'Zz, Zy, Zpz, Zpy FROM {table} WHERE Designation LIKE ?',
-                    (like_pattern,),
+                    f'Zz, Zy, Zpz, Zpy FROM {table} WHERE Designation {where}',
+                    (param,),
                 )
                 row = cur.fetchone()
                 if row:
-                    con.close()
                     db_des, mass, area, a, b, t, iz, iy, iv_min, rz, ry, rv_min, zz, zy, zpz, zpy = row
                     return {
                         "_db_designation": db_des,
@@ -1283,42 +1391,90 @@ class TransverseMemberDesign(QDialog):
                         "Zuz (cm³)": zpz,
                         "Zuv (cm³)": zpy,
                     }
+            return None
 
+        def _channel_props(cur, where, param) -> dict | None:
             cur.execute(
                 'SELECT Designation, Mass, Area, D, B, tw, T, Iz, Iy, rz, ry, Zz, Zy, Zpz, Zpy '
-                'FROM Channels WHERE Designation LIKE ?',
-                (like_pattern,),
+                f'FROM Channels WHERE Designation {where}',
+                (param,),
             )
             row = cur.fetchone()
-            if row:
-                con.close()
-                db_des, mass, area, d_val, b, tw, tf, iz, iy, rz, ry, zz, zy, zpz, zpy = row
-                return {
-                    "_db_designation": db_des,
-                    "_section_family": "channel",
-                    "L (m)":     round(d_val / 1000, 4),
-                    "H (m)":     round(b     / 1000, 4),
-                    "B (m)":     round(b     / 1000, 4),
-                    "tw (m)":    round(tw    / 1000, 4),
-                    "tF (m)":    round(tf    / 1000, 4),
-                    "rz (cm)":   rz,
-                    "M (Kg/m)":  mass,
-                    "A (cm²)":   area,
-                    "Iz (cm⁴)":  iz,
-                    "Iv (cm⁴)":  iy,
-                    "rv (cm)":   ry,
-                    "Zz (cm³)":  zz,
-                    "Zv (cm³)":  zy,
-                    "Zuz (cm³)": zpz,
-                    "Zuv (cm³)": zpy,
-                }
+            if not row:
+                return None
+            db_des, mass, area, d_val, b, tw, tf, iz, iy, rz, ry, zz, zy, zpz, zpy = row
+            return {
+                "_db_designation": db_des,
+                "_section_family": "channel",
+                "L (m)":     round(d_val / 1000, 4),
+                "H (m)":     round(b     / 1000, 4),
+                "B (m)":     round(b     / 1000, 4),
+                "tw (m)":    round(tw    / 1000, 4),
+                "tF (m)":    round(tf    / 1000, 4),
+                "rz (cm)":   rz,
+                "M (Kg/m)":  mass,
+                "A (cm²)":   area,
+                "Iz (cm⁴)":  iz,
+                "Iv (cm⁴)":  iy,
+                "rv (cm)":   ry,
+                "Zz (cm³)":  zz,
+                "Zv (cm³)":  zy,
+                "Zuz (cm³)": zpz,
+                "Zuv (cm³)": zpy,
+            }
 
+        try:
+            con = sqlite3.connect(str(DB_PATH))
+            cur = con.cursor()
+            first, second = (
+                (_channel_props, _angle_props) if want_channel else (_angle_props, _channel_props)
+            )
+            # Exact match first (combos store DB designations verbatim), then LIKE.
+            for where, param in (("= ?", designation), ("LIKE ?", like_pattern)):
+                result = first(cur, where, param) or second(cur, where, param)
+                if result:
+                    con.close()
+                    return result
             con.close()
         except Exception:
             pass
         return {}
 
     # ── Design check HTML (no Pair column) ────────────────────────────────
+
+    def _is_custom_mode(self) -> bool:
+        """True when Design Type is Custom (user picks the sections)."""
+        od = getattr(self._backend, "output_dict", {}) or {}
+        return str(od.get(KEY_DESIGN_MODE, "Optimized")).strip().lower() in {"custom", "customized"}
+
+    def _resolve_section(self, designed: str, user: str) -> str:
+        """Section to display for one member.
+
+        Optimized — Osdag's designed section is authoritative; the user's input
+        is only a fallback when the design produced none (e.g. it failed).
+        Custom — the user chose the section, so it wins.
+        """
+        designed = str(designed or "").strip()
+        user = str(user or "").strip()
+        if self._is_custom_mode():
+            return user or designed
+        return designed or user
+
+    @staticmethod
+    def _design_status(res: dict) -> tuple[str, str]:
+        """Status colour/label for one Osdag design result.
+
+        A failed Osdag run returns no efficiency (every value comes back blank),
+        so efficiency alone cannot distinguish FAIL from "not run" — the
+        module's own design_status is used when present.
+        """
+        eff = res.get("efficiency")
+        if eff is not None:
+            return ("#3a7d00", "PASS") if eff <= 1.0 else ("#c0392b", "FAIL")
+        status = res.get("design_status")
+        if status is False:
+            return "#c0392b", "FAIL"
+        return "#888888", "N/A"
 
     def _build_cb_design_check_html(self, pair_key: str, forces_dict: dict, designs_dict: dict) -> str:
         from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
@@ -1331,14 +1487,34 @@ class TransverseMemberDesign(QDialog):
         n_members = self._members_per_pair.get(pair_key, 1)
         pair_idx = self._pair_keys.index(pair_key) if pair_key in self._pair_keys else 0
 
+        # A failed Osdag design reports no section, so fall back to the section
+        # the user selected for this pair (per-member input keys).
+        od = getattr(self._backend, "output_dict", {}) or {}
+        _m = re.match(r"G(\d+)G\d+", pair_key.replace("-", ""))
+        _sfx = f".{pair_key.replace('-', '')}.B{_m.group(1)}M1" if _m else ""
+        _tc_in = str(od.get(f"{KEY_MP_CB_TOP_CHORD_SECTION_DESIG}{_sfx}") or "")
+        _bc_in = str(od.get(f"{KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG}{_sfx}") or "")
+        input_section = {
+            "diagonal":     str(od.get(f"{KEY_MP_CB_BRACING_SECTION_DESIGNATION}{_sfx}") or ""),
+            "top_chord":    _tc_in or _bc_in,
+            "bottom_chord": _bc_in or _tc_in,
+        }
+
+        # Top and bottom chords are reported separately — they carry the same
+        # force but can be different sections with their own pass/fail.
+        top_on    = str(od.get(f"{KEY_MP_CB_TOP_CHORD}{_sfx}")).strip().lower() not in ("no", "false", "0")
+        bottom_on = str(od.get(f"{KEY_MP_CB_BOTTOM_CHORD}{_sfx}")).strip().lower() not in ("no", "false", "0")
+        row_members = [("Diagonal", "diagonal", "diag_tension_kN", "diag_compression_kN")]
+        if top_on:
+            row_members.append(("Top Chord", "top_chord", "chord_tension_kN", "chord_compression_kN"))
+        if bottom_on:
+            row_members.append(("Bottom Chord", "bottom_chord", "chord_tension_kN", "chord_compression_kN"))
+
         for m_idx in range(n_members):
             member_id = f"B{pair_idx+1}M{m_idx+1}"
 
-            for label, member_type, t_key, c_key in (
-                ("Diagonal", "diagonal", "diag_tension_kN",  "diag_compression_kN"),
-                ("Chord",    "chord",    "chord_tension_kN", "chord_compression_kN"),
-            ):
-                member_data = pair_designs.get(member_type, {})
+            for label, member_type, t_key, c_key in row_members:
+                member_data = self._member_designs(pair_designs, member_type)
 
                 for force_type, force_key in (
                     ("Tension",     t_key),
@@ -1349,22 +1525,17 @@ class TransverseMemberDesign(QDialog):
                         continue
 
                     res     = _extract_osdag_summary(member_data.get(force_type.lower()) or {})
-                    section = res.get("section")  or "—"
+                    section = self._resolve_section(res.get("section"), input_section.get(member_type)) or "—"
                     cap_kn  = res.get("capacity_kN")
                     eff     = res.get("efficiency")
                     slnd    = res.get("slenderness")
                     conn    = res.get("connection") or "—"
 
-                    cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
-                    eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
-                    slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
+                    cap_str  = cap_kn if cap_kn is not None else "—"
+                    eff_str  = eff    if eff    is not None else "—"
+                    slnd_str = slnd   if slnd   is not None else "—"
 
-                    if eff is None:
-                        status_color, status = "#888888", "N/A"
-                    elif eff <= 1.0:
-                        status_color, status = "#3a7d00", "PASS"
-                    else:
-                        status_color, status = "#c0392b", "FAIL"
+                    status_color, status = self._design_status(res)
 
                     rows_html.append(
                         f"<tr>"
@@ -1423,11 +1594,35 @@ class TransverseMemberDesign(QDialog):
         ed_type      = pair_designs.get("ed_type", "Cross Bracing")
         pair_num     = (self._pair_keys.index(pair_key) + 1) if pair_key in self._pair_keys else 1
 
+        # A failed Osdag design reports no section, so fall back to the section
+        # the user selected for this pair (per-member ED input keys).
+        od = getattr(self._backend, "output_dict", {}) or {}
+        _pid = pair_key.replace("-", "")
+        _m = re.match(r"G(\d+)G", _pid)
+        _sfx = f".{_pid}.E{_m.group(1)}M1" if _m else ""
+        _tc_in = str(od.get(f"{KEY_MP_ED_TOP_CHORD_SECTION_DESIG}{_sfx}") or "")
+        _bc_in = str(od.get(f"{KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG}{_sfx}") or "")
+        input_section = {
+            "diagonal":     str(od.get(f"{KEY_MP_ED_BRACING_SECTION_DESIGNATION}{_sfx}") or ""),
+            "top_chord":    _tc_in or _bc_in,
+            "bottom_chord": _bc_in or _tc_in,
+        }
+
+        # Top and bottom chords are reported separately — same force, but they
+        # can be different sections with their own pass/fail.
+        _tc_on = str(od.get(f"{KEY_MP_ED_TOP_CHORD}{_sfx}")).strip().lower() not in ("no", "false", "0")
+        _bc_on = str(od.get(f"{KEY_MP_ED_BOTTOM_CHORD}{_sfx}")).strip().lower() not in ("no", "false", "0")
+        ed_row_members = [("Diagonal", "diagonal", "diag_tension_kN", "diag_compression_kN")]
+        if _tc_on:
+            ed_row_members.append(("Top Chord", "top_chord", "chord_tension_kN", "chord_compression_kN"))
+        if _bc_on:
+            ed_row_members.append(("Bottom Chord", "bottom_chord", "chord_tension_kN", "chord_compression_kN"))
+
         for m_idx in range(n_members):
             member_id = f"E{pair_num}M{m_idx + 1}"   # → E1M1, E1M2 / E2M1, E2M2
 
             if ed_type == "Welded Beam":
-                member_data = pair_designs.get("welded_beam", {})
+                member_data = self._member_designs(pair_designs, "welded_beam", True)
                 for force_type, force_key in (
                     ("Tension",     "ed_tension_kN"),
                     ("Compression", "ed_compression_kN"),
@@ -1444,12 +1639,7 @@ class TransverseMemberDesign(QDialog):
                     cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
                     eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
                     slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
-                    if eff is None:
-                        status_color, status = "#888888", "N/A"
-                    elif eff <= 1.0:
-                        status_color, status = "#3a7d00", "PASS"
-                    else:
-                        status_color, status = "#c0392b", "FAIL"
+                    status_color, status = self._design_status(res)
                     rows_html.append(
                         f"<tr><td>{member_id}</td><td>Beam ({force_type})</td>"
                         f"<td>{force_kn:.3f}</td><td>{section}</td><td>{conn}</td>"
@@ -1457,11 +1647,8 @@ class TransverseMemberDesign(QDialog):
                         f"<td style='color:{status_color};font-weight:bold;'>{status}</td></tr>"
                     )
             else:  # Cross Bracing — same structure as CB but E prefix already handled
-                for label, member_type, t_key, c_key in (
-                    ("Diagonal", "diagonal", "diag_tension_kN",  "diag_compression_kN"),
-                    ("Chord",    "chord",    "chord_tension_kN", "chord_compression_kN"),
-                ):
-                    member_data = pair_designs.get(member_type, {})
+                for label, member_type, t_key, c_key in ed_row_members:
+                    member_data = self._member_designs(pair_designs, member_type, True)
                     for force_type, force_key in (
                         ("Tension",     t_key),
                         ("Compression", c_key),
@@ -1470,7 +1657,7 @@ class TransverseMemberDesign(QDialog):
                         if force_kn is None:
                             continue
                         res      = _extract_osdag_summary(member_data.get(force_type.lower()) or {})
-                        section  = res.get("section")   or "—"
+                        section  = self._resolve_section(res.get("section"), input_section.get(member_type)) or "—"
                         cap_kn   = res.get("capacity_kN")
                         eff      = res.get("efficiency")
                         slnd     = res.get("slenderness")
@@ -1478,12 +1665,7 @@ class TransverseMemberDesign(QDialog):
                         cap_str  = f"{cap_kn:.2f}" if cap_kn is not None else "—"
                         eff_str  = f"{eff:.3f}"    if eff    is not None else "—"
                         slnd_str = f"{slnd:.1f}"   if slnd   is not None else "—"
-                        if eff is None:
-                            status_color, status = "#888888", "N/A"
-                        elif eff <= 1.0:
-                            status_color, status = "#3a7d00", "PASS"
-                        else:
-                            status_color, status = "#c0392b", "FAIL"
+                        status_color, status = self._design_status(res)
                         rows_html.append(
                             f"<tr><td>{member_id}</td><td>{label} ({force_type})</td>"
                             f"<td>{force_kn:.3f}</td><td>{section}</td><td>{conn}</td>"
@@ -1542,6 +1724,9 @@ class TransverseMemberDesign(QDialog):
         active = self._tab_result_texts.get(tab_key)
         if active:
             self.design_check_text = active
+        # The newly-active tab's CAD preview may be stale (last drawn before
+        # this tab became visible), so refresh it for the current selection.
+        self._refresh_bracing_layout()
     
     @staticmethod
     def _section_type_label(backend_type: str) -> str:

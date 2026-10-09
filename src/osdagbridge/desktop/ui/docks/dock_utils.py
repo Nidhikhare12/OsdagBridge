@@ -36,6 +36,10 @@ def apply_field_style(widget):
                 background-color: #f1f1f1;
                 color: #666;
             }
+            QComboBox QAbstractItemView::item:disabled {
+                color: #a0a0a0;
+                background-color: #f1f1f1;
+            }
         """)
     elif isinstance(widget, QLineEdit):
         widget.setStyleSheet("""
