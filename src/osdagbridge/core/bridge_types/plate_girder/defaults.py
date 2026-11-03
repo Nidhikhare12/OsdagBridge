@@ -15,6 +15,7 @@ from osdagbridge.core.utils.codes.keyfile import (
     KEY_RIGID_CRASH_BARRIER_TYPE,
 )
 from osdagbridge.core.utils.common import (
+    KEY_MODULE_PLATE_GIRDER, KEY_MODULE,
     DEFAULT_GIRDER_SPACING,
     DEFAULT_RAILING_WIDTH,
     KEY_TS_GIRDER_SPACING, KEY_TS_NO_OF_GIRDERS, KEY_TS_DECK_OVERHANG, KEY_TS_OVERALL_WIDTH,
@@ -142,12 +143,13 @@ from osdagbridge.core.utils.common import (
     connectdb,
 )
 steel_properties = connectdb("Steel_Grade_Properties")
-concrete_properies = connectdb("Concrete_Grade_Properties")
+concrete_properties = connectdb("Concrete_Grade_Properties")
 
 # This is default initial dictionary
 BASIC_INPUT_DICT = {
 
     # Input Dock Defaults
+    KEY_MODULE: KEY_MODULE_PLATE_GIRDER,
     KEY_STRUCTURE_TYPE: "Highway Bridge",
     KEY_PROJECT_LOCATION: None,  # Required field will be none by default
     KEY_SPAN: None,
@@ -159,7 +161,7 @@ BASIC_INPUT_DICT = {
     KEY_GIRDER: steel_properties[12],
     KEY_CROSS_BRACING: steel_properties[12],
     KEY_END_DIAPHRAGM: steel_properties[12],
-    KEY_DECK_CONCRETE_GRADE_BASIC: concrete_properies[5],
+    KEY_DECK_CONCRETE_GRADE_BASIC: concrete_properties[5],
 
     # Additional Inputs Defaults
     

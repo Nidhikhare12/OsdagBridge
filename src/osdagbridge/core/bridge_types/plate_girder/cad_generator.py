@@ -35,6 +35,9 @@ from osdagbridge.core.bridge_components.super_structure.plate_girder.builder imp
 from osdagbridge.core.bridge_components.super_structure.deck.builder import (
     build_deck
 )
+from osdagbridge.core.bridge_components.super_structure.footpath.builder import (
+    build_footpaths
+)
 from osdagbridge.core.bridge_components.super_structure.crash_barrier.builder import (
     build_crash_barriers
 )
@@ -210,6 +213,7 @@ class PlateGirderCADGenerator:
         self.deck_thickness = design_params.deck_thickness
         self.footpath_config = design_params.footpath_config
         self.footpath_width = design_params.footpath_width
+        self.footpath_thickness = design_params.footpath_thickness
         self.railing_width = design_params.railing_width
 
         # CRASH BARRIER PARAMETERS
@@ -436,16 +440,26 @@ class PlateGirderCADGenerator:
         girder_flanges = []
         girder_top_flanges = []
         girder_bottom_flanges = []
+        # Same shapes as the flat lists above, indexed by (component key, girder index),
+        # so the CAD layer can label each girder with its own designed section instead of
+        # showing girder 1's values on all of them.  The flat lists are unchanged.
+        girder_groups = {}
         supports_tri = []
         supports_vertical = []
         supports_wide_horiz = []
         supports_long_horiz = []
+        # Support bars keyed by (component key, girder index, end).  The builder tags the
+        # end; the girder index is added here, where the loop knows it.
+        support_groups = {}
         supports_cyl = []
         raw_shear_studs = []
         raw_stiffeners = []
         raw_intermediate_stiffeners = []
         raw_bearing_stiffeners = []
         raw_longitudinal_stiffeners = []
+        # Stiffeners collected per girder before compounding, so each girder ends up with
+        # its own shape.  Merged into girder_groups once _make_compound is in scope.
+        per_girder_stiffeners = {}
 
         total_width = (self.num_girders - 1) * self.girder_spacing
         reference_position = 0.0  # Centerline reference for skew
@@ -536,12 +550,17 @@ class PlateGirderCADGenerator:
                 supports_wide_horiz.append(_translate(s, dx=x_offset, dy=y_offset))
             for s in pg.get("supports_long_horiz", []):
                 supports_long_horiz.append(_translate(s, dx=x_offset, dy=y_offset))
+            for (component, end), shapes in pg.get("support_groups", {}).items():
+                for s in shapes:
+                    support_groups.setdefault((component, i, end), []).append(
+                        _translate(s, dx=x_offset, dy=y_offset))
 
             # Place web
             for w in pg.get("web", []):
                 web = _translate(w, dx=x_offset, dy=y_offset)
                 girders.append(web)
                 girder_web.append(web)
+                girder_groups.setdefault(("Girder Web", i), []).append(web)
 
             # Place top flange
             for tf in pg.get("top_flange", []):
@@ -549,6 +568,7 @@ class PlateGirderCADGenerator:
                 girders.append(top_flange)
                 girder_flanges.append(top_flange)
                 girder_top_flanges.append(top_flange)
+                girder_groups.setdefault(("Girder Top Flange", i), []).append(top_flange)
 
             # Place bottom flange
             for bf in pg.get("bottom_flange", []):
@@ -556,6 +576,7 @@ class PlateGirderCADGenerator:
                 girders.append(bottom_flange)
                 girder_flanges.append(bottom_flange)
                 girder_bottom_flanges.append(bottom_flange)
+                girder_groups.setdefault(("Girder Bottom Flange", i), []).append(bottom_flange)
 
             # Place stiffeners (follow parent girder's offset)
             for stiff in pg["stiffeners"]:
@@ -565,11 +586,17 @@ class PlateGirderCADGenerator:
 
             # Place typed stiffeners
             for stiff in pg.get("intermediate_stiffeners", []):
-                raw_intermediate_stiffeners.append(_translate(stiff, dx=x_offset, dy=y_offset))
+                s = _translate(stiff, dx=x_offset, dy=y_offset)
+                raw_intermediate_stiffeners.append(s)
+                per_girder_stiffeners.setdefault(("Intermediate Stiffener", i), []).append(s)
             for stiff in pg.get("bearing_stiffeners", []):
-                raw_bearing_stiffeners.append(_translate(stiff, dx=x_offset, dy=y_offset))
+                s = _translate(stiff, dx=x_offset, dy=y_offset)
+                raw_bearing_stiffeners.append(s)
+                per_girder_stiffeners.setdefault(("Bearing Stiffener", i), []).append(s)
             for stiff in pg.get("longitudinal_stiffeners", []):
-                raw_longitudinal_stiffeners.append(_translate(stiff, dx=x_offset, dy=y_offset))
+                s = _translate(stiff, dx=x_offset, dy=y_offset)
+                raw_longitudinal_stiffeners.append(s)
+                per_girder_stiffeners.setdefault(("Longitudinal Stiffener", i), []).append(s)
 
             # Place shear studs
             for stud in pg.get("shear_studs", []):
@@ -612,6 +639,15 @@ class PlateGirderCADGenerator:
         bearing_stiffeners_cad      = _make_compound(raw_bearing_stiffeners)
         longitudinal_stiffeners_cad = _make_compound(raw_longitudinal_stiffeners)
 
+        # The flat compounds above merge every girder's stiffeners into one shape, which
+        # leaves the viewer with a single AIS per type and therefore a single tooltip.
+        # Compound per girder as well so each girder is its own shape, and hand those to
+        # the CAD layer through the same (component key, girder index) map the web and
+        # flanges use.  One compound per girder rather than one per stiffener keeps the
+        # object count low.
+        for _gkey, _shapes in per_girder_stiffeners.items():
+            girder_groups[_gkey] = _make_compound(_shapes)
+
         # Compound shear studs
         if raw_shear_studs:
             from OCC.Core.BRep import BRep_Builder
@@ -648,7 +684,9 @@ class PlateGirderCADGenerator:
                 frame_depths.append(depth)
             girder_depths_matrix.append(frame_depths)
 
-        cross_bracings = build_cross_bracings(
+        # bracing_groups holds the same shapes indexed by (component, pair_id, role),
+        # so the CAD layer can label each member with its own girder pair's section.
+        cross_bracings, bracing_groups = build_cross_bracings(
             span_length_L=self.span_length_L,
             num_girders=self.num_girders,
             girder_spacing=self.girder_spacing,
@@ -778,38 +816,47 @@ class PlateGirderCADGenerator:
             span_length_L=self.span_length_L,
             girder_section_d=girder_top_z,
             deck_thickness=self.deck_thickness,
-            footpath_config=self.footpath_config,
             carriageway_width=self.carriageway_width,
             crash_barrier_base_width=actual_base_width,
+            skew_angle=self.skew_angle
+        )
+
+        # STEP 7a: BUILD FOOTPATHS
+
+        footpath_out = build_footpaths(
+            span_length_L=self.span_length_L,
+            girder_section_d=girder_top_z,
+            deck_thickness=self.deck_thickness,
+            deck_width=deck_out["total_deck_width"],
+            footpath_config=self.footpath_config,
             footpath_width=self.footpath_width,
+            footpath_thickness=self.footpath_thickness,
             railing_width=actual_railing_width,
             skew_angle=self.skew_angle
         )
 
+        # Compound the deck and footpath concrete textures into one shape each
+        for _out, _key in ((deck_out, "deck_textures"), (footpath_out, "footpath_textures")):
+            raw_textures = _out.get(_key, [])
+            if raw_textures:
+                from OCC.Core.BRep import BRep_Builder
+                from OCC.Core.TopoDS import TopoDS_Compound
+                builder = BRep_Builder()
+                compound = TopoDS_Compound()
+                builder.MakeCompound(compound)
+                for t in raw_textures:
+                    builder.Add(compound, t)
+                _out[_key] = [compound]
+
         # STEP 8: BUILD CRASH BARRIERS
 
-        # Compound deck textures into a single shape
-        raw_textures = deck_out.get("deck_textures", [])
-        if raw_textures:
-            from OCC.Core.BRep import BRep_Builder
-            from OCC.Core.TopoDS import TopoDS_Compound
-            builder = BRep_Builder()
-            compound = TopoDS_Compound()
-            builder.MakeCompound(compound)
-            for t in raw_textures:
-                builder.Add(compound, t)
-            deck_out["deck_textures"] = [compound]
-        
         crash_barrier_w_beams = []
         crash_barrier_other = []
 
         crash_barriers_raw = build_crash_barriers(
             span_length_L=self.span_length_L,
             deck_top_z=deck_out["deck_top_z"],
-            footpath_config=self.footpath_config,
-            carriageway_width=self.carriageway_width,
-            footpath_width=self.footpath_width,
-            railing_width=actual_railing_width,
+            total_deck_width=deck_out["total_deck_width"],
             design_dict=design_dict,
             barrier_type=self.barrier_type,
             skew_angle=self.skew_angle
@@ -877,13 +924,15 @@ class PlateGirderCADGenerator:
 
         # STEP 10: BUILD RAILINGS
         
+        # Railings stand on the footpath, not on the carriageway deck.
         railings = build_railings(
             span_length=self.span_length_L,
-            deck_top_z=deck_out["deck_top_z"],
+            deck_top_z=footpath_out["footpath_top_z"],
             total_deck_width=deck_out["total_deck_width"],
             footpath_config=self.footpath_config,
             design_dict=design_dict,
-            skew_angle=self.skew_angle
+            skew_angle=self.skew_angle,
+            footpath_y_ranges=footpath_out["footpath_y_ranges"]
         )
 
         # STEP 11: CONSOLIDATE SUPPORT STRUCTURES
@@ -920,6 +969,10 @@ class PlateGirderCADGenerator:
             "girder_flanges": girder_flanges,
             "girder_top_flanges": girder_top_flanges,
             "girder_bottom_flanges": girder_bottom_flanges,
+            # The same girder shapes indexed by (component key, girder index),
+            # used only for per-girder hover labels.  The flat lists above are
+            # what everything else reads.
+            "girder_groups": girder_groups,
             
             # Stiffeners (combined and typed)
             "stiffeners": stiffeners,
@@ -940,16 +993,25 @@ class PlateGirderCADGenerator:
             "supports_vertical":   supports_vertical,
             "supports_wide_horiz": supports_wide_horiz,
             "supports_long_horiz": supports_long_horiz,
+            "support_groups":      support_groups,
             
             # Cross bracing system
+            # "cross_bracings" stays a flat list — the IFC export and the legacy
+            # display path both read it.  The grouped view is an addition, not a
+            # replacement, and is only used for hover labels.
             "cross_bracings": cross_bracings,
+            "cross_bracing_groups": bracing_groups,
             
             # Deck system
             "deck_slab": deck_out["deck_slab"],
             "deck_textures": deck_out["deck_textures"],
             "deck_top_z": deck_out["deck_top_z"],
             "total_deck_width": deck_out["total_deck_width"],
-            
+            # Footpaths
+            "footpaths": footpath_out["footpath_slabs"],
+            "footpath_textures": footpath_out["footpath_textures"],
+            "footpath_top_z": footpath_out["footpath_top_z"],
+
             # Crash barriers
             "crash_barriers": crash_barriers,
             "crash_barrier_w_beams": crash_barrier_w_beams,
@@ -1050,14 +1112,9 @@ class PlateGirderCADGenerator:
 
     def display_3dModel(self, component):
 
-        hover_dict = {
-                            KEY_CAD_GIRDER: "Girder",
-                            KEY_CAD_STIFFENER: "Stiffener",
-                            KEY_CAD_DECK: "Deck",
-                            KEY_CAD_CRASH_BARRIER: "Crash Barrier",
-                            KEY_CAD_RAILING: "Railing",
-                            KEY_CAD_MEDIAN: "Median"
-        }
+        # No hover text here: this path renders offscreen for the report figures, and
+        # osdag_display_shape() only ever reads label[0] as its model_ais_objects key.
+        # The label[1] strings that used to sit in a hover_dict were never displayed.
 
         GIRDER_COLOR = Quantity_Color(72/255, 72/255, 54/255, Quantity_TOC_RGB)
         STIFFENER_COLOR = Quantity_Color(30/255, 30/255, 30/255, Quantity_TOC_RGB)
@@ -1070,37 +1127,37 @@ class PlateGirderCADGenerator:
         self.component = component  
         
         if self.component == "Girder":
-            label = [KEY_CAD_GIRDER, hover_dict.get(KEY_CAD_GIRDER)]
+            label = [KEY_CAD_GIRDER]
             shapes = self.model_data["girders"]
             osdag_display_shape(self.display, shapes, color=GIRDER_COLOR, update=True, label=label, canvas=self.cad_widget)
 
         elif self.component == "Stiffener":
-            label = [KEY_CAD_STIFFENER, hover_dict.get(KEY_CAD_STIFFENER)]
+            label = [KEY_CAD_STIFFENER]
             shapes = self.model_data["stiffeners"]
             osdag_display_shape(self.display, shapes, color=STIFFENER_COLOR, update=True, label=label, canvas=self.cad_widget)
 
         elif self.component == "Cross Bracing":
-            label = [KEY_CAD_CROSS_BRACING, hover_dict.get(KEY_CAD_CROSS_BRACING)]
+            label = [KEY_CAD_CROSS_BRACING]
             shapes = self.model_data["cross_bracings"]
             osdag_display_shape(self.display, shapes, color=BRACING_COLOR, update=True, label=label, canvas=self.cad_widget)
 
         elif self.component == "Deck":
-            label = [KEY_CAD_DECK, hover_dict.get(KEY_CAD_DECK)]
+            label = [KEY_CAD_DECK]
             shapes = self.model_data["deck_slab"]
             osdag_display_shape(self.display, shapes, color=DECK_COLOR, update=True, label=label, canvas=self.cad_widget)
 
         elif self.component == "Crash Barrier":
-            label = [KEY_CAD_CRASH_BARRIER, hover_dict.get(KEY_CAD_CRASH_BARRIER)]
+            label = [KEY_CAD_CRASH_BARRIER]
             shapes = self.model_data["crash_barriers"]
             osdag_display_shape(self.display, shapes, color=BARRIER_COLOR, update=True, label=label, canvas=self.cad_widget)
 
         elif self.component == "Railing":
-            label = [KEY_CAD_RAILING, hover_dict.get(KEY_CAD_RAILING)]
+            label = [KEY_CAD_RAILING]
             shapes = self.model_data["railings"]
             osdag_display_shape(self.display, shapes, color=RAILING_COLOR, update=True, label=label, canvas=self.cad_widget)
 
         elif self.component == "Median":
-            label = [KEY_CAD_MEDIAN, hover_dict.get(KEY_CAD_MEDIAN)]
+            label = [KEY_CAD_MEDIAN]
             shapes = self.model_data["median_barriers"]
             osdag_display_shape(self.display, shapes, color=MEDIAN_COLOR, update=True, label=label, canvas=self.cad_widget)
 

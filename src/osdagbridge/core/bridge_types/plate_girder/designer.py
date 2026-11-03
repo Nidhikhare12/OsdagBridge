@@ -17,7 +17,7 @@ from osdagbridge.core.bridge_types.plate_girder.results_data import (
     composite_stiffness_props,
 )
 from osdagbridge.core.bridge_types.plate_girder.initial_sizing import (
-    KEY_MAX_CAMBER_M,
+    KEY_MAX_CAMBER_MM,
     composite_section_properties,
     steel_i_section_properties,
 )
@@ -75,10 +75,8 @@ FATIGUE_STRENGTH_ROLLED_MPA = _fat_r["ffn_MPa_used"]   # 118.0
 FATIGUE_STRENGTH_WELDED_MPA = _fat_w["ffn_MPa_used"]   # 92.0
 FATIGUE_SHEAR_STRENGTH_MPA  = _fat_r["tfn_MPa_used"]   # 59.0
 
-MAX_CAMBER_MM = KEY_MAX_CAMBER_M * 1000.0   # buildable camber limit (m → mm)
 
-
-def apply_camber(girder_defl, camber_mode, camber_value_m):
+def apply_camber(girder_defl, camber_mode, camber_value_mm):
     """Subtract the fabrication camber from one girder's DL and total sag.
 
     Takes one girder's entry from ``build_deflections_cache`` — the composite-basis,
@@ -86,7 +84,7 @@ def apply_camber(girder_defl, camber_mode, camber_value_m):
     and the camber mode/value from ``config.geometry`` (Deflection Control inputs).
 
     Camber is the full DL sag in Default mode, or the user value in Custom mode, capped
-    at ``MAX_CAMBER_MM``. It is subtracted from both sags, clamped at zero; live-load sag
+    at ``KEY_MAX_CAMBER_MM``. It is subtracted from both sags, clamped at zero; live-load sag
     is untouched. If the cap bites, the residual sag survives so check #18 flags it.
 
     Returns ``(dl_adj_mm, total_adj_mm, camber_mm)``.
@@ -97,14 +95,14 @@ def apply_camber(girder_defl, camber_mode, camber_value_m):
     if mode == "default":
         camber = max(dl, 0.0)
     else:
-        camber = max(float(camber_value_m) * 1000.0, 0.0)
+        camber = max(float(camber_value_mm), 0.0)
 
-    if camber > MAX_CAMBER_MM:
-        camber = MAX_CAMBER_MM
+    if camber > KEY_MAX_CAMBER_MM:
+        camber = KEY_MAX_CAMBER_MM
 
     return max(dl - camber, 0.0), max(total - camber, 0.0), camber
 
-def apply_camber_to_deflections_cache(raw_cache, camber_mode, camber_value_m):
+def apply_camber_to_deflections_cache(raw_cache, camber_mode, camber_value_mm):
     """Apply camber to every girder in a deflection cache.
 
     Takes the pre-camber cache from ``build_deflections_cache`` (composite-basis,
@@ -121,7 +119,7 @@ def apply_camber_to_deflections_cache(raw_cache, camber_mode, camber_value_m):
     """
     out = {}
     for label, d in raw_cache.items():
-        dl_adj, total_adj, camber_mm = apply_camber(d, camber_mode, camber_value_m)
+        dl_adj, total_adj, camber_mm = apply_camber(d, camber_mode, camber_value_mm)
         out[label] = {
             "live_mm":      d.get(KEY_SD_DEFL_LIVE_RAW),   # live is uncambered
             "total_mm":     round(total_adj, 3),
@@ -214,6 +212,9 @@ class SteelSection:
     tf_bot: float
     tw: float
     fabrication: str = "welded"
+    # Catalogue label for a rolled section (e.g. "JB 150"). Left blank for a welded
+    # plate girder, which gets the plate-dimension label built in __post_init__.
+    designation: str = ""
 
     def __post_init__(self) -> None:
         # Steel-section equations live in the single source
@@ -234,12 +235,31 @@ class SteelSection:
         self.Iz_steel = props[KEY_MP_GIRDER_SECTIONAL_IZ]         # strong-axis second moment (mm^4)
         self.Zp_steel = props[KEY_MP_GIRDER_PLASTIC_MODULUS_ZUZ]  # plastic section modulus (mm^3)
         self.Ze_steel = props[KEY_MP_GIRDER_ELASTIC_MODULUS_ZZ]   # elastic section modulus (mm^3)
+
+        # A rolled section's whole-section properties come from the IS catalogue
+        # (sqlite), which includes the web-flange root fillets the plate equations
+        # above leave out. The plate pieces (dw, Af_*, Aw) stay as computed. A
+        # missing (zero) catalogue value keeps the plate-equation value.
+        if self.fabrication == "rolled" and self.designation:
+            from osdagbridge.core.utils.common import girder_catalog
+            beam = girder_catalog.get_beam_profile(self.designation)
+            if beam is not None:
+                self.A_steel  = beam.area_cm2 * 1e2                      or self.A_steel   # cm^2 → mm^2
+                self.Iz_steel = beam.moment_of_inertia_zz_cm4 * 1e4      or self.Iz_steel  # cm^4 → mm^4
+                self.Ze_steel = beam.elastic_section_modulus_z_cm3 * 1e3 or self.Ze_steel  # cm^3 → mm^3
+                self.Zp_steel = beam.plastic_section_modulus_z_cm3 * 1e3 or self.Zp_steel  # cm^3 → mm^3
+            else:
+                # Not a catalogue section: fall back to the plate-dimension label below.
+                self.designation = ""
+
         # Section label built from the mm dimensions (a formatted string, not a
         # unit-agnostic number, so it is not part of the keyed property output).
-        self.designation = (                                     # "D x bf_top x tf_top x bf_bot x tf_bot"
-            f"{self.D:.0f} x {self.bf_top:.0f} x {self.tf_top:.0f}"
-            f" x {self.bf_bot:.0f} x {self.tf_bot:.0f}"
-        )
+        # A rolled section carries its catalogue designation instead.
+        if not self.designation:
+            self.designation = (                                 # "D x bf_top x tf_top x bf_bot x tf_bot"
+                f"{self.D:.0f} x {self.bf_top:.0f} x {self.tf_top:.0f}"
+                f" x {self.bf_bot:.0f} x {self.tf_bot:.0f}"
+            )
 
 
 @dataclass
@@ -266,7 +286,7 @@ class GeometryConfig:
     support_type: str = "simply_supported"
     cross_bracing_spacing_m: float = DEFAULT_CROSS_BRACING_SPACING
     camber_mode: str = field(kw_only=True)
-    camber_value_m: float = 0.0         # metres; only read in Custom mode
+    camber_value_mm: float = 0.0         # mm; only read in Custom mode
 
 
 
@@ -340,7 +360,7 @@ class BridgeConfig:
             KEY_SPAN, KEY_CARRIAGEWAY_WIDTH, KEY_MP_CB_SPACING,
             KEY_MP_GIRDER_DEPTH, KEY_MP_GIRDER_TOP_FLANGE_WIDTH, KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
             KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH, KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS,
-            KEY_MP_GIRDER_WEB_THICKNESS,
+            KEY_MP_GIRDER_WEB_THICKNESS, KEY_MP_GIRDER_TYPE, KEY_MP_GIRDER_IS_SECTION,
             KEY_MATERIAL_DECK_FCK, KEY_MATERIAL_DECK_FCTM, KEY_MATERIAL_DECK_ECM,
         )
 
@@ -444,6 +464,18 @@ class BridgeConfig:
             resolve_girder_value as _gv,
             resolve_cb_value as _cbv,
         )
+        # Fabrication (Rolled / Welded) is the user's Girder Details "Type" input.
+        fabrication = str(_gv(inp, KEY_MP_GIRDER_TYPE, girder_index)).strip().lower()
+
+        # A rolled girder carries its IS catalogue label instead of the
+        # plate-dimension designation; SteelSection looks it up in the catalogue.
+        # Its dimensions are already the catalogue ones: the Girder Details
+        # dialog (AdditionalInputs._on_is_section_changed) writes them into the
+        # size keys, so analysis, design and CAD all size the same section.
+        designation = ""
+        if fabrication == "rolled":
+            designation = str(_gv(inp, KEY_MP_GIRDER_IS_SECTION, girder_index)).strip()
+
         section = SteelSection(
             D=_gv(inp, KEY_MP_GIRDER_DEPTH, girder_index)                   * 1000,
             bf_top=_gv(inp, KEY_MP_GIRDER_TOP_FLANGE_WIDTH, girder_index)        * 1000,
@@ -451,6 +483,8 @@ class BridgeConfig:
             bf_bot=_gv(inp, KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH, girder_index)     * 1000,
             tf_bot=_gv(inp, KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS, girder_index) * 1000,
             tw=_gv(inp, KEY_MP_GIRDER_WEB_THICKNESS, girder_index)               * 1000,
+            fabrication=fabrication,
+            designation=designation,
         )
 
         geom = bridge.grillage_geometry
@@ -503,7 +537,7 @@ class BridgeConfig:
         # Source: bridge.additional_inputs — the Design Options (Cont.) tab.
         # Previously: read straight from the flat bridge.input_dict by read_camber_inputs()
         camber_mode = str(_req(bridge.additional_inputs.get(KEY_DO_CAMBER_MODE), KEY_DO_CAMBER_MODE, "additional_inputs")).strip()
-        camber_value_m = (float(_req(bridge.additional_inputs.get(KEY_DO_CAMBER_VALUE), KEY_DO_CAMBER_VALUE, "additional_inputs"))
+        camber_value_mm = (float(_req(bridge.additional_inputs.get(KEY_DO_CAMBER_VALUE), KEY_DO_CAMBER_VALUE, "additional_inputs"))
             if camber_mode.lower() == "custom" else 0.0
         )
 
@@ -517,7 +551,7 @@ class BridgeConfig:
             support_type=support_type,
             cross_bracing_spacing_m=cb_spacing,
             camber_mode=camber_mode,
-            camber_value_m=camber_value_m,
+            camber_value_mm=camber_value_mm,
         )
 
 
@@ -854,7 +888,9 @@ class IRC22CapacityCalculator:
             width_mm=b_outstanding,
             thickness_mm=sec.tf_top,
             fy_MPa=fy,
-            section_type=sec.fabrication,   # "rolled" or "welded" — as stored in SteelSection
+            # Table 2 (i) compares against 'Rolled'/'Welded'; SteelSection stores
+            # the fabrication lowercase, so title-case it for this call.
+            section_type=sec.fabrication.title(),
         )
         # cl_602 wrapper returns [section_class, b/t ratio, class_limit]
         flange_class = flange_result[0]
@@ -937,7 +973,8 @@ class IRC22CapacityCalculator:
         res = IRC22_2014.cl_603_3_3_2_plastic_shear_resistance(
             section_type="i_major",
             fyw=self.mat.fy,
-            fabrication=self.sec.fabrication,   # "welded" → Av = dw × tw
+            fabrication=self.sec.fabrication,   # "welded" → Av = dw × tw; "rolled" → Av = h(sec.D) × tw
+            h=self.sec.D,
             d=self.sec.dw,
             tw=self.sec.tw,
         )
@@ -1483,7 +1520,7 @@ class IRC22CapacityCalculator:
         )
         return {
             "tau_f_MPa" : res["tau_f_MPa"],
-            "Qr_kN"     : res.get("Qr_table8_kN"),
+            "Qr_kN"     : res.get("Qr_kN"),
             "Nsc"       : fat.Nsc,
             "clause"    : res["clause"],
             "source"    : "IRC22_2014",
@@ -3196,12 +3233,11 @@ def _extract_demands_from_result_data(
             # Girder self-weight moment: this LC's Mz when it IS the SW case —
             # enables the Stage-1 LTB check (5a, vs Mb_stage1) in the per-LC view.
             _m_sw    = round(Mz, 2) if (_sw_lc is not None and lc_str == _sw_lc) else 0.0
-            # Fatigue ranges (checks 8/9) apply only to frequent SLS cases (Cl.604.5).
-            # Mz is in kN·m here → ×1e6 = N·mm; Vy in kN → ×1e3 = N.
-            _is_fat     = (lc_t == "SLS_frequent")
-            # Composite section modulus — live-load fatigue stress acts on the composite section.
-            _stress_rng = round(Mz * 1e6 / Ze_comp_bot_mm3, 3) if _is_fat and Ze_comp_bot_mm3 > 0 else 0.0
-            _shear_rng  = round(Vy * 1e3 / Aw_mm2, 3)       if _is_fat and Aw_mm2 > 0 else 0.0
+            # Fatigue ranges (checks 8/9): the frequent-SLS case only gates whether
+            # the check applies (Cl.604.5). The demand is the girder-level stress /
+            # shear range from the fatigue vehicle (IRC:6 Cl.204.6), since permanent
+            # loads in this LC's Mz/Vy do not cycle and so contribute no range.
+            _is_fat = (lc_t == "SLS_frequent")
 
             per_lc[lc_str] = DemandEnvelope(
                 # Strong-axis moment, vertical shear, axial — directly usable as ULS demands
@@ -3223,8 +3259,8 @@ def _extract_demands_from_result_data(
                 V_sls_kN=_v_sls,
                 M_construction_kNm=_m_const,
                 M_girder_sw_kNm=_m_sw,
-                stress_range_MPa=_stress_rng,
-                shear_range_MPa=_shear_rng,
+                stress_range_MPa=round(stress_range_MPa, 3) if _is_fat else 0.0,
+                shear_range_MPa=round(shear_range_MPa, 3) if _is_fat else 0.0,
                 Nsc=Nsc,
                 governing_combination=lc_str,
                 location="critical element", member=g_name, source="grillage_analysis_per_lc",
@@ -3424,7 +3460,7 @@ def run_design_check(
     # back onto the bridge so plategirderbridge can read self._deflections_cache after.
     if deflections_cache is None:
         deflections_cache = apply_camber_to_deflections_cache(
-            build_deflections_cache(config, result_data), config.geometry.camber_mode, config.geometry.camber_value_m,
+            build_deflections_cache(config, result_data), config.geometry.camber_mode, config.geometry.camber_value_mm,
         )
         plate_girder_bridge._deflections_cache = deflections_cache
 
@@ -3619,6 +3655,7 @@ def run_design_check(
         "Zp_steel_mm3"              : round(_sec.Zp_steel, 0),
         "y_cg_from_bot_mm"          : round(_sec.y_cg_from_bot, 2),
         "fabrication"               : _sec.fabrication,
+        "designation"               : _sec.designation,
         # -- slab --
         "slab_thickness_mm"         : config.slab.thickness,
         "haunch_depth_mm"           : config.slab.haunch_depth,
@@ -3750,13 +3787,13 @@ def run_design_check(
         KEY_SD_SC_SL1              : capacity.stud_spacing_mm,
         KEY_SD_SC_SL2              : capacity.stud_spacing_full_shear_mm,
         KEY_SD_SC_SR               : capacity.stud_spacing_fatigue_mm,
-        KEY_SD_SC_AEC_MM2          : capacity.details.get("stud_spacing_full_shear").get("Aec_mm2"),
-        KEY_SD_SC_H1_kN            : capacity.details.get("stud_spacing_full_shear").get("H1_kN"),
-        KEY_SD_SC_H2_kN            : capacity.details.get("stud_spacing_full_shear").get("H2_kN"),
-        KEY_SD_SC_SHEAR_SPAN       : capacity.details.get("stud_spacing_full_shear").get("shear_span_mm"),
+        KEY_SD_SC_AEC_MM2          : (capacity.details.get("stud_spacing_full_shear") or {}).get("Aec_mm2"),
+        KEY_SD_SC_H1_kN            : (capacity.details.get("stud_spacing_full_shear") or {}).get("H1_kN"),
+        KEY_SD_SC_H2_kN            : (capacity.details.get("stud_spacing_full_shear") or {}).get("H2_kN"),
+        KEY_SD_SC_SHEAR_SPAN       : (capacity.details.get("stud_spacing_full_shear") or {}).get("shear_span_mm"),
         KEY_SD_SC_H_kN             : (capacity.details.get("stud_spacing_full_shear") or {}).get("H_governing_kN"),
         KEY_SD_SC_Vr_kN            : (capacity.details.get("stud_spacing_fatigue")    or {}).get("Vr_kN"),
-        KEY_SD_SC_VR_PER_MM        : capacity.details.get("stud_spacing_fatigue").get("Vr_per_mm_kN"),
+        KEY_SD_SC_VR_PER_MM        : (capacity.details.get("stud_spacing_fatigue") or {}).get("Vr_per_mm_kN"),
         KEY_SD_SC_LIMIT_600        : (capacity.details.get("stud_spacing_limits")     or {}).get("limit_600_mm"),
         KEY_SD_SC_LIMIT_3TSLAB     : (capacity.details.get("stud_spacing_limits")     or {}).get("limit_3_tslab_mm"),
         KEY_SD_SC_LIMIT_4HSTUD     : (capacity.details.get("stud_spacing_limits")     or {}).get("limit_4_hstud_mm"),
@@ -3774,8 +3811,8 @@ def run_design_check(
         KEY_SD_TS_VCAP_CONC        : (capacity.details.get("transverse_shear") or {}).get("Vcap1_kN_per_m"),
         KEY_SD_TS_VCAP_REINF       : (capacity.details.get("transverse_shear") or {}).get("Vcap2_kN_per_m"),
         KEY_SD_TS_VRD              : (capacity.details.get("transverse_shear") or {}).get("governing_capacity_kN_per_m"),
-        KEY_SD_TS_AEC              : capacity.details.get("stud_spacing").get("Aec_mm2"),
-        KEY_SD_TS_Y                : capacity.details.get("stud_spacing").get("Y_mm"),
+        KEY_SD_TS_AEC              : (capacity.details.get("stud_spacing") or {}).get("Aec_mm2"),
+        KEY_SD_TS_Y                : (capacity.details.get("stud_spacing") or {}).get("Y_mm"),
         KEY_TS_DECK_THICKNESS : config.slab.thickness,
         # -- crack control --
         "As_min_crack_mm2"          : capacity.As_min_crack_mm2,

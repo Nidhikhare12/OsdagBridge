@@ -189,20 +189,6 @@ KEY_SD_STIFFENER_COL_SPACING = "steeldesign.details.stiffener.col.spacing"
 # Stiffener inputs
 KEY_SD_STIFFENER_DETAILS = "member_properties.stiffener_details.stiffener_details_cad"
 
-# Steel Design Properties
-KEY_SD_SECTION_PROP_MASS = "steeldesign.details.section_properties.mass"
-KEY_SD_SECTION_PROP_AREA = "steeldesign.details.section_properties.area"
-KEY_SD_SECTION_PROP_IZ = "steeldesign.details.section_properties.iz"
-KEY_SD_SECTION_PROP_IV = "steeldesign.details.section_properties.iv"
-KEY_SD_SECTION_PROP_RZ = "steeldesign.details.section_properties.rz"
-KEY_SD_SECTION_PROP_RV = "steeldesign.details.section_properties.rv"
-KEY_SD_SECTION_PROP_ZZ = "steeldesign.details.section_properties.zz"
-KEY_SD_SECTION_PROP_ZV = "steeldesign.details.section_properties.zv"
-KEY_SD_SECTION_PROP_ZUZ = "steeldesign.details.section_properties.zuz"
-KEY_SD_SECTION_PROP_ZUV = "steeldesign.details.section_properties.zuv"
-KEY_SD_SECTION_PROP_IT = "steeldesign.details.section_properties.it"
-KEY_SD_SECTION_PROP_IW = "steeldesign.details.section_properties.iw"
-
 KEY_BTN_STEEL_DESIGN          = "btn.steel_design"
 KEY_BTN_TRANSVERSE_DESIGN     = "btn.transverse_design"
 KEY_BTN_DECK_DESIGN           = "btn.deck_design"
@@ -230,6 +216,7 @@ KEY_DD_SPAN             = "deck.report.span"               # effective span = gi
 KEY_DD_WDL              = "deck.report.w_dl"               # slab dead load (kN/m2)
 KEY_DD_WHEEL_LOAD       = "deck.report.wheel_load"         # max single wheel load (kN)
 KEY_DD_TYRE_WIDTH       = "deck.report.tyre_contact_width" # transverse tyre contact width (m)
+KEY_DD_TYRE_REF         = "deck.report.tyre_reference"     # IRC 6 Cl.204.1 ground-contact dimension source (Table 2/4/Fig.1)
 KEY_DD_FY               = "deck.report.fy"                # rebar fy (MPa)
 
 # -- 5.17(b) Interior panel flexure --
@@ -243,6 +230,8 @@ KEY_DD_MU_BOT           = "deck.report.mu_bot"          # bottom moment capacity
 KEY_DD_MU_TOP           = "deck.report.mu_top"          # top moment capacity (kNm/m)
 KEY_DD_AS_REQ_BOT       = "deck.report.as_req_bot"      # bottom required steel (mm2/m)
 KEY_DD_AS_REQ_TOP       = "deck.report.as_req_top"      # top required steel (mm2/m)
+KEY_DD_XU_BOT           = "deck.report.xu_bot"          # bottom neutral-axis depth xu (mm)
+KEY_DD_XU_TOP           = "deck.report.xu_top"          # top neutral-axis depth xu (mm)
 
 # -- 5.17(c) Cantilever overhang flexure --
 KEY_DD_M_BARRIER        = "deck.report.m_barrier"       # crash barrier moment (kNm/m)
@@ -252,6 +241,16 @@ KEY_DD_M_ULS_OH         = "deck.report.m_uls_oh"        # overhang ULS hogging m
 KEY_DD_D_OH             = "deck.report.d_oh"            # overhang effective depth (mm)
 KEY_DD_MU_OH            = "deck.report.mu_oh"           # overhang moment capacity (kNm/m)
 KEY_DD_AS_REQ_OH        = "deck.report.as_req_oh"       # overhang required steel (mm2/m)
+KEY_DD_OVERHANG_LEN     = "deck.report.overhang_len_m"  # overhang length l_oh (m)
+KEY_DD_EDGE_CLEARANCE   = "deck.report.edge_clearance_m" # wheel-to-edge clearance f, IRC 6 Table 3 (m)
+KEY_DD_RAILING_LOAD_KGM = "deck.report.railing_load_kgm" # railing dead load, IRC 6 Cl.206.5 (kg/m)
+KEY_DD_RAILING_LOAD_KNM = "deck.report.railing_load_knm" # railing dead load (kN/m)
+KEY_DD_M_DL_SLAB_OH     = "deck.report.m_dl_slab_oh"    # overhang slab-only dead load moment (kNm/m)
+KEY_DD_M_RAILING_OH     = "deck.report.m_railing_oh"    # overhang railing moment (kNm/m)
+KEY_DD_ARM_WHEEL_OH     = "deck.report.arm_wheel_oh"    # eccentric wheel arm e = l_oh - f (m)
+KEY_DD_WC_THICKNESS_M   = "deck.report.wc_thickness_m"  # wearing course thickness (m)
+KEY_DD_B1_OH            = "deck.report.b1_oh_m"         # overhang load concentration breadth b1 (m)
+KEY_DD_BEFF_OH          = "deck.report.beff_oh_m"       # overhang effective width beff (m)
 
 # -- 5.17(d) Punching shear (IRC 112 Cl.10.4) --
 KEY_DD_PUNCH_VED_KN     = "deck.report.punch_ved_kn"    # ULS design wheel load, γ_LL·(1+IF)·P_w (kN)
@@ -769,6 +768,16 @@ KEY_LL_IRC_CLASS_SV             = "loading.live_load.irc.class_sv"
 KEY_LL_IRC_70R_BOGIE            = "loading.live_load.irc.70r_bogie"
 KEY_LL_IRC_CLASS_FATIGUE        = "loading.live_load.irc.class_fatigue"
 
+
+# Live Load Report Values
+KEY_LL_IMPACT_FACTOR_CLASS_A = "loading.live_load.impact_factor.class_a"
+KEY_LL_IMPACT_FACTOR_CLASS_AA_70R = "loading.live_load.impact_factor.class_aa_70r"
+KEY_LL_VEHICLE_TOTAL_LOAD_CLASS_A = "loading.live_load.vehicle_total_load.class_a"
+KEY_LL_VEHICLE_TOTAL_LOAD_70R_WHEELED = "loading.live_load.vehicle_total_load.70r_wheeled"
+KEY_LL_VEHICLE_TOTAL_LOAD_70R_TRACKED = "loading.live_load.vehicle_total_load.70r_tracked"
+KEY_LL_VEHICLE_TOTAL_LOAD_FATIGUE = "loading.live_load.vehicle_total_load.fatigue"
+KEY_LL_VEHICLE_TOTAL_LOAD_CLASS_SV = "loading.live_load.vehicle_total_load.class_sv"
+
 # Breaking Load keys — mirror the vehicle class keys
 KEY_BL_IRC_CLASS_A        = "bl_irc_class_a"
 KEY_BL_IRC_AA_WHEELED     = "bl_irc_aa_wheeled"
@@ -810,6 +819,7 @@ KEY_SL_LIVE_LOAD_VALUE          = "loading.seismic_load.live_load.value"
 
 KEY_SL_ZONE_FACTOR              = "loading.seismic_load.computed.zone_factor"
 KEY_SL_SPECTRAL_COEFF           = "loading.seismic_load.computed.spectral_coeff"
+KEY_SL_SA_G                     = "loading.seismic_load.computed.sa_g"
 KEY_SL_HORIZONTAL_COEFF         = "loading.seismic_load.computed.horizontal_coeff"
 KEY_SL_VERTICAL_COEFF           = "loading.seismic_load.computed.vertical_coeff"
 KEY_SL_FORCE_LONGITUDINAL       = "loading.seismic_load.computed.force_longitudinal"
@@ -1075,6 +1085,7 @@ KEY_TD_ED_TAB = "transverse_member_design.ed.tab"
 
 # Transverse Member Design - Cross Bracing Design Keys
 KEY_TD_CB_SECTION_INPUTS_DESIGN = "transverse_member_design.cb.section_inputs.design"
+KEY_TD_CB_SECTION_INPUTS_MATERIAL_GRADE = "transverse_member_design.cb.section_inputs.material_grade"
 KEY_TD_CB_SECTION_INPUTS_NO_OF_CB = "transverse_member_design.cb.section_inputs.no_of_cb"
 KEY_TD_CB_SECTION_INPUTS_BRACING_TYPE = "transverse_member_design.cb.section_inputs.bracing_type"
 KEY_TD_CB_SECTION_INPUTS_CONNECTION_TYPE = "transverse_member_design.cb.section_inputs.connection_type"
@@ -1148,6 +1159,7 @@ KEY_TD_CB_BOTTOM_CHORD_PROP_ZUV = "transverse_member_design.cb.section_propertie
 # Transverse Member Design - End Diaphragm Section Inputs Keys
 KEY_TD_ED_SECTION_INPUTS_TYPE = "transverse_member_design.ed.section_inputs.type"
 KEY_TD_ED_SECTION_INPUTS_DESIGN = "transverse_member_design.ed.section_inputs.design"
+KEY_TD_ED_SECTION_INPUTS_MATERIAL_GRADE = "transverse_member_design.ed.section_inputs.material_grade"
 KEY_TD_ED_SECTION_INPUTS_NO_OF_CB = "transverse_member_design.ed.section_inputs.no_of_cb"
 KEY_TD_ED_SECTION_INPUTS_BRACING_TYPE = "transverse_member_design.ed.section_inputs.bracing_type"
 KEY_TD_ED_SECTION_INPUTS_CONNECTION_TYPE = "transverse_member_design.ed.section_inputs.connection_type"
@@ -1863,6 +1875,25 @@ def get_is_section_properties(designation: str) -> Optional[dict]:
         "zuy":   beam.plastic_section_modulus_y_cm3,
         "it":    beam.torsion_constant_cm4,
         "iw":    beam.warping_constant_cm6,
+    }
+
+def get_is_section_dimensions(designation: str) -> Optional[dict]:
+    """Return the dimensions (mm) of the given designation, keyed by the girder
+    size keys (KEY_MP_GIRDER_*) used in working_input_dict. Rolled I-sections are
+    symmetric: one flange size for top and bottom.
+
+    designation must be a catalogue name (e.g. "JB 150"). The IS Section combo
+    only lists get_is_section_list() names, so no not-found check is done here.
+    """
+    beam = girder_catalog.get_beam_profile(designation)
+    # Same flange plate on top and bottom, so each flange value is used twice
+    return {
+        KEY_MP_GIRDER_DEPTH:                   beam.depth_mm,
+        KEY_MP_GIRDER_TOP_FLANGE_WIDTH:        beam.flange_width_mm,
+        KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH:     beam.flange_width_mm,
+        KEY_MP_GIRDER_TOP_FLANGE_THICKNESS:    beam.flange_thickness_mm,
+        KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS: beam.flange_thickness_mm,
+        KEY_MP_GIRDER_WEB_THICKNESS:           beam.web_thickness_mm,
     }
 
 def get_angle_designation_list() -> list[str]:

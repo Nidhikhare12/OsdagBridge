@@ -1,4 +1,4 @@
-﻿"""
+"""
 Additional Inputs Widget for Highway Bridge Design
 Provides detailed input fields for manual bridge parameter definition
 """
@@ -291,6 +291,8 @@ class AdditionalInputs(QDialog):
                 widget.blockSignals(True)
                 widget.setCurrentText(str(value))
                 widget.blockSignals(False)
+                if hasattr(widget, "_sync_mode"):
+                    widget._sync_mode(widget.currentText())
 
             elif isinstance(widget, QCheckBox):
                 widget.blockSignals(True)
@@ -491,6 +493,8 @@ class AdditionalInputs(QDialog):
                 widget.blockSignals(True)
                 widget.setCurrentText(str(value))
                 widget.blockSignals(False)
+                if hasattr(widget, "_sync_mode"):
+                    widget._sync_mode(widget.currentText())
 
             elif isinstance(widget, QCheckBox):
                 widget.blockSignals(True)
@@ -514,6 +518,24 @@ class AdditionalInputs(QDialog):
     # ── Dialog Persistence ───────────────────────────────────────────────────────
 
     def _save_inputs(self):  # on_change: validates all tabs then commits working_input_dict and emits CAD update signal
+
+        # Validate custom camber if mode is Custom
+        if self.working_input_dict.get(KEY_DO_CAMBER_MODE) == "Custom":
+            result = self.validator.validate_additional_inputs(KEY_DO_CAMBER_VALUE, self.working_input_dict)
+            if result is not None:
+                corrected, message = result
+                CustomMessageBox(
+                    title="Input Error",
+                    text=message,
+                    dialogType=MessageBoxType.Warning,
+                ).exec()
+                widget = self.findChild(QLineEdit, KEY_DO_CAMBER_VALUE)
+                if widget:
+                    widget.blockSignals(True)
+                    widget.setText(str(corrected))
+                    widget.blockSignals(False)
+                self._update_input_dict(KEY_DO_CAMBER_VALUE, str(corrected))
+                return
 
         # Flush the currently-displayed stiffener member's widgets before committing.
         # _save_stiffener_member_data otherwise only runs when switching *away* from a
@@ -701,9 +723,9 @@ class AdditionalInputs(QDialog):
             cb_type.setCurrentText("IRC 5 - High Containment RCC Crash Barrier")
             cb_type.setCurrentText(cur)
 
-        # Refresh median for correct compute value
+        # Refresh median for correct compute value (skipped when no median is included)
         md_type = self.findChild(QComboBox, KEY_MD_TYPE)
-        if md_type:
+        if md_type and str(self.working_input_dict.get(KEY_INCLUDE_MEDIAN)).strip().lower() == "yes":
             cur = md_type.currentText()
             md_type.setCurrentText("IRC 5 - Raised Kerb")
             md_type.setCurrentText(cur)
@@ -969,7 +991,11 @@ class AdditionalInputs(QDialog):
             geom = IRC5_2015.cl_109_6_3_shapes(
                 KEY_CRASH_BARRIER_TYPE[1], VALUES_FOOTPATH[0], None, {}, crash_barrier_t
             )
-            load = metallic_edge_barrier_load(variant)["total_load_kN_per_m"]
+            spacing_m = input_dict.get(KEY_CB_POST_SPACING)
+            spacing_mm = float(spacing_m) * 1000 if spacing_m is not None else None
+            load = metallic_edge_barrier_load(
+                variant, post_spacing=spacing_mm
+            )["total_load_kN_per_m"]
             return {
                 KEY_CB_WIDTH:  f"{geom[KEY_CB_WIDTH]  / 1000:.3f}",
                 KEY_CB_HEIGHT: f"{geom[KEY_CB_HEIGHT] / 1000:.3f}",
@@ -1050,7 +1076,11 @@ class AdditionalInputs(QDialog):
             variant       = "Double" if "Double" in median_type else "Single"
             metallic_type = KEY_METALLIC_CRASH_BARRIER_TYPE[1 if variant == "Double" else 0]
             geom = IRC5_2015.cl_109_6_3_shapes(KEY_MEDIAN_TYPE[2], None, None, {}, metallic_type)
-            load = median_metallic_barrier_load(variant)["total_load_kN_per_m"]
+            spacing_m = input_dict.get(KEY_MD_POST_SPACING)
+            spacing_mm = float(spacing_m) * 1000 if spacing_m is not None else None
+            load = median_metallic_barrier_load(
+                variant, post_spacing=spacing_mm
+            )["total_load_kN_per_m"]
             return {
                 KEY_MD_WIDTH:  f"{geom['kerb_bottom_width'] / 1000:.3f}",
                 KEY_MD_HEIGHT: f"{(geom['post_height'] + geom['kerb_height']) / 1000:.3f}",
@@ -1212,6 +1242,12 @@ class AdditionalInputs(QDialog):
         KEY_MP_GIRDER_PLASTIC_MODULUS_ZUZ, KEY_MP_GIRDER_PLASTIC_MODULUS_ZUY,
         KEY_MP_GIRDER_TORSION_CONSTANT_IT, KEY_MP_GIRDER_WARPING_CONSTANT_IW,
     ]
+
+    # Size keys a Rolled member takes from its IS Section (see _on_is_section_changed)
+    _ROLLED_SIZE_KEYS = (
+        KEY_MP_GIRDER_DEPTH, KEY_MP_GIRDER_TOP_FLANGE_WIDTH, KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
+        KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH, KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS, KEY_MP_GIRDER_WEB_THICKNESS,
+    )
 
     def _update_apply_button_visibility(self, origin_key: str, target_widget: QWidget) -> None:  # END_CONNECTOR: shows Exterior/Interior Apply button based on selected girder position
         """Show/hide Apply Exterior or Apply Interior button based on selected girder index."""
@@ -1403,6 +1439,39 @@ class AdditionalInputs(QDialog):
         gi, mi = self._get_current_girder_member_indices()
         self._save_member_fields()
 
+    def _on_is_section_changed(self, origin_key: str, target_widget: QWidget) -> None:  # END_CONNECTOR: writes the selected IS section's catalogue dimensions into the current Rolled member's size keys
+        """
+        Copy the selected IS Section's catalogue sizes into the current member's
+        size keys, so analysis, design and CAD all use the rolled section and not
+        the hidden welded fields. _save_member_fields skips these keys for a
+        Rolled member, so they are not overwritten later.
+        """
+        from osdagbridge.core.bridge_types.plate_girder.initial_sizing import steel_i_section_properties
+
+        # Only a Rolled member takes its sizes from the IS Section
+        type_w       = self.findChild(QComboBox, KEY_MP_GIRDER_TYPE)
+        is_section_w = self.findChild(QComboBox, KEY_MP_GIRDER_IS_SECTION)
+        if type_w is None or is_section_w is None or type_w.currentText().strip().lower() != "rolled":
+            return
+        # Depth, flange widths/thicknesses and web thickness (mm) from the catalogue
+        dims = get_is_section_dimensions(is_section_w.currentText())
+        if not dims:
+            return
+        # Web depth is not in the catalogue; derive it from the single source
+        # of the steel-section equations
+        dims[KEY_MP_GIRDER_WEB_DEPTH] = steel_i_section_properties(
+            D=dims[KEY_MP_GIRDER_DEPTH],
+            bf_top=dims[KEY_MP_GIRDER_TOP_FLANGE_WIDTH], tf_top=dims[KEY_MP_GIRDER_TOP_FLANGE_THICKNESS],
+            bf_bot=dims[KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH], tf_bot=dims[KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS],
+            tw=dims[KEY_MP_GIRDER_WEB_THICKNESS],
+        )[KEY_MP_GIRDER_WEB_DEPTH]
+
+        # Write to the girder/member currently selected in the dialog
+        gi, mi = self._get_current_girder_member_indices()
+        for key, value in dims.items():
+            self.working_input_dict[f"{key}.G{gi}.M{mi}"] = value
+            self.working_input_dict[key] = value  # un-suffixed key, read first by edge beams
+
     def _get_current_girder_member_indices(self) -> tuple[int, int]:  # utility: returns (girder_index, member_index) 1-based from current combo selections
         girder_combo = self.findChild(QComboBox, KEY_MP_GD_SELECT_GIRDER)
         member_combo = self.findChild(QComboBox, KEY_MP_GD_MEMBER_ID)
@@ -1415,7 +1484,14 @@ class AdditionalInputs(QDialog):
         suffix = f".G{gi}.M{mi}"
         # print(f"[SAVE_MEMBER_FIELDS] G{gi}.M{mi}")
 
+        # A Rolled member's sizes come from its IS Section (_on_is_section_changed);
+        # its hidden welded fields must not overwrite them.
+        type_w = self.findChild(QComboBox, KEY_MP_GIRDER_TYPE)
+        is_rolled = type_w is not None and type_w.currentText().strip().lower() == "rolled"
+
         for key in self._MEMBER_FIELD_KEYS:
+            if is_rolled and key in self._ROLLED_SIZE_KEYS:
+                continue
             w = self.findChild(QWidget, key)
 
             if isinstance(w, AdaptiveWidget):
@@ -3044,6 +3120,7 @@ class AdditionalInputs(QDialog):
         return {
             KEY_SL_ZONE_FACTOR:       str(result.get("Z", "")),
             KEY_SL_SPECTRAL_COEFF:    str(result.get("Sa_g_adjusted", "")),
+            KEY_SL_SA_G:              str(result.get("Sa_g", "")),
             KEY_SL_HORIZONTAL_COEFF:  str(Ah),
             KEY_SL_VERTICAL_COEFF:    str(Av),
         }

@@ -1,4 +1,5 @@
 import logging
+import re
 from osdagbridge.core.utils.common import *
 
 logger = logging.getLogger(__name__)
@@ -220,27 +221,6 @@ def resolve_girder_section_properties(output_dict: dict) -> dict | None:
         """Return output_dict[base_key.G{gi}.M{mi}] or None."""
         return od.get(f"{base_key}.G{gi}.M{mi}")
 
-    def _dim(base_key, gi, mi):
-        """
-        Display a dimension field that may hold a number (Custom design mode),
-        the marker "Custom" with the chosen options under a '.selected' sub-key,
-        or "All"/a list (Optimized mode, TYPE_ALL_CUSTOM). Always shows something.
-        """
-        v = _gk(base_key, gi, mi)
-        if v in (None, "", [], {}):
-            return EMPTY
-        if isinstance(v, str) and v.strip().lower() == "custom":
-            sel = od.get(f"{base_key}.selected.G{gi}.M{mi}")
-            if isinstance(sel, (list, tuple)) and sel:
-                return ", ".join(str(s) for s in sel)
-            return "All"
-        if isinstance(v, (list, tuple)):
-            return ", ".join(str(s) for s in v) if v else EMPTY
-        try:
-            return round(float(v), 2)
-        except (ValueError, TypeError):
-            return _val(v)
-
     span = _num(od.get(KEY_SPAN)) if _has(od.get(KEY_SPAN)) else EMPTY
 
     rows = []
@@ -254,14 +234,14 @@ def resolve_girder_section_properties(output_dict: dict) -> dict | None:
                 span,
                 _val(_gk(KEY_MP_GIRDER_TYPE,                  gi, mi)),
                 _val(_gk(KEY_MP_GIRDER_SYMMETRY,               gi, mi)),
-                _dim(KEY_MP_GIRDER_DEPTH,                  gi, mi),  # stored in mm
-                _dim(KEY_MP_GIRDER_TOP_FLANGE_WIDTH,       gi, mi),  # mm
-                _dim(KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,   gi, mi),  # mm / "All"
-                _dim(KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH,    gi, mi),  # mm
-                _dim(KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS,gi, mi),  # mm / "All"
+                _num(_gk(KEY_SD_TOTAL_DEPTH,             gi, mi)),  # mm, designed section
+                _num(_gk(KEY_SD_TOP_FLANGE_WIDTH,        gi, mi)),  # mm, designed section
+                _num(_gk(KEY_SD_TOP_FLANGE_THICKNESS,    gi, mi)),  # mm, designed section
+                _num(_gk(KEY_SD_BOTTOM_FLANGE_WIDTH,     gi, mi)),  # mm, designed section
+                _num(_gk(KEY_SD_BOTTOM_FLANGE_THICKNESS, gi, mi)),  # mm, designed section
                 _val(_gk(KEY_MP_GD_SUPPORT_TYPE,               gi, mi)),
-                _num(_gk(KEY_MP_GD_SUPPORT_WIDTH,              gi, mi)),  # mm
-                _dim(KEY_MP_GIRDER_WEB_THICKNESS,          gi, mi),  # mm / "All"
+                _num(_gk(KEY_MP_GD_SUPPORT_WIDTH,              gi, mi)),  # mm, never converted
+                _num(_gk(KEY_SD_WEB_THICKNESS,           gi, mi)),  # mm, designed section
                 _val(_gk(KEY_MP_GIRDER_TORSIONAL_RESTRAINT,    gi, mi)),
                 _val(_gk(KEY_MP_GIRDER_WARPING_RESTRAINT,      gi, mi)),
                 _val(_gk(KEY_MP_GIRDER_WEB_TYPE,               gi, mi)),
@@ -571,7 +551,7 @@ def resolve_shear_stud_properties(output_dict: dict) -> dict | None:
 def resolve_permanent_load_summary(output_dict: dict) -> dict | None:
     """
     Permanent (dead) load breakdown per girder (kN/m). All values are computed at
-    design time (see _store_permanent_load_breakdown) and read straight from
+    design time and read straight from
     output_dict. SW and DL vary per girder; SW-factor / DC / DD / DW / SIDL are
     shared. DL = SW + DC + DD + DW + SIDL.
     """
@@ -734,7 +714,7 @@ def resolve_seismic_load_parameters(output_dict: dict) -> dict | None:
     response_red      = od.get(KEY_SL_RESPONSE_REDUCTION)
 
     zone_factor       = od.get(KEY_SL_ZONE_FACTOR)
-    spectral_coeff    = od.get(KEY_SL_SPECTRAL_COEFF)
+    spectral_coeff    = od.get(KEY_SL_SA_G)
     horizontal_coeff  = od.get(KEY_SL_HORIZONTAL_COEFF)
     vertical_coeff    = od.get(KEY_SL_VERTICAL_COEFF)
 
@@ -939,8 +919,8 @@ def resolve_temperature_load_parameters(output_dict: dict) -> dict | None:
         "columns": [
             "Highest Maximum Air Temperature (°C)",
             "Lowest Minimum Air Temperature (°C)",
-            "Coefficient of Thermal Expansion for Steel (1/°C)",
-            "Coefficient of Thermal Expansion for RCC (1/°C)",
+            "Coefficient of Thermal Expansion for Steel (×10⁻⁶/°C)",
+            "Coefficient of Thermal Expansion for RCC (×10⁻⁶/°C)",
             "Effective Bridge Temperature - Minimum (°C)",
             "Effective Bridge Temperature - Maximum (°C)",
             "Temperature for Design - Rise (°C)",
@@ -949,8 +929,8 @@ def resolve_temperature_load_parameters(output_dict: dict) -> dict | None:
         "rows": [[
             _num(highest_max_temp)    if _has(highest_max_temp)    else EMPTY,
             _num(lowest_min_temp)     if _has(lowest_min_temp)     else EMPTY,
-            _num(thermal_coeff_steel, decimals=8) if _has(thermal_coeff_steel) else EMPTY,
-            _num(thermal_coeff_rcc,   decimals=8) if _has(thermal_coeff_rcc)   else EMPTY,
+            _num(thermal_coeff_steel) if _has(thermal_coeff_steel) else EMPTY,
+            _num(thermal_coeff_rcc)   if _has(thermal_coeff_rcc)   else EMPTY,
             _num(bridge_temp_min)     if _has(bridge_temp_min)     else EMPTY,
             _num(bridge_temp_max)     if _has(bridge_temp_max)     else EMPTY,
             _num(temp_rise)           if _has(temp_rise)           else EMPTY,
@@ -1860,9 +1840,8 @@ def resolve_stress_results_reinforcement(output_dict: dict) -> dict | None:
 
 # ── Resolvers — Analysis Results: Load Effects (Girder) ───────────────────────
 # These tables need the per-girder / per-load-case bending-moment and shear-force
-# envelope {girder: {load_case: {Mz_max, Mz_min, Vy_max, Vy_min}}}. That data is
-# NOT stored in output_dict, so under the strict "output_dict only" rule these
-# tables render empty until the design pipeline persists it under a key.
+# envelope {girder: {load_case: {Mz_max, Mz_min, Vy_max, Vy_min}}}, which the
+# design pipeline stores in output_dict under "load_effects_cache".
 
 def _get_cache(output_dict):
     """Return the load-effects envelope from output_dict, or None if absent."""
@@ -2062,3 +2041,80 @@ RESOLVER_MAP: dict[str, callable] = {
     # ── Design Summary ────────────────────────────────────────────────────
     "design_results_summary":             resolve_design_results_summary,
 }
+
+
+# ── Member / Load Case filtering ────────────────────────────────────────
+# Drive the two dropdowns on the Generate Results page from output_dict, and
+# narrow a resolved table to the chosen girder / load case.
+
+#: First-column headers that identify the girder a row belongs to. Tables whose
+#: first column is anything else (e.g. "Component") carry no girder dimension.
+GIRDER_ID_ROWS = ("Girder", "Member", "Member ID")
+
+#: Tables where the load case is a *column pair* ("<LC> - Max", "<LC> - Min").
+LOAD_CASE_COLUMN_TABLES = ("bending_moment_by_load_case", "shear_force_by_load_case")
+
+# "G1", "G1M1", "G1G2", "Girder 1" — every girder number a row label mentions.
+_GIRDER_TOKEN_RE = re.compile(r"G(?:irder)?\s*0*(\d+)", re.IGNORECASE)
+
+
+def available_load_cases(output_dict: dict) -> list:
+    """Ordered, de-duplicated load-case names the analysis actually ran.
+
+    These are the ``load_effects_cache`` keys — SW, DC, "1.0 DL",
+    "BASIC_1: 1.35DL + …" — the names the by-load-case force tables are built
+    from. Unticked or custom combinations are deliberately absent: the analyser
+    never builds them, so they would filter every table down to nothing.
+    Returns an empty list when no analysis results are stored.
+    """
+    cache = output_dict.get("load_effects_cache") or {}
+    return list(dict.fromkeys(
+        str(lc) for lc_data in cache.values() for lc in lc_data
+    ))
+
+
+def _row_girder_numbers(label) -> list:
+    """Every girder number named by a row label ("G1G2" spans two girders)."""
+    return [int(n) for n in _GIRDER_TOKEN_RE.findall(str(label))]
+
+
+def filter_table(table_data: dict, selected_girder_no=None, load_case=None) -> dict:
+    """Return a copy of ``table_data`` narrowed to one girder and/or load case.
+
+    ``selected_girder_no`` — 1-based girder number, or None for all girders. Only tables
+    whose first column is a girder identity column react; within those, a row is
+    kept when it names the selected girder, and rows that name no girder at all
+    (e.g. "Deck Slab (Top)") always stay.
+
+    ``load_case`` — a name from :func:`available_load_cases`, or None for all.
+    Only the load-case-aware tables react: the by-load-case force tables keep the
+    identity column plus that case's Max/Min columns. Every other table is
+    load-case independent and is returned with all of its data.
+
+    A table that has no column matching the selected case (the placeholder
+    defaults used before a design is run) is left untouched rather than emptied.
+    """
+
+    columns = list(table_data.get("columns"))
+    rows    = [list(r) for r in table_data.get("rows")]
+    table_id = str(table_data.get("id", ""))
+
+    if load_case:
+        if table_id in LOAD_CASE_COLUMN_TABLES:
+            keep = [0] + [i for i, col in enumerate(columns)
+                          if i and str(col).rsplit(" - ", 1)[0] == load_case]
+            if len(keep) > 1:
+                columns = [columns[i] for i in keep]
+                rows    = [[r[i] if i < len(r) else EMPTY for i in keep] for r in rows]
+
+    if selected_girder_no and str(columns[0]).strip() in GIRDER_ID_ROWS:
+        rows = [
+            r for r in rows
+            if not _row_girder_numbers(r[0] if r else "")
+            or int(selected_girder_no) in _row_girder_numbers(r[0])
+        ]
+
+    filtered = dict(table_data)
+    filtered["columns"] = columns
+    filtered["rows"]    = rows
+    return filtered

@@ -1,7 +1,7 @@
 # Main schema: ADDITIONAL_INPUTS_SCHEMA (bottom of file)
 
 from osdagbridge.core.utils.common import *
-from osdagbridge.core.bridge_types.plate_girder.initial_sizing import KEY_MAX_CAMBER_M
+from osdagbridge.core.bridge_types.plate_girder.initial_sizing import KEY_MAX_CAMBER_MM
 
 
 # ── Typical Section Details Tab ───────────────────────────────────────────────
@@ -117,6 +117,10 @@ _CRASH_BARRIER_TAB_SCHEMA = {
                     "id": KEY_CB_POST_SPACING,
                     "label": "Spacing between Posts (m):",
                     "type": TYPE_TEXTBOX,
+                    "on_change_compute": {
+                        "function": "compute_crash_barrier_values",
+                        "signal": "editingFinished",
+                    },
                 }
             ]
         },
@@ -199,6 +203,10 @@ _MEDIAN_TAB_SCHEMA = {
                     "id": KEY_MD_POST_SPACING,
                     "label": "Spacing between Posts (m):",
                     "type": TYPE_TEXTBOX,
+                    "on_change_compute": {
+                        "function": "compute_median_values",
+                        "signal": "editingFinished",
+                    },
                 }
             ]
         },
@@ -753,7 +761,7 @@ _SEISMIC_LOAD_TAB_SCHEMA = {
                 {
                     "fields": [{
                         "id":       KEY_SL_SPECTRAL_COEFF,
-                        "label":    "Spectral Acceleration Coefficient, S&#x2090;/g",
+                        "label":    "Spectral Acceleration Coefficient, S&#x2090;/g &#xD7; Damping Factor",
                         "type":     TYPE_TEXTBOX,
                         
                         "read_only": True,
@@ -933,8 +941,8 @@ _TEMPERATURE_LOAD_TAB_SCHEMA = {
                         "on_change_compute": {"function": "_compute_temperature_values"}
                     }]
                 },
-                {"fields": [{"id": KEY_TL_THERMAL_COEFF_STEEL, "label": "Coefficient of Thermal Expansion for Steel (1/°C)",       "type": TYPE_TEXTBOX, "read_only": True, "placeholder": "e.g. 11.7e-6",        }]},
-                {"fields": [{"id": KEY_TL_THERMAL_COEFF_RCC,   "label": "Coefficient of Thermal Expansion for RCC (1/°C)",         "type": TYPE_TEXTBOX, "read_only": True, "placeholder": "e.g. 11.7e-6",        }]},
+                {"fields": [{"id": KEY_TL_THERMAL_COEFF_STEEL, "label": "Coefficient of Thermal Expansion for Steel (&#xD7;10<sup>-6</sup>/°C)", "type": TYPE_TEXTBOX, "read_only": True, "placeholder": "e.g. 11.7",        }]},
+                {"fields": [{"id": KEY_TL_THERMAL_COEFF_RCC,   "label": "Coefficient of Thermal Expansion for RCC (&#xD7;10<sup>-6</sup>/°C)",   "type": TYPE_TEXTBOX, "read_only": True, "placeholder": "e.g. 11.7",        }]},
             ],
         },
 
@@ -1534,12 +1542,12 @@ DESIGN_OPTIONS_CONT_SCHEMA = {
                 {
                     "fields": [{
                         "id":           KEY_DO_CAMBER,
-                        "label":        "Camber (m)",
+                        "label":        "Camber (mm)",
                         "type":         TYPE_MODE_LINE,
                         "mode_choices": ["Default", "Custom"],
                         "bind_mode":    "camber_mode_combo",
                         "bind_value":   "camber_value_input",
-                        "placeholder":  f"0 - {KEY_MAX_CAMBER_M:g}",
+                        "placeholder":  f"0 - {KEY_MAX_CAMBER_MM:g}",
                     }]
                 },
             ],
@@ -1638,6 +1646,9 @@ END_CONNECTORS = [
     (KEY_MP_GIRDER_WARPING_RESTRAINT,       KEY_MP_GD_MEMBER_ID, "_save_member_fields_connector"),
     (KEY_MP_GIRDER_WEB_TYPE,                KEY_MP_GD_MEMBER_ID, "_save_member_fields_connector"),
     (KEY_MP_GIRDER_IS_SECTION,              KEY_MP_GD_MEMBER_ID, "_save_member_fields_connector"),
+
+    # On change of IS Section (Rolled) — write its catalogue dimensions into the member's size keys
+    (KEY_MP_GIRDER_IS_SECTION,              KEY_MP_GD_MEMBER_ID, "_on_is_section_changed"),
 
     # Adaptive fields — Custom mode (QLineEdit/QComboBox) wired via wire_end_connectors;
     # Optimized mode (TYPE_BOUND_BTN) save is handled directly by _on_bounds_accepted.
@@ -2400,7 +2411,6 @@ CROSS_BRACING_DETAILS_SCHEMA = {
                     "label":   "Type of Connection:",
                     "type":    TYPE_COMBOBOX,
                     "choices": ["Bolted", "Welded"],
-                    "enabled_choices": ["Bolted"],
                 }]},
 
                 # ── Bracing section ──────────────────────────────────────────
@@ -2600,7 +2610,6 @@ END_DIAPHRAGM_DETAILS_SCHEMA = {
                         "label": "Type of Connection:",
                         "type": TYPE_COMBOBOX,
                         "choices": ["Bolted", "Welded"],
-                        "enabled_choices": ["Bolted"],
                     }],
                 },
                 {
@@ -3181,6 +3190,7 @@ TRANSVERSE_MEMBER_DESIGN_SCHEMA = {
                 "label_width": 100,
                 "fields": [
                     {"id": KEY_TD_CB_SECTION_INPUTS_DESIGN, "label": "Design:", "type": "line", "read_only": True},
+                    {"id": KEY_TD_CB_SECTION_INPUTS_MATERIAL_GRADE, "label": "Grade of Material:", "type": "line", "read_only": True},
                     {"id": KEY_TD_CB_SECTION_INPUTS_NO_OF_CB, "label": "No. of Crossbracing:", "type": "line", "read_only": True},
                     {"id": KEY_TD_CB_SECTION_INPUTS_BRACING_TYPE, "label": "Type of Bracing:", "type": "line", "read_only": True},
                     {"id": KEY_TD_CB_SECTION_INPUTS_CONNECTION_TYPE, "label": "Type of Connection:", "type": "line", "read_only": True},
@@ -3230,6 +3240,7 @@ TRANSVERSE_MEMBER_DESIGN_SCHEMA = {
                 "label_width": 100,
                 "fields": [
                     {"id": KEY_TD_ED_SECTION_INPUTS_DESIGN,      "label": "Design:",               "type": "line",     "read_only": True,  "group": None},
+                    {"id": KEY_TD_ED_SECTION_INPUTS_MATERIAL_GRADE, "label": "Grade of Material:", "type": "line", "read_only": True, "group": None},
                     {"id": KEY_TD_ED_SECTION_INPUTS_TYPE,         "label": "Type:",                 "type": "line",     "read_only": True,  "group": None, "on_change": "_on_ed_type_changed"},
                     {"id": KEY_TD_ED_SECTION_INPUTS_NO_OF_CB,     "label": "No. of End-Diaphragms:",  "type": "line",     "read_only": True,  "group": None},
                     {"id": KEY_TD_ED_SECTION_INPUTS_CONNECTION_TYPE, "label": "Type of Connection:", "type": "line",    "read_only": True,  "group": None},
@@ -3513,8 +3524,8 @@ GENERATE_RESULTS_DEFAULTS = {
                 "columns": [
                     "Highest Maximum Air Temperature (°C)",
                     "Lowest Minimum Air Temperature (°C)",
-                    "Coefficient of Thermal Expansion for Steel (1/°C)",
-                    "Coefficient of Thermal Expansion for RCC (1/°C)",
+                    "Coefficient of Thermal Expansion for Steel (×10⁻⁶/°C)",
+                    "Coefficient of Thermal Expansion for RCC (×10⁻⁶/°C)",
                     "Effective Bridge Temperature - Minimum (°C)",
                     "Effective Bridge Temperature - Maximum (°C)",
                     "Temperature for Design - Rise (°C)",

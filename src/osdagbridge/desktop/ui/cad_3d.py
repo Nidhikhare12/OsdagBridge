@@ -29,6 +29,7 @@ from OCC.Core.gp import gp_Pnt
 from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeSphere
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge
 from OCC.Display.backend import load_backend
+from osdagbridge.desktop.__config__ import CAD_BACKEND
 
 try:
     from OCC.Core.AIS import AIS_TextLabel
@@ -53,6 +54,18 @@ except ImportError:
     except ImportError:
         _TODT_NORMAL = 0  # numeric fallback
 
+# Projection orientations used by the silent report capture (capture_for_report).
+# display.View_Right() / View_Iso() wrap exactly these constants, but always end
+# with a repaint; setting the projection directly lets us aim the camera without
+# refreshing the on-screen window.
+try:
+    from OCC.Core.V3d import (
+        V3d_Xpos as _V3D_RIGHT,
+        V3d_XposYnegZpos as _V3D_ISO,
+    )
+except ImportError:
+    _V3D_RIGHT = _V3D_ISO = None  # capture falls back to the pythonocc wrappers
+
 # CAD generator
 from osdagbridge.core.bridge_types.plate_girder.cad_generator import (
     PlateGirderCADGenerator
@@ -61,6 +74,15 @@ from osdagbridge.core.bridge_types.plate_girder import results_data
 
 # Custom 3D Viewer
 from osdagbridge.desktop.ui.utils.custom_3dviewer import CustomViewer3d
+
+# Hover for the bridge components — labels and hit-testing both live there.
+from osdagbridge.desktop.ui.utils.cad_3d_hover import (
+    build_component_labels,
+    build_bracing_hover_shapes,
+    build_girder_hover_shapes,
+    build_stiffener_hover_shapes,
+    build_support_hover_shapes,
+)
 
 from osdagbridge.core.bridge_types.plate_girder.dto import (
     BridgeParametersDTO,
@@ -118,7 +140,7 @@ class CAD3DWindow(QWidget):
         Does NOT generate or render any geometry.
         Call render_3d_cad() to render the model.
         """
-        load_backend("pyside6")
+        load_backend(CAD_BACKEND)
 
         self.viewer = CustomViewer3d(self)
         self.viewer.setMouseTracking(True)
@@ -185,10 +207,11 @@ class CAD3DWindow(QWidget):
 
         # Generate fresh model data
         self.generator.model_data = self.generator.generate(design_params)
-        # Railing exists only when there is a footpath; Median only when enabled.
+        # Footpath and its railing exist together; Median only when enabled.
         available = set()
         if getattr(design_params, "footpath_config", "NONE") != "NONE":
             available.add("Railing")
+            available.add("Footpath")
         if getattr(design_params, "enable_median", False):
             available.add("Median")
         self.component_selector.set_available_components(available)
@@ -272,6 +295,9 @@ class CAD3DWindow(QWidget):
         display = self.display
         context = self.viewer.context
 
+        # Tooltip text for all 17 bridge components, keyed by registration key.
+        labels = build_component_labels(params)
+
         display.EraseAll()
 
         # COLORS
@@ -288,7 +314,11 @@ class CAD3DWindow(QWidget):
 
 
         # HELPER 
-        def display_and_register(shapes, key, label, color, transparency=None, line_width=None, selectable=True):
+        def display_and_register(shapes, key, label, color, transparency=None, line_width=None,
+                                 selectable=True, per_ais_labels=None, face_boundary=True):
+            # per_ais_labels, when given, is one label per shape in the same order.
+            # Those take precedence over `label`, which stays as the fallback — that is
+            # how one registration key can still show different text per member.
             if not shapes:
                 return
 
@@ -309,69 +339,65 @@ class CAD3DWindow(QWidget):
                     ais.SetWidth(line_width)
                     context.RecomputePrsOnly(ais, False)
 
+                # The viewer outlines every face; off for shapes that butt
+                # against each other, so no line is drawn along the joint.
+                if not face_boundary:
+                    ais.Attributes().SetFaceBoundaryDraw(False)
+                    context.Redisplay(ais, False)
+
                 if selectable:
                     context.Activate(ais, 0)   # REQUIRED for hover
                 else:
                     context.Deactivate(ais)
                 ais_list.append(ais)
 
-            self.viewer.model_ais_objects[key] = ais_list
-            self.viewer.model_hover_labels[key] = label
+            # Hover is owned by cad_3d_hover.HoverController — see that module for the
+            # label text and the hit-testing.
+            self.viewer.hover.register(key, ais_list, label, per_ais_labels)
 
         # teardown_model() already emptied the model_* dicts — do not re-assign them here.
 
         #  PLATE GIRDER (WEB + FLANGES SEPARATE COLORS)
+        # Each keeps its own registration key so the visibility checkbox still matches
+        # component_map, while every girder gets its own tooltip via the per-shape
+        # label channel — see cad_3d_hover.build_girder_hover_shapes.
+        _gd = getattr(params, "output_dict", None)
+        _gg = cad_data.get("girder_groups")
 
-        display_and_register(
-            cad_data.get("girder_web", []),
-            "Girder Web",
-            f"Girder Web\nDepth: {params.girder_section_d:.2f} mm\nWeb Thickness: {params.girder_section_tw:.2f} mm\nSteel Grade: {params.steel_grade}",
-            WEB_COLOR
-        )
+        def display_girder(flat_key, key, color):
+            shapes, per_shape = build_girder_hover_shapes(
+                _gd, _gg, key, cad_data.get(flat_key, []),
+            )
+            display_and_register(shapes, key, labels[key], color,
+                                 per_ais_labels=per_shape)
 
-        display_and_register(
-            cad_data.get("girder_top_flanges", []),
-            "Girder Top Flange",
-            f"Top Flange\nWidth: {params.girder_section_bf:.2f} mm\nThickness: {params.girder_section_tf:.2f} mm\nSteel Grade: {params.steel_grade}",
-            FLANGE_COLOR
-        )
-
-        display_and_register(
-            cad_data.get("girder_bottom_flanges", []),
-            "Girder Bottom Flange",
-            f"Bottom Flange\nWidth: {params.girder_section_bf_b:.2f} mm\nThickness: {params.girder_section_tf_b:.2f} mm\nSteel Grade: {params.steel_grade}",
-            FLANGE_COLOR
-        )
+        display_girder("girder_web",            "Girder Web",           WEB_COLOR)
+        display_girder("girder_top_flanges",    "Girder Top Flange",    FLANGE_COLOR)
+        display_girder("girder_bottom_flanges", "Girder Bottom Flange", FLANGE_COLOR)
 
 
-        display_and_register(
-            cad_data.get("intermediate_stiffeners", []),
-            "Intermediate Stiffener",
-            f"Intermediate Stiffener\nSpacing: {params.intermediate_stiffener_spacing:.2f} mm\nThickness: {params.intermediate_stiffener_thickness:.2f} mm\nSteel Grade: {params.steel_grade}",
-            STIFFENER_COLOR,
-            selectable=True
-        )
+        #  STIFFENERS
+        # The flat cad_data entries are one compound for the whole bridge, so they can
+        # only ever carry one tooltip.  girder_groups holds the same shapes compounded
+        # per girder, which is what gets displayed when the stiffener data is available —
+        # see cad_3d_hover.build_stiffener_hover_shapes.
+        _sd = getattr(params, "stiffeners_dict", None) or {}
 
-        display_and_register(
-            cad_data.get("bearing_stiffeners", []),
-            "Bearing Stiffener",
-            f"Bearing Stiffener\nPairs: {params.num_end_stiffener_pairs}\nThickness: {params.end_stiffener_thickness:.2f} mm\nSteel Grade: {params.steel_grade}",
-            STIFFENER_COLOR,
-            selectable=True
-        )
+        def display_stiffener(flat_key, key):
+            shapes, per_shape = build_stiffener_hover_shapes(
+                _sd, _gd, _gg, key, cad_data.get(flat_key, []),
+            )
+            display_and_register(shapes, key, labels[key], STIFFENER_COLOR,
+                                 per_ais_labels=per_shape)
 
-        display_and_register(
-            cad_data.get("longitudinal_stiffeners", []),
-            "Longitudinal Stiffener",
-            f"Longitudinal Stiffener\nCount: {params.num_longitudinal_stiffeners}\nThickness: {params.longitudinal_stiffener_thickness:.2f} mm\nSteel Grade: {params.steel_grade}",
-            STIFFENER_COLOR,
-            selectable=True
-        )
+        display_stiffener("intermediate_stiffeners", "Intermediate Stiffener")
+        display_stiffener("bearing_stiffeners",      "Bearing Stiffener")
+        display_stiffener("longitudinal_stiffeners", "Longitudinal Stiffener")
 
         display_and_register(
             cad_data.get("shear_studs", []),
             "Shear Stud",
-            f"Shear Stud\nBase Dia: {params.shear_stud_params.base_diameter:.2f} mm\nHeight: {params.shear_stud_params.base_height + params.shear_stud_params.top_height:.2f} mm\nPitch: {params.shear_stud_params.pitch:.2f} mm\nPer Section: {params.shear_stud_params.num_per_section}",
+            labels["Shear Stud"],
             STIFFENER_COLOR,
             selectable=False
         )
@@ -381,40 +407,57 @@ class CAD3DWindow(QWidget):
         SUPPORT_LONGIT_COLOR     = Quantity_Color(0.85, 0.1, 0.1, Quantity_TOC_RGB)  # Red
 
 
-        display_and_register(
-            cad_data.get("supports_vertical",   []), 
-            "Support Vertical",   
-            "Support - Vertical",      
-            SUPPORT_VERTICAL_COLOR,
-            line_width=2.0)
-        
-        display_and_register(
-            cad_data.get("supports_wide_horiz", []), 
-            "Support Transverse", 
-            "Support - Transverse",    
-            SUPPORT_TRANSVERSE_COLOR,
-            line_width=2.0)
-        
-        display_and_register(
-            cad_data.get("supports_long_horiz", []), 
-            "Support Longitudinal",
-            "Support - Longitudinal", 
-            SUPPORT_LONGIT_COLOR,
-            line_width=2.0)
+        #  SUPPORTS
+        # The flat lists mix every girder's left and right bars, so they can only carry
+        # one tooltip per key.  support_groups holds the same bars tagged by girder and
+        # end — see cad_3d_hover.build_support_hover_shapes.
+        _sg = cad_data.get("support_groups")
+
+        def display_support(flat_key, key, color):
+            shapes, per_shape = build_support_hover_shapes(
+                _sg, key, cad_data.get(flat_key, []),
+            )
+            display_and_register(shapes, key, labels[key], color,
+                                 line_width=2.0, per_ais_labels=per_shape)
+
+        display_support("supports_vertical",   "Support Vertical",     SUPPORT_VERTICAL_COLOR)
+        display_support("supports_wide_horiz", "Support Transverse",   SUPPORT_TRANSVERSE_COLOR)
+        display_support("supports_long_horiz", "Support Longitudinal", SUPPORT_LONGIT_COLOR)
 
 
-        display_and_register(
+        # Cross bracing and end diaphragm.  Both stay under the single key
+        # "Cross Bracing" so the visibility checkbox keeps working, but each member
+        # gets its own tooltip — its girder pair's designed section, and whether it is
+        # a diagonal, a top chord or a bottom chord.
+        bracing_shapes, bracing_labels = build_bracing_hover_shapes(
+            getattr(params, "output_dict", None),
+            cad_data.get("cross_bracing_groups"),
             cad_data.get("cross_bracings", []),
+        )
+
+        display_and_register(
+            bracing_shapes,
             "Cross Bracing",
-            f"Cross Bracing\nType: {params.bracing_type}-Bracing\nSpacing: {params.cross_bracing_spacing:.2f} mm\nSection: {params.diagonal_section_type}\nLeg H: {params.diagonal_section_dims.leg_h:.2f} mm\nLeg W: {params.diagonal_section_dims.leg_w:.2f} mm",
-            BRACING_COLOR
+            labels["Cross Bracing"],
+            BRACING_COLOR,
+            per_ais_labels=bracing_labels
         )
 
         display_and_register(
             cad_data.get("deck_slab"),
             "Deck",
-            f"Deck Slab\nThickness: {params.deck_thickness:.2f} mm\nCarriageway Width: {params.carriageway_width:.2f} mm\nConcrete Grade: {params.concrete_grade}\nFootpath: {params.footpath_config}",
-            DECK_COLOR
+            labels["Deck"],
+            DECK_COLOR,
+            # No boundary line along the deck/footpath joint when a footpath abuts it.
+            face_boundary=(params.footpath_config == "NONE")
+        )
+        # Same concrete as the deck; thickness from Typical Section.
+        display_and_register(
+            cad_data.get("footpaths", []),
+            "Footpath",
+            f"Footpath\nThickness: {params.footpath_thickness:.2f} mm\nWidth: {params.footpath_width:.2f} mm\nConcrete Grade: {params.concrete_grade}\nConfiguration: {params.footpath_config}",
+            DECK_COLOR,
+            face_boundary=False
         )
         # DECK TEXTURES (DISPLAY ONLY, NO HOVER)
         self.viewer.deck_texture_ais = []
@@ -428,12 +471,22 @@ class CAD3DWindow(QWidget):
             ais = ais[0] if isinstance(ais, list) else ais
             self.viewer.deck_texture_ais.append(ais)
 
+        # Footpath concrete finish — same texture, but follows the Footpath
+        # checkbox rather than the Deck one.
+        display_and_register(
+            cad_data.get("footpath_textures", []),
+            "Footpath Texture",
+            "Footpath",
+            Quantity_Color(0.2, 0.2, 0.2, Quantity_TOC_RGB),
+            selectable=False
+        )
+
 
 
         display_and_register(
             cad_data.get("crash_barrier_w_beams", []),
             "Crash Barrier W-Beam",
-            "W-Beam",
+            labels["Crash Barrier W-Beam"],
             WBEAM_COLOR
         )
 
@@ -441,14 +494,14 @@ class CAD3DWindow(QWidget):
         display_and_register(
             cad_data.get("median_w_beams", []),
             "Median W-Beam",
-            "Median W-Beam",
+            labels["Median W-Beam"],
             WBEAM_COLOR
         )
 
         display_and_register(
             cad_data.get("crash_barriers", []),
             "Crash Barrier",
-            f"Crash Barrier\nType: {params.barrier_type}\nSubtype: {params.crash_barrier_subtype}",
+            labels["Crash Barrier"],
             BARRIER_POST_COLOR
         )
 
@@ -456,14 +509,14 @@ class CAD3DWindow(QWidget):
         display_and_register(
             cad_data.get("median_barriers", []),
             "Median",
-            f"Median Barrier\nType: {params.median_type}",
+            labels["Median"],
             BARRIER_COLOR
         )
 
         display_and_register(
             cad_data.get("railings", []),
             "Railing",
-            f"Railing\nType: {params.railing_type.upper()}\nRails: {params.rail_count}\nWidth: {params.railing_width:.2f} mm",
+            labels["Railing"],
             BARRIER_COLOR
         )
 
@@ -481,7 +534,7 @@ class CAD3DWindow(QWidget):
         self.component_selector.show()
 
         # Trigger lookup dictionary rebuild
-        self.viewer.rebuild_ais_lookup_map()
+        self.viewer.hover.rebuild_lookup()
         self.component_selector.apply_selection()
         # Overlays auto-resume when load_bridge's critical_section() exits.
 
@@ -590,7 +643,7 @@ class CAD3DWindow(QWidget):
         context = self.viewer.context
 
         # Show all structural components
-        for ais_list in self.viewer.model_ais_objects.values():
+        for ais_list in self.viewer.hover.model_ais_objects.values():
             for ais in ais_list:
                 context.Display(ais, False)
 
@@ -610,8 +663,15 @@ class CAD3DWindow(QWidget):
         NamedTemporaryFile, bytes are read immediately, file deleted right away.
         Nothing is written permanently to the user's disk.
         girder_top is NOT captured here; output_dock adds it via QBuffer.
+
+        The viewport does NOT move while this runs. An OCC window only refreshes
+        when something asks it to, so every step here is silent: camera and
+        visibility are snapshotted up front, changed with the update flags off,
+        rendered into an off-screen buffer, then restored — followed by a single
+        repaint which, because the restored state matches, reproduces the exact
+        frame the user was already looking at.
         """
-        import os, tempfile, logging
+        import logging
         _log = logging.getLogger(__name__)
 
         if not self._is_display_ready():
@@ -620,63 +680,231 @@ class CAD3DWindow(QWidget):
 
         ALL         = ['Girder', 'Deck', 'Cross Bracing', 'Crash Barrier', 'Median', 'Railing']
         GIRDER_ONLY = ['Girder']
-        GIRDER_DECK = ['Girder', 'Deck']
 
-        def _snap(attr, components, view_fn):
-            """Set visibility, render, read PNG bytes, delete temp file. Returns bytes or None."""
-            tmp_path = None
-            try:
-                self.update_component_visibility(components)
-                view_fn()
-                self.display.FitAll()
-                tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-                tmp_path = tmp.name
-                tmp.close()
-                self.display.ExportToImage(tmp_path)
-                if os.path.exists(tmp_path):
-                    with open(tmp_path, 'rb') as fh:
-                        return fh.read()
-            except Exception as exc:
-                _log.warning("capture_for_report: %s failed: %s", attr, exc)
-            finally:
-                if tmp_path and os.path.exists(tmp_path):
-                    try:
-                        os.unlink(tmp_path)
-                    except OSError:
-                        pass
-            return None
+        view = self.display.View
+
+        # Snapshot first — everything below is undone before the single repaint.
+        saved = self._capture_view_state()
+
+        # Master mute: most V3d_View setters end with ImmediateUpdate(), which
+        # refreshes the window only while this flag is on. Turning it off silences
+        # the implicit repaints inside SetProj / ZFitAll / etc.
+        prev_immediate = None
+        try:
+            prev_immediate = view.SetImmediateUpdate(False)
+        except Exception as exc:
+            _log.debug("capture_for_report: SetImmediateUpdate unavailable: %s", exc)
 
         data = {}
-
-        # Figure 6.1 — Typical Cross Section: all components, end-on view
-        b = _snap('cross_section', ALL, self.display.View_Right)
-        if b: data['cross_section'] = b
-
-        # Figure 6.2 — 3D View of Plate Girder: girders only, isometric
-        b = _snap('girder_3d', GIRDER_ONLY, self.display.View_Iso)
-        if b: data['girder_3d'] = b
-
-        # Figure 6.1.3 — Top View: added by output_dock via QBuffer (skipped here)
-
-        # Figure 6.1.1 — Overall 3D Bridge Superstructure: all components, isometric
-        b = _snap('final_geometry', ALL, self.display.View_Iso)
-        if b: data['final_geometry'] = b
-
-        # Restore: show all components, iso view
         try:
-            self.update_component_visibility(ALL)
-            self.display.View_Iso()
-            self.display.FitAll()
-        except Exception:
-            pass
+            # Figure 6.1 — Typical Cross Section: all components, end-on view
+            b = self._snap_offscreen('cross_section', ALL, _V3D_RIGHT,
+                                     self.display.View_Right)
+            if b: data['cross_section'] = b
+
+            # Figure 6.2 — 3D View of Plate Girder: girders only, isometric
+            b = self._snap_offscreen('girder_3d', GIRDER_ONLY, _V3D_ISO,
+                                     self.display.View_Iso)
+            if b: data['girder_3d'] = b
+
+            # Figure 6.1.3 — Top View: added by output_dock via QBuffer (skipped here)
+
+            # Figure 6.1.1 — Overall 3D Bridge Superstructure: all components, isometric
+            b = self._snap_offscreen('final_geometry', ALL, _V3D_ISO,
+                                     self.display.View_Iso)
+            if b: data['final_geometry'] = b
+
+        finally:
+            # Put the viewer back exactly as the user left it — component
+            # selection and camera included — then refresh once. A failure above
+            # must not strand the viewer mid-capture, hence try/finally.
+            self._restore_view_state(saved)
+            if prev_immediate is not None:
+                try:
+                    view.SetImmediateUpdate(prev_immediate)
+                except Exception:
+                    pass
+            try:
+                view.Invalidate()
+            except Exception:
+                pass
+            try:
+                self.display.Repaint()
+            except Exception:
+                pass
 
         _log.info("capture_for_report: %d figure(s) in RAM", len(data))
         return data
 
+    def _capture_view_state(self) -> dict:
+        """Snapshot everything capture_for_report() is about to disturb.
+
+        Returns {'camera', 'ais', 'hover'}; any entry may be None/empty if it
+        could not be read, in which case _restore_view_state skips that part.
+        """
+        import logging
+        _log = logging.getLogger(__name__)
+
+        state = {'camera': None, 'ais': [], 'hover': None}
+        view    = self.display.View
+        context = self.viewer.context
+
+        # Camera: a copy of the position/direction/zoom, not the live object.
+        try:
+            from OCC.Core.Graphic3d import Graphic3d_Camera
+            cam = Graphic3d_Camera()
+            cam.Copy(view.Camera())
+            state['camera'] = cam
+        except Exception as exc:
+            _log.debug("_capture_view_state: camera snapshot failed: %s", exc)
+
+        # Visibility: (ais, was_displayed) for every registered object, so the
+        # user's checkbox selection survives report generation.
+        ais_groups = list(self.viewer.hover.model_ais_objects.values())
+        ais_groups.append(getattr(self.viewer, 'deck_texture_ais', []))
+        for ais_list in ais_groups:
+            for ais in ais_list:
+                try:
+                    state['ais'].append((ais, context.IsDisplayed(ais)))
+                except Exception:
+                    pass
+
+        # Node hover data follows the Node checkbox; _apply_visibility rewrites it.
+        try:
+            state['hover'] = list(getattr(self.viewer, '_node_hover_data', []) or [])
+        except Exception:
+            pass
+
+        return state
+
+    def _restore_view_state(self, state: dict) -> None:
+        """Undo _capture_view_state's snapshot. Silent — the caller repaints."""
+        if not state:
+            return
+
+        context = self.viewer.context
+
+        for ais, was_displayed in state.get('ais', []):
+            try:
+                if was_displayed:
+                    context.Display(ais, False)
+                else:
+                    context.Erase(ais, False)
+            except Exception:
+                pass
+
+        hover = state.get('hover')
+        if hover is not None and hasattr(self.viewer, 'set_node_hover_data'):
+            try:
+                self.viewer.set_node_hover_data(hover)
+            except Exception:
+                pass
+
+        cam = state.get('camera')
+        if cam is not None:
+            try:
+                self.display.View.Camera().Copy(cam)
+            except Exception:
+                pass
+
+    def _snap_offscreen(self, attr, components, orientation, fallback_view_fn):
+        """Render one report figure without refreshing the on-screen window.
+
+        orientation is a V3d_TypeOfOrientation constant; fallback_view_fn is the
+        pythonocc wrapper, used only if those constants could not be imported (it
+        does repaint, so the model is briefly visible — correct figures matter
+        more than the cosmetics). Returns PNG bytes, or None on failure.
+        """
+        import logging
+        _log = logging.getLogger(__name__)
+
+        view = self.display.View
+        try:
+            self._apply_visibility(components)
+
+            if orientation is not None:
+                view.SetProj(orientation)
+            else:
+                fallback_view_fn()
+
+            try:
+                view.ZFitAll()
+            except Exception:
+                pass
+            # FitAll's second argument is theToUpdate — False keeps it silent.
+            try:
+                view.FitAll(0.01, False)
+            except TypeError:
+                view.FitAll()   # older signature without the update flag
+
+            return self._render_to_png_bytes()
+        except Exception as exc:
+            _log.warning("capture_for_report: %s failed: %s", attr, exc)
+            return None
+
+    def _render_to_png_bytes(self):
+        """Render the current view and return the PNG bytes (or None).
+
+        Unchanged from the original inline _snap: OCC has no API that hands back
+        image bytes — display.ExportToImage() wraps V3d_View.Dump(), which takes a
+        file path — so the PNG goes to a NamedTemporaryFile, is read straight back
+        into RAM, and the file is deleted in the finally. Nothing is left on the
+        user's disk; the bytes are what travel on to the report.
+
+        Dump is documented by OCCT as an alias for ToPixMap(), i.e. it redraws
+        into an off-screen buffer, so this step never touches the visible window.
+        (Calling ToPixMap directly would allow an arbitrary capture resolution,
+        but Image_PixMap / Image_AlienPixMap are unwrapped in pythonocc 7.9 —
+        ClassNotWrappedError — so figures come out at the viewport's own size.)
+        """
+        import os, tempfile, logging
+        _log = logging.getLogger(__name__)
+
+        tmp_path = None
+        try:
+            tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+            tmp_path = tmp.name
+            tmp.close()
+
+            self.display.ExportToImage(tmp_path)
+
+            if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+                with open(tmp_path, 'rb') as fh:
+                    return fh.read()
+        except Exception as exc:
+            _log.warning("_render_to_png_bytes failed: %s", exc)
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+        return None
+
 
     def update_component_visibility(self, selected_components: list) -> None:
         """
+        Show or hide model AIS objects, then reframe and refresh the viewport.
+
+        Thin wrapper over _apply_visibility(): it adds the FitAll + Repaint that
+        interactive callers need — without them a ticked checkbox would change
+        nothing on screen. capture_for_report() calls _apply_visibility() directly
+        so it can change visibility silently. See _apply_visibility for the full
+        contract and the caller list.
+        """
+        if not self._is_display_ready():
+            return
+
+        self._apply_visibility(selected_components)
+        self.display.FitAll()
+        self.display.Repaint()
+
+    def _apply_visibility(self, selected_components: list) -> None:
+        """
         Show or hide model AIS objects based on which component keys are selected.
+
+        Makes no on-screen change by itself: every Display/Erase below passes
+        update=False, so the caller decides when (or whether) to refresh.
 
         CALLED FROM
         ───────────
@@ -715,6 +943,7 @@ class CAD3DWindow(QWidget):
             "Cross Bracing": ["Cross Bracing"],
             "Crash Barrier": ["Crash Barrier", "Crash Barrier W-Beam"],
             "Median":        ["Median", "Median W-Beam"],
+            "Footpath":      ["Footpath", "Footpath Texture"],
             "Railing":       ["Railing"],
             "Grillage":      ["Grillage"],
             "Node":          ["Node"],
@@ -743,7 +972,7 @@ class CAD3DWindow(QWidget):
             self.viewer.set_node_hover_data([])
 
         # ── Show / hide all registered AIS objects ────────────────────────────
-        for key, ais_list in self.viewer.model_ais_objects.items():
+        for key, ais_list in self.viewer.hover.model_ais_objects.items():
             if key in _TOOLBAR_OVERLAYS:
                 continue  # toolbar-only overlays: never touched here
             should_show = key in visible_keys
@@ -767,8 +996,7 @@ class CAD3DWindow(QWidget):
             except Exception:
                 pass
 
-        self.display.FitAll()
-        self.display.Repaint()
+        # No FitAll/Repaint here — update_component_visibility() adds those.
 
     def regenerate_bridge(self):
         self.load_bridge()
@@ -842,11 +1070,14 @@ class CAD3DWindow(QWidget):
         node_ais_list = []
         hover_nodes = []
 
-        self.viewer.model_ais_objects.pop("Node", None)
+        self.viewer.hover.model_ais_objects.pop("Node", None)
         if hasattr(self.viewer, "set_node_hover_data"):
             self.viewer.set_node_hover_data([])
-        if hasattr(self.viewer, "model_hover_labels_by_ais"):
-            self.viewer.model_hover_labels_by_ais.clear()
+        # Do NOT clear the per-shape labels here.  This runs near the end of
+        # _render_model_body, after the components have already registered theirs —
+        # cross bracing puts one label per member in that same map — so clearing would
+        # wipe them and leave every brace falling back to the generic per-key label.
+        # teardown_model() -> hover.clear() already empties it before each render.
 
         for nid, coord in nodes.items():
             if not coord:
@@ -892,14 +1123,15 @@ class CAD3DWindow(QWidget):
                 self.viewer.context.SetSelectionSensitivity(pick, 0, 30)
             except Exception:
                 pass
-            if hasattr(self.viewer, "model_hover_labels_by_ais"):
-                self.viewer.model_hover_labels_by_ais[pick] = label
+            # highlight=False: the pick sphere is transparent, so hilighting it would
+            # flash a blob over the node marker.
+            self.viewer.hover.register_ais_label(pick, label, highlight=False)
             node_ais_list.append(pick)
 
             hover_nodes.append({"x": x_mm, "y": y_mm, "z": z_base, "label": label})
             self._node_data[nid] = {"x": x_mm, "y": y_mm, "z": z_base, "label": label}
 
-        self.viewer.model_ais_objects["Node"] = node_ais_list
+        self.viewer.hover.model_ais_objects["Node"] = node_ais_list
         if hasattr(self.viewer, "set_node_hover_data"):
             self.viewer.set_node_hover_data(hover_nodes)
 
@@ -968,7 +1200,7 @@ class CAD3DWindow(QWidget):
                 grillage_ais.append(ais)
 
         if grillage_ais:
-            self.viewer.model_ais_objects["Grillage"] = grillage_ais
+            self.viewer.hover.model_ais_objects["Grillage"] = grillage_ais
 
     # ── RENDER NODE NUMBERS ───────────────────────────────────────────────────────
     # Called by update_component_visibility() when "NodeNumbers" is in the
@@ -1054,7 +1286,7 @@ class CAD3DWindow(QWidget):
                     pass
 
         if label_ais_list:
-            self.viewer.model_ais_objects["NodeNumbers"] = label_ais_list
+            self.viewer.hover.model_ais_objects["NodeNumbers"] = label_ais_list
             try:
                 self.display.Repaint()
             except Exception:
@@ -1163,7 +1395,7 @@ class CAD3DWindow(QWidget):
                     pass
 
         if label_ais_list:
-            self.viewer.model_ais_objects["ElementNumbers"] = label_ais_list
+            self.viewer.hover.model_ais_objects["ElementNumbers"] = label_ais_list
         try:
             self.display.Repaint()
         except Exception:
@@ -1208,6 +1440,7 @@ class BridgeComponentCheckbox(QWidget):
         ("Cross Bracing", "Cross Bracing"),
         ("Crash Barrier", "Crash Barrier"),
         ("Median",        "Median"),
+        ("Footpath",      "Footpath"),
         ("Railing",       "Railing"),
         ("Grillage view", "Grillage"),
         ("Node",          "Node"),
@@ -1216,7 +1449,7 @@ class BridgeComponentCheckbox(QWidget):
     OVERLAY_KEYS = {"Grillage", "Node", "NodeNumbers"}
     # Base components that are only present in some designs. Their checkboxes
     # are hidden when the component is not part of the current design.
-    OPTIONAL_KEYS = {"Railing", "Median"}
+    OPTIONAL_KEYS = {"Railing", "Median", "Footpath"}
 
     def __init__(self, parent: CAD3DWindow):
         super().__init__(parent)
@@ -1451,6 +1684,7 @@ def main():
         deck_thickness=400,
         footpath_config="BOTH",
         footpath_width=1_500,
+        footpath_thickness=400,
         railing_width=300,
 
         # --- Crash Barrier ---
