@@ -260,6 +260,21 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 \newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+% Multi-page longtable markers: used in \endhead / \endfoot so column
+% headings repeat on every continuation page. #1 = number of columns.
+\newcommand{\ltcontinuedhead}[1]{\multicolumn{#1}{l}{\small\textit{Table~\thetable{} (continued)}}\\}
+\newcommand{\ltcontinuedfoot}[1]{\multicolumn{#1}{r}{\small\textit{Continued on next page}}\\}
+% longtable decides whether a table may start on the current page by
+% measuring only a strut-high sliver of the first row. Our first rows are
+% often several lines tall, so the table "starts" with no room, leaving an
+% empty footer behind and pushing the caption below the continuation header
+% on the next page. Reserve extra room in that start-of-table check.
+\makeatletter
+\newlength{\LTstartreserve}\setlength{\LTstartreserve}{14\baselineskip}
+\patchcmd{\LT@start}{\advance\dimen@ \ht\LT@foot}%
+  {\advance\dimen@ \ht\LT@foot\advance\dimen@\LTstartreserve}{}%
+  {\PackageWarning{osdagbridge}{Could not patch longtable start check}}
+\makeatother
 
 % Software-default asterisk
 \newcommand{\sdstar}{\textsuperscript{*}}
