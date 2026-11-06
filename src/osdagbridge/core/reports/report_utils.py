@@ -1,3 +1,5 @@
+import re
+
 from osdagbridge.core.utils.common import (
     KEY_MP_GD_MEMBER_ID,
     KEY_MP_GD_SELECT_GIRDER,
@@ -23,6 +25,27 @@ def _tex(value):
         s = s.replace(ch, esc)
     s = s.replace(':', r':\allowbreak{}')
     return s
+
+
+_CLINE_AFTER_KEPT_ROW = re.compile(r'(\\\\\*(?:\[[^\]]*\])?[ \t]*\n)\\cline\{')
+_ROW_END = re.compile(r'\\\\(?!\*)(\[[^\]]*\])?(?=[ \t]*(?:\n|$))')
+
+
+def keep_rows_together(block):
+    """Stop longtable from breaking a page inside a group of rows.
+
+    `block` is the LaTeX for one row group (e.g. one girder's \\multirow
+    block). Every row terminator except the last becomes ``\\\\*`` so the
+    group moves to the next page as a whole instead of being split with its
+    label left behind. Only row ends at the end of a source line are touched,
+    so ``\\\\`` line breaks inside \\makecell{...} are left alone.
+    """
+    ends = list(_ROW_END.finditer(block))
+    for m in reversed(ends[:-1]):
+        block = block[:m.start()] + '\\\\*' + (m.group(1) or '') + block[m.end():]
+    # A plain \cline after a kept row is still a page-break point; use the
+    # non-breaking variant defined in the preamble.
+    return _CLINE_AFTER_KEPT_ROW.sub(r'\1\\nbcline{', block)
 
 
 def _render_value(source_dict, key, unit=""):
@@ -110,6 +133,6 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
     # fbox placeholder — matches template exactly
     return (r'\noindent\fbox{\parbox{0.97\textwidth}{' + '\n'
             r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
-            r'}}')
+            r'}}\par\medskip')
 
 

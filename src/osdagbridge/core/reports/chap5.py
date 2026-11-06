@@ -141,7 +141,7 @@ from osdagbridge.core.utils.common import (
     KEY_UTIL_SHEAR
 )
 
-from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries
+from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries, keep_rows_together
 
 if TYPE_CHECKING:
     pass
@@ -197,7 +197,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
  & \textnormal{Depth to Plastic Neutral Axis (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_PNA_DEPTH) + r""" \\[6pt]
 \hline"""
         )
-    t51_content = "\n".join(t51_rows)
+    t51_content = "\n".join(keep_rows_together(r) for r in t51_rows)
 
     # Generate Table 5.2 rows
     t52_rows = []
@@ -210,7 +210,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
  & Overall Section & --- & --- & """ + _render_value(bridge.output_dict, KEY_SD_SECTION_CLASS) + r""" \\[6pt]
 \hline"""
         )
-    t52_content = "\n".join(t52_rows)
+    t52_content = "\n".join(keep_rows_together(r) for r in t52_rows)
 
     # Generate Table 5.3 rows
     # Flexure UR is stored as a percent (cat_urs × 100); show as a ratio (÷100,
@@ -232,7 +232,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
  & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ & """ + _flex_ur_str + r""" & """ + _flex_status + r""" \\[6pt]
 \hline"""
         )
-    t53_content = "\n".join(t53_rows)
+    t53_content = "\n".join(keep_rows_together(r) for r in t53_rows)
 
     # Generate Table 5.4 rows
     # Shear UR is stored as a percent (cat_urs × 100); show as a ratio (÷100,
@@ -264,7 +264,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
  & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ & """ + _shear_ur_str + r""" & """ + _shear_status + r""" \\[6pt]
 \hline"""
         )
-    t54_content = "\n".join(t54_rows)
+    t54_content = "\n".join(keep_rows_together(r) for r in t54_rows)
 
     # Generate Table 5.5 rows
     # Interaction DCRs use the engine bands: PASS <0.90, WARN <1.00, FAIL ≥1.00.
@@ -304,7 +304,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
  & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & """ + _mn_cond + r""" & """ + _mn_val + r""" & """ + _mn_status + r""" \\[6pt]
 \hline"""
         )
-    t55_content = "\n".join(t55_rows)
+    t55_content = "\n".join(keep_rows_together(r) for r in t55_rows)
 
     # Generate Table 5.6 rows
     # LTB UR stored as percent → show ratio (2 dp); engine bands via _interaction_status.
@@ -329,7 +329,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
  & $M_u \leq M_b$ & $M_u / M_b$ & """ + _ltb_ur_str + r""" & """ + _ltb_status + r""" \\[6pt]
 \hline"""
         )
-    t56_content = "\n".join(t56_rows)
+    t56_content = "\n".join(keep_rows_together(r) for r in t56_rows)
 
     # Generate Table 5.7 rows
     t57_rows = []
@@ -348,7 +348,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
  & \textnormal{Longitudinal Stiffeners} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_LONG) + r""" \\[6pt]
 \hline"""
         )
-    t57_content = "\n".join(t57_rows)
+    t57_content = "\n".join(keep_rows_together(r) for r in t57_rows)
 
     # Generate table - intermediate stiffener checks (IS 800 CL. 8.7.1.2)
     # Status: PASS when Provided ≥ Required.
@@ -369,7 +369,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
  & Buckling Resistance, $F_{qd} \geq F_q$ & """ + _render_value(bridge.output_dict, KEY_SD_IS_FQ, " kN") + r""" & """ + _render_value(bridge.output_dict, KEY_SD_IS_FQD, " kN") + r""" & """ + _fqd_status + r""" \\[6pt]
 \hline"""
         )
-    t58_content = "\n".join(t58_rows)
+    t58_content = "\n".join(keep_rows_together(r) for r in t58_rows)
 
     # (Intermediate Stiffener Checks) is a verification table — it only
     # has data when the user supplied stiffener sizes (Design Type = Custom). In
@@ -431,7 +431,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
  & Column Buckling Resistance & """ + _cb_req + r""" & """ + _cb_prov + r""" & """ + _cb_st + r""" \\[6pt]
 \hline"""
         )
-    t59_content = "\n".join(t59_rows)
+    t59_content = "\n".join(keep_rows_together(r) for r in t59_rows)
 
     # ── Table 5.10: Serviceability — Deflection Checks (IRC 22 Cl. 604.3.2) ──────
     # Allowable limits: span-dependent, same for all girders, from output_dict.
@@ -488,7 +488,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
             + _defl_status(_total_mm, _allow_total_mm) + r""" \\[6pt]
 \hline"""
         )
-    t510_content = "\n".join(t510_rows)
+    t510_content = "\n".join(keep_rows_together(r) for r in t510_rows)
 
     # Generate Table 5.11 rows — SLS steel stress limitation (IRC 22 Cl. 604.3.1).
     # Concrete & rebar deck stresses are deck-global and belong with the deck
@@ -521,7 +521,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
             + _steel_status + r""" \\[6pt]
 \hline"""
         )
-    t511_content = "\n".join(t511_rows)
+    t511_content = "\n".join(keep_rows_together(r) for r in t511_rows)
 
     # Generate Table 5.12 rows — per-girder fatigue assessment (IRC 22 Cl. 605),
     # mirroring the Generate Results dialog: one row per girder showing the
@@ -547,7 +547,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
             + _fat_status(_g.get("status")) + r""" \\[6pt]
 \hline"""
         )
-    t512_content = "\n".join(t512_rows)
+    t512_content = "\n".join(keep_rows_together(r) for r in t512_rows)
 
     # Generate Table 5.13 rows — per-girder design summary, mirroring the Generate
     # Results dialog's resolve_design_results_summary: one row per girder showing
@@ -740,7 +740,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                     + r" \\[6pt]\cline{2-6}"
                 )
             cb_forces_rows.append(r"\hline")
-    cb_forces_content = "\n".join(cb_forces_rows)
+    cb_forces_content = "\n".join(keep_rows_together(r) for r in cb_forces_rows)
 
     # Generate Table 5.20(b) rows
     def get_status_str(slnd_str, limit):
@@ -783,7 +783,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                 
             row_tex += "\n\\hline"
             cb_slenderness_rows.append(row_tex)
-    cb_slenderness_content = "\n".join(cb_slenderness_rows)
+    cb_slenderness_content = "\n".join(keep_rows_together(r) for r in cb_slenderness_rows)
 
     # Generate Table 5.20(c) rows
     cb_capacity_rows = []
@@ -807,7 +807,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         cb_capacity_rows.append(first)
         cb_capacity_rows.extend(rest)
         cb_capacity_rows.append(r"\hline")
-    cb_capacity_content = "\n".join(cb_capacity_rows)
+    cb_capacity_content = "\n".join(keep_rows_together(r) for r in cb_capacity_rows)
 
 
 
@@ -1326,6 +1326,7 @@ This section presents all structural design checks performed by OsdagBridge. For
 
 \vspace{1em}
 
+\begingroup  % table-local settings
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
 
@@ -1345,6 +1346,7 @@ This section presents all structural design checks performed by OsdagBridge. For
 \endlastfoot
 """ + t515_content + r"""
 \end{longtable}
+\endgroup
 \noindent\textit{Note: IRC 22 Cl. 606.4, 606.9. Governing spacing $= \min(S_{L1}, S_{L2}, S_R)$.}
 
 \vspace{1em}
@@ -1610,7 +1612,7 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \vspace{1em}
 
 \vspace{0.4em}
-\noindent
+\begingroup  % table-local settings
 \setlength{\tabcolsep}{4pt}
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
@@ -1631,10 +1633,11 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \endlastfoot
 """ + cb_forces_content + r"""
 \end{longtable}
+\endgroup
 \noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
 
 \vspace{1em}
-\begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
+\begin{longtable}{|C{2.0cm}|L{2.0cm}|L{2.4cm}|C{2.4cm}|C{2.4cm}|>{\centering\arraybackslash}p{3.4cm}|}
 \caption{\textbf{Cross Bracing --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}\\
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
@@ -1653,7 +1656,7 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
 
 \vspace{1em}
-\begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
+\begin{longtable}{|C{1.6cm}|L{1.6cm}|C{2.0cm}|C{2.8cm}|C{1.7cm}|C{1.7cm}|C{1.2cm}|C{1.6cm}|}
 \caption{\textbf{Cross Bracing Design --- Capacity Summary}}\\
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
@@ -1681,7 +1684,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \vspace{1em}
 
 \vspace{0.4em}
-\noindent
+\begingroup  % table-local settings
 \setlength{\tabcolsep}{4pt}
 \setlength{\LTleft}{0pt}
 \setlength{\LTright}{\fill}
@@ -1702,10 +1705,11 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \endlastfoot
 """ + cb_forces_content + r"""
 \end{longtable}
+\endgroup
 \noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
 
 \vspace{1em}
-\begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
+\begin{longtable}{|C{2.0cm}|L{2.0cm}|L{2.4cm}|C{2.4cm}|C{2.4cm}|>{\centering\arraybackslash}p{3.4cm}|}
 \caption{\textbf{End Diaphragm --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}\\
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
@@ -1725,7 +1729,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{1em}
 
-\begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
+\begin{longtable}{|C{1.6cm}|L{1.6cm}|C{2.0cm}|C{2.8cm}|C{1.7cm}|C{1.7cm}|C{1.2cm}|C{1.6cm}|}
 \caption{\textbf{End Diaphragm Design --- Capacity Summary}}\\
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]

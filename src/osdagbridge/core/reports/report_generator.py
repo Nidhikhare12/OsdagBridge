@@ -156,7 +156,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[a4paper, top=25mm, bottom=25mm, left=20mm, right=20mm, headheight=18pt, headsep=6mm, footskip=15mm]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -193,7 +193,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
+\setlength{\tabcolsep}{4pt}  % was 6pt, but a leaked 4pt override applied to most tables; 4pt keeps all tables within the text width
 \renewcommand{\arraystretch}{1.12}
 \setlength{\LTpre}{0pt}
 \setlength{\LTpost}{6pt}
@@ -201,10 +201,15 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \setlength{\arrayrulewidth}{0.5pt}
 \setlength{\extrarowheight}{0.6pt}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
+% Prevent floats from starting with almost no room left on the page.
+% (longtables are NOT given a \needspace hook: it interferes with longtable's
+% own start-of-table check and produced empty footers / displaced captions.
+% Their start check is tuned via \LTstartreserve below.)
 \BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+% Keep section headings with the content that follows: if fewer than
+% 8 lines remain, start the heading on the next page.
+\pretocmd{\section}{\needspace{8\baselineskip}}{}{}
+\pretocmd{\subsection}{\needspace{8\baselineskip}}{}{}
 
 \definecolor{osdagGreen}{HTML}{91B014}
 
@@ -217,13 +222,10 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+      \vspace{2pt}%
+    }{}%
+    {\color{osdagGreen}\hrule width\headwidth height 1pt}\vspace{4pt}%
   }
 }
 \fancypagestyle{plain}{
@@ -235,13 +237,10 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+      \vspace{2pt}%
+    }{}%
+    {\color{osdagGreen}\hrule width\headwidth height 1pt}\vspace{4pt}%
   }
 }
 \fancypagestyle{firstpage}{
@@ -249,28 +248,49 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\headrulewidth}{0pt}
   \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
+  \renewcommand{\footrule}{{\color{osdagGreen}\hrule width\headwidth height 1pt}\vspace{4pt}}
 }
 \pagestyle{main}
 \setstretch{1.15}
+% Characters pdflatex cannot print by default; without these they are
+% silently dropped from the PDF (e.g. "UR <= 1.0" lost its symbol).
+\DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
+\DeclareUnicodeCharacter{2260}{\ensuremath{\neq}}
+\DeclareUnicodeCharacter{2248}{\ensuremath{\approx}}
+\DeclareUnicodeCharacter{209B}{\ensuremath{_{s}}}
+\setlength{\emergencystretch}{2em}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
 \newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+% \hspace{0pt} lets TeX hyphenate the first word of a cell (e.g. a long
+% bold heading in a narrow column) instead of pushing it into the border.
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash\hspace{0pt}}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash\hspace{0pt}}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash\hspace{0pt}}p{#1}}
 % Multi-page longtable markers: used in \endhead / \endfoot so column
 % headings repeat on every continuation page. #1 = number of columns.
 \newcommand{\ltcontinuedhead}[1]{\multicolumn{#1}{l}{\small\textit{Table~\thetable{} (continued)}}\\}
 \newcommand{\ltcontinuedfoot}[1]{\multicolumn{#1}{r}{\small\textit{Continued on next page}}\\}
 % longtable decides whether a table may start on the current page by
 % measuring only a strut-high sliver of the first row. Our first rows are
-% often several lines tall, so the table "starts" with no room, leaving an
-% empty footer behind and pushing the caption below the continuation header
-% on the next page. Reserve extra room in that start-of-table check.
+% often several lines tall, so the table could "start" with no room, leaving
+% an empty footer behind and pushing the caption below the continuation
+% header on the next page. Reserve extra room in that start-of-table check.
+% (7 lines: smallest value with no stranded tables in testing.)
 \makeatletter
-\newlength{\LTstartreserve}\setlength{\LTstartreserve}{14\baselineskip}
+% \nbcline: a \cline that forbids a page break right after the partial rule.
+% Plain \cline leaves a breakable \vskip, so longtable could split a
+% multirow group (e.g. one girder's checks) and strand its label.
+\let\@nbcline\@cline
+\patchcmd{\@nbcline}{\noalign{\vskip-\arrayrulewidth}}%
+  {\noalign{\penalty\@M\vskip-\arrayrulewidth}}{}%
+  {\PackageWarning{osdagbridge}{Could not patch cline}}
+\def\nbcline#1{\@nbcline#1\@nil}
+\makeatother
+\makeatletter
+\newlength{\LTstartreserve}\setlength{\LTstartreserve}{7\baselineskip}
 \patchcmd{\LT@start}{\advance\dimen@ \ht\LT@foot}%
   {\advance\dimen@ \ht\LT@foot\advance\dimen@\LTstartreserve}{}%
   {\PackageWarning{osdagbridge}{Could not patch longtable start check}}
@@ -351,6 +371,8 @@ def title_page(m, osdag_logo, org_logo):
 \hline
 \end{tabular}
 \end{titlepage}
+% titlepage resets the page counter to 1; continue from 2 so "Page X of Y" matches the PDF.
+\setcounter{page}{2}
 """
 
 

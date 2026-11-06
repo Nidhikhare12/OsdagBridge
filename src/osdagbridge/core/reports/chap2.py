@@ -322,7 +322,7 @@ def _girder_tables(input_dict, n_girders):
 \noindent
             
 \vspace{4pt}
-\begin{longtable}{|L{2.2cm}|L{1.8cm}|p{3.8cm}|p{3.8cm}|p{3.8cm}|}
+\begin{longtable}{|L{2.0cm}|L{1.8cm}|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
 \caption{\textbf{Girder General Information}}\\
 \hline
 \textbf{Girder} & \textbf{Member ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
@@ -343,7 +343,7 @@ def _girder_tables(input_dict, n_girders):
 \vspace{0.6em}
 
 \vspace{4pt}
-\begin{longtable}{|L{1.8cm}|L{2.3cm}|L{1.8cm}|p{4.8cm}|p{4.8cm}|}
+\begin{longtable}{|L{1.6cm}|L{2.0cm}|L{1.6cm}|p{4.6cm}|p{4.6cm}|}
 \caption{\textbf{Girder Section Dimensions}}\\
 \hline
 \textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]
@@ -427,6 +427,7 @@ def _bracing_tables(input_dict, n_girders):
 \newpage
 
 \vspace{0.4em}
+\begingroup  % table-local settings
 \setlength{\tabcolsep}{4pt}
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
@@ -448,9 +449,10 @@ def _bracing_tables(input_dict, n_girders):
 """
 + cb_rows
 + r"""\end{longtable}
+\endgroup
 
 \vspace{0.4em}
-\noindent
+\begingroup  % table-local settings
 \setlength{\tabcolsep}{4pt}
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
@@ -472,6 +474,7 @@ def _bracing_tables(input_dict, n_girders):
 """
 + ed_rows
 + r"""\end{longtable}
+\endgroup
 """)
 
 

@@ -140,9 +140,12 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
 
     # Column widths: row-label column fixed at 2.8cm; girder columns share remainder
     label_col_cm = 2.8
-    # Available width ≈ 15.0cm for A4 with 1in margins; each girder col gets equal share
-    girder_col_cm = round(max(1.5, (15.0 - label_col_cm) / n_cols), 1)
-    col_spec = '|C{' + str(label_col_cm) + 'cm}|' + '|'.join(['C{' + str(girder_col_cm) + 'cm}'] * n_cols) + '|'
+    # Girder columns share whatever line width remains after the label column,
+    # cell padding and rules, so the table fits any page margins / girder count.
+    girder_col = (r'\dimexpr(\linewidth-' + str(label_col_cm) + r'cm-'
+                  + str(2 * (n_cols + 1)) + r'\tabcolsep-'
+                  + str(n_cols + 2) + r'\arrayrulewidth)/' + str(n_cols) + r'\relax')
+    col_spec = '|C{' + str(label_col_cm) + 'cm}|' + '|'.join(['C{' + girder_col + '}'] * n_cols) + '|'
 
     # Header row
     hdr_cells = ' &\n  '.join([r'\textbf{' + _tex(lbl) + '}' for lbl, _ in labels])

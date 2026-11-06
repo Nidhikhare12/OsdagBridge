@@ -87,7 +87,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \renewcommand{\arraystretch}{1.25}
 
 \begin{longtable}{|
->{\centering\arraybackslash}p{3.1cm}|
+>{\centering\arraybackslash}p{2.9cm}|
 >{\centering\arraybackslash}p{1.7cm}|
 >{\centering\arraybackslash}p{1.2cm}|
 >{\centering\arraybackslash}p{1.3cm}|
