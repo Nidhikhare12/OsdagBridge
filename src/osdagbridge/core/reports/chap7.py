@@ -1,7 +1,7 @@
 def ch7_quantities(input_dict, chart_path=None):
     chart = ""
     if chart_path:
-        chart = (r"\begin{figure}[H]" + "\n" + r"\centering" + "\n"
+        chart = (r"\begin{figure}[p]" + "\n" + r"\centering" + "\n"
                  + r"\includegraphics[width=0.9\textwidth]{\detokenize{" + chart_path.replace("\\", "/") + "}}\n"
                  + r"\caption{Material quantities from the bill of materials}" + "\n"
                  + r"\end{figure}" + "\n")
@@ -13,13 +13,13 @@ def ch7_quantities(input_dict, chart_path=None):
 
 \begingroup
 \setlength{\tabcolsep}{3.5pt}
-\begin{longtable}{|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
+\begin{longtable}{|C{1.0cm}|L{3.3cm}|C{2.4cm}|C{1.9cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
 \hline
-\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
+\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \makecell{\textbf{Total}\\\textbf{Volume}} & \makecell{\textbf{Weight}\\\textbf{(MT)}} & \makecell{\textbf{Total}\\\textbf{Weight}\\\textbf{(MT)}} \\
 \hline
 \endfirsthead
 \hline
-\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
+\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \makecell{\textbf{Total}\\\textbf{Volume}} & \makecell{\textbf{Weight}\\\textbf{(MT)}} & \makecell{\textbf{Total}\\\textbf{Weight}\\\textbf{(MT)}} \\
 \hline
 \endhead
 1 & Structural Steel (IS 2062) for Girders & """ + str(input_dict.get("steel_girders_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_qty", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_total", "N.A.")) + r""" \\

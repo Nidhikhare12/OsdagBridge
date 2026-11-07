@@ -5,6 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from osdagbridge.core.reports.charts import (girder_utilization_chart, girder_utilizations,
                                              material_chart, material_values)
 from osdagbridge.core.reports.chap7 import ch7_quantities
+from osdagbridge.core.utils.common import KEY_TS_NO_OF_GIRDERS
 
 
 def test_material_values_match_table_units_and_ignore_placeholders():
@@ -35,5 +36,7 @@ def test_girder_chart_uses_recorded_dcr_and_ignores_missing(tmp_path):
         "EB1": {"checks": [{"check_id": 4, "dcr": 9}]},
     }}}
     assert girder_utilizations(data) == [("G1", 1.1, 2)]
+    data["design_results"]["per_girder"]["G5"] = {"checks": [{"check_id": 1, "dcr": 2}]}
+    assert girder_utilizations(data, {KEY_TS_NO_OF_GIRDERS: 4}) == [("G1", 1.1, 2)]
     assert girder_utilization_chart({}, tmp_path) is None
     assert Path(girder_utilization_chart(data, tmp_path)).is_file()

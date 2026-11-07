@@ -103,7 +103,7 @@
 #                                                          else → CustomMessageBox("Report Saved")
 #==============================================================================
 
-import os, shutil, logging, datetime, tempfile, subprocess
+import os, shutil, logging, datetime, tempfile, subprocess, re
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
 
@@ -128,11 +128,18 @@ from .chap5 import ch5_design_checks
 from .chap6 import ch6_drawings
 from .chap7 import ch7_quantities
 from .charts import girder_utilization_chart, material_chart
-from .styles import BRAND_GREEN, PAGE_MARGIN, TABLE_PADDING, TABLE_ROW_STRETCH
+from .styles import BRAND_GREEN, HEADER_HEIGHT, PAGE_MARGIN, TABLE_PADDING, TABLE_ROW_STRETCH
 from .chap8 import ch8_design_log
 from .chap9 import references
 
 logger = logging.getLogger(__name__)
+
+
+def _finish_longtable_captions(tex):
+    """Terminate standalone caption rows inside longtables before compilation."""
+    pattern = re.compile(r"\\begin\{longtable\}.*?\\end\{longtable\}", re.DOTALL)
+    caption = re.compile(r"(?m)^(\\caption\{[^\n]*\})(?!\\\\)[ \t]*$")
+    return pattern.sub(lambda match: caption.sub(lambda line: line.group(1) + r"\\", match.group()), tex)
 
 # --- TEMPLATES START ---
 
@@ -158,10 +165,14 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=""" + PAGE_MARGIN + r"""]{geometry}
+\usepackage[a4paper, margin=""" + PAGE_MARGIN + r""", headheight=""" + HEADER_HEIGHT + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
+\DeclareUnicodeCharacter{00B2}{\textsuperscript{2}}
+\DeclareUnicodeCharacter{00B3}{\textsuperscript{3}}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{tabularx}
@@ -926,7 +937,7 @@ def generate_report(payload, request):
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
                 try:
-                    girder_chart = girder_utilization_chart(payload.output_dict, tmp_images)
+                    girder_chart = girder_utilization_chart(payload.output_dict, tmp_images, payload.inputs)
                 except Exception:
                     logger.exception("Could not generate girder utilization chart")
                     girder_chart = None
@@ -950,7 +961,7 @@ def generate_report(payload, request):
             doc_parts.append(references())
             doc_parts.append(r"\end{document}")
 
-            full_tex = "\n".join(doc_parts)
+            full_tex = _finish_longtable_captions("\n".join(doc_parts))
 
 
             # NOTE: longtable header repetition is handled per-table in each
@@ -965,6 +976,7 @@ def generate_report(payload, request):
                 f.write(full_tex)
 
             # Compile twice for TOC and references
+            compilation_ok = True
             for _ in range(2):
                 try:
                     kwargs = {
@@ -981,8 +993,15 @@ def generate_report(payload, request):
                         [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
                         **kwargs
                     )
+                    if res.returncode != 0:
+                        compilation_ok = False
+                        logger.error("pdflatex failed with exit code %s:\n%s", res.returncode,
+                                     res.stdout.decode('utf-8', 'ignore'))
+                        break
                 except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
+                    compilation_ok = False
+                    break
 
             if os.path.exists(tmp_tex):
                 # The compiled document uses temporary paths. Preserve its assets
@@ -997,10 +1016,11 @@ def generate_report(payload, request):
                 exported_tex = exported_tex.replace('assets/org_logo.png', asset_name.replace('\\', '/') + '/logos/org_logo.png')
                 with open(tex_path, 'w', encoding='utf-8') as f:
                     f.write(exported_tex)
-            if os.path.exists(tmp_pdf):
+            pdf_written = compilation_ok and os.path.exists(tmp_pdf)
+            if pdf_written:
                 shutil.copy2(tmp_pdf, pdf_path)
 
-        if os.path.exists(pdf_path):
+        if pdf_written and os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)
             return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
 

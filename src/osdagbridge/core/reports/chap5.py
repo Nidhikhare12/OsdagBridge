@@ -1067,7 +1067,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
 
     chart = ""
     if chart_path:
-        chart = (r"\begin{figure}[H]" + "\n" + r"\centering" + "\n"
+        chart = (r"\begin{figure}[p]" + "\n" + r"\centering" + "\n"
                  + r"\includegraphics[width=0.9\textwidth]{\detokenize{" + chart_path.replace("\\", "/") + "}}\n"
                  + r"\caption{Governing recorded girder check utilization}" + "\n"
                  + r"\end{figure}" + "\n")
