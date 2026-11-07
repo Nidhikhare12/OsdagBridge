@@ -790,7 +790,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             ur = f"{efficiency:.3f}" if efficiency is not None else "---"
             status   = "---"
             rows_for_pair.append(
-                _tex(pair) + r" & " + label + " (" + _tex(ftype) + ")" + r" & " + section
+                _tex(pair) + r" & " + label + (" (C)" if ftype == "compression" else " (T)") if force_str else label + r" & " + section
                 + r" & " + gov_lc + r" & " + force_str + r" & " + capacity
                 + r" & " + ur + r" & " + status + r" \\[6pt]\hline"
             )
@@ -1376,7 +1376,7 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \ReportTableHeader{\textbf{Panel} & \textbf{Part} & \textbf{Section} & \textbf{Governing LC} & \makecell{\textbf{Demand}\\\textbf{(kN)}} & \makecell{\textbf{Capacity}\\\textbf{(kN)}} & \textbf{Eff.} & \textbf{Status} \\[6pt]}
 """ + cb_capacity_content + r"""
 \end{longtable}
-\noindent\textit{The efficiency is exported by Osdag. Its governing denominator is not identified in the export. Demand is the analysed axial force. A matching capacity and status are unavailable.}
+\noindent\textit{The efficiency is exported by Osdag. Its governing denominator is not identified in the export. Demand is the analysed axial force; C is compression and T is tension. A matching capacity and status are unavailable.}
 
 % ===========================
 \section{End Diaphragm Design}

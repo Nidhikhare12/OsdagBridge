@@ -89,10 +89,16 @@ def test_generated_tables_disclose_unverified_efficiency():
     chapter = ch5_design_checks({}, ReportDataBridge(outputs, {}, None))
     table = chapter.split("Cross Bracing Design --- Exported Efficiency", 1)[1].split(
         r"\end{longtable}", 1)[0]
-    assert "Diagonal (compression)" in table
+    assert "Diagonal (C)" in table
     assert "8.049" in table
     assert "0.740" in table
     assert "16.810" not in table
     assert "governing denominator is not identified" in chapter
     assert "crack width and minimum crack-control reinforcement are distinct" in chapter
     assert outcome(component_checks(outputs, {})["Cross Bracing"]) == "Not available"
+    outputs["crossbracing_design_results"]["G1-G2"]["diagonal"]["compression"]["Member.efficiency"] = float("nan")
+    missing = ch5_design_checks({}, ReportDataBridge(outputs, {}, None))
+    missing_table = missing.split("Cross Bracing Design --- Exported Efficiency", 1)[1].split(
+        r"\end{longtable}", 1)[0]
+    assert "nan" not in missing_table.lower()
+    assert "PASS" not in missing_table
