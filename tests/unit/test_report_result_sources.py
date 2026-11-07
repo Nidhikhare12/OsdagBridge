@@ -89,6 +89,7 @@ def test_generated_tables_disclose_unverified_efficiency():
     chapter = ch5_design_checks({}, ReportDataBridge(outputs, {}, None))
     table = chapter.split("Cross Bracing Design --- Exported Efficiency", 1)[1].split(
         r"\end{longtable}", 1)[0]
+    assert "Diagonal (compression)" in table
     assert "8.049" in table
     assert "0.740" in table
     assert "16.810" not in table

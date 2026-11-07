@@ -786,10 +786,11 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             section  = bridge.get_cb_section(pair, member, ftype)
             gov_lc   = bridge.get_cb_gov_lc(pair, member, ftype)
             capacity = "---"
-            ur       = bridge.get_cb_efficiency(pair, member, ftype)
+            efficiency = nonnegative(bridge._cb_osdag(pair, member, ftype).get("efficiency"))
+            ur = f"{efficiency:.3f}" if efficiency is not None else "---"
             status   = "---"
             rows_for_pair.append(
-                _tex(pair) + r" & " + label + r" & " + section
+                _tex(pair) + r" & " + label + " (" + _tex(ftype) + ")" + r" & " + section
                 + r" & " + gov_lc + r" & " + force_str + r" & " + capacity
                 + r" & " + ur + r" & " + status + r" \\[6pt]\hline"
             )
