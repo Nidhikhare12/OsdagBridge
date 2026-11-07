@@ -1,6 +1,8 @@
-# Continuation status — work in progress
+# Historical continuation status
 
-The six requirements are not complete. The detached baseline worktree `../OsdagBridge-baseline` is at `d74f56dd7f22925fb8148cabf5740ed8d1e39ff3`. The GUI generated `Report_Before.pdf` and `Report_After_Corrected.pdf` using the saved `test-design.osi`; these are real application reports for a test design, not approved engineering designs. The earlier `Report_After.pdf` is superseded: its girder chart incorrectly includes G5 and G6 and its material figure has a layout issue. Do not use that file for assessment.
+This note describes the earlier audit state. The current result is recorded in TEST_RESULTS.md and REQUIREMENTS_TRACEABILITY.md.
+
+The six requirements are not complete. The detached baseline worktree `../OsdagBridge-baseline` is at `d74f56dd7f22925fb8148cabf5740ed8d1e39ff3`. The GUI generated `Report_Before.pdf` and `Report_After_Corrected.pdf` using the saved `test-design.osi`; these are real application reports for a test design, not approved engineering designs. The archived, earlier `Report_After.pdf` is superseded: its girder chart incorrectly includes G5 and G6 and its material figure has a layout issue. The current `Report_After.pdf` is a separate, regenerated artifact.
 
 ## Environment investigation
 
