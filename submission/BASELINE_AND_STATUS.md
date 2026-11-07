@@ -1,5 +1,7 @@
 # Baseline and work in progress
 
+**Historical note:** This document records the initial attempt. For current environment, GUI and PDF results, see `CONTINUATION_STATUS.md`.
+
 This is an incomplete screening submission. No original or enhanced PDF has been produced or visually inspected.
 
 ## Repository and environment
