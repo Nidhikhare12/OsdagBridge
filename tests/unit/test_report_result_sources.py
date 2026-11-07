@@ -69,3 +69,29 @@ def test_executive_summary_distinguishes_member_and_bridge_outcomes(monkeypatch)
     assert "Overall Design Status} & Fail" in tex
     assert r"Steel Plate Girders:\allowbreak{} FAIL" in tex
     assert tex.index(r"\begin{minipage}") < tex.index("Final Bridge Geometry") < tex.index(r"\end{minipage}")
+
+
+
+def test_generated_tables_disclose_unverified_efficiency():
+    from osdagbridge.core.reports.chap5 import ch5_design_checks
+    from osdagbridge.core.reports.report_generator import ReportDataBridge
+
+    outputs = {
+        "crossbracing_design_results": {"G1-G2": {"diagonal": {
+            "compression": {"Member.efficiency": 0.74, "Member.tension_capacity": 16.81},
+        }}},
+        "crossbracing_forces_dict": {"pairs": {"G1-G2": {
+            "diag_compression_kN": 8.049, "diag_compression_gov_lc": "1.5 EQ (b)",
+        }}},
+        "deck_design_results": {"ur_composite_crack": 0.9914, "ur_bot_crack": 0.71},
+    }
+    chapter = ch5_design_checks({}, ReportDataBridge(outputs, {}, None))
+    table = chapter.split("Cross Bracing Design --- Exported Efficiency", 1)[1].split(
+        r"\end{longtable}", 1)[0]
+    assert "8.049" in table
+    assert "0.740" in table
+    assert "16.810" not in table
+    assert "governing denominator is not identified" in chapter
+    assert "crack width and minimum crack-control reinforcement are distinct" in chapter
+    assert outcome(component_checks(outputs, {})["Cross Bracing"]) == "Not available"
+
