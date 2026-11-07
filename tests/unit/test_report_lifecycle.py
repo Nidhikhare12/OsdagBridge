@@ -21,9 +21,10 @@ def test_payload_figures_survive_two_generations(monkeypatch, tmp_path):
                                    figure_data={"plan": b"controlled fixture"})
     request = report.ReportRequest(metadata, options, str(tmp_path), "test")
     monkeypatch.setattr(report, "calculate_material_quantities", lambda *_: {})
-    for name in ("preamble", "title_page", "executive_summary", "ch1_project_info",
+    for name in ("preamble", "title_page", "ch1_project_info",
                  "ch2_input_parameters", "ch7_quantities", "ch8_design_log", "references"):
         monkeypatch.setattr(report, name, lambda *args: "")
+    monkeypatch.setattr(report, "executive_summary", lambda inputs, outputs, figures: figures["plan"])
     observed = []
 
     def compile_stub(command, **kwargs):
@@ -37,3 +38,5 @@ def test_payload_figures_survive_two_generations(monkeypatch, tmp_path):
     assert report.generate_report(payload, request).pdf_path
     assert observed == [b"controlled fixture"] * 4
     assert payload.figure_data == {"plan": b"controlled fixture"}
+    assert (tmp_path / "test_assets" / "images" / "plan.png").read_bytes() == b"controlled fixture"
+    assert "test_assets/images/plan.png" in (tmp_path / "test.tex").read_text(encoding="utf-8")

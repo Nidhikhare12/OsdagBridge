@@ -985,7 +985,18 @@ def generate_report(payload, request):
                     logger.warning(f"pdflatex run failed: {exc}")
 
             if os.path.exists(tmp_tex):
-                shutil.copy2(tmp_tex, tex_path)
+                # The compiled document uses temporary paths. Preserve its assets
+                # alongside the exported source and rewrite those paths so the
+                # exported TeX can find them after the temporary directory closes.
+                asset_name = request.file_stem + '_assets'
+                exported_assets = os.path.join(request.output_dir, asset_name)
+                shutil.copytree(tmp_images, os.path.join(exported_assets, 'images'), dirs_exist_ok=True)
+                shutil.copytree(tmp_assets, os.path.join(exported_assets, 'logos'), dirs_exist_ok=True)
+                exported_tex = full_tex.replace(tmp_images.replace('\\', '/'), asset_name.replace('\\', '/') + '/images')
+                exported_tex = exported_tex.replace('assets/osdag_logo.png', asset_name.replace('\\', '/') + '/logos/osdag_logo.png')
+                exported_tex = exported_tex.replace('assets/org_logo.png', asset_name.replace('\\', '/') + '/logos/org_logo.png')
+                with open(tex_path, 'w', encoding='utf-8') as f:
+                    f.write(exported_tex)
             if os.path.exists(tmp_pdf):
                 shutil.copy2(tmp_pdf, pdf_path)
 
