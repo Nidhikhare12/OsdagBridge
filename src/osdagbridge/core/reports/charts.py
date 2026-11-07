@@ -87,7 +87,8 @@ def girder_utilization_chart(outputs, directory, inputs=None):
     ax = fig.subplots()
     rows = [(label, governing(checks), outcome(checks)) for label, checks in components.items()]
     limits = [check.ratio for _, check, _ in rows if check]
-    ax.set_xlim(0, max(1.0, *limits) * 1.3)
+    scale = max(1.0, *limits)
+    ax.set_xlim(0, scale * 1.3)
     ax.set_ylim(len(rows) - 0.5, -0.5)
     ax.axvline(1.0, color="red", linestyle="--", label="UR = 1.0")
     ax.set_xlabel("Utilization ratio (demand / capacity)")
@@ -100,10 +101,9 @@ def girder_utilization_chart(outputs, directory, inputs=None):
         detail = " ".join(part for part in (check.member, check.label) if part)
         labels.append(component + "\n" + fill(detail, 27))
         ax.barh(i, check.ratio, height=0.52, color="#" + BRAND_GREEN)
-        ax.annotate(f"{check.ratio:.3f}  {status}", (check.ratio, i), xytext=(5, 0),
-                    textcoords="offset points", va="center", fontsize=9)
+        ax.text(scale * 1.035, i, f"{check.ratio:.3f}  {status}", va="center", fontsize=9)
     ax.set_yticks(range(len(rows)), labels)
-    ax.legend()
+    ax.legend(loc="lower right")
     path = Path(directory) / "component_utilization.png"
     fig.savefig(path, dpi=CHART_DPI)
     fig.clear()

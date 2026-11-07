@@ -1145,7 +1145,7 @@ This section presents all structural design checks performed by OsdagBridge. For
 
 \vspace{1em}
 \vspace{0.4em}
-\begin{longtable}{|C{1.6cm}|>{\centering\arraybackslash}p{3.6cm}|C{2.4cm}|C{2.0cm}|C{2.1cm}|C{1.7cm}|C{1.5cm}|}
+\begin{longtable}{|C{1.6cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.6cm}|C{2.0cm}|C{2.0cm}|C{1.7cm}|C{1.5cm}|}
 \caption{\textbf{Girder Design Summary (DCR / Utilization Ratio)}}\\
 \ReportTableHeader{\textbf{Girder} & \textbf{Controlling LC / Combination} & \textbf{Controlling Check} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]}
 """ + g_summary_table_content + r"""
@@ -1373,7 +1373,7 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \vspace{1em}
 \begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{2.6cm}|C{2.0cm}|C{2.1cm}|C{1.2cm}|C{1.7cm}|}
 \caption{\textbf{Cross Bracing Design --- Capacity Summary}}
-\ReportTableHeader{\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \makecell{\textbf{Demand}\\\textbf{(kN)}} & \makecell{\textbf{Capacity}\\\textbf{(kN)}} & \textbf{UR} & \textbf{Status} \\[6pt]}
+\ReportTableHeader{\textbf{Panel} & \textbf{Part} & \textbf{Section} & \textbf{Governing LC} & \makecell{\textbf{Demand}\\\textbf{(kN)}} & \makecell{\textbf{Capacity}\\\textbf{(kN)}} & \textbf{UR} & \textbf{Status} \\[6pt]}
 """ + cb_capacity_content + r"""
 \end{longtable}
 \noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}

@@ -318,7 +318,7 @@ def _girder_tables(input_dict, n_girders):
 \vspace{4pt}
 \begin{longtable}{|L{1.4cm}|p{2.2cm}|p{2.2cm}|p{3.0cm}|p{2.4cm}|p{2.2cm}|}
 \caption{\textbf{Girder Restraint and Stiffener Details}}\\
-\ReportTableHeader{\textbf{Girder} & \textbf{Torsional / Warping Restraint} & \textbf{Web Philosophy} & \textbf{Intermediate Stiffeners} & \textbf{Longitudinal Stiffeners} & \textbf{Bearing Stiffener} \\[6pt]}
+\ReportTableHeader{\textbf{Girder} & \textbf{Torsional / Warping Restraint} & \textbf{Web Philosophy} & \textbf{Intermediate Stiffeners} & \textbf{Long. Stiffeners} & \textbf{Bearing Stiffener} \\[6pt]}
 
 """
             + rst_rows
