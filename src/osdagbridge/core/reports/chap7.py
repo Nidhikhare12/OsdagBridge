@@ -1,4 +1,10 @@
-def ch7_quantities(input_dict):
+def ch7_quantities(input_dict, chart_path=None):
+    chart = ""
+    if chart_path:
+        chart = (r"\begin{figure}[H]" + "\n" + r"\centering" + "\n"
+                 + r"\includegraphics[width=0.9\textwidth]{\detokenize{" + chart_path.replace("\\", "/") + "}}\n"
+                 + r"\caption{Material quantities from the bill of materials}" + "\n"
+                 + r"\end{figure}" + "\n")
     return r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
@@ -34,6 +40,6 @@ def ch7_quantities(input_dict):
 \hline
 \end{longtable}
 \endgroup
-"""
+""" + chart
 
 

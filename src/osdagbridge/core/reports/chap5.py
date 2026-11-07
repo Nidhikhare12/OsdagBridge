@@ -145,7 +145,7 @@ from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girde
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, chart_path=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -1065,6 +1065,12 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     ]
     t522_content = "\n".join(_t522)
 
+    chart = ""
+    if chart_path:
+        chart = (r"\begin{figure}[H]" + "\n" + r"\centering" + "\n"
+                 + r"\includegraphics[width=0.9\textwidth]{\detokenize{" + chart_path.replace("\\", "/") + "}}\n"
+                 + r"\caption{Governing recorded girder check utilization}" + "\n"
+                 + r"\end{figure}" + "\n")
     return r"""
 \chapter{Design Checks}
 
@@ -1182,7 +1188,7 @@ This section presents all structural design checks performed by OsdagBridge. For
 \vspace{1em}
 \vspace{0.4em}
 \begin{longtable}{|C{1.6cm}|>{\centering\arraybackslash}p{3.6cm}|C{2.4cm}|C{2.0cm}|C{2.1cm}|C{1.7cm}|C{1.5cm}|}
-\caption{\textbf{Girder Design Summary (DCR / Utilization Ratio)}}
+\caption{\textbf{Girder Design Summary (DCR / Utilization Ratio)}}\\
 \hline
 \textbf{Girder} & \textbf{Controlling LC / Combination} & \textbf{Controlling Check} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
@@ -1498,13 +1504,18 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{1em}
 \begin{longtable}{|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|}
-\caption{\textbf{Overall Design Check Summary --- All Members}}
+\caption{\textbf{Overall Design Check Summary --- All Members}}\\
 \hline
 \textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
 \hline
+\endfirsthead
+\hline
+\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\hline
+\endhead
 """ + t522_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
 
-"""
+""" + chart
 

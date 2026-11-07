@@ -5,6 +5,7 @@
 
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,
+    KEY_FOOTPATH,
     KEY_LL_CUSTOM_VEHICLES,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
@@ -132,13 +133,16 @@ def ch3_loads(input_dict):
 
     fp_mode  = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "")
     fp_value = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE, "")
-    if str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
+    footpath = input_dict.get(KEY_FOOTPATH)
+    if str(footpath).strip().lower() in ("none", "no", "0"):
+        fp_str = "Not applicable (no footpath)"
+    elif str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
         try:
-            fp_str = f"{IRC6_2017.cl_206_1_footway_load():.3f} kN/m² (IRC 6 Cl. 206.1)"
+            fp_str = f"{IRC6_2017.cl_206_1_footway_load():.3f} kN/m2 (IRC 6 Cl. 206.1)"
         except Exception:
             fp_str = "N/A"
     elif fp_value not in (None, ""):
-        fp_str = f"{fp_value} kN/m²"
+        fp_str = f"{fp_value} kN/m2"
     else:
         fp_str = "N/A"
 
@@ -301,7 +305,7 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}
+\caption{\textbf{Vehicle Live Loads (LL)}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -311,7 +315,19 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
 \hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Centrifugal Force} & Not available in report inputs \\[6pt]
+\hline
+\end{longtable}
+
+\vspace{1em}
+\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\caption{\textbf{Footpath Live Load}}\\
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\textnormal{Footpath configuration} & """ + (_tex(footpath) if footpath not in (None, "") else "Not specified") + r""" \\[6pt]
+\hline
+\textnormal{Footpath pressure} & """ + _tex(fp_str) + r""" \\[6pt]
 \hline
 \end{longtable}
 

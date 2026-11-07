@@ -989,7 +989,7 @@ class PlateGirderBridge:
         if isinstance(cad_generator, dict):
             figure_data.update(cad_generator.get('figure_data', {}))
 
-        payload.figure_data = figure_data  # handed off; generate_report clears it after writing
+        payload.figure_data = figure_data
 
         return generate_report(payload, request)
 

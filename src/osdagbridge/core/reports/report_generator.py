@@ -127,6 +127,8 @@ from .chap4 import ch4_analysis
 from .chap5 import ch5_design_checks
 from .chap6 import ch6_drawings
 from .chap7 import ch7_quantities
+from .charts import girder_utilization_chart, material_chart
+from .styles import BRAND_GREEN, PAGE_MARGIN, TABLE_PADDING, TABLE_ROW_STRETCH
 from .chap8 import ch8_design_log
 from .chap9 import references
 
@@ -156,7 +158,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[a4paper, margin=""" + PAGE_MARGIN + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -193,8 +195,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
+\setlength{\tabcolsep}{""" + TABLE_PADDING + r"""}
+\renewcommand{\arraystretch}{""" + TABLE_ROW_STRETCH + r"""}
 \setlength{\LTpre}{0pt}
 \setlength{\LTpost}{6pt}
 % Table rules (outline thickness) and small extra row height for clarity
@@ -206,7 +208,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
 \BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
 
-\definecolor{osdagGreen}{HTML}{91B014}
+\definecolor{osdagGreen}{HTML}{""" + BRAND_GREEN + r"""}
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -440,7 +442,7 @@ class ReportPayload:
     figures:          ReportFigures
     log_entries:      List[str] = field(default_factory=list)
     output_dict:      dict = field(default_factory=dict)
-    figure_data:      dict = field(default_factory=dict)  # {attr: bytes} — cleared after writing to tmpdir
+    figure_data:      dict = field(default_factory=dict)  # {attr: bytes}
 
 
 @dataclass
@@ -864,7 +866,7 @@ def generate_report(payload, request):
         # Write to temp dir first, compile there, then copy back
         with tempfile.TemporaryDirectory() as tmp_dir:
 
-            # ── Write figure bytes into tmp_dir/images/ then free RAM immediately ──
+            # Keep the payload reusable across report generations.
             tmp_images = os.path.join(tmp_dir, 'images')
             os.makedirs(tmp_images, exist_ok=True)
             fig_paths = {}
@@ -874,7 +876,6 @@ def generate_report(payload, request):
                     with open(p, 'wb') as fh:
                         fh.write(img_bytes)
                     fig_paths[attr] = p.replace('\\', '/')
-            payload.figure_data.clear()  # bytes no longer needed — free RAM now
 
             # ── Write title-page logos into tmp_dir/assets (auto-deleted) ──
             # Nothing is left next to the PDF. Latex paths are relative to tmp_dir.
@@ -924,11 +925,21 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                try:
+                    girder_chart = girder_utilization_chart(payload.output_dict, tmp_images)
+                except Exception:
+                    logger.exception("Could not generate girder utilization chart")
+                    girder_chart = None
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, girder_chart))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            try:
+                chart_path = material_chart(quantities, tmp_images)
+            except Exception:
+                logger.exception("Could not generate material quantity chart")
+                chart_path = None
+            doc_parts.append(ch7_quantities(payload.inputs, chart_path))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
