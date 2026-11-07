@@ -129,9 +129,9 @@ from .chap6 import ch6_drawings
 from .chap7 import ch7_quantities
 from .charts import girder_utilization_chart, material_chart
 from .styles import (
-    BRAND_GREEN, FOOTER_SKIP, HEADER_HEIGHT, PAGE_MARGIN, TABLE_LAYOUT,
+    BRAND_GREEN, CHAPTER_AFTER_SPACE, FOOTER_SKIP, HEADER_HEIGHT, PAGE_MARGIN, TABLE_LAYOUT,
     TABLE_AFTER_SPACE, TABLE_COMPACT_PADDING, TABLE_EXTRA_ROW_HEIGHT, TABLE_MEDIUM_PADDING,
-    TABLE_PADDING, TABLE_ROW_STRETCH, TABLE_RULE_WIDTH, TABLE_START_SPACE, fit_table_columns,
+    SECTION_TABLE_START_SPACE, TABLE_PADDING, TABLE_ROW_STRETCH, TABLE_RULE_WIDTH, TABLE_START_SPACE, fit_table_columns,
 )
 from .chap8 import ch8_design_log
 from .chap9 import references
@@ -224,6 +224,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 % Reserve space for a caption, heading and at least one body row.
 \BeforeBeginEnvironment{longtable}{\par\Needspace{""" + TABLE_START_SPACE + r"""\baselineskip}}
+\newcommand{\ReportSectionWithTable}{\par\Needspace{""" + SECTION_TABLE_START_SPACE + r"""\baselineskip}}
 """ + TABLE_LAYOUT + r"""
 
 \definecolor{osdagGreen}{HTML}{""" + BRAND_GREEN + r"""}
@@ -368,7 +369,7 @@ def toc_section():
 % Chapter / TOC Formatting
 \titleformat{\chapter}[block]
   {\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{0pt}{10pt}
+\titlespacing*{\chapter}{0pt}{0pt}{""" + CHAPTER_AFTER_SPACE + r"""}
 \setcounter{tocdepth}{2}
 
 % TOC styling using titletoc

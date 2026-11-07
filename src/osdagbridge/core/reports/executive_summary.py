@@ -20,11 +20,10 @@ from .utilization import component_checks, governing, outcome
 def executive_summary(input_dict, output_dict, fig_paths) -> str:
     plan_fig = _fig_or_placeholder(fig_paths.get('girder_top'), 'Figure 1 -- Overall Bridge Plan')
     cs_fig = _fig_or_placeholder(fig_paths.get('cross_section'),
-                                  'Figure 2 -- Typical Cross-Section (with girder, deck, barriers, footpath)')
+                                  'Figure 2 -- Typical Bridge Cross-Section')
     geom_fig = _fig_or_placeholder(fig_paths.get('final_geometry'),
                                     'Figure 3 -- 3D View of Bridge Superstructure')
 
-    # All girders share the same section, governing check, and UR.
     # The section designation is produced by the designer pipeline, so it lives
     # in output_dict (not input_dict).
     sec = _render_value(output_dict, KEY_SD_SECTION_DESIGNATION)
@@ -72,12 +71,19 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     # Section / Governing Check / UR rows
     sec_cells = ' & '.join([sec] * n_cols)
     sections = f"Section Designation & {sec_cells} \\\\"
-    gov_cells = ' & '.join([gov] * n_cols)
+    member_checks = {
+        label: governing(check for check in components["Steel Plate Girders"] if check.member == label)
+        for label, _ in labels
+    }
+    gov_cells = ' & '.join(_tex(check.label) if check else "Not available"
+                           for check in member_checks.values())
     gov_checks = f"Governing Check & {gov_cells} \\\\"
-    ur_cells = ' & '.join([ur] * n_cols)
+    ur_cells = ' & '.join(f"{check.ratio:.3f}" if check else "Not available"
+                          for check in member_checks.values())
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
-    table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
+    table1 = (r'\noindent\begin{minipage}{\linewidth}' + '\n'
+              r'\textbf{Table 1 -- Final Bridge Geometry}' + '\n\n'
               r'\vspace{0.4em}' + '\n'
               r'\noindent' + '\n'
               r'\begin{tabular}{' + col_spec + '}\n'
@@ -92,7 +98,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
               r'\hline' + '\n'
               + urs + '\n'
               r'\hline' + '\n'
-              r'\end{tabular}')
+              r'\end{tabular}' + '\n' + r'\end{minipage}')
 
     return r"""
 \newpage
@@ -119,9 +125,9 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \hline
 \textbf{No. of Girders} & """ + (_render_value(input_dict, KEY_TS_NO_OF_GIRDERS)) + r""" \\
 \hline
-\textbf{Girder Spacing} & """ + (_render_value(input_dict, KEY_TS_GIRDER_SPACING)) + r""" \\
+\textbf{Girder Spacing} & """ + (_render_value(input_dict, KEY_TS_GIRDER_SPACING, " m")) + r""" \\
 \hline
-\textbf{Deck Thickness} & """ + (_render_value(input_dict, KEY_TS_DECK_THICKNESS)) + r""" \\
+\textbf{Deck Thickness} & """ + (_render_value(input_dict, KEY_TS_DECK_THICKNESS, " mm")) + r""" \\
 \hline
 \textbf{Overall Design Status} & """ + (_tex(overall_design_status)) + r""" \\
 \hline

@@ -1,4 +1,5 @@
 from osdagbridge.core.reports.chap2 import _girder_tables
+from osdagbridge.core.reports.executive_summary import executive_summary
 from osdagbridge.core.reports.utilization import component_checks, governing, outcome
 from osdagbridge.core.utils.common import (
     KEY_MP_GIRDER_DEPTH, KEY_MP_GIRDER_WEB_THICKNESS, KEY_MP_GIRDER_TOP_FLANGE_WIDTH,
@@ -50,3 +51,20 @@ def test_component_governing_checks_use_distinct_real_result_schema():
     diaphragm = component_checks(results, {})["End Diaphragms"]
     assert governing(diaphragm).ratio == 1.04
     assert outcome(diaphragm) == "FAIL"
+
+
+def test_executive_summary_distinguishes_member_and_bridge_outcomes(monkeypatch):
+    def girder_entries(_):
+        return [("G1", "G1M1"), ("G2", "G2M1")]
+
+    monkeypatch.setattr("osdagbridge.core.reports.executive_summary.get_girder_entries", girder_entries)
+    results = {"design_results": {"per_girder": {
+        "G1": {"checks": [{"dcr": .8, "name": "Flexure"}]},
+        "G2": {"checks": [{"dcr": 1.2, "name": "Fatigue"}]},
+    }}}
+    tex = executive_summary({}, results, {})
+    assert "Flexure & Fatigue" in tex
+    assert "0.800 & 1.200" in tex
+    assert "Overall Design Status} & Fail" in tex
+    assert r"Steel Plate Girders:\allowbreak{} FAIL" in tex
+    assert tex.index(r"\begin{minipage}") < tex.index("Final Bridge Geometry") < tex.index(r"\end{minipage}")

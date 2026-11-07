@@ -342,7 +342,7 @@ def ch5_design_checks(checks_data, bridge, chart_path=None) -> str:
 \hline
 """ + _tex(lbl) + r""" & \textnormal{Intermediate Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_THICK) + r""" \\[6pt]
 \hline
-""" + _tex(lbl) + r""" & \textnormal{Intermediate Stiffener Spacing (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_SPACING) + r""" \\[6pt]
+""" + _tex(lbl) + r""" & \textnormal{Intermediate Stiffener Spacing (mm)} & """ + (_render_value(bridge.output_dict, KEY_SD_STIFF_INT_SPACING) or "---") + r""" \\[6pt]
 \hline
 """ + _tex(lbl) + r""" & \textnormal{End Panel Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_END_THICK) + r""" \\[6pt]
 \hline
@@ -1045,7 +1045,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     diaphragm_content = "\n".join(diaphragm_rows)
     chart = ""
     if chart_path:
-        chart = (r"\begin{figure}[p]" + "\n" + r"\centering" + "\n"
+        chart = (r"\begin{figure}[H]" + "\n" + r"\centering" + "\n"
                  + r"\includegraphics[width=0.9\textwidth]{\detokenize{" + chart_path.replace("\\", "/") + "}}\n"
                  + r"\caption{Governing computed utilization by component}" + "\n"
                  + r"\end{figure}" + "\n")
@@ -1401,6 +1401,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \noindent Axial checks are available for braced diaphragms when the analysis returns governing member forces and the member design succeeds. Beam moment and shear checks are not supplied here.
 
 % ===========================
+\ReportSectionWithTable
 \section{Overall Design Check Summary}
 \label{sec:overall-summary}
 % ===========================
