@@ -790,7 +790,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             ur = f"{efficiency:.3f}" if efficiency is not None else "---"
             status   = "---"
             rows_for_pair.append(
-                _tex(pair) + r" & " + label + (" (C)" if ftype == "compression" else " (T)") if force_str else label + r" & " + section
+                _tex(pair) + r" & " + (label + (" (C)" if ftype == "compression" else " (T)") if force_str else label) + r" & " + section
                 + r" & " + gov_lc + r" & " + force_str + r" & " + capacity
                 + r" & " + ur + r" & " + status + r" \\[6pt]\hline"
             )
