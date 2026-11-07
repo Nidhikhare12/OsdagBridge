@@ -34,6 +34,6 @@ def test_automatic_and_disabled_footpath():
 
 def test_missing_loads_are_not_fabricated():
     tex = ch3_loads({})
-    assert "Vehicles Considered} & None" in tex
+    assert "Selected Vehicle Classes (input)} & None" in tex
     assert "Not specified" in tex
     assert "Centrifugal Force} & Not available" in tex

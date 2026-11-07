@@ -237,7 +237,7 @@ def ch3_loads(input_dict):
     return r"""
 \chapter{Loads and Load Combinations}
 
-This section summarizes all loads applied to the bridge and the load combinations considered for analysis and design.
+This section records the configured loads and code combinations. Where the analysis returns a load value, it is shown separately from the inputs.
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
@@ -267,15 +267,17 @@ This section summarizes all loads applied to the bridge and the load combination
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Vehicle Live Loads (LL)}}\\
 \ReportTableHeader{\textbf{parameter} & \textbf{value} \\}
-\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
+\textnormal{Selected Vehicle Classes (input)} & """ + _tex(vehicles_str) + r""" \\[6pt]
 \hline
-\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
+\textnormal{Reference Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
 \hline
 \textnormal{Braking Load (IRC 6)} & Not available in analysis results \\[6pt]
 \hline
 \textnormal{Centrifugal Force} & Not available in analysis results \\[6pt]
 \hline
 \end{longtable}
+\noindent\textit{Vehicle classes above are the saved selections. The analysis and deck designer use their own code-based vehicle cases.}
+
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}

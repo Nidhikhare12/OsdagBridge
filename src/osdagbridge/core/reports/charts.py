@@ -91,7 +91,7 @@ def girder_utilization_chart(outputs, directory, inputs=None):
     ax.set_xlim(0, scale * 1.3)
     ax.set_ylim(len(rows) - 0.5, -0.5)
     ax.axvline(1.0, color="red", linestyle="--", label="UR = 1.0")
-    ax.set_xlabel("Utilization ratio (demand / capacity)")
+    ax.set_xlabel("Reported utilization ratio")
     labels = []
     for i, (component, check, status) in enumerate(rows):
         if check is None:
