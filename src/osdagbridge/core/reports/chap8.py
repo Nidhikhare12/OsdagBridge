@@ -56,10 +56,10 @@ form the basis of all design calculations in this software.
 \vspace{0.5cm}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\ReportMediumColumns
 \begin{table}[H]
 \caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabularx}{\linewidth}{|c|c|X|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
@@ -75,15 +75,15 @@ IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, 
 \hline
 IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
 \hline
-\end{tabular}
+\end{tabularx}
 \end{table}
 \endgroup
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\ReportMediumColumns
 \begin{table}[H]
 \caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabularx}{\linewidth}{|c|c|X|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
@@ -97,7 +97,7 @@ IS 1893 (Part 3) & 2014 & Earthquake resistant design \\
 \hline
 IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
-\end{tabular}
+\end{tabularx}
 \end{table}
 \endgroup
 

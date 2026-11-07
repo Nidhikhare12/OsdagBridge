@@ -24,7 +24,7 @@ def test_payload_figures_survive_two_generations(monkeypatch, tmp_path):
     for name in ("preamble", "title_page", "ch1_project_info",
                  "ch2_input_parameters", "ch7_quantities", "ch8_design_log", "references"):
         monkeypatch.setattr(report, name, lambda *args: "")
-    monkeypatch.setattr(report, "executive_summary", lambda inputs, outputs, figures: figures["plan"])
+    monkeypatch.setattr(report, "executive_summary", lambda inputs, outputs, figures: r"\includegraphics{" + figures["plan"] + "}")
     observed = []
 
     def compile_stub(command, **kwargs):

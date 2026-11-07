@@ -16,6 +16,8 @@ from osdagbridge.core.utils.common import (
 logger = logging.getLogger("osdagbridge.core.boq_generator")
 
 
+REINFORCEMENT_ESTIMATE_KG_PER_M3 = 120.0
+
 def resolve_girder_value(source: dict, base_key: str, i: int = 0) -> Any:
     """Resolve a girder property from an input/output dict, tolerating both the
     per-girder dynamic key scheme and the legacy scalar key.
@@ -122,7 +124,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                     quantities["concrete_deck_wt_total"] = f"{(concrete_vol * 2.5):.2f}"
 
                     # 2. Reinforcement Steel (Cu.m) and Weight (MT)
-                    rebar_wt_kg = concrete_vol * 120.0
+                    rebar_wt_kg = concrete_vol * REINFORCEMENT_ESTIMATE_KG_PER_M3
                     rebar_vol = rebar_wt_kg / 7850.0
                     rebar_area = rebar_vol / span if span > 0 else 0.0
                     quantities["rebar_deck_vol_formula"] = f"${rebar_area:.6f}\\text{{ m}}^2 \\times {span:.2f}\\text{{ m}} = {rebar_vol:.5f}\\text{{ m}}^3$"

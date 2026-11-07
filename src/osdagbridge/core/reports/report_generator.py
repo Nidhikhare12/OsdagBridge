@@ -128,7 +128,11 @@ from .chap5 import ch5_design_checks
 from .chap6 import ch6_drawings
 from .chap7 import ch7_quantities
 from .charts import girder_utilization_chart, material_chart
-from .styles import BRAND_GREEN, HEADER_HEIGHT, PAGE_MARGIN, TABLE_PADDING, TABLE_ROW_STRETCH
+from .styles import (
+    BRAND_GREEN, FOOTER_SKIP, HEADER_HEIGHT, PAGE_MARGIN, TABLE_LAYOUT,
+    TABLE_AFTER_SPACE, TABLE_COMPACT_PADDING, TABLE_EXTRA_ROW_HEIGHT, TABLE_MEDIUM_PADDING,
+    TABLE_PADDING, TABLE_ROW_STRETCH, TABLE_RULE_WIDTH, TABLE_START_SPACE, fit_table_columns,
+)
 from .chap8 import ch8_design_log
 from .chap9 import references
 
@@ -165,7 +169,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=""" + PAGE_MARGIN + r""", headheight=""" + HEADER_HEIGHT + r"""]{geometry}
+\usepackage[a4paper, margin=""" + PAGE_MARGIN + r""", headheight=""" + HEADER_HEIGHT + r""", footskip=""" + FOOTER_SKIP + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -194,6 +198,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{multirow}
 \usepackage{colortbl}
 \usepackage{longtable}
+\usepackage{tabularx}
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
 \usepackage{titlesec}
@@ -206,18 +211,20 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
+\newcommand{\ReportCompactColumns}{\setlength{\tabcolsep}{""" + TABLE_COMPACT_PADDING + r"""}}
+\newcommand{\ReportMediumColumns}{\setlength{\tabcolsep}{""" + TABLE_MEDIUM_PADDING + r"""}}
 \setlength{\tabcolsep}{""" + TABLE_PADDING + r"""}
+\setlength{\emergencystretch}{2em}
 \renewcommand{\arraystretch}{""" + TABLE_ROW_STRETCH + r"""}
 \setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
+\setlength{\LTpost}{""" + TABLE_AFTER_SPACE + r"""}
 % Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+\setlength{\arrayrulewidth}{""" + TABLE_RULE_WIDTH + r"""}
+\setlength{\extrarowheight}{""" + TABLE_EXTRA_ROW_HEIGHT + r"""}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+% Reserve space for a caption, heading and at least one body row.
+\BeforeBeginEnvironment{longtable}{\par\Needspace{""" + TABLE_START_SPACE + r"""\baselineskip}}
+""" + TABLE_LAYOUT + r"""
 
 \definecolor{osdagGreen}{HTML}{""" + BRAND_GREEN + r"""}
 
@@ -886,7 +893,7 @@ def generate_report(payload, request):
                     p = os.path.join(tmp_images, attr + '.png')
                     with open(p, 'wb') as fh:
                         fh.write(img_bytes)
-                    fig_paths[attr] = p.replace('\\', '/')
+                    fig_paths[attr] = f"images/{attr}.png"
 
             # ── Write title-page logos into tmp_dir/assets (auto-deleted) ──
             # Nothing is left next to the PDF. Latex paths are relative to tmp_dir.
@@ -909,9 +916,8 @@ def generate_report(payload, request):
 
             # Compute and inject quantities for Chapter 7
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
-            payload.inputs.update(quantities)
 
-            # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
+            # Keep image references relative to the compiler working directory.
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
@@ -941,7 +947,8 @@ def generate_report(payload, request):
                 except Exception:
                     logger.exception("Could not generate girder utilization chart")
                     girder_chart = None
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, girder_chart))
+                chart_ref = f"images/{os.path.basename(girder_chart)}" if girder_chart else None
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, chart_ref))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
@@ -950,7 +957,8 @@ def generate_report(payload, request):
             except Exception:
                 logger.exception("Could not generate material quantity chart")
                 chart_path = None
-            doc_parts.append(ch7_quantities(payload.inputs, chart_path))
+            chart_ref = f"images/{os.path.basename(chart_path)}" if chart_path else None
+            doc_parts.append(ch7_quantities(payload.inputs | quantities, chart_ref))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -961,13 +969,7 @@ def generate_report(payload, request):
             doc_parts.append(references())
             doc_parts.append(r"\end{document}")
 
-            full_tex = _finish_longtable_captions("\n".join(doc_parts))
-
-
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
+            full_tex = fit_table_columns(_finish_longtable_captions("\n".join(doc_parts)))
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
@@ -977,7 +979,7 @@ def generate_report(payload, request):
 
             # Compile twice for TOC and references
             compilation_ok = True
-            for _ in range(2):
+            for pass_number in (1, 2):
                 try:
                     kwargs = {
                         'cwd': tmp_dir,
@@ -993,6 +995,7 @@ def generate_report(payload, request):
                         [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
                         **kwargs
                     )
+                    logger.info("pdfTeX pass %s returned %s", pass_number, res.returncode)
                     if res.returncode != 0:
                         compilation_ok = False
                         logger.error("pdflatex failed with exit code %s:\n%s", res.returncode,
@@ -1011,11 +1014,15 @@ def generate_report(payload, request):
                 exported_assets = os.path.join(request.output_dir, asset_name)
                 shutil.copytree(tmp_images, os.path.join(exported_assets, 'images'), dirs_exist_ok=True)
                 shutil.copytree(tmp_assets, os.path.join(exported_assets, 'logos'), dirs_exist_ok=True)
-                exported_tex = full_tex.replace(tmp_images.replace('\\', '/'), asset_name.replace('\\', '/') + '/images')
+                exported_tex = re.sub(r"(?<=\{)images/", lambda _: asset_name + "/images/", full_tex)
                 exported_tex = exported_tex.replace('assets/osdag_logo.png', asset_name.replace('\\', '/') + '/logos/osdag_logo.png')
                 exported_tex = exported_tex.replace('assets/org_logo.png', asset_name.replace('\\', '/') + '/logos/org_logo.png')
                 with open(tex_path, 'w', encoding='utf-8') as f:
                     f.write(exported_tex)
+                log_name = request.file_stem + '.log'
+                compiler_log = os.path.join(tmp_dir, log_name)
+                if os.path.isfile(compiler_log):
+                    shutil.copy2(compiler_log, os.path.join(request.output_dir, log_name))
             pdf_written = compilation_ok and os.path.exists(tmp_pdf)
             if pdf_written:
                 shutil.copy2(tmp_pdf, pdf_path)

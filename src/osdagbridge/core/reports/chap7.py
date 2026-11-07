@@ -1,3 +1,6 @@
+from osdagbridge.core.boq.boq_generator import REINFORCEMENT_ESTIMATE_KG_PER_M3
+
+
 def ch7_quantities(input_dict, chart_path=None):
     chart = ""
     if chart_path:
@@ -9,19 +12,11 @@ def ch7_quantities(input_dict, chart_path=None):
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
 
-\noindent\textbf{Table 7.1  Bill of Materials (Steel, Concrete, and Reinforcement Quantities)}
-
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\ReportMediumColumns
 \begin{longtable}{|C{1.0cm}|L{3.3cm}|C{2.4cm}|C{1.9cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
-\hline
-\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \makecell{\textbf{Total}\\\textbf{Volume}} & \makecell{\textbf{Weight}\\\textbf{(MT)}} & \makecell{\textbf{Total}\\\textbf{Weight}\\\textbf{(MT)}} \\
-\hline
-\endfirsthead
-\hline
-\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \makecell{\textbf{Total}\\\textbf{Volume}} & \makecell{\textbf{Weight}\\\textbf{(MT)}} & \makecell{\textbf{Total}\\\textbf{Weight}\\\textbf{(MT)}} \\
-\hline
-\endhead
+\caption{Bill of Materials (Steel, Concrete, and Reinforcement Quantities)}\\
+\ReportTableHeader{\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \makecell{\textbf{Total}\\\textbf{Volume}} & \makecell{\textbf{Weight}\\\textbf{(MT)}} & \makecell{\textbf{Total}\\\textbf{Weight}\\\textbf{(MT)}} \\}
 1 & Structural Steel (IS 2062) for Girders & """ + str(input_dict.get("steel_girders_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_qty", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_total", "N.A.")) + r""" \\
 \hline
 2(a) & Cross Bracing - Top Chord & """ + str(input_dict.get("bracing_top_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_qty", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_wt_total", "N.A.")) + r""" \\
@@ -32,7 +27,7 @@ def ch7_quantities(input_dict, chart_path=None):
 \hline
 3 & Concrete (M40) for Deck Slab & """ + str(input_dict.get("concrete_deck_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("concrete_deck_qty", "N.A.")) + r""" & """ + str(input_dict.get("concrete_deck_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("concrete_deck_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("concrete_deck_wt_total", "N.A.")) + r""" \\
 \hline
-4 & Reinforcement Steel (Fe 500) & """ + str(input_dict.get("rebar_deck_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("rebar_deck_qty", "N.A.")) + r""" & """ + str(input_dict.get("rebar_deck_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("rebar_deck_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("rebar_deck_wt_total", "N.A.")) + r""" \\
+4 & Reinforcement steel (estimated) & """ + str(input_dict.get("rebar_deck_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("rebar_deck_qty", "N.A.")) + r""" & """ + str(input_dict.get("rebar_deck_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("rebar_deck_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("rebar_deck_wt_total", "N.A.")) + r""" \\
 \hline
 5 & Shear Stud Connectors & """ + str(input_dict.get("shear_studs_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("shear_studs_qty", "N.A.")) + r""" & """ + str(input_dict.get("shear_studs_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("shear_studs_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("shear_studs_wt_total", "N.A.")) + r""" \\
 \hline
@@ -40,6 +35,7 @@ def ch7_quantities(input_dict, chart_path=None):
 \hline
 \end{longtable}
 \endgroup
+\noindent\textit{Reinforcement mass is a quantity estimate using """ + f"{REINFORCEMENT_ESTIMATE_KG_PER_M3:g}" + r""" kg/m\textsuperscript{3} of deck concrete.}
 """ + chart
 
 

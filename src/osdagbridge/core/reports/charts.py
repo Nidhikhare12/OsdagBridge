@@ -1,17 +1,10 @@
 """Charts derived only from values already presented in the report."""
-import math
 import re
 from pathlib import Path
+from textwrap import fill
 from .styles import BRAND_GREEN, CHART_DPI, CHART_SIZE
+from .utilization import component_checks, governing, nonnegative as _quantity, outcome
 from osdagbridge.core.utils.common import KEY_TS_NO_OF_GIRDERS
-
-
-def _quantity(value):
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    return number if math.isfinite(number) and number >= 0 else None
 
 
 def material_values(quantities):
@@ -83,25 +76,35 @@ def girder_utilizations(outputs, inputs=None):
 
 
 def girder_utilization_chart(outputs, directory, inputs=None):
-    values = girder_utilizations(outputs, inputs)
-    if not values:
+    """Plot governing computed ratios across all four design components."""
+    components = component_checks(outputs, inputs or {})
+    if not any(components.values()):
         return None
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_agg import FigureCanvasAgg
     fig = Figure(figsize=CHART_SIZE, constrained_layout=True)
     FigureCanvasAgg(fig)
     ax = fig.subplots()
-    positions = range(len(values))
-    ax.bar(positions, [v[1] for v in values], color="#" + BRAND_GREEN)
-    ax.axhline(1.0, color="red", linestyle="--", label="UR = 1.0")
-    ax.set_ylabel("Utilization Ratio")
-    ax.set_xticks(list(positions), [v[0] for v in values], rotation=20, ha="right")
-    for i, (_, value, check_id) in enumerate(values):
-        ax.annotate(f"{value:.2f} {'PASS' if value <= 1 else 'FAIL'}\ncheck {check_id}",
-                    (i, value), xytext=(0, 3), textcoords="offset points", ha="center", fontsize=8)
-    ax.margins(y=0.25)
+    rows = [(label, governing(checks), outcome(checks)) for label, checks in components.items()]
+    limits = [check.ratio for _, check, _ in rows if check]
+    ax.set_xlim(0, max(1.0, *limits) * 1.3)
+    ax.set_ylim(len(rows) - 0.5, -0.5)
+    ax.axvline(1.0, color="red", linestyle="--", label="UR = 1.0")
+    ax.set_xlabel("Utilization ratio (demand / capacity)")
+    labels = []
+    for i, (component, check, status) in enumerate(rows):
+        if check is None:
+            labels.append(component)
+            ax.text(0.02, i, "Not available", transform=ax.get_yaxis_transform(), va="center")
+            continue
+        detail = " ".join(part for part in (check.member, check.label) if part)
+        labels.append(component + "\n" + fill(detail, 27))
+        ax.barh(i, check.ratio, height=0.52, color="#" + BRAND_GREEN)
+        ax.annotate(f"{check.ratio:.3f}  {status}", (check.ratio, i), xytext=(5, 0),
+                    textcoords="offset points", va="center", fontsize=9)
+    ax.set_yticks(range(len(rows)), labels)
     ax.legend()
-    path = Path(directory) / "girder_utilization.png"
+    path = Path(directory) / "component_utilization.png"
     fig.savefig(path, dpi=CHART_DPI)
     fig.clear()
     return str(path)
