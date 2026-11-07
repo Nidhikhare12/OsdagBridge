@@ -1,6 +1,6 @@
 from osdagbridge.core.reports.chap2 import _girder_tables
 from osdagbridge.core.reports.executive_summary import executive_summary
-from osdagbridge.core.reports.utilization import component_checks, governing, outcome
+from osdagbridge.core.reports.utilization import component_checks, governing, outcome, transverse_checks
 from osdagbridge.core.utils.common import (
     KEY_MP_GIRDER_DEPTH, KEY_MP_GIRDER_WEB_THICKNESS, KEY_MP_GIRDER_TOP_FLANGE_WIDTH,
     KEY_MP_GIRDER_TOP_FLANGE_THICKNESS, KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH,
@@ -39,18 +39,19 @@ def test_component_governing_checks_use_distinct_real_result_schema():
     assert governing(girder).ratio == 1.02
     assert governing(girder).load_case == "ULS 1"
     assert governing(deck).label == "Crack control reinforcement"
-    assert governing(bracing).ratio == 0.74
-    assert governing(bracing).demand == 8.0
-    assert governing(bracing).capacity == 16.81
+    exported = list(transverse_checks(results))
+    assert exported[0].ratio == 0.74
+    assert exported[0].demand == 8.0
+    assert not bracing
     assert [outcome(group) for group in (girder, deck, bracing, diaphragm)] == [
-        "FAIL", "PASS", "PASS", "Not available",
+        "FAIL", "PASS", "Not available", "Not available",
     ]
     results["end_diaphragm_design_results"]["G1-G2"] = {
         "chord": {"tension": {"Optimum.UR": 1.04, "Design.Strength": 50.0}},
     }
     diaphragm = component_checks(results, {})["End Diaphragms"]
-    assert governing(diaphragm).ratio == 1.04
-    assert outcome(diaphragm) == "FAIL"
+    assert list(transverse_checks(results, diaphragm=True))[0].ratio == 1.04
+    assert outcome(diaphragm) == "Not available"
 
 
 def test_executive_summary_distinguishes_member_and_bridge_outcomes(monkeypatch):

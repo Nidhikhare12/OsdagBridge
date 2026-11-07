@@ -105,8 +105,8 @@ def component_checks(outputs, inputs):
     return {
         "Steel Plate Girders": list(girder_checks(outputs, inputs)),
         "Concrete Deck Slab": list(deck_checks(outputs)),
-        "Cross Bracing": list(transverse_checks(outputs)),
-        "End Diaphragms": list(transverse_checks(outputs, diaphragm=True)),
+        "Cross Bracing": [],  # exported efficiency has no identified governing denominator
+        "End Diaphragms": [],  # governing denominator is not identified in the export
     }
 
 

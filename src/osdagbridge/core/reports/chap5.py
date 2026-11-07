@@ -785,9 +785,9 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             force_str, ftype = bridge.get_cb_governing_force(pair, member)
             section  = bridge.get_cb_section(pair, member, ftype)
             gov_lc   = bridge.get_cb_gov_lc(pair, member, ftype)
-            capacity = bridge.get_cb_capacity(pair, member, ftype)
+            capacity = "---"
             ur       = bridge.get_cb_efficiency(pair, member, ftype)
-            status   = bridge.get_cb_status(pair, member, ftype)
+            status   = "---"
             rows_for_pair.append(
                 _tex(pair) + r" & " + label + r" & " + section
                 + r" & " + gov_lc + r" & " + force_str + r" & " + capacity
@@ -939,8 +939,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         if check is None:
             return ("---", "---", "---", "---")
         load_case = _tex(" / ".join(part for part in (check.member, check.load_case) if part))
-        return (load_case, _vu_522(check.demand, "kN"),
-                _vu_522(check.capacity, "kN"), _ur_522(check.ratio))
+        return (load_case, _vu_522(check.demand, "kN"), "---", "---")
 
     def _axial_row(checks, action):
         return _axial_cells(governing(c for c in checks if c.label.endswith(" " + action)))
@@ -1038,7 +1037,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     for check in diaphragms:
         fields = [_tex(check.member), _tex(check.label), _tex(check.section) or "---",
                   _tex(check.load_case) or "---", _vu_522(check.demand, "kN") or "---",
-                  _vu_522(check.capacity, "kN") or "---", _ur_522(check.ratio), check.status]
+                  "---", "---", "---"]
         diaphragm_rows.append(" & ".join(fields) + r" \\" + "\n" + r"\hline")
     if not diaphragm_rows:
         diaphragm_rows.append(r"\multicolumn{8}{|l|}{No end-diaphragm axial design checks were returned.} \\" + "\n" + r"\hline")
@@ -1047,7 +1046,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     if chart_path:
         chart = (r"\begin{figure}[H]" + "\n" + r"\centering" + "\n"
                  + r"\includegraphics[width=0.9\textwidth]{\detokenize{" + chart_path.replace("\\", "/") + "}}\n"
-                 + r"\caption{Governing computed utilization by component}" + "\n"
+                 + r"\caption{Governing verified utilization by component}" + "\n"
                  + r"\end{figure}" + "\n")
     return r"""
 \chapter{Design Checks}
@@ -1372,11 +1371,11 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 
 \vspace{1em}
 \begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{2.6cm}|C{2.0cm}|C{2.1cm}|C{1.2cm}|C{1.7cm}|}
-\caption{\textbf{Cross Bracing Design --- Capacity Summary}}
-\ReportTableHeader{\textbf{Panel} & \textbf{Part} & \textbf{Section} & \textbf{Governing LC} & \makecell{\textbf{Demand}\\\textbf{(kN)}} & \makecell{\textbf{Capacity}\\\textbf{(kN)}} & \textbf{UR} & \textbf{Status} \\[6pt]}
+\caption{\textbf{Cross Bracing Design --- Exported Efficiency}}
+\ReportTableHeader{\textbf{Panel} & \textbf{Part} & \textbf{Section} & \textbf{Governing LC} & \makecell{\textbf{Demand}\\\textbf{(kN)}} & \makecell{\textbf{Capacity}\\\textbf{(kN)}} & \textbf{Eff.} & \textbf{Status} \\[6pt]}
 """ + cb_capacity_content + r"""
 \end{longtable}
-\noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
+\noindent\textit{The efficiency is exported by Osdag. Its governing denominator is not identified in the export. Demand is the analysed axial force. A matching capacity and status are unavailable.}
 
 % ===========================
 \section{End Diaphragm Design}
@@ -1412,7 +1411,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \ReportTableHeader{\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]}
 """ + t522_content + r"""
 \end{longtable}
-\noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
+\noindent\textit{Deck crack width and minimum crack-control reinforcement are distinct checks. Note: Listed UR values are check-specific. Cross-bracing and diaphragm ratios are unavailable when their governing denominator is not identified. The governing check for each component is highlighted in the individual design check sections above.}
 
 """ + chart
 
