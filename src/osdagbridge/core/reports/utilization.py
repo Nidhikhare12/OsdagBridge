@@ -97,7 +97,8 @@ def transverse_checks(outputs, *, diaphragm=False):
                 yield Check(f"{member.capitalize()} {action}", ratio, pair,
                             pair_forces.get(f"{key}_gov_lc") or "",
                             nonnegative(abs(demand)) if isinstance(demand, (int, float)) else nonnegative(demand),
-                            nonnegative(result.get("capacity_kN")), result.get("section") or "")
+                            nonnegative(result.get("capacity_kN")) if action == "tension" else None,
+                            result.get("section") or "")
 
 
 def component_checks(outputs, inputs):

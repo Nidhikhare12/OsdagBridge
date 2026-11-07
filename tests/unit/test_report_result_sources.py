@@ -42,6 +42,7 @@ def test_component_governing_checks_use_distinct_real_result_schema():
     exported = list(transverse_checks(results))
     assert exported[0].ratio == 0.74
     assert exported[0].demand == 8.0
+    assert exported[0].capacity is None
     assert not bracing
     assert [outcome(group) for group in (girder, deck, bracing, diaphragm)] == [
         "FAIL", "PASS", "Not available", "Not available",
@@ -94,4 +95,3 @@ def test_generated_tables_disclose_unverified_efficiency():
     assert "governing denominator is not identified" in chapter
     assert "crack width and minimum crack-control reinforcement are distinct" in chapter
     assert outcome(component_checks(outputs, {})["Cross Bracing"]) == "Not available"
-
