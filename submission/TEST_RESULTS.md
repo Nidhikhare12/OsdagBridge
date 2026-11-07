@@ -1,3 +1,11 @@
+# Current correction tests
+
+Python 3.12 with the configured real pdfTeX and PyMuPDF paths reported 23 passed. The generated Chapter 5 regression checks the actual bracing force, retained exported efficiency, missing matching capacity, and the distinction between crack-width and reinforcement checks. The desktop regeneration and complete page-by-page review are recorded in CORRECTION_VERIFICATION.md. Both report compiler passes succeeded. The PDF SHA-256 is e9895d685304129016bffa8aef839b6b087329ec9380cb4805ddbe5bab6ae551.
+
+# Superseded verification record
+
+The previous PDF and test observations below predate the bracing correction. See CORRECTION_VERIFICATION.md for the current result.
+
 # Test results and PDF review
 
 ## Build and desktop runs

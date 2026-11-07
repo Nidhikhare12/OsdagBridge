@@ -102,3 +102,16 @@ def test_generated_tables_disclose_unverified_efficiency():
         r"\end{longtable}", 1)[0]
     assert "nan" not in missing_table.lower()
     assert "PASS" not in missing_table
+
+
+
+def test_transverse_capacity_mapping_and_nonfinite_efficiency():
+    results = {"crossbracing_design_results": {"G1-G2": {"diagonal": {
+        "compression": {"Member.efficiency": .74, "Member.tension_capacity": 16.81},
+        "tension": {"Member.efficiency": .21, "Member.tension_capacity": 45},
+    }, "chord": {"compression": {"Member.efficiency": float("inf")}}}}}
+    checks = list(transverse_checks(results))
+    assert [(check.label, check.capacity) for check in checks] == [
+        ("Diagonal compression", None), ("Diagonal tension", 45.0),
+    ]
+    assert outcome(component_checks(results, {})["Cross Bracing"]) == "Not available"

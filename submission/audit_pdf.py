@@ -14,7 +14,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     markers = ("Key Design Outcomes Summary", "1670", "Vehicle Live Loads",
                "Footpath Live Load", "Stiffener Design", "Controlling LC",
-               "Girder Design Summary", "Governing computed utilization",
+               "Girder Design Summary", "Governing verified utilization",
                "Material quantities from the bill", "No end-diaphragm axial design checks")
     lines = ["| Physical page | Raster images | Footer intrusions | Words outside text width | Markers |",
              "| --- | ---: | --- | --- | --- |"]
