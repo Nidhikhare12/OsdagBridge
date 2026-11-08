@@ -11,6 +11,10 @@ Additional bridge types can be added through the plugin architecture.
 
 ---
 
+## Report verification
+
+The report refactoring and its limitations are documented in [submission/REPRODUCTION_GUIDE.md](submission/REPRODUCTION_GUIDE.md) and [submission/REQUIREMENTS_TRACEABILITY.md](submission/REQUIREMENTS_TRACEABILITY.md). The guide includes the supported Windows desktop workflow, compiler setup, and tests. Generated reports and the submission ZIP are local artifacts and are packaged separately.
+
 ## Key Features
 
 ### Shared Core Architecture

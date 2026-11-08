@@ -3,7 +3,7 @@
   "report_commit": "80e44e595357af4b6cb3e1efd0623cc1cb598cca",
   "before_pages": 58,
   "after_pages": 57,
-  "stiffener_pages": "31\u201332",
+  "stiffener_pages": "31–32",
   "girder_summary_page": 35,
   "utilization_page": 45,
   "material_page": 52,
@@ -16,6 +16,8 @@
   "sha256": {
     "Report_Before.pdf": "3c5b689249b8d03492acff357e063e604340035bd4c8fa59db29ed1d6536a25a",
     "Report_After.pdf": "9f4fabeb7174c96fb061ada4149d0c37f156d9bd0c58d228115a6eaef4bd1ffa",
-    "test-design.osi": "95d60509867d267bc396dea3e92e2bcfb10d508a39f2e0415d78dc13370847e1"
-  }
+    "test-design.osi": "95d60509867d267bc396dea3e92e2bcfb10d508a39f2e0415d78dc13370847e1",
+    "Technical_Changes_Report.pdf": "fffd509ac63d43ade54947d28424260034c15b40edf2ff1dcfd61c4051c59cf8"
+  },
+  "technical_report_pages": 6
 }

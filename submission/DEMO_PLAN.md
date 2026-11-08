@@ -45,3 +45,35 @@ Show the Chapter 7 material table and chart, the estimated reinforcement label, 
 Show the actual pytest output and the preserved logs, report TeX and asset directory.
 
 Say: “The regression suite includes real pdfTeX compilation and checks repeated headers, pagination, report result mapping and missing values. The evidence package records the source commit and report hash.”
+
+
+## Capture setup
+
+- Record a 1920 × 1080 display at 30 frames per second. Set Windows display scaling and the application window so text remains readable.
+- Keep the application and PDF viewer maximized. For the PDF, use approximately 125–150% zoom and pan to the table, footer or chart being discussed.
+- Open the baseline PDF, the final PDF, the six-page technical report, and a terminal at the repository root before recording.
+- Use the actual successful test log at submission/evidence/pytest.log or run the documented command in the supported environment. Show the real output.
+- Use a visible caption such as “Analysis in progress — time cut” before a cut and “Analysis completed” after it. Keep the original log available.
+- A voiceover is optional. The spoken lines above can instead appear as on-screen captions.
+
+## Screen and caption checklist
+
+| Time | Screen or exact page | Suggested caption |
+| --- | --- | --- |
+| 0:00–0:25 | Desktop input dock after loading submission/test-design.osi | “Saved 30 m test bridge” |
+| 0:25–0:55 | Design progress and completed output | “Actual analysis; time cut shown” |
+| 0:55–1:20 | Report options and newly generated PDF | “Application report generation” |
+| 1:20–1:55 | Technical report pages 5–6, then final PDF pages 9, 31–32 and 35 | “Continuation headers, footer clearance, dimensions” |
+| 1:55–2:25 | Final PDF pages 13–14 and the alternate-input evidence | “Configured inputs and available analysis data” |
+| 2:25–3:00 | Final PDF pages 42–45 | “Recorded efficiencies; verified ratios only” |
+| 3:00–3:20 | Final PDF pages 51–52, then src/osdagbridge/core/reports/styles.py | “BOQ quantities; reinforcement estimated” |
+| 3:20–3:45 | submission/evidence/pytest.log, git log and source tree | “24 tests passed; local feature branch” |
+
+## Before publishing the recording
+
+- Replay the entire local file. Confirm that the correct application, PDF and terminal are legible.
+- Confirm that analysis cuts are marked and no scene implies that unavailable ratios passed.
+- Check audio if present. A silent recording is acceptable according to the public Osdag instructions.
+- Verify that no unrelated notifications, private tabs, credentials, or personal files appear.
+- Confirm that the final file opens and that the selected hosting permissions permit reviewers to view it.
+- Save the local recording and obtain a shareable URL yourself.

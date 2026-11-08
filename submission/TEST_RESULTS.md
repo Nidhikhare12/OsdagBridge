@@ -28,3 +28,12 @@ The final PDF SHA-256 is `9f4fabeb7174c96fb061ada4149d0c37f156d9bd0c58d228115a6e
 - The original baseline predates full input/output and log capture. Its PDF and the exact saved design remain preserved.
 
 The official detailed task document was not accessible beyond its title to the browser. The six requirement descriptions supplied in the user's request were used for this verification.
+
+
+## Final handoff review
+
+The source and tests were unchanged during the handoff. The recorded 24-test run was inspected and was not rerun. The 57-page report and original baseline hashes match the captured manifest. The input and output snapshots confirm the girder and deck values, the two stored cross-bracing efficiencies, and empty diaphragm results. The desktop log identifies source commit 80e44e595357af4b6cb3e1efd0623cc1cb598cca and records two successful pdfTeX passes. The portable recompilation record reports matching text and renders.
+
+The technical changes report now has six pages. Pages 5–6 compare genuine crops from the historical enhanced draft and current report. The earlier draft is explicitly labeled. Its current SHA-256 is recorded in evidence/manifest.json.
+
+The read-only GitHub fork check on 9 November 2026 found no feat/fossee-latex-reports branch on origin. The fork's default dev branch responded at the original baseline. Publication and collaborator access are the applicant's manual actions.
