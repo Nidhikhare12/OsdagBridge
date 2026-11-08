@@ -50,6 +50,7 @@ def test_utilization_chart_vertical_axes_and_missing(monkeypatch, tmp_path):
         ax = fig.axes[0]
         captured["xlabel"] = ax.get_xlabel()
         captured["ylabel"] = ax.get_ylabel()
+        captured["xlim"] = ax.get_xlim()
         captured["bars"] = [(bar.get_height(), bar.get_width()) for bar in ax.patches]
         captured["lines"] = [(list(line.get_ydata()), line.get_color(), line.get_linestyle()) for line in ax.lines]
         captured["texts"] = [text.get_text() for text in ax.texts]
@@ -60,6 +61,8 @@ def test_utilization_chart_vertical_axes_and_missing(monkeypatch, tmp_path):
     girder_utilization_chart(data, tmp_path)
     assert captured["xlabel"] == "Structural Component"
     assert captured["ylabel"] == "Utilization Ratio"
+    assert captured["xlim"] == (-0.6, 3.6)
+    assert all("\\\\n" not in text for text in captured["texts"])
     assert [height for height, _ in captured["bars"]] == [1.577, .9914]
     assert all(abs(width - .58) < 1e-9 for _, width in captured["bars"])
     assert ([1.0, 1.0], "red", "--") in captured["lines"]

@@ -88,6 +88,7 @@ def girder_utilization_chart(outputs, directory, inputs=None):
     rows = [(label, governing(checks), outcome(checks)) for label, checks in components.items()]
     limits = [check.ratio for _, check, _ in rows if check]
     scale = max(1.0, *limits)
+    ax.set_xlim(-0.6, len(rows) - 0.4)
     ax.set_ylim(0, scale * 1.28)
     ax.axhline(1.0, color="red", linestyle="--", label="UR = 1.0")
     ax.set_ylabel("Utilization Ratio")
@@ -101,7 +102,7 @@ def girder_utilization_chart(outputs, directory, inputs=None):
             continue
         detail = " ".join(part for part in (check.member, check.label) if part)
         ax.bar(i, check.ratio, width=0.58, color="#" + BRAND_GREEN)
-        ax.annotate(f"{check.ratio:.3f} {status}\\n{fill(detail, 21)}",
+        ax.annotate(f"{check.ratio:.3f} {status}\n{fill(detail, 21)}",
                     (i, check.ratio), xytext=(0, 5), textcoords="offset points",
                     ha="center", va="bottom", fontsize=8)
     ax.set_xticks(range(len(rows)), labels)
