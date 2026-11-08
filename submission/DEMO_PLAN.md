@@ -32,7 +32,7 @@ Say: “The report identifies these as configured inputs. The current solver has
 
 **2:25–3:00 — Checks and chart**
 
-Show the bracing table, the overall summary and the component chart in Chapter 5. Point out 0.740 and 0.610 as stored Osdag efficiencies and the unavailable matching capacities and statuses. Show the failing girder ratio and unavailable diaphragm entry.
+Show the bracing table, the overall summary and the vertical component chart and horizontal red 1.0 limit in Chapter 5. Point out 0.740 and 0.610 as stored Osdag efficiencies and the unavailable matching capacities and statuses. Show the failing girder ratio and unavailable diaphragm entry.
 
 Say: “The export does not identify which denominator produced each bracing efficiency. The chart therefore marks the verified bracing ratio unavailable. The deck chart uses a reinforcement crack-control check, while the table also reports a separate crack-width check.”
 
