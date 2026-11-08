@@ -100,15 +100,15 @@ def ch3_loads(input_dict):
     fp_value = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE)
     footpath = input_dict.get(KEY_FOOTPATH)
     if str(footpath).strip().lower() in ("none", "no", "0"):
-        fp_str = "Not applicable (no footpath)"
+        fp_str, fp_unit = "Not applicable (no footpath)", "---"
     elif fp_mode in ("as per irc 6", "as per irc6", "automatic"):
-        fp_str = f"{IRC6_2017.cl_206_1_footway_load():.3f} kN/m2 (IRC 6 Cl. 206.1 reference)"
+        fp_str, fp_unit = f"{IRC6_2017.cl_206_1_footway_load():.3f} (IRC 6 Cl. 206.1 reference)", "kN/m2"
     elif fp_mode in ("custom", "user-defined") and fp_value not in (None, ""):
         # This is the pressure entered in the UI. The analysis does not
         # provide a corresponding custom footpath live-load result.
-        fp_str = f"{fp_value} kN/mm2 (custom input)"
+        fp_str, fp_unit = f"{fp_value} (custom input)", "kN/mm2"
     else:
-        fp_str = "Not available"
+        fp_str, fp_unit = "Not available", "---"
 
     # Vz / Pz — prefer stored computed values; fall back to IRC6 Table 12
     vz_val = input_dict.get(KEY_WL_HOURLY_MEAN_WIND)
@@ -264,28 +264,29 @@ This section records the configured loads and code combinations. Where the analy
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}{|L{5.5cm}|L{8cm}|C{2cm}|}
 \caption{\textbf{Vehicle Live Loads (LL)}}\\
-\ReportTableHeader{\textbf{parameter} & \textbf{value} \\}
-\textnormal{Selected Vehicle Classes (input)} & """ + _tex(vehicles_str) + r""" \\[6pt]
+\ReportTableHeader{\textbf{Parameter} & \textbf{Value} & \textbf{Unit} \\}
+\textnormal{Selected Vehicle Classes (input)} & """ + _tex(vehicles_str) + r""" & --- \\[6pt]
 \hline
-\textnormal{Reference Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
+\textnormal{Reference Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" & --- \\[6pt]
 \hline
-\textnormal{Braking Load (IRC 6)} & Not available in analysis results \\[6pt]
+\textnormal{Braking Load (IRC 6)} & Not available in analysis results & kN \\[6pt]
 \hline
-\textnormal{Centrifugal Force} & Not available in analysis results \\[6pt]
+\textnormal{Centrifugal Force} & Not available in analysis results & kN \\[6pt]
 \hline
 \end{longtable}
 \noindent\textit{Vehicle classes above are the saved selections. The analysis and deck designer use their own code-based vehicle cases.}
 
-
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}{|L{5.5cm}|L{8cm}|C{2cm}|}
 \caption{\textbf{Footpath Live Load}}\\
-\ReportTableHeader{\textbf{parameter} & \textbf{value} \\}
-\textnormal{Footpath configuration} & """ + (_tex(footpath) if footpath not in (None, "") else "Not specified") + r""" \\[6pt]
+\ReportTableHeader{\textbf{Parameter} & \textbf{Value} & \textbf{Unit} \\}
+\textnormal{Footpath configuration} & """ + (_tex(footpath) if footpath not in (None, "") else "Not specified") + r""" & --- \\[6pt]
 \hline
-\textnormal{Footpath pressure} & """ + _tex(fp_str) + r""" \\[6pt]
+\textnormal{Footpath pressure} & """ + _tex(fp_str) + r""" & """ + _tex(fp_unit) + r""" \\[6pt]
+\hline
+\textnormal{Applied footpath live load} & Not available in analysis results & kN/m2 \\[6pt]
 \hline
 \end{longtable}
 

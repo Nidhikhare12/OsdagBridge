@@ -40,3 +40,28 @@ def test_girder_chart_uses_recorded_dcr_and_ignores_missing(tmp_path):
     assert girder_utilizations(data, {KEY_TS_NO_OF_GIRDERS: 4}) == [("G1", 1.1, 2)]
     assert girder_utilization_chart({}, tmp_path) is None
     assert Path(girder_utilization_chart(data, tmp_path)).is_file()
+
+
+def test_utilization_chart_vertical_axes_and_missing(monkeypatch, tmp_path):
+    from matplotlib.figure import Figure
+
+    captured = {}
+    def save(fig, path, **kwargs):
+        ax = fig.axes[0]
+        captured["xlabel"] = ax.get_xlabel()
+        captured["ylabel"] = ax.get_ylabel()
+        captured["bars"] = [(bar.get_height(), bar.get_width()) for bar in ax.patches]
+        captured["lines"] = [(list(line.get_ydata()), line.get_color(), line.get_linestyle()) for line in ax.lines]
+        captured["texts"] = [text.get_text() for text in ax.texts]
+
+    monkeypatch.setattr(Figure, "savefig", save)
+    data = {"design_results": {"per_girder": {"G1": {"checks": [{"dcr": 1.577, "name": "Fatigue"}]}}},
+            "deck_design_results": {"ur_composite_crack": .9914}}
+    girder_utilization_chart(data, tmp_path)
+    assert captured["xlabel"] == "Structural Component"
+    assert captured["ylabel"] == "Utilization Ratio"
+    assert [height for height, _ in captured["bars"]] == [1.577, .9914]
+    assert all(abs(width - .58) < 1e-9 for _, width in captured["bars"])
+    assert ([1.0, 1.0], "red", "--") in captured["lines"]
+    assert sum(text == "Not available" for text in captured["texts"]) == 2
+    assert any("1.577  FAIL" in text or "1.577 FAIL" in text for text in captured["texts"])

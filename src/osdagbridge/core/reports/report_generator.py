@@ -328,7 +328,7 @@ def title_page(m, osdag_logo, org_logo):
 
     return r"""
 \begin{titlepage}
-\thispagestyle{firstpage}
+\thispagestyle{empty}
 \centering
 \vspace*{1.5cm}
 """ + logos_tex + r"""

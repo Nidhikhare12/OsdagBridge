@@ -88,22 +88,24 @@ def girder_utilization_chart(outputs, directory, inputs=None):
     rows = [(label, governing(checks), outcome(checks)) for label, checks in components.items()]
     limits = [check.ratio for _, check, _ in rows if check]
     scale = max(1.0, *limits)
-    ax.set_xlim(0, scale * 1.3)
-    ax.set_ylim(len(rows) - 0.5, -0.5)
-    ax.axvline(1.0, color="red", linestyle="--", label="UR = 1.0")
-    ax.set_xlabel("Reported utilization ratio")
+    ax.set_ylim(0, scale * 1.28)
+    ax.axhline(1.0, color="red", linestyle="--", label="UR = 1.0")
+    ax.set_ylabel("Utilization Ratio")
+    ax.set_xlabel("Structural Component")
     labels = []
     for i, (component, check, status) in enumerate(rows):
+        labels.append(fill(component, 18))
         if check is None:
-            labels.append(component)
-            ax.text(0.02, i, "Not available", transform=ax.get_yaxis_transform(), va="center")
+            ax.text(i, 0.03 * scale, "Not available", ha="center", va="bottom",
+                    rotation=90, fontsize=9)
             continue
         detail = " ".join(part for part in (check.member, check.label) if part)
-        labels.append(component + "\n" + fill(detail, 27))
-        ax.barh(i, check.ratio, height=0.52, color="#" + BRAND_GREEN)
-        ax.text(scale * 1.035, i, f"{check.ratio:.3f}  {status}", va="center", fontsize=9)
-    ax.set_yticks(range(len(rows)), labels)
-    ax.legend(loc="lower right")
+        ax.bar(i, check.ratio, width=0.58, color="#" + BRAND_GREEN)
+        ax.annotate(f"{check.ratio:.3f} {status}\\n{fill(detail, 21)}",
+                    (i, check.ratio), xytext=(0, 5), textcoords="offset points",
+                    ha="center", va="bottom", fontsize=8)
+    ax.set_xticks(range(len(rows)), labels)
+    ax.legend(loc="upper right")
     path = Path(directory) / "component_utilization.png"
     fig.savefig(path, dpi=CHART_DPI)
     fig.clear()
