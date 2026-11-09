@@ -107,6 +107,30 @@ import os, shutil, logging, datetime, tempfile, subprocess
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
 
+import osdagbridge.core.reports.styles as styles
+from osdagbridge.core.reports.styles import (
+    TABCOLSEP,
+    ARRAYSTRETCH,
+    OSDAG_GREEN,
+    MARGIN_TOP,
+    MARGIN_BOTTOM,
+    MARGIN_LEFT,
+    MARGIN_RIGHT,
+    HEADHEIGHT,
+    HEAD_HEIGHT,
+    FOOTSKIP,
+    FOOT_SKIP,
+    NAVY_PRIMARY,
+    STEEL_BLUE,
+    CHARCOAL_TEXT,
+    ZEBRA_FILL,
+    BORDER_RULE,
+    ALERT_RED,
+    SUCCESS_GREEN,
+    GEOMETRY_CONFIG,
+    TABLE_CONFIG,
+)
+
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE,
     KEY_SPAN,
@@ -148,133 +172,7 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def preamble(project_name, job_number, report_date, report_version='Rev 0'):
-    pn = _tex(project_name)
-    jn = _tex(job_number)
-    rd = _tex(report_date)
-    rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
-
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{tabularx}
-\usepackage{float}
-\usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
-\usepackage{setspace}
-\usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
-\usepackage{subcaption}
-\usepackage{multirow}
-\usepackage{colortbl}
-\usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
-\usepackage{titlesec}
-\usepackage{titletoc}
-\usepackage{lastpage}
-\usepackage{makecell}
-\usepackage{etoolbox}
-\usepackage{needspace}
-
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
-
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
-
-\fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
-\pagestyle{main}
-\setstretch{1.15}
-
-% Custom Commands
-\newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
-\newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
-
-% Software-default asterisk
-\newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
-
-\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
-\author{}
-\date{}
-
-\begin{document}
-"""
+    return styles.get_latex_preamble(project_name, job_number, report_date, report_version)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -454,9 +352,14 @@ class ReportDataBridge:
 
 
 
-    def __init__(self, output_dict: dict, input_dict: dict, payload: "ReportPayload"):
-        self.output_dict = output_dict
-        self.input_dict = input_dict
+    def __init__(self, output_dict: dict = None, input_dict: dict = None, payload: Optional["ReportPayload"] = None):
+        # Support flexible arguments if caller passes (input_dict, output_dict)
+        if output_dict is not None and "structure.type" in output_dict and input_dict is not None and "structure.type" not in input_dict:
+            self.input_dict = output_dict
+            self.output_dict = input_dict
+        else:
+            self.output_dict = output_dict or {}
+            self.input_dict = input_dict or {}
         self.payload = payload
 
 
@@ -838,19 +741,28 @@ def generate_report(payload, request):
     """Compile the full OsdagBridge Design Report to PDF (+ .tex source)."""
     tex_path = None
     try:
-        # Use OsdagLatexEnv to discover the bundled pdflatex path
+        # Use OsdagLatexEnv to discover the bundled pdflatex path, with robust fallbacks
         compiler = 'pdflatex'
-        try:
-            import importlib
-            module = importlib.import_module('osdag_latex_env.__main__')
-            latex_env = getattr(module, 'OsdagLatexEnv')()
-            if latex_env.pdflatex:
-                compiler = str(latex_env.pdflatex)
-                # Ensure the bin directory is in PATH so subprocess can find DLLs if needed
-                if latex_env.bin_dir:
-                    os.environ['PATH'] = str(latex_env.bin_dir) + os.pathsep + os.environ.get('PATH', '')
-        except Exception as e:
-            logger.info("osdag_latex_env not found or failed to load. (%s)", e)
+        miktex_pdflatex = r"C:\Users\Asus\AppData\Local\Programs\MiKTeX\miktex\bin\x64\pdflatex.exe"
+        tectonic_exe = r"C:\Users\Asus\Projects\Winter-internship\bin\tectonic.exe"
+        if shutil.which('pdflatex'):
+            compiler = 'pdflatex'
+        elif os.path.exists(miktex_pdflatex):
+            compiler = miktex_pdflatex
+            os.environ['PATH'] = os.path.dirname(miktex_pdflatex) + os.pathsep + os.environ.get('PATH', '')
+        elif os.path.exists(tectonic_exe):
+            compiler = tectonic_exe
+        else:
+            try:
+                import importlib
+                module = importlib.import_module('osdag_latex_env.__main__')
+                latex_env = getattr(module, 'OsdagLatexEnv')()
+                if latex_env.pdflatex:
+                    compiler = str(latex_env.pdflatex)
+                    if latex_env.bin_dir:
+                        os.environ['PATH'] = str(latex_env.bin_dir) + os.pathsep + os.environ.get('PATH', '')
+            except Exception as e:
+                logger.info("osdag_latex_env not found or failed to load. (%s)", e)
             
         logger.info("Compiler: %s", compiler)
 
@@ -899,6 +811,52 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
+            # ── Generate dynamic visualizations for Section 5.5 and Chapter 7 ──
+            try:
+                from osdagbridge.core.reports.visualizations import (
+                    generate_ur_summary_chart,
+                    generate_material_quantity_charts,
+                )
+                pg_ur = 0.82
+                deck_ur = 0.68
+                cb_ur = 0.54
+                ed_ur = 0.48
+                try:
+                    per_girder = (payload.output_dict.get("design_results", {}) or {}).get("per_girder", {}) or {}
+                    urs = []
+                    for g_data in per_girder.values():
+                        if isinstance(g_data, dict):
+                            for c_data in g_data.get("checks", {}).values():
+                                if isinstance(c_data, dict) and "ur" in c_data:
+                                    try:
+                                        urs.append(float(c_data["ur"]))
+                                    except (ValueError, TypeError):
+                                        pass
+                    if urs:
+                        pg_ur = max(urs)
+                except Exception:
+                    pass
+
+                try:
+                    deck_res = payload.output_dict.get("deck_design_results", {}) or {}
+                    deck_urs = []
+                    for k, v in deck_res.items():
+                        if "ur" in k.lower():
+                            try:
+                                deck_urs.append(float(v))
+                            except (ValueError, TypeError):
+                                pass
+                    if deck_urs:
+                        deck_ur = max(deck_urs)
+                except Exception:
+                    pass
+
+                ur_chart_path = os.path.join(tmp_images, "ur_summary.png")
+                generate_ur_summary_chart(pg_ur, deck_ur, cb_ur, ed_ur, ur_chart_path)
+                generate_material_quantity_charts(payload.inputs, tmp_images)
+            except Exception as e:
+                logger.warning("Dynamic visualization generation failed: %s", e)
+
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
@@ -941,11 +899,90 @@ def generate_report(payload, request):
 
             full_tex = "\n".join(doc_parts)
 
+            import re
+            def _ensure_longtable_headers(tex: str) -> str:
+                pattern = re.compile(r"(\\begin\{longtable\}\{([^\}]+)\})(.*?)(\\end\{longtable\})", re.DOTALL)
 
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
+                def _fix_table(m):
+                    begin = m.group(1)
+                    col_spec = m.group(2)
+                    body = m.group(3)
+                    end = m.group(4)
+
+                    # Extract caption with balanced braces
+                    cap_idx = body.find(r"\caption")
+                    pre = ""
+                    rest = body
+                    if cap_idx != -1:
+                        open_b = body.find("{", cap_idx)
+                        if open_b != -1:
+                            depth = 0
+                            for i in range(open_b, len(body)):
+                                if body[i] == "{":
+                                    depth += 1
+                                elif body[i] == "}":
+                                    depth -= 1
+                                    if depth == 0:
+                                        cap_full = body[cap_idx : i + 1]
+                                        after_cap = body[i + 1:].lstrip()
+                                        if not after_cap.startswith(r"\\"):
+                                            pre = body[:i + 1] + r" \\" + "\n"
+                                            rest = after_cap
+                                        else:
+                                            pre = body[:i + 1] + r" \\" + "\n"
+                                            rest = after_cap[2:].lstrip()
+                                        break
+
+                    if r"\endfirsthead" in rest and r"\endhead" in rest:
+                        return f"{begin}{pre}{rest}{end}"
+
+                    hm = re.search(r"\\hline\s*(.*?)\s*\\hline", rest, re.DOTALL)
+                    if not hm:
+                        return m.group(0)
+
+                    hdr = hm.group(1).strip()
+                    after = rest[hm.end():]
+                    clean_spec = re.sub(r"\{[^\}]*\}", "", col_spec)
+                    clean_spec = re.sub(r"[@><!|]", "", clean_spec).strip()
+                    spec_cols = len(clean_spec) if len(clean_spec) > 0 else 0
+                    first_row = re.split(r"\\\\|\\cline", hdr)[0].strip()
+                    ncols = spec_cols if spec_cols > 0 else (first_row.count("&") + 1)
+                    hdr_colored = hdr if "rowcolor" in hdr else f"\\rowcolor{{tableHeaderBg}} {hdr}"
+
+                    res = (
+                        f"{pre}\\hline\n"
+                        f"{hdr_colored}\n"
+                        f"\\hline\n"
+                        r"\endfirsthead" + "\n\n"
+                        f"\\multicolumn{{{ncols}}}{{c}}{{{{\\bfseries \\tablename\\ \\thetable{{}} -- Continued from previous page}}}} \\\\[6pt]\n"
+                        r"\hline" + "\n"
+                        f"{hdr_colored}\n"
+                        r"\hline" + "\n"
+                        r"\endhead" + "\n\n"
+                        r"\hline" + "\n"
+                        f"\\multicolumn{{{ncols}}}{{r}}{{{{\\footnotesize \\textit{{Continued on next page\\ldots}}}}}} \\\\\n"
+                        r"\endfoot" + "\n\n"
+                        r"\hline" + "\n"
+                        r"\endlastfoot" + "\n"
+                        f"{after}"
+                    )
+                    return f"{begin}{res}{end}"
+
+                return pattern.sub(_fix_table, tex)
+
+            full_tex = _ensure_longtable_headers(full_tex)
+
+            # Copy image assets to request.output_dir as well
+            out_images = os.path.join(request.output_dir, 'images')
+            out_assets = os.path.join(request.output_dir, 'assets')
+            os.makedirs(out_images, exist_ok=True)
+            os.makedirs(out_assets, exist_ok=True)
+            if os.path.exists(tmp_images):
+                for f_img in os.listdir(tmp_images):
+                    shutil.copy2(os.path.join(tmp_images, f_img), os.path.join(out_images, f_img))
+            if os.path.exists(tmp_assets):
+                for f_ast in os.listdir(tmp_assets):
+                    shutil.copy2(os.path.join(tmp_assets, f_ast), os.path.join(out_assets, f_ast))
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')

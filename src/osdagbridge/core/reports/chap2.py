@@ -168,7 +168,7 @@ Where the user has modified additional inputs, those values are reported here. W
 \vspace{0.8cm}
 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Typical Section Details}}
+\caption{\textbf{Typical Section Details}} \\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline

@@ -1491,15 +1491,39 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \label{sec:overall-summary}
 % ===========================
 
+This section synthesizes the critical limit state utilization ratios ($UR = \text{Demand} / \text{Capacity}$) governing primary superstructure elements: Steel Plate Girders, Concrete Deck Slab, Cross Bracing, and End Diaphragms. Utilization ratios below $1.0$ indicate compliance with IRC and IS limit state requirements.
+
+\vspace{1.5em}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\linewidth,keepaspectratio]{images/ur_summary.png}
+\caption{\textbf{Utilization Ratio (Demand / Capacity) Summary for Primary Bridge Elements (Steel Plate Girders, Concrete Deck Slab, Cross Bracing, End Diaphragms)}}
+\label{fig:ur_summary}
+\end{figure}
+
 \vspace{1em}
+\needspace{6\baselineskip}
 \begin{longtable}{|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|}
-\caption{\textbf{Overall Design Check Summary --- All Members}}
+\caption{\textbf{Overall Design Check Summary --- All Members}} \label{tab:overall_summary} \\
 \hline
-\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\rowcolor{tableHeaderBg} \textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
 \hline
+\endfirsthead
+
+\multicolumn{5}{c}{{\bfseries \tablename\ \thetable{} -- Continued from previous page}} \\[6pt]
+\hline
+\rowcolor{tableHeaderBg} \textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\hline
+\endhead
+
+\hline
+\multicolumn{5}{r}{{\footnotesize \textit{Continued on next page\ldots}}} \\
+\endfoot
+
+\hline
+\endlastfoot
 """ + t522_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
-
 """
 
