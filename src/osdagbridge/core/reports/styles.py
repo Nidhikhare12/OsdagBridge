@@ -49,8 +49,8 @@ MARGIN_LEFT              = "20mm"
 MARGIN_RIGHT             = "20mm"
 HEAD_HEIGHT              = "20pt"
 HEADHEIGHT               = "20pt"
-FOOT_SKIP                = "28pt"
-FOOTSKIP                 = "28pt"
+FOOT_SKIP                = "30pt"
+FOOTSKIP                 = "30pt"
 HEAD_SEP                 = "12pt"
 HEADSEP                  = "12pt"
 
@@ -107,7 +107,7 @@ def get_latex_preamble(project_name: str, job_number: str, report_date: str, rep
     return rf"""
 \documentclass[{TYPOGRAPHY_CONFIG['base_font_size']},a4paper]{{report}}
 
-% ── Geometry & Layout ─────────────────────────────────────────
+% ── Geometry and Layout ─────────────────────────────────────────
 \usepackage[a4paper, top={GEOMETRY_CONFIG['top']}, bottom={GEOMETRY_CONFIG['bottom']}, left={GEOMETRY_CONFIG['left']}, right={GEOMETRY_CONFIG['right']}, headheight={GEOMETRY_CONFIG['headheight']}, headsep={GEOMETRY_CONFIG['headsep']}, footskip={GEOMETRY_CONFIG['footskip']}, includehead, includefoot]{{geometry}}
 
 % ── Core Packages ─────────────────────────────────────────────
@@ -161,11 +161,11 @@ def get_latex_preamble(project_name: str, job_number: str, report_date: str, rep
     format=plain
 }}
 
-% ── Numbering & Floats ────────────────────────────────────────
+% ── Numbering and Floats ────────────────────────────────────────
 \numberwithin{{table}}{{chapter}}
 \numberwithin{{figure}}{{chapter}}
 
-% ── Centralized Table Spacing & Geometry Rules ────────────────
+% ── Centralized Table Spacing and Geometry Rules ────────────────
 \setlength{{\tabcolsep}}{{{TABLE_CONFIG['tabcolsep']}}}
 \renewcommand{{\arraystretch}}{{{TABLE_CONFIG['arraystretch']}}}
 \setlength{{\arrayrulewidth}}{{{TABLE_CONFIG['arrayrulewidth']}}}
@@ -179,7 +179,7 @@ def get_latex_preamble(project_name: str, job_number: str, report_date: str, rep
 \BeforeBeginEnvironment{{table}}{{\needspace{{{TABLE_CONFIG['needspace_lines']}\baselineskip}}}}
 \BeforeBeginEnvironment{{longtable}}{{\needspace{{{TABLE_CONFIG['needspace_lines']}\baselineskip}}}}
 
-% ── Running Headers & Footers ─────────────────────────────────
+% ── Running Headers and Footers ─────────────────────────────────
 \fancypagestyle{{main}}{{
   \fancyhf{{}}
   \fancyhead[L]{{\small\textsf{{{pn} $|$ {jn}}}}}

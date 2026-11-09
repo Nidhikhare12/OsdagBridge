@@ -14,7 +14,10 @@ from collections import OrderedDict
 from collections.abc import Mapping
 from pathlib import Path
 
-import openseespy.opensees as ops
+try:
+    import openseespy.opensees as ops
+except ImportError:
+    ops = None
 
 from .results_data_post_processing import post_process, FORCE_KEEP, DISP_KEEP
 

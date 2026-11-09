@@ -900,75 +900,189 @@ def generate_report(payload, request):
             full_tex = "\n".join(doc_parts)
 
             import re
+
+            def _parse_col_spec_count(col_spec: str) -> int:
+                s = col_spec.strip()
+                if s.startswith('{') and s.endswith('}'):
+                    s = s[1:-1].strip()
+
+                def expand_repeat(match):
+                    count = int(match.group(1))
+                    spec = match.group(2)
+                    return spec * count
+
+                while True:
+                    expanded = re.sub(r'\*\{(\d+)\}\{([^{}]+)\}', expand_repeat, s)
+                    if expanded == s:
+                        break
+                    s = expanded
+
+                out = []
+                i = 0
+                n = len(s)
+                while i < n:
+                    if s[i] in '>@<!':
+                        i += 1
+                        while i < n and s[i].isspace():
+                            i += 1
+                        if i < n and s[i] == '{':
+                            depth = 1
+                            i += 1
+                            while i < n and depth > 0:
+                                if s[i] == '{':
+                                    depth += 1
+                                elif s[i] == '}':
+                                    depth -= 1
+                                i += 1
+                        continue
+                    elif s[i] == '{':
+                        depth = 1
+                        i += 1
+                        while i < n and depth > 0:
+                            if s[i] == '{':
+                                depth += 1
+                            elif s[i] == '}':
+                                depth -= 1
+                            i += 1
+                        continue
+                    elif s[i] in '| ':
+                        i += 1
+                        continue
+                    else:
+                        out.append(s[i])
+                        i += 1
+                return len(out)
+
             def _ensure_longtable_headers(tex: str) -> str:
-                pattern = re.compile(r"(\\begin\{longtable\}\{([^\}]+)\})(.*?)(\\end\{longtable\})", re.DOTALL)
+                pattern = re.compile(r'\\begin\{longtable\}')
+                result = []
+                last_end = 0
 
-                def _fix_table(m):
-                    begin = m.group(1)
-                    col_spec = m.group(2)
-                    body = m.group(3)
-                    end = m.group(4)
+                while True:
+                    m = pattern.search(tex, last_end)
+                    if not m:
+                        result.append(tex[last_end:])
+                        break
 
-                    # Extract caption with balanced braces
-                    cap_idx = body.find(r"\caption")
-                    pre = ""
+                    start_env = m.start()
+                    result.append(tex[last_end:start_env])
+
+                    pos = m.end()
+                    while pos < len(tex) and tex[pos].isspace():
+                        pos += 1
+                    pos_arg = ''
+                    if pos < len(tex) and tex[pos] == '[':
+                        close_bracket = tex.find(']', pos)
+                        if close_bracket != -1:
+                            pos_arg = tex[pos : close_bracket + 1]
+                            pos = close_bracket + 1
+
+                    while pos < len(tex) and tex[pos].isspace():
+                        pos += 1
+
+                    if pos >= len(tex) or tex[pos] != '{':
+                        result.append(tex[start_env:m.end()])
+                        last_end = m.end()
+                        continue
+
+                    depth = 1
+                    col_start = pos + 1
+                    p = col_start
+                    while p < len(tex) and depth > 0:
+                        if tex[p] == '{':
+                            depth += 1
+                        elif tex[p] == '}':
+                            depth -= 1
+                        p += 1
+
+                    if depth != 0:
+                        result.append(tex[start_env:m.end()])
+                        last_end = m.end()
+                        continue
+
+                    col_spec = tex[col_start : p - 1]
+                    begin_tag = tex[start_env : p]
+
+                    end_pattern = re.compile(r'\\end\{longtable\}')
+                    end_m = end_pattern.search(tex, p)
+                    if not end_m:
+                        result.append(tex[start_env:p])
+                        last_end = p
+                        continue
+
+                    body = tex[p : end_m.start()]
+                    end_tag = end_m.group(0)
+                    last_end = end_m.end()
+
+                    ncols = _parse_col_spec_count(col_spec)
+
+                    cap_idx = body.find(r'\caption')
+                    pre = ''
                     rest = body
                     if cap_idx != -1:
-                        open_b = body.find("{", cap_idx)
+                        open_b = body.find('{', cap_idx)
                         if open_b != -1:
                             depth = 0
                             for i in range(open_b, len(body)):
-                                if body[i] == "{":
+                                if body[i] == '{':
                                     depth += 1
-                                elif body[i] == "}":
+                                elif body[i] == '}':
                                     depth -= 1
                                     if depth == 0:
-                                        cap_full = body[cap_idx : i + 1]
                                         after_cap = body[i + 1:].lstrip()
-                                        if not after_cap.startswith(r"\\"):
-                                            pre = body[:i + 1] + r" \\" + "\n"
+                                        if not after_cap.startswith(r'\\'):
+                                            pre = body[:i + 1] + r' \\' + '\n'
                                             rest = after_cap
                                         else:
-                                            pre = body[:i + 1] + r" \\" + "\n"
+                                            pre = body[:i + 1] + r' \\' + '\n'
                                             rest = after_cap[2:].lstrip()
                                         break
 
-                    if r"\endfirsthead" in rest and r"\endhead" in rest:
-                        return f"{begin}{pre}{rest}{end}"
+                    if r'\endfirsthead' in rest and r'\endhead' in rest:
+                        def fix_mc(match):
+                            prefix = match.group(1)
+                            suffix = match.group(2)
+                            return f'{prefix}{ncols}{suffix}'
+                        fixed_rest = re.sub(r'(\\multicolumn\{)\d+(\}\{[cr]\})', fix_mc, rest)
+                        result.append(f'{begin_tag}{pre}{fixed_rest}{end_tag}')
+                        continue
 
-                    hm = re.search(r"\\hline\s*(.*?)\s*\\hline", rest, re.DOTALL)
+                    hm = re.search(r'\\hline\s*(.*?)\s*\\hline', rest, re.DOTALL)
                     if not hm:
-                        return m.group(0)
+                        result.append(f'{begin_tag}{body}{end_tag}')
+                        continue
 
                     hdr = hm.group(1).strip()
                     after = rest[hm.end():]
-                    clean_spec = re.sub(r"\{[^\}]*\}", "", col_spec)
-                    clean_spec = re.sub(r"[@><!|]", "", clean_spec).strip()
-                    spec_cols = len(clean_spec) if len(clean_spec) > 0 else 0
-                    first_row = re.split(r"\\\\|\\cline", hdr)[0].strip()
-                    ncols = spec_cols if spec_cols > 0 else (first_row.count("&") + 1)
-                    hdr_colored = hdr if "rowcolor" in hdr else f"\\rowcolor{{tableHeaderBg}} {hdr}"
+                    first_row = re.split(r'\\\\|\\cline', hdr)[0].strip()
+                    ncols_hdr = first_row.count('&') + 1
+                    if ncols <= 0:
+                        ncols = ncols_hdr
 
-                    res = (
-                        f"{pre}\\hline\n"
-                        f"{hdr_colored}\n"
-                        f"\\hline\n"
-                        r"\endfirsthead" + "\n\n"
-                        f"\\multicolumn{{{ncols}}}{{c}}{{{{\\bfseries \\tablename\\ \\thetable{{}} -- Continued from previous page}}}} \\\\[6pt]\n"
-                        r"\hline" + "\n"
-                        f"{hdr_colored}\n"
-                        r"\hline" + "\n"
-                        r"\endhead" + "\n\n"
-                        r"\hline" + "\n"
-                        f"\\multicolumn{{{ncols}}}{{r}}{{{{\\footnotesize \\textit{{Continued on next page\\ldots}}}}}} \\\\\n"
-                        r"\endfoot" + "\n\n"
-                        r"\hline" + "\n"
-                        r"\endlastfoot" + "\n"
-                        f"{after}"
+                    hdr_colored = hdr if 'rowcolor' in hdr else f'\\rowcolor{{tableHeaderBg}} {hdr}'
+
+                    table_block = (
+                        f'{begin_tag}\n'
+                        f'{pre}\\hline\n'
+                        f'{hdr_colored}\n'
+                        f'\\hline\n'
+                        r'\endfirsthead' + '\n\n'
+                        f'\\multicolumn{{{ncols}}}{{c}}{{{{\\bfseries \\tablename\\ \\thetable{{}} -- Continued from previous page}}}} \\\\[6pt]\n'
+                        r'\hline' + '\n'
+                        f'{hdr_colored}\n'
+                        r'\hline' + '\n'
+                        r'\endhead' + '\n\n'
+                        r'\hline' + '\n'
+                        f'\\multicolumn{{{ncols}}}{{r}}{{{{\\footnotesize \\textit{{Continued on next page\\ldots}}}}}} \\\\\n'
+                        r'\endfoot' + '\n\n'
+                        r'\hline' + '\n'
+                        r'\endlastfoot' + '\n'
+                        f'{after}'
+                        f'{end_tag}'
                     )
-                    return f"{begin}{res}{end}"
+                    result.append(table_block)
 
-                return pattern.sub(_fix_table, tex)
+                return ''.join(result)
 
             full_tex = _ensure_longtable_headers(full_tex)
 

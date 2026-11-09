@@ -168,7 +168,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
 
     # Generate Table 5.1 rows (per-girder section properties)
     t51_rows = []
-    for lbl, _ in girder_entries:
+    for _gi, (lbl, _) in enumerate(girder_entries, start=1):
+        if _gi > 1 and (_gi - 1) % 2 == 0:
+            t51_rows.append(r"\pagebreak")
         t51_rows.append(
             r"\multirow{13}{*}{\makecell{" + lbl + r"""}} & \textnormal{Depth, D (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_TOTAL_DEPTH) + r""" \\[6pt]
 \cline{2-3}
@@ -245,7 +247,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
         _shear_ur_str = ""
         _shear_status = "---"
     t54_rows = []
-    for lbl, _ in girder_entries:
+    for _gi, (lbl, _) in enumerate(girder_entries, start=1):
+        if _gi > 1 and (_gi - 1) % 2 == 0:
+            t54_rows.append(r"\pagebreak")
         t54_rows.append(
             r"\multirow{8}{*}{\makecell{" + lbl + r"""}} & Applied Shear, $V_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_VU, " kN") + r""" & --- \\[6pt]
 \cline{2-5}
@@ -293,7 +297,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
         _mn_val    = f"{_mn_r:.3f}"
         _mn_status = _interaction_status(_mn_r)
     t55_rows = []
-    for lbl, _ in girder_entries:
+    for _gi, (lbl, _) in enumerate(girder_entries, start=1):
+        if _gi > 1 and (_gi - 1) % 3 == 0:
+            t55_rows.append(r"\pagebreak")
         t55_rows.append(
             r"\multirow{4}{*}{\makecell{" + lbl + r"""}} & High Shear Condition? & $V_u > 0.6\,V_d$ & """ + _render_value(bridge.output_dict, KEY_SD_HIGH_SHEAR) + r""" & --- \\[6pt]
 \cline{2-5}
@@ -316,7 +322,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
         _ltb_ur_str = ""
         _ltb_status = "---"
     t56_rows = []
-    for lbl, _ in girder_entries:
+    for _gi, (lbl, _) in enumerate(girder_entries, start=1):
+        if _gi > 1 and (_gi - 1) % 3 == 0:
+            t56_rows.append(r"\pagebreak")
         t56_rows.append(
             r"\multirow{5}{*}{\makecell{" + lbl + r"""}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 & """ + _render_value(bridge.output_dict, KEY_SD_LTB_MCR, " kN-m") + r""" & --- \\[6pt]
 \cline{2-5}
@@ -333,7 +341,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
 
     # Generate Table 5.7 rows
     t57_rows = []
-    for lbl, _ in girder_entries:
+    for _gi, (lbl, _) in enumerate(girder_entries, start=1):
+        if _gi > 1 and (_gi - 1) % 3 == 0:
+            t57_rows.append(r"\pagebreak")
         t57_rows.append(
             r"\multirow{6}{*}{\makecell{" + lbl + r"""}} & \textnormal{Shear Buckling Design Method} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_METHOD) + r""" \\[6pt]
 \cline{2-3}
@@ -381,7 +391,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
 \vspace{1em}
 
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
-\caption{Intermediate Stiffener Checks}
+\caption{\textbf{Intermediate Stiffener Checks}} \label{tab:intermediate_stiffener_checks} \\
 \hline
 \textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
@@ -411,7 +421,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
     _ps_req, _ps_prov, _ps_st = _bs_check(KEY_SD_BS_FPSD)
     _cb_req, _cb_prov, _cb_st = _bs_check(KEY_SD_BS_FCD)
     t59_rows = []
-    for lbl, _ in girder_entries:
+    for _gi, (lbl, _) in enumerate(girder_entries, start=1):
+        if _gi > 1 and (_gi - 1) % 3 == 0:
+            t59_rows.append(r"\pagebreak")
         t59_rows.append(
             r"\multirow{4}{*}{\makecell{" + lbl + r"""}} & Web Buckling Resistance & """ + _wb_req + r""" & """ + _wb_prov + r""" & """ + _wb_st + r""" \\[6pt]
 \cline{2-5}
