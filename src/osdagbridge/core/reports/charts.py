@@ -101,7 +101,11 @@ def girder_utilization_chart(outputs, directory, inputs=None):
                     rotation=90, fontsize=9)
             continue
         detail = " ".join(part for part in (check.member, check.label) if part)
-        ax.bar(i, check.ratio, width=0.58, color="#" + BRAND_GREEN)
+        # Pattern and text retain the distinction in grayscale as well as color.
+        failed = status == "FAIL"
+        ax.bar(i, check.ratio, width=0.58,
+               color="#B33A3A" if failed else "#287A66",
+               edgecolor="#202020", hatch="///" if failed else None)
         ax.annotate(f"{check.ratio:.3f} {status}\n{fill(detail, 21)}",
                     (i, check.ratio), xytext=(0, 5), textcoords="offset points",
                     ha="center", va="bottom", fontsize=8)

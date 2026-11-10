@@ -52,6 +52,7 @@ def test_utilization_chart_vertical_axes_and_missing(monkeypatch, tmp_path):
         captured["ylabel"] = ax.get_ylabel()
         captured["xlim"] = ax.get_xlim()
         captured["bars"] = [(bar.get_height(), bar.get_width()) for bar in ax.patches]
+        captured["styles"] = [(bar.get_facecolor(), bar.get_hatch()) for bar in ax.patches]
         captured["lines"] = [(list(line.get_ydata()), line.get_color(), line.get_linestyle()) for line in ax.lines]
         captured["texts"] = [text.get_text() for text in ax.texts]
 
@@ -68,3 +69,14 @@ def test_utilization_chart_vertical_axes_and_missing(monkeypatch, tmp_path):
     assert ([1.0, 1.0], "red", "--") in captured["lines"]
     assert sum(text == "Not available" for text in captured["texts"]) == 2
     assert any("1.577  FAIL" in text or "1.577 FAIL" in text for text in captured["texts"])
+    assert captured["styles"][0][0] != captured["styles"][1][0]
+    assert captured["styles"][0][1] == "///" and captured["styles"][1][1] is None
+    assert any("PASS" in text for text in captured["texts"])
+
+
+def test_crash_barrier_ambiguous_area_is_not_converted_to_zero():
+    from osdagbridge.core.boq.boq_generator import calculate_material_quantities
+    for area in (0.3023, 302300):
+        quantities = calculate_material_quantities({"typical_section.crash_barrier.area": area}, {})
+        assert quantities["crash_barrier_vol_total"] == "N.A."
+        assert quantities["crash_barrier_wt_total"] == "N.A."

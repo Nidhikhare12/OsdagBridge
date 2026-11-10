@@ -35,7 +35,7 @@ def ch7_quantities(input_dict, chart_path=None):
 \hline
 \end{longtable}
 \endgroup
-\noindent\textit{Reinforcement mass is a quantity estimate using """ + f"{REINFORCEMENT_ESTIMATE_KG_PER_M3:g}" + r""" kg/m\textsuperscript{3} of deck concrete.}
+\noindent\textit{Reinforcement mass is a quantity estimate using """ + f"{REINFORCEMENT_ESTIMATE_KG_PER_M3:g}" + r""" kg/m\textsuperscript{3} of deck concrete. Crash barrier quantities are unavailable because the stored area has no reliable unit.}
 """ + chart
 
 

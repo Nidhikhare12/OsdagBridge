@@ -333,34 +333,11 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 quantities[f"{prefix}_wt_total"] = "N.A."
 
         # 6. Crash Barrier (Cu.m) and Weight (MT)
-        KEY_CB_AREA = "typical_section.crash_barrier.area"
-        cb_area = 0.0
-        cb_area_val = inputs.get(KEY_CB_AREA)
-        
-        if cb_area_val is not None:
-            try:
-                cb_area = float(cb_area_val) / 1e6
-            except Exception:
-                pass
-        
-        if cb_area > 0.0:
-            cb_vol = cb_area * span
-            quantities["crash_barrier_vol_formula"] = f"${cb_area:.5f}\\text{{ m}}^2 \\times {span:.2f}\\text{{ m}} = {cb_vol:.5f}\\text{{ m}}^3$"
-            quantities["crash_barrier_qty"] = "2"
-            
-            cb_total_vol = 2 * cb_vol
-            quantities["crash_barrier_vol_total"] = f"{cb_total_vol:.2f}"
-            
-            single_cb_wt = cb_vol * 2.5
-            total_cb_wt = cb_total_vol * 2.5
-            quantities["crash_barrier_wt_single"] = f"{single_cb_wt:.2f}"
-            quantities["crash_barrier_wt_total"] = f"{total_cb_wt:.2f}"
-        else:
-            quantities["crash_barrier_vol_formula"] = "N.A."
-            quantities["crash_barrier_qty"] = "N.A."
-            quantities["crash_barrier_vol_total"] = "N.A."
-            quantities["crash_barrier_wt_single"] = "N.A."
-            quantities["crash_barrier_wt_total"] = "N.A."
+        # This key has incompatible producers: defaults store mm², while the
+        # desktop dialog stores m².  No unit accompanies the persisted value.
+        # Do not silently convert an ambiguous value into a false quantity.
+        for field in ("vol_formula", "qty", "vol_total", "wt_single", "wt_total"):
+            quantities[f"crash_barrier_{field}"] = "N.A."
 
     except Exception as exc:
         logger.warning(f"Error calculating material quantities: {exc}")
