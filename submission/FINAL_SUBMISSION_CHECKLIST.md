@@ -1,3 +1,5 @@
+> November 10: latest desktop source revision `c5ec65bf334106e72cd8a1607f70f890771f764c`; 25 tests passed. Use the current nine-page technical report and manifest.
+
 # Final FOSSEE submission checklist
 
 The public Winter 2026 announcement lists **23 November 2026** as the registration and submission deadline. The public Osdag instructions request a resume PDF, video URL, report PDF and supporting ZIP. The submission form returned HTTP 401 during verification, so its precise fields, access requirements and validation cannot be independently confirmed.

@@ -1,6 +1,6 @@
 # Reproduce the OsdagBridge reports
 
-The original baseline is the detached worktree at `d74f56dd7f22925fb8148cabf5740ed8d1e39ff3`. The enhanced report was produced from `80e44e595357af4b6cb3e1efd0623cc1cb598cca` on `feat/fossee-latex-reports`. Later packaging commits can contain evidence and documentation.
+The original baseline is the detached worktree at `d74f56dd7f22925fb8148cabf5740ed8d1e39ff3`. The current enhanced report was produced from `c5ec65bf334106e72cd8a1607f70f890771f764c` on `feat/fossee-latex-reports`. Later packaging commits can contain evidence and documentation.
 
 `test-design.osi` is a 30 m optimized plate girder test bridge configured in the desktop application. It uses a 7.5 m carriageway in Mumbai (Colaba), four girders, and no footpath or median. It has failing structural checks. Use it to reproduce the software result.
 

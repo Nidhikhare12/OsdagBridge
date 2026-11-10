@@ -21,3 +21,11 @@
 - Wind reference speed and pressure can come from IRC 6 Table 12. Missing wind and seismic force outputs are explicitly marked. The application still emits thermal load case warnings.
 
 Current correction: Osdag exports member efficiency but does not identify its governing denominator. The installed compression design assigns it using member compression capacity and also connection capacity at different stages. The report displays the stored efficiency separately and marks the verified cross-bracing ratio unavailable.
+
+## Independent final-pass findings (2026-11-10)
+
+- `chap2._bracing_tables` prints the saved member ID. `defaults.py` builds `B1M1 to B1M1` when the number of bracings is one; this is an endpoint convention, not evidence of a missing second member.
+- The cross-bracing summary contains the distinct slenderness check 134 / 250 = 0.536. It is not the governing axial capacity ratio. Member efficiencies 0.740 and 0.610 have no identified governing denominator and are not plotted as verified capacity ratios.
+- `boq_generator.calculate_material_quantities` previously divided the stored crash-barrier area by 1e6 even though `defaults.py` writes mm² and the Additional Inputs dialog writes m² under the same key without a unit. The new output marks the barrier quantity unavailable pending an unambiguous unit; no dimensions or weight are inferred.
+- `charts.girder_utilization_chart` now gives FAIL bars a red hatch and PASS bars a distinct solid color. Explicit status labels and the dashed red threshold remain. `test_report_material_charts.py` tests the pattern, contrasting colors, labels, threshold, missing values and ambiguity handling.
+- Source functions: `chap2.ch2_input_parameters` / `_bracing_tables`, `chap3.ch3_loads`, `chap4.ch4_analysis`, `chap5.ch5_design_checks`, `chap7.ch7_quantities`, `styles.fit_table_columns`, `report_generator.preamble` / `generate_report`, `charts.girder_utilization_chart` / `material_chart`, and `utilization.component_checks`. Shared page geometry, header/footer, row spacing and table settings enter through the report preamble and longtable macro; figure dimensions and chart DPI are in shared styles. Some chapter-specific figure and typography values remain local.

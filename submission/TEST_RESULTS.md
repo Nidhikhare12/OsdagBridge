@@ -1,6 +1,8 @@
+> Current evidence: the November 10 desktop report was built from `c5ec65bf334106e72cd8a1607f70f890771f764c`. Both desktop compiler passes and both independent portable compiler passes succeeded; 25 tests passed. The nine-page technical report includes direct baseline comparison and current charts. Earlier sections below are historical.
+
 # Test results and report verification
 
-The final report was generated on 9 November 2026 from source commit `80e44e595357af4b6cb3e1efd0623cc1cb598cca` using the preserved test-design.osi and report selections. The displayed report date matches the original comparison report. The source changes in the subsequent packaging commit contain documentation only.
+The earlier report was generated on 9 November 2026 from source commit `80e44e595357af4b6cb3e1efd0623cc1cb598cca` using the preserved test-design.osi and report selections. The displayed report date matches the original comparison report. The source changes in the subsequent packaging commit contain documentation only.
 
 | Verification | Result |
 | --- | --- |
@@ -34,6 +36,11 @@ The official detailed task document was not accessible beyond its title to the b
 
 The source and tests were unchanged during the handoff. The recorded 24-test run was inspected and was not rerun. The 57-page report and original baseline hashes match the captured manifest. The input and output snapshots confirm the girder and deck values, the two stored cross-bracing efficiencies, and empty diaphragm results. The desktop log identifies source commit 80e44e595357af4b6cb3e1efd0623cc1cb598cca and records two successful pdfTeX passes. The portable recompilation record reports matching text and renders.
 
-The technical changes report now has six pages. Pages 5–6 compare genuine crops from the historical enhanced draft and current report. The earlier draft is explicitly labeled. Its current SHA-256 is recorded in evidence/manifest.json.
+At the November 9 handoff the technical changes report had six pages. Pages 5–6 compare genuine crops from the historical enhanced draft and current report. The earlier draft is explicitly labeled. Its current SHA-256 is recorded in evidence/manifest.json.
 
 The read-only GitHub fork check on 9 November 2026 found no feat/fossee-latex-reports branch on origin. The fork's default dev branch responded at the original baseline. Publication and collaborator access are the applicant's manual actions.
+
+## Final independent pass (2026-11-10)
+
+On Python 3.12.16, the command `python -m pytest -q` with `OSDAG_PDFLATEX` set to the bundled executable and `OSDAG_PDF_PYTHON` set to the separate Python 3.13 installation containing PyMuPDF produced **25 passed in 9.83s**, with no skips. The earlier attempt produced 24 passed and one failure because the helper accidentally pointed to the Conda Python without PyMuPDF. Both logs are retained as `evidence/pytest-nov10.log` and `evidence/pytest-nov10-corrected.log`. The test suite includes actual two-pass TeX pagination compilation. The new test covers ambiguous barrier-area units; the chart test asserts distinct fills and hatching as well as explicit status labels.
+The November 10 desktop run loaded `submission/test-design.osi`, completed actual analysis at 100%, and exited 0. The report worker invoked pdfTeX twice, with return codes 0 and 0. A separate two-pass portable compilation also returned 0 and matched all 57 text and rendered pages. The final report has 13 overfull-box notices, 20 recovered infinite-glue notices, zero missing-character notices, and the analysis reported 27 missing thermal-load-case warnings. Contact sheets and geometry checks cover all 57 pages; no footer intrusions were flagged by that geometry check. These observations apply to this test design and do not certify other reports or structural designs.
