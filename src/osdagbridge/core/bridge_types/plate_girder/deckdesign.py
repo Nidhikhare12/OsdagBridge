@@ -25,7 +25,7 @@ from osdagbridge.core.utils.codes.irc22_2015 import IRC22_2014
 from osdagbridge.core.utils.codes.keyfile import KEY_VEHICLE
 from osdagbridge.core.utils.common import (
     KEY_SPAN, KEY_CARRIAGEWAY_WIDTH, KEY_DECK_CONCRETE_GRADE_BASIC,
-    KEY_TS_GIRDER_SPACING, KEY_TS_DECK_OVERHANG, KEY_TS_DECK_THICKNESS,
+    KEY_TS_GIRDER_SPACING, KEY_TS_DECK_OVERHANG, KEY_TS_OVERALL_WIDTH, KEY_TS_DECK_THICKNESS,
     KEY_DS_REINF_MATERIAL, KEY_DS_TOP_CLEAR_COVER, KEY_DS_BOTTOM_CLEAR_COVER,
     KEY_DS_REINF_BOUNDS, KEY_WC_THICKNESS, KEY_MP_CB_SPACING,
     # Report output keys — stored in output_dict["deck_report_values"]
@@ -506,7 +506,9 @@ def collect_deck_verdict(result: dict) -> dict:
 
 def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: float, Ecm: float,
                      *, design_results: dict | None = None,
-                     bf_top_mm: float = 0.0, stud_height_mm: float = 0.0) -> tuple[dict, dict]:
+                     bf_top_mm: float = 0.0, stud_height_mm: float = 0.0,
+                     deck_thk: float = 0.0 ,
+                     optimisation: bool = False) -> tuple[dict, dict]:
     """
     Design the concrete deck slab of a plate girder bridge.
 
@@ -564,7 +566,7 @@ def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: f
 
     beam_spacing_m = float(inp[KEY_TS_GIRDER_SPACING])
     overhang_m = float(inp[KEY_TS_DECK_OVERHANG])
-    deck_t_mm = float(inp[KEY_TS_DECK_THICKNESS])
+    deck_t_mm = deck_thk if deck_thk > 0 else float(inp[KEY_TS_DECK_THICKNESS])
     wc_t_m = float(inp[KEY_WC_THICKNESS]) / 1000.0   # wearing course thickness (m)
     from osdagbridge.core.bridge_types.plate_girder.plategirderbridge import resolve_cb_value
     cb_spacing_m = float(resolve_cb_value(inp, KEY_MP_CB_SPACING) or 3.0)  # longitudinal cross-bracing spacing (m)
@@ -1137,7 +1139,22 @@ def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: f
             "ur_composite_crack"        : ur_composite_crack,
             "ur_composite_conc_stress"  : ur_composite_conc_stress,
             "ur_composite_rebar_stress" : ur_composite_rebar_stress,
-        })
+        })       
+    
+    if optimisation:
+        verdict = collect_deck_verdict(result)
+        status = verdict["status"]
+        if status == STATUS_PASS:
+            span_length = input_dict[KEY_SPAN]
+            deck_width = input_dict[KEY_TS_OVERALL_WIDTH]
+            reinf_area_volume = ((As_top + As_bot + As_oh) * span_length + As_long * deck_width) / 1e6    # in m^3
+            from osdagbridge.core.utils.common import DEFAULT_STEEL_DENSITY
+            total_deck_weight = deck_t_mm * span_length * deck_width * gamma_concrete_kN_m3 / 1e3 + reinf_area_volume * (DEFAULT_STEEL_DENSITY - gamma_concrete_kN_m3)  # in kN
+        else:
+            import numpy as np
+            total_deck_weight = np.inf
+        return {"slab_weight": total_deck_weight, "status": status} , {}
+            
 
     # Deck verdict — per-check PASS/FAIL dict (built from the URs above)
     result[KEY_DD_VERDICT] = collect_deck_verdict(result)
