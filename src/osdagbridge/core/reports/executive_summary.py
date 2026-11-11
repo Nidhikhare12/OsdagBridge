@@ -14,46 +14,6 @@ from osdagbridge.core.utils.common import (
 )
 
 
-def _max_float(values):
-    """Return the largest value coercible to float, or None if there are none."""
-    out = None
-    for v in values:
-        try:
-            f = float(v)
-        except (TypeError, ValueError):
-            continue
-        if out is None or f > out:
-            out = f
-    return out
-
-
-def _max_member_efficiency(pair_designs):
-    """Maximum Osdag 'efficiency' (utilization ratio) over a cross-bracing or
-    end-diaphragm result dump (nested pair -> member -> force_type -> raw).
-    Reads already-computed results only; nothing is recalculated here."""
-    from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
-    if not isinstance(pair_designs, dict):
-        return None
-    best = None
-    for members in pair_designs.values():
-        if not isinstance(members, dict):
-            continue
-        for force_types in members.values():
-            if not isinstance(force_types, dict):
-                continue
-            for raw in force_types.values():
-                try:
-                    val = _extract_osdag_summary(raw or {}).get("efficiency")
-                    if val is None:
-                        continue
-                    f = float(val)
-                except (TypeError, ValueError, AttributeError):
-                    continue
-                if best is None or f > best:
-                    best = f
-    return best
-
-
 def executive_summary(input_dict, output_dict, fig_paths) -> str:
     plan_fig = _fig_or_placeholder(fig_paths.get('girder_top'), 'Figure 1 -- Overall Bridge Plan')
     cs_fig = _fig_or_placeholder(fig_paths.get('cross_section'),
@@ -66,66 +26,20 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     # in output_dict (not input_dict).
     sec = _render_value(output_dict, KEY_SD_SECTION_DESIGNATION)
 
-    # ── Pull the stored result dicts once, then work off these locals ─────────
-    # (no value is recomputed here — the pipeline already filled these in).
-    design_results = output_dict.get("design_results", {}) or {}
-    per_girder     = design_results.get("per_girder", {}) or {}
-    deck_results   = output_dict.get("deck_design_results", {}) or {}
-    cb_results     = output_dict.get("crossbracing_design_results", {}) or {}
-    ed_results     = output_dict.get("end_diaphragm_design_results", {}) or {}
-
-    # Overall Design Status — girder checks only: Pass if every check passes,
-    # otherwise Fail with the names of the failing checks. Each check carries a
-    # pre-computed {name, dcr, status}.
-    failing = []                        # failing check names (order-preserving, deduped)
-    gov_name, gov_dcr = "", None
-    girder_max_ur = None
-    for g, gd in per_girder.items():
-        if str(g).startswith("EB"):     # skip edge-beam pseudo girders
-            continue
-        for chk in (gd.get("checks") or []):
-            try:
-                _val = chk.get("dcr")
-                if _val is None:
-                    dcr = None
-                else:
-                    dcr = float(_val)
-            except (TypeError, ValueError):
-                dcr = None
-            name = str(chk.get("name", "")).strip()
-            is_fail = ("FAIL" in str(chk.get("status", "")).upper()) or (dcr is not None and dcr > 1.0)
-            if is_fail and name and name not in failing:
-                failing.append(name)
-            if dcr is not None:
-                if gov_dcr is None or dcr > gov_dcr:
-                    gov_dcr, gov_name = dcr, name
-                if girder_max_ur is None or dcr > girder_max_ur:
-                    girder_max_ur = dcr
-
-    if not per_girder:
-        overall_design_status = ""
-    elif failing:
-        overall_design_status = "Fail (" + ", ".join(failing) + ")"
+    from osdagbridge.core.reports.report_data import check_records, governing_checks
+    report_checks = check_records(output_dict, input_dict)
+    component_checks = governing_checks(report_checks)
+    outcomes = r" \\ ".join(_tex(r.component + ": " + r.status) for r in component_checks)
+    known = [r for r in component_checks if r.ur is not None]
+    overall_design_status = ("Fail" if any(r.ur > 1 for r in known) else
+                             "Incomplete - results unavailable" if len(known) < 4 else "Pass")
+    if known:
+        controlling = max(known, key=lambda r: r.ur)
+        overall_utilization_ratio = f"{controlling.ur:.3f} ({controlling.component})"
+        gov_name = controlling.check
     else:
-        overall_design_status = "Pass"
-
-    # Overall Utilization Ratio — the maximum UR across all bridge components,
-    # tagged with the governing component (e.g. "1.05 (Deck slab)").
-    component_urs = []                  # (ur_value, component_label)
-    if girder_max_ur is not None:
-        component_urs.append((girder_max_ur, "Girder"))
-    deck_max = _max_float([v for k, v in deck_results.items() if str(k).startswith("ur_")])
-    if deck_max is not None:
-        component_urs.append((deck_max, "Deck slab"))
-    for results, label in ((cb_results, "Cross bracing"), (ed_results, "End diaphragm")):
-        m = _max_member_efficiency(results)
-        if m is not None:
-            component_urs.append((m, label))
-    if component_urs:
-        max_ur, max_label = max(component_urs, key=lambda t: t[0])
-        overall_utilization_ratio = f"{max_ur:.2f} ({max_label})"
-    else:
-        overall_utilization_ratio = ""
+        overall_utilization_ratio = "Not available"
+        gov_name = "Not available"
 
     gov = _tex(gov_name) if gov_name not in (None, '', 'None') else ''
     ur = _tex(overall_utilization_ratio) if overall_utilization_ratio else ''
@@ -144,6 +58,9 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     girder_col_cm = round(max(1.5, (15.0 - label_col_cm) / n_cols), 1)
     col_spec = '|C{' + str(label_col_cm) + 'cm}|' + '|'.join(['C{' + str(girder_col_cm) + 'cm}'] * n_cols) + '|'
 
+    from osdagbridge.core.reports.styles import fit_table_columns
+    col_spec = fit_table_columns(col_spec)
+
     # Header row
     hdr_cells = ' &\n  '.join([r'\textbf{' + _tex(lbl) + '}' for lbl, _ in labels])
     header_row = r'  \textbf{} &' + '\n  ' + hdr_cells + r' \\' + '\n'
@@ -155,9 +72,13 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     # Section / Governing Check / UR rows
     sec_cells = ' & '.join([sec] * n_cols)
     sections = f"Section Designation & {sec_cells} \\\\"
-    gov_cells = ' & '.join([gov] * n_cols)
+    member_checks = []
+    for label, _ in labels:
+        candidates = [r for r in report_checks if r.member == label and r.ur is not None]
+        member_checks.append(max(candidates, key=lambda r: r.ur) if candidates else None)
+    gov_cells = ' & '.join(_tex(r.check) if r else 'Not available' for r in member_checks)
     gov_checks = f"Governing Check & {gov_cells} \\\\"
-    ur_cells = ' & '.join([ur] * n_cols)
+    ur_cells = ' & '.join(f'{r.ur:.3f} ({r.status})' if r else 'Not available' for r in member_checks)
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
     table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
@@ -222,7 +143,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 """ + cs_fig + '\n\n' + geom_fig + '\n\n' + table1 + r"""
 
 \vspace{0.4em}
-\noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value $< 1.0$ indicates a passing check.}
+\noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value $\leq 1.0$ indicates a passing check.}
 
 \vspace{1em}
 
@@ -230,10 +151,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
 \label{sec:key-outcomes}
 
-\noindent Girder design pass \\
-Cross bracing design pass \\
-End Diaphragm design pass \\
-Deck design pass
+\noindent """ + outcomes + r"""
 
 \section*{Design Assumptions and Limitations}
 \addcontentsline{toc}{section}{Design Assumptions and Limitations}

@@ -55,53 +55,77 @@ form the basis of all design calculations in this software.
 
 \vspace{0.5cm}
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{longtable}{|C{2.5cm}|C{2.0cm}|L{11.5cm}|}
+\caption{\textbf{IRC Codes}} \label{tab:irc_codes} \\
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
+\rowcolor{tableHeaderBg} \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
-IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
-\hline
-IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\ 
-\hline
-IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\ 
-\hline
-IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\ 
-\hline
-IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\ 
-\hline
-IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
-\hline
-\end{tabular}
-\end{table}
+\endfirsthead
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\multicolumn{3}{c}{{\bfseries \tablename\ \thetable{} -- Continued from previous page}} \\[6pt]
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Scope} \\
+\rowcolor{tableHeaderBg} \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
-IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\
+\endhead
+
 \hline
-IS 456 & 2000 & Concrete - simplified stress-block for deck moment capacity \\
+\multicolumn{3}{r}{{\footnotesize \textit{Continued on next page\ldots}}} \\
+\endfoot
+
 \hline
-IS 1786 & 2008 & Reinforcement steel properties \\
+\endlastfoot
+
+IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\[6pt]
 \hline
-IS 1893 (Part 3) & 2014 & Earthquake resistant design \\
+IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\[6pt]
 \hline
-IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
+IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\[6pt]
 \hline
-\end{tabular}
-\end{table}
+IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\[6pt]
+\hline
+IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\[6pt]
+\hline
+IRC SP 114 & 2018 & Seismic Design of Road Bridges \\[6pt]
+\hline
+\end{longtable}
+
+\vspace{1em}
+
+\begin{longtable}{|C{2.5cm}|C{2.0cm}|L{11.5cm}|}
+\caption{\textbf{IS Codes}} \label{tab:is_codes} \\
+\hline
+\rowcolor{tableHeaderBg} \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
+\hline
+\endfirsthead
+
+\multicolumn{3}{c}{{\bfseries \tablename\ \thetable{} -- Continued from previous page}} \\[6pt]
+\hline
+\rowcolor{tableHeaderBg} \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{3}{r}{{\footnotesize \textit{Continued on next page\ldots}}} \\
+\endfoot
+
+\hline
+\endlastfoot
+
+IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\[6pt]
+\hline
+IS 456 & 2000 & Concrete - simplified stress-block for deck moment capacity \\[6pt]
+\hline
+IS 1786 & 2008 & Reinforcement steel properties \\[6pt]
+\hline
+IS 1893 (Part 3) & 2014 & Earthquake resistant design \\[6pt]
+\hline
+IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\[6pt]
+\hline
+\end{longtable}
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}
-\label{sec:assumptions}
+\label{sec:ch8_assumptions}
 
 \textbf{Structural Analysis}
 
@@ -149,7 +173,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \begin{itemize}
 \item Dead load densities per IRC 6:2017 Cl.203: structural steel $78.5 \ \text{kN/m}^3$, concrete $25.0 \ \text{kN/m}^3$, bituminous wearing course $24.0 \ \text{kN/m}^3$.
 \item Multi-lane live load reduction factors per IRC 6:2017 Cl.204.4 Table 6A: 1st lane = 1.0, 2nd lane = 0.8, 3rd lane onwards = 0.4.
-\item Impact factor (dynamic load allowance) computed from span per IRC 6:2017 Cl.208.2/208.3.
+\item Impact factor (dynamic load allowance) computed from span per IRC 6:2017 Cl.208.2/\allowbreak 208.3.
 \item Wind load applied as transverse, longitudinal, and vertical components per IRC 6:2017 Cl.209.3.3--209.3.5.
 \end{itemize}
 

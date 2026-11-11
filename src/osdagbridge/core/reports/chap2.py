@@ -96,67 +96,103 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 
 \noindent\textit{Note: These inputs are mandatory and were provided by the user.}
 
-\begin{table}[H]
-\caption{\textbf{Project Location}}
-\label{subsec:project-location}
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\begin{longtable}{|L{5.5cm}|L{8.5cm}|}
+\caption{\textbf{Project Location}} \label{subsec:project-location} \\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHeaderBg} \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Project Location} & """ + _tex(m.project_location) + r""" \\
-\hline
-\textnormal{Latitude / Longitude} & """ + (_render_value(input_dict,'latitude')) + ', ' + (_render_value(input_dict,'longitude')) + r""" \\
-\hline
-\textnormal{Seismic Zone (IRC 6)} & """ + (_render_value(input_dict,'seismic_zone')) + r""" \\
-\hline
-\textnormal{Basic Wind Speed (IRC 6)} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" \\
-\hline
-\textnormal{Shade Temp. Max / Min (IRC 6)} & """ + (_render_value(input_dict,'shade_temp_max','')) + r""" °C / """ + (_render_value(input_dict,'shade_temp_min','')) + r""" °C \\
-\hline
-\end{tabular}
-\vspace{0.4cm}
-\end{table}
+\endfirsthead
 
-\begin{table}[H]
-\caption{\textbf{Bridge Geometry}}
-\label{subsec:bridge-geometry}
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\multicolumn{2}{c}{{\bfseries \tablename\ \thetable{} -- Continued from previous page}} \\[6pt]
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHeaderBg} \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Type of Structure} & """ + (_render_value(input_dict, KEY_STRUCTURE_TYPE)) + r""" \\
+\endhead
+
 \hline
-\textnormal{Span (m)} & """ + (_render_value(input_dict, KEY_SPAN, ' m')) + r""" \\
+\multicolumn{2}{r}{{\footnotesize \textit{Continued on next page\ldots}}} \\
+\endfoot
+
 \hline
-\textnormal{Carriageway Width (m)} & """ + (_render_value(input_dict, KEY_CARRIAGEWAY_WIDTH, ' m')) + r""" \\
+\endlastfoot
+
+\textnormal{Project Location} & """ + _tex(m.project_location) + r""" \\[6pt]
 \hline
-\textnormal{Include Median} & """ + (_render_value(input_dict, KEY_INCLUDE_MEDIAN)) + r""" \\
+\textnormal{Latitude / Longitude} & """ + (_render_value(input_dict,'latitude')) + ', ' + (_render_value(input_dict,'longitude')) + r""" \\[6pt]
 \hline
-\textnormal{Footpath} & """ + (_render_value(input_dict, KEY_FOOTPATH)) + r""" \\
+\textnormal{Seismic Zone (IRC 6)} & """ + (_render_value(input_dict,'seismic_zone')) + r""" \\[6pt]
 \hline
-\textnormal{Skew Angle (degrees)} & """ + (_render_value(input_dict, KEY_SKEW_ANGLE, '°')) + r""" (IRC 24 Cl. 504.8 limit: $\pm$15°) \\
+\textnormal{Basic Wind Speed (IRC 6)} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" \\[6pt]
 \hline
-\end{tabular}
-\end{table}
+\textnormal{Shade Temp. Max / Min (IRC 6)} & """ + (_render_value(input_dict,'shade_temp_max','')) + r""" $^\circ$C / """ + (_render_value(input_dict,'shade_temp_min','')) + r""" $^\circ$C \\[6pt]
+\hline
+\end{longtable}
 \vspace{0.4cm}
 
-\begin{table}[H]
-\caption{\textbf{Material Selection}}
-\label{subsec:material}
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\begin{longtable}{|L{5.5cm}|L{8.5cm}|}
+\caption{\textbf{Bridge Geometry}} \label{subsec:bridge-geometry} \\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHeaderBg} \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Girder Steel Grade (IS 2062)} & """ + (_render_value(input_dict, KEY_GIRDER)) + r""" \\
+\endfirsthead
+
+\multicolumn{2}{c}{{\bfseries \tablename\ \thetable{} -- Continued from previous page}} \\[6pt]
 \hline
-\textnormal{Cross Bracing Steel Grade} & """ + (_render_value(input_dict, KEY_CROSS_BRACING)) + r""" \\
+\rowcolor{tableHeaderBg} \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{End Diaphragm Steel Grade} & """ + (_render_value(input_dict, KEY_END_DIAPHRAGM)) + r""" \\
+\endhead
+
 \hline
-\textnormal{Concrete Deck Grade (IRC 22)} & """ + (_render_value(input_dict, KEY_DECK_CONCRETE_GRADE_BASIC)) + r""" \\
+\multicolumn{2}{r}{{\footnotesize \textit{Continued on next page\ldots}}} \\
+\endfoot
+
 \hline
-\end{tabular}
-\end{table}
+\endlastfoot
+
+\textnormal{Type of Structure} & """ + (_render_value(input_dict, KEY_STRUCTURE_TYPE)) + r""" \\[6pt]
+\hline
+\textnormal{Span (m)} & """ + (_render_value(input_dict, KEY_SPAN, ' m')) + r""" \\[6pt]
+\hline
+\textnormal{Carriageway Width (m)} & """ + (_render_value(input_dict, KEY_CARRIAGEWAY_WIDTH, ' m')) + r""" \\[6pt]
+\hline
+\textnormal{Include Median} & """ + (_render_value(input_dict, KEY_INCLUDE_MEDIAN)) + r""" \\[6pt]
+\hline
+\textnormal{Footpath} & """ + (_render_value(input_dict, KEY_FOOTPATH)) + r""" \\[6pt]
+\hline
+\textnormal{Skew Angle (degrees)} & """ + (_render_value(input_dict, KEY_SKEW_ANGLE, r'$^\circ$')) + r""" (IRC 24 Cl. 504.8 limit: $\pm$15$^\circ$) \\[6pt]
+\hline
+\end{longtable}
+\vspace{0.4cm}
+
+\begin{longtable}{|L{5.5cm}|L{8.5cm}|}
+\caption{\textbf{Material Selection}} \label{subsec:material} \\
+\hline
+\rowcolor{tableHeaderBg} \textbf{parameter} & \textbf{value} \\
+\hline
+\endfirsthead
+
+\multicolumn{2}{c}{{\bfseries \tablename\ \thetable{} -- Continued from previous page}} \\[6pt]
+\hline
+\rowcolor{tableHeaderBg} \textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{{\footnotesize \textit{Continued on next page\ldots}}} \\
+\endfoot
+
+\hline
+\endlastfoot
+
+\textnormal{Girder Steel Grade (IS 2062)} & """ + (_render_value(input_dict, KEY_GIRDER)) + r""" \\[6pt]
+\hline
+\textnormal{Cross Bracing Steel Grade} & """ + (_render_value(input_dict, KEY_CROSS_BRACING)) + r""" \\[6pt]
+\hline
+\textnormal{End Diaphragm Steel Grade} & """ + (_render_value(input_dict, KEY_END_DIAPHRAGM)) + r""" \\[6pt]
+\hline
+\textnormal{Concrete Deck Grade (IRC 22)} & """ + (_render_value(input_dict, KEY_DECK_CONCRETE_GRADE_BASIC)) + r""" \\[6pt]
+\hline
+\end{longtable}
 \vspace{0.4cm}
 
 \newpage
@@ -168,7 +204,7 @@ Where the user has modified additional inputs, those values are reported here. W
 \vspace{0.8cm}
 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Typical Section Details}}
+\caption{\textbf{Typical Section Details}} \\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -191,7 +227,7 @@ Where the user has modified additional inputs, those values are reported here. W
 \vspace{0.8em}
 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Components Details}}
+\caption{\textbf{Components Details}} \label{tab:components_details} \\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -307,7 +343,7 @@ def _girder_tables(input_dict, n_girders):
 \begin{longtable}{|L{2.2cm}|L{1.8cm}|p{3.8cm}|p{3.8cm}|p{3.8cm}|}
 \caption{\textbf{Girder General Information}}
 \hline
-\textbf{Girder} & \textbf{Member ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
+\textbf{Girder} & \textbf{Mem\-ber ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
 \hline
 """
             + gen_rows
@@ -331,7 +367,7 @@ def _girder_tables(input_dict, n_girders):
 \begin{longtable}{|L{1.4cm}|p{2.2cm}|p{2.2cm}|p{3.0cm}|p{2.4cm}|p{2.2cm}|}
 \caption{\textbf{Girder Restraint and Stiffener Details}}\\
 \hline
-\textbf{Girder} & \textbf{Torsional / Warping Restraint} & \textbf{Web Philosophy} & \textbf{Intermediate Stiffeners} & \textbf{Longitudinal Stiffeners} & \textbf{Bearing Stiffener} \\[6pt]
+\textbf{Girder} & \textbf{Torsional / Warp\-ing Restraint} & \textbf{Web Philo\-sophy} & \textbf{Inter\-mediate Stiffeners} & \textbf{Longi\-tudinal Stiffeners} & \textbf{Bearing Stiffener} \\[6pt]
 \hline
 \endfirsthead
 \endhead
@@ -389,9 +425,9 @@ def _bracing_tables(input_dict, n_girders):
 \setlength\LTright{\fill}
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
-\caption{\textbf{Member Properties: Cross Bracing Details}}
+\caption{\textbf{Mem\-ber Properties: Cross Bracing Details}}
 \hline
-\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
+\textbf{Location} & \textbf{Mem\-ber IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
 \hline
 """
 + cb_rows
@@ -404,9 +440,9 @@ def _bracing_tables(input_dict, n_girders):
 \setlength\LTright{\fill}
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
-\caption{\textbf{Member Properties: End Diaphragm Details}}
+\caption{\textbf{Mem\-ber Properties: End Diaphragm Details}}
 \hline
-\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
+\textbf{Location} & \textbf{Mem\-ber IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
 \hline
 """
 + ed_rows

@@ -48,6 +48,7 @@ dependencies = [
   "shapely",
   "pydantic>=2.0",
   "matplotlib>=3.5",
+  "pylatex>=1.4",
   "openseespy>=3.2.2.6",
   "opsvis>=1.0",
   "xarray",
@@ -56,10 +57,14 @@ dependencies = [
 [project.optional-dependencies]
 test = [
   "pytest>=6.2.2",
+  "pypdf>=3",
+  "pillow>=9",
 ]
 
 dev = [
   "pytest>=6.2.2",
+  "pypdf>=3",
+  "pillow>=9",
 ]
 
 # Package data
