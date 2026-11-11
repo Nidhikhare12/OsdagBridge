@@ -586,6 +586,9 @@ def _format_project_location(pl_data):
 # ---------------------------------------------------------------------------
 
 def build_report_payload(request, input_dict, output_dict):
+    from copy import deepcopy
+    input_dict = deepcopy(input_dict)
+    output_dict = deepcopy(output_dict)
     try:
         rd  = request.metadata.report_date or datetime.date.today().isoformat()
         lp  = request.metadata.logo_path
@@ -740,11 +743,13 @@ def generate_report(payload, request):
     # type: (ReportPayload, ReportRequest) -> ReportResult
     """Compile the full OsdagBridge Design Report to PDF (+ .tex source)."""
     tex_path = None
+    from copy import deepcopy
+    payload = deepcopy(payload)
     try:
         # Use OsdagLatexEnv to discover the bundled pdflatex path, with robust fallbacks
         compiler = 'pdflatex'
-        miktex_pdflatex = r"C:\Users\Asus\AppData\Local\Programs\MiKTeX\miktex\bin\x64\pdflatex.exe"
-        tectonic_exe = r"C:\Users\Asus\Projects\Winter-internship\bin\tectonic.exe"
+        miktex_pdflatex = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "MiKTeX", "miktex", "bin", "x64", "pdflatex.exe")
+        tectonic_exe = shutil.which("tectonic") or ""
         if shutil.which('pdflatex'):
             compiler = 'pdflatex'
         elif os.path.exists(miktex_pdflatex):
@@ -785,7 +790,7 @@ def generate_report(payload, request):
                     p = os.path.join(tmp_images, attr + '.png')
                     with open(p, 'wb') as fh:
                         fh.write(img_bytes)
-                    fig_paths[attr] = p.replace('\\', '/')
+                    fig_paths[attr] = 'images/' + attr + '.png'
             payload.figure_data.clear()  # bytes no longer needed — free RAM now
 
             # ── Write title-page logos into tmp_dir/assets (auto-deleted) ──
@@ -817,43 +822,14 @@ def generate_report(payload, request):
                     generate_ur_summary_chart,
                     generate_material_quantity_charts,
                 )
-                pg_ur = 0.82
-                deck_ur = 0.68
-                cb_ur = 0.54
-                ed_ur = 0.48
-                try:
-                    per_girder = (payload.output_dict.get("design_results", {}) or {}).get("per_girder", {}) or {}
-                    urs = []
-                    for g_data in per_girder.values():
-                        if isinstance(g_data, dict):
-                            for c_data in g_data.get("checks", {}).values():
-                                if isinstance(c_data, dict) and "ur" in c_data:
-                                    try:
-                                        urs.append(float(c_data["ur"]))
-                                    except (ValueError, TypeError):
-                                        pass
-                    if urs:
-                        pg_ur = max(urs)
-                except Exception:
-                    pass
+                from osdagbridge.core.reports.report_data import check_records, governing_checks
+                if payload.options.include_figures:
+                    if 'design_checks' in payload.options.sections:
+                        checks = governing_checks(check_records(payload.output_dict, payload.inputs))
+                        generate_ur_summary_chart(*(r.ur for r in checks),
+                            output_path=os.path.join(tmp_images, "ur_summary.png"))
+                    generate_material_quantity_charts(quantities, tmp_images)
 
-                try:
-                    deck_res = payload.output_dict.get("deck_design_results", {}) or {}
-                    deck_urs = []
-                    for k, v in deck_res.items():
-                        if "ur" in k.lower():
-                            try:
-                                deck_urs.append(float(v))
-                            except (ValueError, TypeError):
-                                pass
-                    if deck_urs:
-                        deck_ur = max(deck_urs)
-                except Exception:
-                    pass
-
-                ur_chart_path = os.path.join(tmp_images, "ur_summary.png")
-                generate_ur_summary_chart(pg_ur, deck_ur, cb_ur, ed_ur, ur_chart_path)
-                generate_material_quantity_charts(payload.inputs, tmp_images)
             except Exception as e:
                 logger.warning("Dynamic visualization generation failed: %s", e)
 
@@ -1001,7 +977,9 @@ def generate_report(payload, request):
                         continue
 
                     col_spec = tex[col_start : p - 1]
-                    begin_tag = tex[start_env : p]
+                    from osdagbridge.core.reports.styles import fit_table_columns
+                    fitted_spec = fit_table_columns(col_spec)
+                    begin_tag = tex[start_env : col_start] + fitted_spec + '}'
 
                     end_pattern = re.compile(r'\\end\{longtable\}')
                     end_m = end_pattern.search(tex, p)
@@ -1011,8 +989,21 @@ def generate_report(payload, request):
                         continue
 
                     body = tex[p : end_m.start()]
+                    # A member label must survive page breaks; multirow cells cannot.
+                    member_pattern = re.compile(r'\\multirow\{(\d+)\}\{\*\}\{\\makecell\{([^{}]+)\}\}')
+                    while (member_match := member_pattern.search(body)):
+                        count, label = int(member_match.group(1)), member_match.group(2)
+                        tail = body[member_match.end():]
+                        first_line, separator, remainder = tail.partition('\n')
+                        remainder = re.sub(r'(?m)^([ \t]*)&', lambda m: m.group(1) + label + ' &', remainder, count=count - 1)
+                        tail = first_line + separator + remainder
+                        body = body[:member_match.start()] + label + tail
                     end_tag = end_m.group(0)
                     last_end = end_m.end()
+
+                    if r'\endfirsthead' in body and r'\endhead' in body:
+                        result.append(begin_tag + body + end_tag)
+                        continue
 
                     ncols = _parse_col_spec_count(col_spec)
 
@@ -1084,6 +1075,8 @@ def generate_report(payload, request):
 
                 return ''.join(result)
 
+            if not payload.options.include_figures:
+                full_tex = re.sub(r'\\begin\{figure\}.*?\\end\{figure\}', '', full_tex, flags=re.DOTALL)
             full_tex = _ensure_longtable_headers(full_tex)
 
             # Copy image assets to request.output_dir as well
@@ -1104,32 +1097,50 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
+            if not request.options.include_pdf:
+                shutil.copy2(tmp_tex, tex_path)
+                return ReportResult(pdf_path=None, tex_path=tex_path)
+            compile_ok = True
             # Compile twice for TOC and references
-            for _ in range(2):
+            for pass_index in range(3):
                 try:
                     kwargs = {
                         'cwd': tmp_dir,
                         'stdout': subprocess.PIPE,
                         'stderr': subprocess.PIPE,
                         'check': False,
+                        'timeout': 180,
                         'env': os.environ.copy()
                     }
                     if os.name == 'nt':
                         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
                     
+                    command = ([compiler, request.file_stem + '.tex', '--keep-logs'] if 'tectonic' in os.path.basename(compiler).lower() else
+                               [compiler, '-interaction=nonstopmode', '-halt-on-error', request.file_stem + '.tex'])
                     res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
+                        command,
                         **kwargs
                     )
+                    if res.returncode != 0:
+                        compile_ok = False
+                        break
+                    if pass_index >= 1 and b'Rerun to get cross-references right' not in res.stdout:
+                        break
                 except Exception as exc:
+                    compile_ok = False
                     logger.warning(f"pdflatex run failed: {exc}")
+                    break
 
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)
-            if os.path.exists(tmp_pdf):
+            tmp_log = os.path.join(tmp_dir, request.file_stem + '.log')
+            if os.path.exists(tmp_log):
+                shutil.copy2(tmp_log, os.path.join(request.output_dir, request.file_stem + '.log'))
+            generated_pdf = compile_ok and os.path.exists(tmp_pdf)
+            if generated_pdf:
                 shutil.copy2(tmp_pdf, pdf_path)
 
-        if os.path.exists(pdf_path):
+        if generated_pdf:
             logger.info("Report generated: %s", pdf_path)
             return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
 

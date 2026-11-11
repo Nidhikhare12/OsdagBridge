@@ -7,6 +7,7 @@
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,
     KEY_FOOTPATH,
+    KEY_TS_FOOTPATH_WIDTH,
     KEY_LL_CUSTOM_VEHICLES,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
@@ -56,82 +57,83 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value
+from osdagbridge.core.reports.report_data import selected, numeric
 from osdagbridge.core.reports.styles import TABCOLSEP, ARRAYSTRETCH
 
 def ch3_loads(input_dict):
     from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
 
     span = input_dict.get(KEY_SPAN)
-    span_m = 30.0
+    span_m = None
     if span not in (None, ""):
         try:
             span_m = float(span)
         except Exception:
-            span_m = 30.0
+            span_m = None
 
     lanes = input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT)
-    lanes_int = 2
+    lanes_int = None
     if lanes not in (None, ""):
         try:
             lanes_int = int(lanes)
         except Exception:
-            lanes_int = 2
+            lanes_int = None
 
     # Calculate standard braking force per IRC 6 Cl. 211
     try:
         braking_force_t = IRC6_2017.cl_211_2_braking_force(lanes_int)
         braking_force_kN = braking_force_t * 9.81
     except Exception:
-        braking_force_kN = 200.0
+        braking_force_kN = None
 
     # Impact factors per IRC 6 Cl. 208
     try:
         im_a = IRC6_2017.cl_208_2_impact_factor(span_m)
         impact_a_str = f"{1.0 + im_a:.3f}"
     except Exception:
-        impact_a_str = "1.150"
+        impact_a_str = "Not available"
 
     try:
         im_aa = IRC6_2017.cl_208_3_impact_factor(span_m)
         impact_heavy_str = f"{1.0 + im_aa:.3f}"
     except Exception:
-        impact_heavy_str = "1.100"
+        impact_heavy_str = "Not available"
 
     # ── 1. Vehicular Live Load Rows ──────────────────────────────────────────
     # Check each vehicle explicitly based on UI input_dict selection
     vehicle_rows = []
     
-    if input_dict.get(KEY_LL_IRC_CLASS_A):
+    if selected(input_dict.get(KEY_LL_IRC_CLASS_A)):
         vehicle_rows.append(
-            r"IRC Class A & " + impact_a_str + r" & " + f"{braking_force_kN:.2f} kN" + r" & 0.00 kN & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
+            r"IRC Class A & " + impact_a_str + r" & " + (f"{braking_force_kN:.2f}" if braking_force_kN is not None else "Not available") + r" & Not available & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
         )
-    if input_dict.get(KEY_LL_IRC_70R_WHEELED):
+    if selected(input_dict.get(KEY_LL_IRC_70R_WHEELED)):
         vehicle_rows.append(
-            r"IRC Class 70R (Wheeled) & " + impact_heavy_str + r" & " + f"{braking_force_kN:.2f} kN" + r" & 0.00 kN & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
+            r"IRC Class 70R (Wheeled) & " + impact_heavy_str + r" & " + (f"{braking_force_kN:.2f}" if braking_force_kN is not None else "Not available") + r" & Not available & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
         )
-    if input_dict.get(KEY_LL_IRC_70R_TRACKED):
+    if selected(input_dict.get(KEY_LL_IRC_70R_TRACKED)):
         vehicle_rows.append(
-            r"IRC Class 70R (Tracked) & " + impact_heavy_str + r" & " + f"{braking_force_kN:.2f} kN" + r" & 0.00 kN & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
+            r"IRC Class 70R (Tracked) & " + impact_heavy_str + r" & " + (f"{braking_force_kN:.2f}" if braking_force_kN is not None else "Not available") + r" & Not available & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
         )
-    if input_dict.get(KEY_LL_IRC_AA_WHEELED):
+    if selected(input_dict.get(KEY_LL_IRC_AA_WHEELED)):
         vehicle_rows.append(
-            r"IRC Class AA (Wheeled) & " + impact_heavy_str + r" & " + f"{braking_force_kN:.2f} kN" + r" & 0.00 kN & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
+            r"IRC Class AA (Wheeled) & " + impact_heavy_str + r" & " + (f"{braking_force_kN:.2f}" if braking_force_kN is not None else "Not available") + r" & Not available & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
         )
-    if input_dict.get(KEY_LL_IRC_AA_TRACKED):
+    if selected(input_dict.get(KEY_LL_IRC_AA_TRACKED)):
         vehicle_rows.append(
-            r"IRC Class AA (Tracked) & " + impact_heavy_str + r" & " + f"{braking_force_kN:.2f} kN" + r" & 0.00 kN & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
+            r"IRC Class AA (Tracked) & " + impact_heavy_str + r" & " + (f"{braking_force_kN:.2f}" if braking_force_kN is not None else "Not available") + r" & Not available & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
         )
-    if input_dict.get(KEY_LL_IRC_CLASS_SV):
+    if selected(input_dict.get(KEY_LL_IRC_CLASS_SV)):
         vehicle_rows.append(
-            r"IRC Special Vehicle (Class SV) & 1.000 & " + f"{braking_force_kN:.2f} kN" + r" & 0.00 kN & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
+            r"IRC Special Vehicle (Class SV) & Not available & " + (f"{braking_force_kN:.2f}" if braking_force_kN is not None else "Not available") + r" & Not available & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
         )
-    if input_dict.get(KEY_LL_IRC_70R_BOGIE):
+    if selected(input_dict.get(KEY_LL_IRC_70R_BOGIE)):
         vehicle_rows.append(
-            r"IRC Class 70R (Bogie) & " + impact_heavy_str + r" & " + f"{braking_force_kN:.2f} kN" + r" & 0.00 kN & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
+            r"IRC Class 70R (Bogie) & " + impact_heavy_str + r" & " + (f"{braking_force_kN:.2f}" if braking_force_kN is not None else "Not available") + r" & Not available & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
         )
-    if input_dict.get(KEY_LL_IRC_CLASS_FATIGUE):
+    if selected(input_dict.get(KEY_LL_IRC_CLASS_FATIGUE)):
         vehicle_rows.append(
-            r"IRC Fatigue Vehicle & 1.000 & -- & -- & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
+            r"IRC Fatigue Vehicle & Not available & -- & -- & Selected per IRC 6 Cl. 204 \\" + "\n" + r"\hline"
         )
 
     custom = input_dict.get(KEY_LL_CUSTOM_VEHICLES)
@@ -139,37 +141,30 @@ def ch3_loads(input_dict):
         for c in custom:
             name = c.get('name', 'Custom Vehicle') if isinstance(c, dict) else str(c)
             vehicle_rows.append(
-                _tex(name) + r" & 1.000 & " + f"{braking_force_kN:.2f} kN" + r" & 0.00 kN & Custom User Vehicle \\" + "\n" + r"\hline"
+                _tex(name) + r" & Not available & " + (f"{braking_force_kN:.2f}" if braking_force_kN is not None else "Not available") + r" & Not available & Custom User Vehicle \\" + "\n" + r"\hline"
             )
 
     if not vehicle_rows:
-        vehicle_rows_str = r"No Vehicular Live Load & 1.000 & 0.00 kN & 0.00 kN & Not Selected in UI \\" + "\n" + r"\hline"
+        vehicle_rows_str = r"No Vehicular Live Load & Not applicable & Not applicable & Not applicable & Not Selected in UI \\" + "\n" + r"\hline"
     else:
         vehicle_rows_str = "\n".join(vehicle_rows)
 
     # ── 2. Footway Live Load Parameters ──────────────────────────────────────
-    fp_mode  = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "")
-    fp_value = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE, "")
-    if str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
+    fp_mode = str(input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "")).strip()
+    fp_value = numeric(input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE))
+    if fp_mode.lower() in ("as per irc 6", "as per irc6", "automatic"):
         try:
-            fp_intensity = f"{IRC6_2017.cl_206_1_footway_load():.2f}"
+            fp_value = numeric(IRC6_2017.cl_206_1_footway_load())
         except Exception:
-            fp_intensity = "4.00"
-    elif fp_value not in (None, ""):
-        fp_intensity = f"{float(fp_value):.2f}"
+            fp_value = None
+    footpath_type = str(input_dict.get(KEY_FOOTPATH, "")).strip().lower()
+    width = numeric(input_dict.get(KEY_TS_FOOTPATH_WIDTH))
+    if footpath_type in ("none", "no", "0"):
+        fp_intensity = fp_width_str = fp_linear_kN_m = "Not applicable"
     else:
-        fp_intensity = "4.00"
-
-    footpath_type = str(input_dict.get(KEY_FOOTPATH, "None")).strip()
-    if footpath_type.lower() == "both":
-        fp_width_str = "1.50 m (Both sides, Total = 3.0 m)"
-        fp_linear_kN_m = f"{float(fp_intensity) * 1.5:.2f} kN/m per side"
-    elif footpath_type.lower() in ("left", "right", "one"):
-        fp_width_str = "1.50 m (Single side)"
-        fp_linear_kN_m = f"{float(fp_intensity) * 1.5:.2f} kN/m"
-    else:
-        fp_width_str = "1.50 m (Standard Provision)"
-        fp_linear_kN_m = f"{float(fp_intensity) * 1.5:.2f} kN/m"
+        fp_intensity = f"{fp_value:.2f}" if fp_value is not None else "Not available"
+        fp_width_str = f"{width:.2f} per side" if width is not None else "Not available"
+        fp_linear_kN_m = f"{fp_value * width:.2f} per side" if fp_value is not None and width is not None else "Not available"
 
     # Vz / Pz Wind
     vz_val = input_dict.get(KEY_WL_HOURLY_MEAN_WIND)
@@ -340,13 +335,13 @@ This chapter summarizes all dead, live, environmental, and thermal loads applied
 \begin{longtable}{|L{4.2cm}|C{2.4cm}|C{2.8cm}|C{2.8cm}|L{3.3cm}|}
 \caption{\textbf{Vehicular Live Load Specifications (IRC 6:2017)}} \label{tab:vehicular_ll} \\
 \hline
-\rowcolor{tableHeaderBg} \textbf{Vehicle Class} & \textbf{Impact Factor} & \textbf{Braking Load (kN)} & \textbf{Centrifugal Force (kN)} & \textbf{Selection Status} \\
+\rowcolor{tableHeaderBg} \textbf{Vehicle Class} & \textbf{Impact multiplier (1 + IF)} & \textbf{Braking Load (kN)} & \textbf{Centrifugal Force (kN)} & \textbf{Selection Status} \\
 \hline
 \endfirsthead
 
 \multicolumn{5}{c}{{\bfseries \tablename\ \thetable{} -- Continued from previous page}} \\[6pt]
 \hline
-\rowcolor{tableHeaderBg} \textbf{Vehicle Class} & \textbf{Impact Factor} & \textbf{Braking Load (kN)} & \textbf{Centrifugal Force (kN)} & \textbf{Selection Status} \\
+\rowcolor{tableHeaderBg} \textbf{Vehicle Class} & \textbf{Impact multiplier (1 + IF)} & \textbf{Braking Load (kN)} & \textbf{Centrifugal Force (kN)} & \textbf{Selection Status} \\
 \hline
 \endhead
 
@@ -382,7 +377,7 @@ This chapter summarizes all dead, live, environmental, and thermal loads applied
 \hline
 \endlastfoot
 
-Applied Pedestrian Live Load Intensity & """ + fp_intensity + r""" & kN/m\textsuperscript{2} & IRC 6:2017 Clause 206.1 \\
+Applied Pedestrian Live Load Intensity & """ + fp_intensity + r""" & kN/m\textsuperscript{2} & """ + _tex(fp_mode or "Mode not supplied") + r""" \\
 \hline
 Footpath Effective Width & """ + fp_width_str + r""" & m & Pedestrian Walkway Width \\
 \hline
@@ -464,9 +459,9 @@ Uniform Linear Footpath Force & """ + fp_linear_kN_m + r""" & kN/m & Linear gril
 \hline
 \textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF)) + r""" \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Force (longitudinal)} & 0.00 kN \\[6pt]
+\textnormal{Horizontal Seismic Force (longitudinal)} & Not available \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Force (transverse)} & 0.00 kN \\[6pt]
+\textnormal{Horizontal Seismic Force (transverse)} & Not available \\[6pt]
 \hline
 \end{longtable}
 

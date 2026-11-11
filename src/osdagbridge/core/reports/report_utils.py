@@ -15,13 +15,13 @@ def _tex(value):
     # that pdflatex cannot render.
     for uni, ascii_ in [('∠', 'L'), ('ⅹ', 'x'), ('×', 'x')]:
         s = s.replace(uni, ascii_)
-    s = s.replace('\\', r'\textbackslash{}')
-    for ch, esc in [('&', r'\&'), ('%', r'\%'), ('$', r'\$'), ('#', r'\#'),
-                    ('{', r'\{'), ('}', r'\}'),          
-                    ('_', r'\_\allowbreak{}'),            
-                    ('~', r'\textasciitilde{}'), ('^', r'\^{}')]:
-        s = s.replace(ch, esc)
-    s = s.replace(':', r':\allowbreak{}')
+    escapes = {
+        "\\": r"\textbackslash{}", "&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#",
+        "{": r"\{", "}": r"\}", "_": r"\_\allowbreak{}", "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}", ":": r":\allowbreak{}",
+    }
+    s = ''.join(escapes.get(ch, ch) for ch in s)
+
     return s
 
 
@@ -110,6 +110,6 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
     # fbox placeholder — matches template exactly
     return (r'\noindent\fbox{\parbox{0.97\textwidth}{' + '\n'
             r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
-            r'}}')
+            r'}}\par\medskip')
 
 

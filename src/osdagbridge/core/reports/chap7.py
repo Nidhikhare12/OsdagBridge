@@ -19,13 +19,13 @@ This chapter details the comprehensive Bill of Materials (BOM) for all structura
 \begin{longtable}{|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
 \caption{\textbf{Bill of Materials (Steel, Concrete, and Reinforcement Quantities)}} \label{tab:bom} \\
 \hline
-\rowcolor{tableHeaderBg} \textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
+\rowcolor{tableHeaderBg} \textbf{No.} & \textbf{Item Description} & \textbf{Vol.} & \textbf{Qty.} & \textbf{Total Volume} & \textbf{Wt. (MT)} & \textbf{Total Wt. (MT)} \\
 \hline
 \endfirsthead
 
 \multicolumn{7}{c}{{\bfseries \tablename\ \thetable{} -- Continued from previous page}} \\[6pt]
 \hline
-\rowcolor{tableHeaderBg} \textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
+\rowcolor{tableHeaderBg} \textbf{No.} & \textbf{Item Description} & \textbf{Vol.} & \textbf{Qty.} & \textbf{Total Volume} & \textbf{Wt. (MT)} & \textbf{Total Wt. (MT)} \\
 \hline
 \endhead
 
@@ -54,6 +54,7 @@ This chapter details the comprehensive Bill of Materials (BOM) for all structura
 \hline
 \end{longtable}
 \endgroup
+\noindent\textit{Reinforcement weight is an estimate using 120 kg per cubic metre of concrete. End-diaphragm quantity is not available from the backend.}
 
 \vspace{1.5em}
 \begin{figure}[H]

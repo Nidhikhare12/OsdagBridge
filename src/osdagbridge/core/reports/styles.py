@@ -30,7 +30,7 @@ COLOR_TEXT_HEX          = "212121"   # Deep charcoal body text
 COLOR_PASS_HEX          = "2E7D32"   # Forest Green: Safe (UR <= 0.85)
 COLOR_WARN_HEX          = "F57C00"   # Amber Orange: Critical (0.85 < UR <= 1.0)
 COLOR_FAIL_HEX          = "D32F2F"   # Crimson Red: Failing / Violation (UR > 1.0)
-COLOR_THRESHOLD_HEX     = "D32F2F"   # Red dashed line for UR = 1.0 limit state
+COLOR_THRESHOLD_HEX     = "FF0000"   # Red dashed line for UR = 1.0 limit state
 
 # Chart Palettes (Hex values for matplotlib)
 CHART_PRIMARY_COLOR      = f"#{COLOR_PRIMARY_HEX}"
@@ -47,8 +47,8 @@ MARGIN_TOP               = "20mm"
 MARGIN_BOTTOM            = "20mm"
 MARGIN_LEFT              = "20mm"
 MARGIN_RIGHT             = "20mm"
-HEAD_HEIGHT              = "20pt"
-HEADHEIGHT               = "20pt"
+HEAD_HEIGHT              = "52pt"
+HEADHEIGHT               = "52pt"
 FOOT_SKIP                = "30pt"
 FOOTSKIP                 = "30pt"
 HEAD_SEP                 = "12pt"
@@ -84,7 +84,7 @@ TABLE_CONFIG = {
     "extrarowheight": EXTRAROWHEIGHT,# Extra vertical space per row
     "LTpre": LTPRE,                  # Space before longtable
     "LTpost": LTPOST,                # Space after longtable
-    "needspace_lines": 6,            # Minimum remaining lines to begin table
+    "needspace_lines": 12,            # Minimum remaining lines to begin table
 }
 
 # ── Typography & Line Spacing ──────────────────────────────────────────────
@@ -134,6 +134,7 @@ def get_latex_preamble(project_name: str, job_number: str, report_date: str, rep
 \usepackage{{makecell}}
 \usepackage{{etoolbox}}
 \usepackage{{needspace}}
+\setlength{{\emergencystretch}}{{2em}}
 
 % ── Color Definitions ─────────────────────────────────────────
 \definecolor{{osdagGreen}}{{HTML}}{{{COLOR_PRIMARY_HEX}}}
@@ -176,14 +177,14 @@ def get_latex_preamble(project_name: str, job_number: str, report_date: str, rep
 \setlength{{\LTright}}{{\fill}}
 
 % Buffer control: prevent orphan tables and margin bleed
-\BeforeBeginEnvironment{{table}}{{\needspace{{{TABLE_CONFIG['needspace_lines']}\baselineskip}}}}
-\BeforeBeginEnvironment{{longtable}}{{\needspace{{{TABLE_CONFIG['needspace_lines']}\baselineskip}}}}
+\BeforeBeginEnvironment{{table}}{{\Needspace{{{TABLE_CONFIG['needspace_lines']}\baselineskip}}}}
+\BeforeBeginEnvironment{{longtable}}{{\Needspace{{{TABLE_CONFIG['needspace_lines']}\baselineskip}}}}
 
 % ── Running Headers and Footers ─────────────────────────────────
 \fancypagestyle{{main}}{{
   \fancyhf{{}}
-  \fancyhead[L]{{\small\textsf{{{pn} $|$ {jn}}}}}
-  \fancyhead[R]{{\small\textsf{{{rd} $|$ {rv}}}}}
+  \fancyhead[L]{{\parbox[b]{{0.60\headwidth}}{{\raggedright\footnotesize\textsf{{{pn} $|$ {jn}}}}}}}
+  \fancyhead[R]{{\parbox[b]{{0.36\headwidth}}{{\raggedleft\footnotesize\textsf{{{rd} $|$ {rv}}}}}}}
   \fancyfoot[L]{{\footnotesize\textsf{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}}}
   \fancyfoot[R]{{\footnotesize\textsf{{Page \thepage\ of \pageref{{LastPage}}}}}}
   \renewcommand{{\headrule}}{{\color{{osdagGreen}}\hrule width\headwidth height 1pt \vspace{{2pt}}}}
@@ -198,8 +199,8 @@ def get_latex_preamble(project_name: str, job_number: str, report_date: str, rep
 
 \fancypagestyle{{plain}}{{
   \fancyhf{{}}
-  \fancyhead[L]{{\small\textsf{{{pn} $|$ {jn}}}}}
-  \fancyhead[R]{{\small\textsf{{{rd} $|$ {rv}}}}}
+  \fancyhead[L]{{\parbox[b]{{0.60\headwidth}}{{\raggedright\footnotesize\textsf{{{pn} $|$ {jn}}}}}}}
+  \fancyhead[R]{{\parbox[b]{{0.36\headwidth}}{{\raggedleft\footnotesize\textsf{{{rd} $|$ {rv}}}}}}}
   \fancyfoot[L]{{\footnotesize\textsf{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}}}
   \fancyfoot[R]{{\footnotesize\textsf{{Page \thepage\ of \pageref{{LastPage}}}}}}
   \renewcommand{{\headrule}}{{\color{{osdagGreen}}\hrule width\headwidth height 1pt \vspace{{2pt}}}}
@@ -323,3 +324,18 @@ def create_pylatex_longtable(col_spec: str, caption: str, label: str, header_col
         return lt
     except ImportError:
         return None
+
+
+def fit_table_columns(spec):
+    """Fit fixed-width table columns to the text area, including rules and padding."""
+    import re
+    pattern = re.compile(r"([pLCR])\{([0-9.]+)cm\}")
+    widths = [float(m.group(2)) for m in pattern.finditer(spec)]
+    if not widths or sum(widths) < 14:
+        return spec
+    count, total = len(widths), sum(widths)
+    def replace(match):
+        share = float(match.group(2)) / total
+        return (match.group(1) + r"{\dimexpr" + f"{share:.6f}" + r"\linewidth-2\tabcolsep-"
+                + f"{(count + 1) / count:.6f}" + r"\arrayrulewidth\relax}")
+    return pattern.sub(replace, spec)

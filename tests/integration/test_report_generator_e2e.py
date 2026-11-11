@@ -672,7 +672,7 @@ class TestTier4RealWorldE2EExecution:
             `Report_After.pdf` must be present in the project directory, non-empty,
             and valid with a substantial page count (> 15 pages).
         """
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "docs", "reports"))
         report_after_path = os.path.join(project_root, "Report_After.pdf")
 
         assert os.path.exists(report_after_path), (
@@ -709,7 +709,7 @@ class TestTier4RealWorldE2EExecution:
             3. Dynamic bar charts: Report_After contains UR charts and quantity charts (0 in Before).
             4. Footer bleed: Report_After eliminates negative footrule vertical offset.
         """
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "docs", "reports"))
         before_tex_path = os.path.join(project_root, "Report_Before.tex")
         after_tex_path = os.path.join(project_root, "Report_After.tex")
 

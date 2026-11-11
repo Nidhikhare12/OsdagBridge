@@ -99,17 +99,17 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 
 \caption{\textbf{Summary of Maximum Demands}}\\
 \hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
+\textbf{Load case}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
 & \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
+& \multicolumn{2}{c|}{\makecell{\textbf{Support}\\\textbf{reactions}}}\\
 \cline{2-9}
 
 & \makecell{\textbf{Max}\\\textbf{(kNm)}}
-& \textbf{Girder}
+& \textbf{Gdr.}
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
 & \makecell{\textbf{Max}\\\textbf{(kN)}}
-& \textbf{Girder}
+& \textbf{Gdr.}
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
 & \makecell{\textbf{Left}}
 & \makecell{\textbf{Right }}\\
@@ -117,17 +117,17 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \endfirsthead
 
 \hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
+\textbf{Load case}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
 & \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
+& \multicolumn{2}{c|}{\makecell{\textbf{Support}\\\textbf{reactions}}}\\
 \cline{2-9}
 
 & \makecell{\textbf{Max}\\\textbf{(kNm)}}
-& \textbf{Girder}
+& \textbf{Gdr.}
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
 & \makecell{\textbf{Max}\\\textbf{(kN)}}
-& \textbf{Girder}
+& \textbf{Gdr.}
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
 & \makecell{\textbf{Left}}
 & \makecell{\textbf{Right}}\\
