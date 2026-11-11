@@ -323,7 +323,8 @@ def _girder_tables(input_dict, n_girders):
 \hline
 """
             + dim_rows
-            + r"""\end{longtable}
+            + r"""
+            \end{longtable}
 
 \vspace{0.6em}
 
@@ -334,8 +335,10 @@ def _girder_tables(input_dict, n_girders):
 \textbf{Girder} & \textbf{Torsional / Warping Restraint} & \textbf{Web Philosophy} & \textbf{Intermediate Stiffeners} & \textbf{Longitudinal Stiffeners} & \textbf{Bearing Stiffener} \\[6pt]
 \hline
 \endfirsthead
+\hline
+\textbf{Girder} & \textbf{Torsional / Warping Restraint} & \textbf{Web Philosophy} & \textbf{Intermediate Stiffeners} & \textbf{Longitudinal Stiffeners} & \textbf{Bearing Stiffener} \\[6pt]
+\hline
 \endhead
-
 """
             + rst_rows
             + r"""\end{longtable}
