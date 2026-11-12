@@ -410,7 +410,7 @@ class MaterialPropertiesDialog(QDialog):
             line_edit = QLineEdit()
             line_edit.setFixedWidth(242)
             apply_field_style(line_edit)
-            line_edit.setValidator(QDoubleValidator(0.0, 99999.0, 1))
+            line_edit.setValidator(QDoubleValidator(0.0, 99999.0, 3))
             line_edit.textEdited.connect(self._handle_user_override)
             if self.is_deck_material and key in (KEY_MATERIAL_DECK_FCK, KEY_MATERIAL_DECK_FCTM):
                 line_edit.textEdited.connect(self._update_custom_material_name)
