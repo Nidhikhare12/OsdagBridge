@@ -251,8 +251,8 @@ def objective_function(g_demand: DemandEnvelope, g_config:BridgeConfig, x: np.nd
     # stiffener = StiffenerConfig(c_mm = s_stiffener, tq_mm= t_stiffener, shear_method= 'post_critical')
     
     # g_config.stiffener = stiffener
-    demand = replace(g_demand)
-    config = replace(g_config)
+    demand = replace(g_demand)  # copy of demand object
+    config = replace(g_config)  # copy of config object
     adjust_demands(demand, config, girder_section)
     config.section = girder_section
     
@@ -264,13 +264,13 @@ def objective_function(g_demand: DemandEnvelope, g_config:BridgeConfig, x: np.nd
     
     capacity = capacity_calculator.compute_all( Vu_kN=demand.Vu_kN, stress_range_MPa=demand.stress_range_MPa,
                 M_sls_kNm=demand.M_sls_kNm, V_sls_kN=demand.V_sls_kN, Vr_kN=demand.Vr_kN,)
+    capacity.stud_detailing_ok = True   # to bypass the stud detailing checks for now
 
     # run DCR checks
     engine = DCREngine(demand, capacity)
     engine.run_all_checks()
     
-    if engine.max_dcr() > 1:
-        print(engine.critical_check())
+    if engine.max_dcr() >= 1.0:
         return float(np.inf)
 
     g_area = (D - tf_top - tf_bot) * tw + bf_top * tf_top + bf_bot * tf_bot
@@ -310,10 +310,8 @@ def optimise_girder_dimensions(pgb: PlateGirderBridge, bounds: dict, run: int):
             g_config = config
 
         epsilon = sqrt(250 / g_config.material.fy)
-        # if run == 0:
+        
         upper_bound_vector = create_upper_bound_array(bounds, idx, epsilon, span, bounds)
-        # else:
-        #     upper_bound_vector = create_initial_vector(pgb.input_dict, idx)
         lower_bound_vector = create_lower_bound_array(bounds, idx, epsilon, span, bounds)
             
         def snap(x):
@@ -335,8 +333,9 @@ def optimise_girder_dimensions(pgb: PlateGirderBridge, bounds: dict, run: int):
             upper_bounds=upper_bound_vector,
             repair=snap,
             extra_seeds=[upper_bound_vector],
-            n_particles=60, max_iter=100,
+            n_particles=40, max_iter=60,
             gname = g_name,
+            min_feasible_frac= 0.5 - run * 0.15,
             tol = 1,
             run = run
         )

@@ -71,8 +71,8 @@ class PSO:
         v_max_frac: float = 0.2,
         repair: Optional[Callable[[np.ndarray], np.ndarray]] = None,
         extra_seeds: Optional[Sequence[np.ndarray]] = None,
-        min_feasible_frac: float = 0.5,
-        max_init_resamples: int = 5,
+        min_feasible_frac: float = 0.25,
+        max_init_resamples: int = 10,
         tol: float = 1,
         stall_iter: int = 25,
         catch_errors: bool = False,
@@ -183,6 +183,7 @@ class PSO:
         seeds = ([self.x0] + self.extra_seeds)[:n]
         for i, s in enumerate(seeds):
             pos[i] = s
+        pos[0] = self.x0        # initial design vector loaded onto the particle swarm
         n_seeds = len(seeds)
 
         vel = self.rng.uniform(-self.v_max, self.v_max, size=(n, self.dim))
