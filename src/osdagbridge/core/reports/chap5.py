@@ -145,7 +145,7 @@ from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girde
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, utilization_chart_path: str | None = None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -388,6 +388,14 @@ def ch5_design_checks(checks_data, bridge) -> str:
 """ + t58_content + r"""
 \end{longtable}
 \noindent\textit{Note: IS 800 Cl. 8.7.1.2}
+""" + (r"""
+\needspace{12\baselineskip}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{""" + utilization_chart_path.replace('\\', '/') + r"""}
+\caption{Overall design-check utilization ratios. Values at or below 1.0 pass.}
+\end{figure}
+""" if utilization_chart_path else "") + r"""
 """
     else:
         t58_block = ""
@@ -1501,5 +1509,13 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
 
+""" + (r"""
+\needspace{12\baselineskip}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{""" + utilization_chart_path.replace('\\', '/') + r"""}
+\caption{Overall design-check utilization ratios. Values at or below 1.0 pass.}
+\end{figure}
+""" if utilization_chart_path else "") + r"""
 """
 

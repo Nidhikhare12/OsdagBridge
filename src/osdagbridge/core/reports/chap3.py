@@ -54,6 +54,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value
+from osdagbridge.core.reports.table_utils import longtable
 
 def ch3_loads(input_dict):
     # Live load vehicle names mapping
@@ -141,6 +142,27 @@ def ch3_loads(input_dict):
         fp_str = f"{fp_value} kN/m²"
     else:
         fp_str = "N/A"
+
+    # Keep vehicle and pedestrian actions separate.  Vehicle names originate in
+    # the same UI-bound keys used by the analyser; no report-only selection is
+    # introduced here.  IRC force values are emitted only when calculable.
+    vehicle_rows = [
+        r"\textnormal{Vehicle class(es)} & " + _tex(vehicles_str) + r" & --",
+        r"\textnormal{Impact factor} & " + _tex(impact_factor_str) + r" & --",
+        r"\textnormal{Braking load} & " + _tex(braking_force_str) + r" & kN",
+    ]
+    vehicle_load_table = longtable(
+        r"|L{4.2cm}|p{8.8cm}|C{2.0cm}|", r"\textbf{Vehicle Live Loads (LL)}",
+        r"\textbf{Parameter} & \textbf{Applied value} & \textbf{Unit}", vehicle_rows,
+    )
+    footway_rows = [
+        r"\textnormal{Pressure mode} & " + _tex(fp_mode or "N/A") + r" & --",
+        r"\textnormal{Footway live load} & " + _tex(fp_str) + r" & kN/m\textsuperscript{2}",
+    ]
+    footway_load_table = longtable(
+        r"|L{4.2cm}|p{8.8cm}|C{2.0cm}|", r"\textbf{Footway Live Load}",
+        r"\textbf{Parameter} & \textbf{Applied value} & \textbf{Unit}", footway_rows,
+    )
 
     # Vz / Pz — prefer stored computed values; fall back to IRC6 Table 12
     vz_val = input_dict.get(KEY_WL_HOURLY_MEAN_WIND)
@@ -300,20 +322,10 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
-\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
-\hline
-\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
-\hline
-\textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
-\hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
-\hline
-\end{longtable}
+""" + vehicle_load_table + r"""
+
+\vspace{1em}
+""" + footway_load_table + r"""
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
