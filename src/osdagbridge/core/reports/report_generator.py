@@ -523,6 +523,21 @@ class ReportDataBridge:
         except (KeyError, TypeError):
             return {}
 
+    def end_diaphragm_view(self) -> "ReportDataBridge":
+        """Same accessors as cross bracing, but reading the end-diaphragm
+        results (end_diaphragm_forces_dict / end_diaphragm_design_results)."""
+        return _EndDiaphragmDataBridge(self.output_dict, self.input_dict, self.payload)
+
+    def has_bracing_results(self) -> bool:
+        """True when at least one member has an actual Osdag design result.
+        False means the backend produced no forces / designs to report."""
+        for members in (self._cb_pair_designs() or {}).values():
+            for by_force in (members or {}).values():
+                for raw in (by_force or {}).values():
+                    if raw:
+                        return True
+        return False
+
     def get_cb_pairs(self) -> list:
         """Return sorted list of girder pair keys e.g. ['G1-G2', 'G2-G3']."""
         try:
@@ -656,10 +671,12 @@ class ReportDataBridge:
         try:
             geom = self.get_cb_geometry()
             if member == "diagonal":
-                L_m = geom.get("diagonal_length_m", 0)
+                L_m = geom.get("diagonal_length_m")
             else:
-                L_m = geom.get("horiz_proj_m", 0)
-            return f"{L_m * 1000:.0f}"   # convert m → mm
+                L_m = geom.get("horiz_proj_m")
+            if not L_m:
+                return "---"   # geometry not stored (e.g. end diaphragm); never show 0
+            return f"{float(L_m) * 1000:.0f}"   # convert m → mm
         except (TypeError, ValueError):
             return ""
 
@@ -669,6 +686,17 @@ class ReportDataBridge:
             return f"{self.get_cb_geometry().get('alpha_deg', 0):.2f}"
         except Exception:
             return ""
+
+
+class _EndDiaphragmDataBridge(ReportDataBridge):
+    """ReportDataBridge whose bracing accessors read end-diaphragm results."""
+
+    def _cb_forces_dict(self) -> dict:
+        return self.output_dict.get("end_diaphragm_forces_dict", {}) or {}
+
+    def _cb_pair_designs(self) -> dict:
+        return self.output_dict.get("end_diaphragm_design_results", {}) or {}
+
 
 def _format_project_location(pl_data):
     if not pl_data:
@@ -961,7 +989,7 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, images_dir=tmp_images))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
