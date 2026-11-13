@@ -217,3 +217,109 @@ def safe_chart(func, *args, **kwargs):
     except Exception:  # noqa: BLE001 - charts are optional decoration
         logger.exception("Report chart %s failed; figure omitted", getattr(func, "__name__", func))
         return None
+
+
+# ── Chapter 7: material quantity charts ────────────────────────────────────
+# Osdag green, darkened from the report's #91B014 so bars keep >= 3:1
+# contrast on white. One hue: these charts show magnitude, not status.
+QTY_COLOR = "#6b8510"
+
+
+def parse_quantity(value):
+    """Quantity strings from calculate_material_quantities -> float.
+    'N.A.', '', None or anything non-numeric -> None (missing, not zero)."""
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _sum_or_none(values):
+    """Sum of parts; None if any part is missing (a partial sum would
+    understate the quantity)."""
+    vals = list(values)
+    if not vals or any(v is None for v in vals):
+        return None
+    return sum(vals)
+
+
+def _hbar_panel(ax, labels, values, unit, decimals=2, share=False, missing_text="Not calculated", slots=None):
+    """Horizontal bars with value labels; missing values drawn as an empty
+    dashed outline with text, never as zero."""
+    present = [v for v in values if v is not None]
+    vmax = max(present) if present else 1.0
+    total = sum(present) if present else 0.0
+    xmax = vmax * 1.42
+    ys = list(range(len(labels)))
+    for y, v in zip(ys, values):
+        if v is None:
+            ax.barh(y, xmax * 0.22, height=0.52, facecolor="none", edgecolor=NO_DATA_EDGE,
+                    linestyle=(0, (3, 2)), linewidth=0.9, zorder=3)
+            ax.text(xmax * 0.24, y, missing_text, va="center", ha="left",
+                    fontsize=8.5, color=INK_MUTED, zorder=5)
+            continue
+        ax.barh(y, v, height=0.52, color=QTY_COLOR, linewidth=0, zorder=3)
+        txt = f"{v:,.{decimals}f} {unit}"
+        if share and total > 0 and len(present) > 1:
+            txt += f"  ({100.0 * v / total:.1f}%)"
+        ax.text(v + xmax * 0.012, y, txt, va="center", ha="left", fontsize=9, color=INK, zorder=5)
+    ax.set_yticks(ys)
+    ax.set_yticklabels(labels, fontsize=9.5, color=INK)
+    ax.tick_params(axis="y", length=0)
+    # Fixed slot count keeps bar thickness equal across side-by-side panels.
+    n = max(slots or len(labels), len(labels))
+    ax.set_ylim(n - 0.5, -0.5)
+    ax.set_xlim(0, xmax)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    ax.xaxis.grid(True, color=GRID, linewidth=0.6)
+    ax.set_axisbelow(True)
+
+
+def steel_tonnage_chart(parts, out_path):
+    """Structural steel weight by element.
+
+    parts: [(label, weight_MT or None), ...]. Returns (out_path, total_MT)
+    or (None, None) when no element has a weight.
+    """
+    values = [v for _, v in parts]
+    if not any(v is not None for v in values):
+        return None, None
+    plt = _pyplot()
+    fig, ax = plt.subplots(figsize=(6.4, 0.75 + 0.55 * len(parts)), dpi=200)
+    _hbar_panel(ax, [l for l, _ in parts], values, "MT", share=True)
+    ax.set_xlabel("Structural steel weight (MT)")
+    fig.tight_layout()
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.05)
+    plt.close(fig)
+    return out_path, sum(v for v in values if v is not None)
+
+
+def concrete_reinforcement_chart(concrete_parts, rebar_parts, out_path, ratio_text=None):
+    """Concrete volume (m3) and reinforcement weight (MT) side by side.
+
+    Different units, so two panels with their own axes (never a dual axis).
+    concrete_parts / rebar_parts: [(label, value or None), ...].
+    """
+    if not any(v is not None for _, v in concrete_parts + rebar_parts):
+        return None
+    plt = _pyplot()
+    n = max(len(concrete_parts), len(rebar_parts))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6.6, 0.95 + 0.55 * n), dpi=200)
+    _hbar_panel(ax1, [l for l, _ in concrete_parts], [v for _, v in concrete_parts], r"m$^3$", slots=n)
+    ax1.set_title(r"Concrete volume (m$^3$)", fontsize=10, color=INK, loc="left")
+    _hbar_panel(ax2, [l for l, _ in rebar_parts], [v for _, v in rebar_parts], "MT", slots=n)
+    ax2.set_title("Reinforcement steel (MT)", fontsize=10, color=INK, loc="left")
+    if ratio_text:
+        # In the first empty row slot (or under the axis if there is none).
+        if len(rebar_parts) < n:
+            ax2.text(0.02, len(rebar_parts), ratio_text, transform=ax2.get_yaxis_transform(),
+                     fontsize=8.5, color=INK_MUTED, ha="left", va="center", wrap=True)
+        else:
+            ax2.set_xlabel(ratio_text, fontsize=8.5, color=INK_MUTED)
+    fig.tight_layout(w_pad=2.5)
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.05)
+    plt.close(fig)
+    return out_path
