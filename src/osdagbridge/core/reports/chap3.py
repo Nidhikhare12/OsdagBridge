@@ -34,6 +34,8 @@ from osdagbridge.core.utils.common import (
     KEY_SL_VERTICAL_COEFF,
     KEY_SL_ZONE_FACTOR,
     KEY_SPAN,
+    KEY_CARRIAGEWAY_WIDTH,
+    KEY_FOOTPATH,
     KEY_TL_BRIDGE_TEMP_MAX,
     KEY_TL_BRIDGE_TEMP_MIN,
     KEY_TL_HIGHEST_MAX_TEMP,
@@ -117,30 +119,77 @@ def ch3_loads(input_dict):
     else:
         impact_factor_str = "N/A"
 
-    lanes = input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT)
-    braking_force_str = ""
-    if lanes not in (None, ""):
+    # Design lanes: the UI lane table count when the user filled it in,
+    # otherwise IRC 6 Table 6 from the carriageway width -- the same rule the
+    # analyser uses to place vehicles. Missing data stays "Not available".
+    lanes_int, lanes_basis = None, ""
+    try:
+        ui_lanes = input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT)
+        if ui_lanes not in (None, "") and int(ui_lanes) >= 1:
+            lanes_int, lanes_basis = int(ui_lanes), "lane table input"
+    except (TypeError, ValueError):
+        pass
+    if lanes_int is None:
         try:
-            lanes_int = int(lanes)
-            braking_force_t = IRC6_2017.cl_211_2_braking_force(lanes_int)
-            braking_force_kN = braking_force_t * 9.81
-            braking_force_str = f"{braking_force_kN:.2f} kN ({braking_force_t:.2f} tonnes)"
-        except Exception:
-            braking_force_str = "N/A"
-    else:
-        braking_force_str = "N/A"
+            cw = input_dict.get(KEY_CARRIAGEWAY_WIDTH)
+            if cw not in (None, ""):
+                lanes_int = IRC6_2017.table_6(float(cw))
+                lanes_basis = f"IRC 6 Table 6, carriageway {float(cw):g} m"
+        except (TypeError, ValueError):
+            lanes_int = None
+    lanes_str = (f"{lanes_int} ({lanes_basis})" if lanes_int
+                 else "Not available (carriageway width not provided)")
 
+    if lanes_int:
+        try:
+            # cl_211_2_braking_force returns N (vehicle loads are stored in N).
+            braking_force_N = IRC6_2017.cl_211_2_braking_force(lanes_int)
+            braking_force_str = (f"{braking_force_N / 1000.0:.2f} kN "
+                                 f"({braking_force_N / 9810.0:.2f} t), IRC 6 Cl. 211.2")
+        except Exception:
+            braking_force_str = "Not available (calculation failed)"
+    else:
+        braking_force_str = "Not available (number of design lanes unknown)"
+
+    # Centrifugal force (IRC 6 Cl. 212) applies to bridges on a horizontal
+    # curve. OsdagBridge has no curve radius / design speed input and does not
+    # compute it, so state that rather than report a number.
+    centrifugal_str = ("Not applicable -- straight bridge (no horizontal curve "
+                       "radius input); IRC 6 Cl. 212 not evaluated")
+
+    footpath_cfg = str(input_dict.get(KEY_FOOTPATH, "") or "").strip()
+    has_footpath = footpath_cfg not in ("", "None")
     fp_mode  = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "")
     fp_value = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE, "")
-    if str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
-        try:
-            fp_str = f"{IRC6_2017.cl_206_1_footway_load():.3f} kN/m² (IRC 6 Cl. 206.1)"
-        except Exception:
-            fp_str = "N/A"
+    fp_auto = str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic")
+    fp_mode_str = ("As per IRC 6 (automatic)" if fp_auto
+                   else "User-defined" if str(fp_mode).strip() else "Not specified")
+    fp_note = ""
+    try:
+        irc_fp = IRC6_2017.cl_206_1_footway_load()
+    except Exception:
+        irc_fp = None
+    if fp_auto:
+        fp_str = f"{irc_fp:.3f} kN/m² (IRC 6 Cl. 206.1)" if irc_fp is not None else "Not available"
     elif fp_value not in (None, ""):
-        fp_str = f"{fp_value} kN/m²"
+        fp_str = f"{fp_value} kN/m² (user-defined)"
+        if irc_fp is not None:
+            # The analyser always applies the IRC 6 Cl. 206.1 value.
+            fp_note = (f"The structural analysis applies the IRC 6 Cl. 206.1 value "
+                       f"({irc_fp:.3f} kN/m²); the user-defined value is reported only.")
     else:
-        fp_str = "N/A"
+        fp_str = "Not available (no value provided)"
+
+    if has_footpath:
+        footway_rows = (
+            r"\textnormal{Footpath Provided} & " + _tex(footpath_cfg) + r" \\[6pt]" + "\n\\hline\n"
+            r"\textnormal{Loading Mode} & " + _tex(fp_mode_str) + r" \\[6pt]" + "\n\\hline\n"
+            r"\textnormal{Footway Load Intensity} & " + _tex(fp_str) + r" \\[6pt]" + "\n\\hline\n"
+            r"\textnormal{Unit} & kN/m\textsuperscript{2} \\[6pt]" + "\n\\hline\n"
+        )
+    else:
+        footway_rows = (r"\textnormal{Footpath Provided} & None -- footway live load not applicable \\[6pt]"
+                        + "\n\\hline\n")
 
     # Vz / Pz — prefer stored computed values; fall back to IRC6 Table 12
     vz_val = input_dict.get(KEY_WL_HOURLY_MEAN_WIND)
@@ -163,7 +212,7 @@ def ch3_loads(input_dict):
     vz_str = f"{float(vz_val):.2f} m/s" if vz_val not in (None, "") else "N/A"
     pz_str = f"{float(pz_val):.2f} N/m²" if pz_val not in (None, "") else "N/A"
 
-    # Table 3.5 — Seismic: prefer stored computed values; fall back to IRC6 cl_218_5_1
+    # Table 3.6 — Seismic: prefer stored computed values; fall back to IRC6 cl_218_5_1
     sl_zone_factor = input_dict.get(KEY_SL_ZONE_FACTOR)
     sl_spectral    = input_dict.get(KEY_SL_SPECTRAL_COEFF)
     sl_ah          = input_dict.get(KEY_SL_HORIZONTAL_COEFF)
@@ -200,7 +249,7 @@ def ch3_loads(input_dict):
     def _sl(v, unit=""):
         return f"{float(v):.4f}{unit}" if v not in (None, "") else "N/A"
 
-    # Table 3.6 — Temperature: compute effective bridge temp range from shade temps
+    # Table 3.7 — Temperature: compute effective bridge temp range from shade temps
     tl_temp_min = tl_temp_max = tl_rise = tl_fall = "N/A"
     try:
         _tmax = input_dict.get(KEY_TL_HIGHEST_MAX_TEMP) or input_dict.get('shade_temp_max')
@@ -218,7 +267,7 @@ def ch3_loads(input_dict):
     except Exception:
         pass
 
-    # --- Table 3.7: Load Combinations (dynamically generated from IRC 6) ---
+    # --- Table 3.8: Load Combinations (dynamically generated from IRC 6) ---
     _LOAD_LABEL_MAP = {
         'dead_load':         'DL',
         'surfacing':         'SIDL',
@@ -319,7 +368,7 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}\\
+\caption{\textbf{Vehicle Live Loads (LL)}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -334,13 +383,33 @@ This section summarizes all loads applied to the bridge and the load combination
 \endlastfoot
 \textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
 \hline
+\textnormal{Number of Design Lanes} & """ + _tex(lanes_str) + r""" \\[6pt]
+\hline
 \textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
 \hline
 \textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
 \hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Centrifugal Force (IRC 6)} & """ + _tex(centrifugal_str) + r""" \\[6pt]
 \hline
 \end{longtable}
+
+\vspace{1em}
+\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\caption{\textbf{Footway Live Loads}}\\
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endfirsthead
+\ltcontinuedhead{2}
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
+\ltcontinuedfoot{2}
+\endfoot
+\endlastfoot
+""" + footway_rows + r"""\end{longtable}
+""" + (r"\noindent\textit{Note: " + _tex(fp_note) + "}\n" if (has_footpath and fp_note) else "") + r"""
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
