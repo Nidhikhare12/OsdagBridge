@@ -104,6 +104,7 @@
 #==============================================================================
 
 import os, shutil, logging, datetime, tempfile, subprocess
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
 
@@ -119,6 +120,9 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from .styles import latex_style_definitions
+from .table_utils import normalise_longtables
+from .chart_generator import material_charts, utilization_chart
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -156,7 +160,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+% Geometry, palette, typography and table metrics are emitted from styles.py.
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -171,12 +175,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{enumitem}
 \usepackage{caption}
 
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
@@ -192,14 +190,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+""" + latex_style_definitions() + r"""
 
 % Prevent tables from overflowing past the page bottom:
 % if fewer than 5 baseline-skips remain, break to the next page first.
@@ -252,7 +243,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{1.10}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
@@ -899,6 +890,22 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
+            # Charts are generated inside the compilation temporary directory.
+            # They therefore never leak beside the user-selected PDF output.
+            chart_dir = os.path.join(tmp_dir, 'report-assets')
+            chart_paths = {}
+            try:
+                ur_path = utilization_chart(payload.output_dict, Path(chart_dir) / 'utilization_summary.png')
+                steel_path, concrete_path = material_charts(quantities, Path(chart_dir))
+                if ur_path:
+                    chart_paths['utilization_summary'] = str(ur_path).replace('\\\\', '/')
+                if steel_path:
+                    chart_paths['structural_steel'] = str(steel_path).replace('\\\\', '/')
+                if concrete_path:
+                    chart_paths['concrete_reinforcement'] = str(concrete_path).replace('\\\\', '/')
+            except RuntimeError as exc:
+                logger.warning("Report charts not generated: %s", exc)
+
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
@@ -924,11 +931,12 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge,
+                                                   chart_paths.get('utilization_summary')))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, chart_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -939,7 +947,7 @@ def generate_report(payload, request):
             doc_parts.append(references())
             doc_parts.append(r"\end{document}")
 
-            full_tex = "\n".join(doc_parts)
+            full_tex = normalise_longtables("\n".join(doc_parts))
 
 
             # NOTE: longtable header repetition is handled per-table in each

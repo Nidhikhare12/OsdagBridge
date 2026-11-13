@@ -1,4 +1,18 @@
-def ch7_quantities(input_dict):
+def ch7_quantities(input_dict, chart_paths=None):
+    chart_paths = chart_paths or {}
+    figures = ""
+    for key, caption in (("structural_steel", "Structural steel quantities"),
+                         ("concrete_reinforcement", "Concrete and reinforcement quantities")):
+        path = chart_paths.get(key)
+        if path:
+            figures += (r"""
+\needspace{12\baselineskip}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{""" + path.replace('\\', '/') + r"""}
+\caption{""" + caption + r"""}
+\end{figure}
+""")
     return r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
@@ -28,6 +42,6 @@ def ch7_quantities(input_dict):
 6 & Crash Barrier & """ + str(input_dict.get("crash_barrier_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_qty", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_total", "N.A.")) + r""" \\
 \hline
 \end{longtable}
-"""
+""" + figures
 
 
