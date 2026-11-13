@@ -182,13 +182,13 @@ def ch3_loads(input_dict):
 
     if has_footpath:
         footway_rows = (
-            r"\textnormal{Footpath Provided} & " + _tex(footpath_cfg) + r" \\[6pt]" + "\n\\hline\n"
-            r"\textnormal{Loading Mode} & " + _tex(fp_mode_str) + r" \\[6pt]" + "\n\\hline\n"
-            r"\textnormal{Footway Load Intensity} & " + _tex(fp_str) + r" \\[6pt]" + "\n\\hline\n"
-            r"\textnormal{Unit} & kN/m\textsuperscript{2} \\[6pt]" + "\n\\hline\n"
+            r"\textnormal{Footpath Provided} & " + _tex(footpath_cfg) + r" \\[\osdagRowGap]" + "\n\\hline\n"
+            r"\textnormal{Loading Mode} & " + _tex(fp_mode_str) + r" \\[\osdagRowGap]" + "\n\\hline\n"
+            r"\textnormal{Footway Load Intensity} & " + _tex(fp_str) + r" \\[\osdagRowGap]" + "\n\\hline\n"
+            r"\textnormal{Unit} & kN/m\textsuperscript{2} \\[\osdagRowGap]" + "\n\\hline\n"
         )
     else:
-        footway_rows = (r"\textnormal{Footpath Provided} & None -- footway live load not applicable \\[6pt]"
+        footway_rows = (r"\textnormal{Footpath Provided} & None -- footway live load not applicable \\[\osdagRowGap]"
                         + "\n\\hline\n")
 
     # Vz / Pz — prefer stored computed values; fall back to IRC6 Table 12
@@ -303,13 +303,13 @@ def ch3_loads(input_dict):
     for i, combo in enumerate(uls_combos, start=1):
         cases = _fmt_factors(combo['factors'])
         lc_rows.append(
-            f"ULS-{i:02d}" + r" & " + cases + r" \\[6pt]" + "\n"
+            f"ULS-{i:02d}" + r" & " + cases + r" \\[\osdagRowGap]" + "\n"
             + r"\hline"
         )
     for i, combo in enumerate(sls_combos, start=1):
         cases = _fmt_factors(combo['factors'])
         lc_rows.append(
-            f"SLS-{i:02d}" + r" & " + cases + r" \\[6pt]" + "\n"
+            f"SLS-{i:02d}" + r" & " + cases + r" \\[\osdagRowGap]" + "\n"
             + r"\hline"
         )
 
@@ -320,89 +320,89 @@ def ch3_loads(input_dict):
 
 This section summarizes all loads applied to the bridge and the load combinations considered for analysis and design.
 
-\vspace{1em}
+\vspace{\osdagBlockGap}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Dead Load -- Self Weight}}\\
+\caption{Dead Load -- Self Weight}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endfirsthead
 \ltcontinuedhead{2}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endhead
 \ltcontinuedfoot{2}
 \endfoot
 \endlastfoot
-\textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+\textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Concrete Deck Weight} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+\textnormal{Concrete Deck Weight} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR)) + r""" \\[6pt]
+\textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR)) + r""" \\[\osdagRowGap]
 \hline
 \end{longtable}
 
-\vspace{1em}
+\vspace{\osdagBlockGap}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Dead Load for Surfacing (DW)}}\\
+\caption{Dead Load for Surfacing (DW)}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endfirsthead
 \ltcontinuedhead{2}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endhead
 \ltcontinuedfoot{2}
 \endfoot
 \endlastfoot
-\textnormal{Wearing Course Load} & """ + (_render_value(input_dict, KEY_WC_MATERIAL)) + r""" x """ + (_render_value(input_dict, KEY_WC_THICKNESS)) + r""" \\[6pt]
+\textnormal{Wearing Course Load} & """ + (_render_value(input_dict, KEY_WC_MATERIAL)) + r""" x """ + (_render_value(input_dict, KEY_WC_THICKNESS)) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Additional SIDL (Crash Barrier)} & """ + (_render_value(input_dict, KEY_CB_LOAD)) + r""" kN/m per barrier \\[6pt]
+\textnormal{Additional SIDL (Crash Barrier)} & """ + (_render_value(input_dict, KEY_CB_LOAD)) + r""" kN/m per barrier \\[\osdagRowGap]
 \hline
-\textnormal{Railing Load} & """ + (_render_value(input_dict, KEY_RL_LOAD_VALUE)) + r""" kN/m\sdstar{} \\[6pt]
+\textnormal{Railing Load} & """ + (_render_value(input_dict, KEY_RL_LOAD_VALUE)) + r""" kN/m\sdstar{} \\[\osdagRowGap]
 \hline
 \end{longtable}
 
-\vspace{1em}
+\vspace{\osdagBlockGap}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Vehicle Live Loads (LL)}}\\
+\caption{Vehicle Live Loads (LL)}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endfirsthead
 \ltcontinuedhead{2}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endhead
 \ltcontinuedfoot{2}
 \endfoot
 \endlastfoot
-\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
+\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Number of Design Lanes} & """ + _tex(lanes_str) + r""" \\[6pt]
+\textnormal{Number of Design Lanes} & """ + _tex(lanes_str) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
+\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
+\textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Centrifugal Force (IRC 6)} & """ + _tex(centrifugal_str) + r""" \\[6pt]
+\textnormal{Centrifugal Force (IRC 6)} & """ + _tex(centrifugal_str) + r""" \\[\osdagRowGap]
 \hline
 \end{longtable}
 
-\vspace{1em}
+\vspace{\osdagBlockGap}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Footway Live Loads}}\\
+\caption{Footway Live Loads}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endfirsthead
 \ltcontinuedhead{2}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endhead
 \ltcontinuedfoot{2}
@@ -411,109 +411,109 @@ This section summarizes all loads applied to the bridge and the load combination
 """ + footway_rows + r"""\end{longtable}
 """ + (r"\noindent\textit{Note: " + _tex(fp_note) + "}\n" if (has_footpath and fp_note) else "") + r"""
 
-\vspace{1em}
+\vspace{\osdagBlockGap}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Wind Load (WL) --- per IRC 6}}\\
+\caption{Wind Load (WL) --- per IRC 6}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endfirsthead
 \ltcontinuedhead{2}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endhead
 \ltcontinuedfoot{2}
 \endfoot
 \endlastfoot
-\textnormal{Basic Wind Speed, Vb} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" [from Project Location] \\[6pt]
+\textnormal{Basic Wind Speed, Vb} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" [from Project Location] \\[\osdagRowGap]
 \hline
-\textnormal{Terrain Type} & """ + (_render_value(input_dict, KEY_WL_TERRAIN_TYPE)) + r""" \\[6pt]
+\textnormal{Terrain Type} & """ + (_render_value(input_dict, KEY_WL_TERRAIN_TYPE)) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Average Exposed Height, H (m)} & """ + (_render_value(input_dict, KEY_WL_AVG_EXPOSED_HEIGHT, ' m')) + r""" \\[6pt]
+\textnormal{Average Exposed Height, H (m)} & """ + (_render_value(input_dict, KEY_WL_AVG_EXPOSED_HEIGHT, ' m')) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Hourly Mean Wind Speed, Vz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_MEAN_WIND, ' m/s')) + r""" \\[6pt]
+\textnormal{Hourly Mean Wind Speed, Vz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_MEAN_WIND, ' m/s')) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Hourly Wind Pressure, Pz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_WIND_PRESSURE, ' N/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Hourly Wind Pressure, Pz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_WIND_PRESSURE, ' N/m\\textsuperscript{2}')) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Transverse Wind Force} & """ + (_render_value(input_dict, KEY_WL_TRANSVERSE_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Transverse Wind Force} & """ + (_render_value(input_dict, KEY_WL_TRANSVERSE_WIND_FORCE, ' kN')) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Longitudinal Wind Force} & """ + (_render_value(input_dict, KEY_WL_LONGITUDINAL_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Longitudinal Wind Force} & """ + (_render_value(input_dict, KEY_WL_LONGITUDINAL_WIND_FORCE, ' kN')) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Vertical Wind Force} & """ + (_render_value(input_dict, KEY_WL_VERTICAL_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Vertical Wind Force} & """ + (_render_value(input_dict, KEY_WL_VERTICAL_WIND_FORCE, ' kN')) + r""" \\[\osdagRowGap]
 \hline
 \end{longtable}
 
-\vspace{1em}
+\vspace{\osdagBlockGap}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Earthquake Load (EL) --- per IRC 6}}\\
+\caption{Earthquake Load (EL) --- per IRC 6}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endfirsthead
 \ltcontinuedhead{2}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endhead
 \ltcontinuedfoot{2}
 \endfoot
 \endlastfoot
-\textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone')) + r""" [from Project Location] \\[6pt]
+\textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone')) + r""" [from Project Location] \\[\osdagRowGap]
 \hline
-\textnormal{Zone Factor, Z} & """ + (_render_value(input_dict, KEY_SL_ZONE_FACTOR)) + r""" \\[6pt]
+\textnormal{Zone Factor, Z} & """ + (_render_value(input_dict, KEY_SL_ZONE_FACTOR)) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Importance Factor, I} & """ + (_render_value(input_dict, KEY_SL_IMPORTANCE_FACTOR)) + r""" \\[6pt]
+\textnormal{Importance Factor, I} & """ + (_render_value(input_dict, KEY_SL_IMPORTANCE_FACTOR)) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Type of Soil} & """ + (_render_value(input_dict, KEY_SL_SOIL_TYPE)) + r""" \\[6pt]
+\textnormal{Type of Soil} & """ + (_render_value(input_dict, KEY_SL_SOIL_TYPE)) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Sa/g} & """ + (_render_value(input_dict, KEY_SL_SPECTRAL_COEFF)) + r""" \\[6pt]
+\textnormal{Sa/g} & """ + (_render_value(input_dict, KEY_SL_SPECTRAL_COEFF)) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Horizontal Seismic Coefficient, Ah} & """ + (_render_value(input_dict, KEY_SL_HORIZONTAL_COEFF)) + r""" \\[6pt]
+\textnormal{Horizontal Seismic Coefficient, Ah} & """ + (_render_value(input_dict, KEY_SL_HORIZONTAL_COEFF)) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF)) + r""" \\[6pt]
+\textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF)) + r""" \\[\osdagRowGap]
 \hline
-\textnormal{Horizontal Seismic Force (longitudinal)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (longitudinal)} & """ + '' + r""" kN \\[\osdagRowGap]
 \hline
-\textnormal{Horizontal Seismic Force (transverse)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (transverse)} & """ + '' + r""" kN \\[\osdagRowGap]
 \hline
 \end{longtable}
 
-\vspace{1em}
+\vspace{\osdagBlockGap}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Temperature Load (TL) --- per IRC 6}}\\
+\caption{Temperature Load (TL) --- per IRC 6}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endfirsthead
 \ltcontinuedhead{2}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\osdagHeadRow \textbf{Parameter} & \textbf{Value} \\
 \hline
 \endhead
 \ltcontinuedfoot{2}
 \endfoot
 \endlastfoot
-\textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[6pt]
+\textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[\osdagRowGap]
 \hline
-\textnormal{Minimum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_min')) + r""" $^\circ$C \\[6pt]
+\textnormal{Minimum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_min')) + r""" $^\circ$C \\[\osdagRowGap]
 \hline
-\textnormal{Effective Bridge Temp. Range} & """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MIN)) + r""" to """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MAX)) + r""" $^\circ$C \\[6pt]
+\textnormal{Effective Bridge Temp. Range} & """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MIN)) + r""" to """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MAX)) + r""" $^\circ$C \\[\osdagRowGap]
 \hline
-\textnormal{Temperature Rise / Fall for Design} & +""" + (_render_value(input_dict, KEY_TL_TEMP_RISE)) + r""" $^\circ$C / \textminus{}""" + (_render_value(input_dict, KEY_TL_TEMP_FALL)) + r""" $^\circ$C \\[6pt]
+\textnormal{Temperature Rise / Fall for Design} & +""" + (_render_value(input_dict, KEY_TL_TEMP_RISE)) + r""" $^\circ$C / \textminus{}""" + (_render_value(input_dict, KEY_TL_TEMP_FALL)) + r""" $^\circ$C \\[\osdagRowGap]
 \hline
 \end{longtable}
 
-\vspace{1em}
+\vspace{\osdagBlockGap}
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}
-\caption{\textbf{Load Combinations}}\\
+\caption{Load Combinations}\\
 \hline
-\textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
+\osdagHeadRow \textbf{Combination ID} & \textbf{Load Cases} \\[\osdagRowGap]
 \hline
 \endfirsthead
 \ltcontinuedhead{2}
 \hline
-\textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
+\osdagHeadRow \textbf{Combination ID} & \textbf{Load Cases} \\[\osdagRowGap]
 \hline
 \endhead
 \ltcontinuedfoot{2}

@@ -124,6 +124,7 @@ from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
 from .chap3 import ch3_loads
 from .chap4 import ch4_analysis
+from . import styles
 from .chap5 import ch5_design_checks
 from .chap6 import ch6_drawings
 from .chap7 import ch7_quantities
@@ -138,7 +139,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # LaTeX template sections for OsdagBridge Design Report
 # Matches the LaTeX template used in the OsdagBridge desktop application.
-# Color: osdagGreen = #91B014
+# Colours, fonts and spacing: see styles.py (single source of truth)
 # =============================================================================
 
 
@@ -153,10 +154,11 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     rd = _tex(report_date)
     rv = _tex(report_version)
     return r"""
-\documentclass[12pt,a4paper]{report}
+""" + styles.document_class() + r"""
 
 % Packages
-\usepackage[a4paper, top=25mm, bottom=25mm, left=20mm, right=20mm, headheight=18pt, headsep=6mm, footskip=15mm]{geometry}
+""" + styles.geometry_package() + r"""
+""" + styles.font_packages() + r"""
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -171,12 +173,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{enumitem}
 \usepackage{caption}
 
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
@@ -192,66 +188,51 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{4pt}  % was 6pt, but a leaked 4pt override applied to most tables; 4pt keeps all tables within the text width
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
-
-% Prevent floats from starting with almost no room left on the page.
-% (longtables are NOT given a \needspace hook: it interferes with longtable's
-% own start-of-table check and produced empty footers / displaced captions.
-% Their start check is tuned via \LTstartreserve below.)
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-% Keep section headings with the content that follows: if fewer than
-% 8 lines remain, start the heading on the next page.
-\pretocmd{\section}{\needspace{8\baselineskip}}{}{}
-\pretocmd{\subsection}{\needspace{8\baselineskip}}{}{}
-
-\definecolor{osdagGreen}{HTML}{91B014}
+% Fonts, colours, table spacing, captions, headings and header/footer
+% rules all come from reports/styles.py (single source of truth).
+% (longtables get no \needspace hook: it breaks longtable's own start check;
+% that check is tuned with \LTstartreserve below.)
+""" + styles.latex_style_definitions() + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{\osdagFooterLeft}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \renewcommand{\headrule}{\osdagHeadRule}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
+      \hbox to \headwidth{\textcolor{osdagText}{\osdagSoftwareDefaultNote}\hfil}%
       \vspace{2pt}%
     }{}%
-    {\color{osdagGreen}\hrule width\headwidth height 1pt}\vspace{4pt}%
+    \osdagFootRule%
   }
 }
 \fancypagestyle{plain}{
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{\osdagFooterLeft}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \renewcommand{\headrule}{\osdagHeadRule}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
+      \hbox to \headwidth{\textcolor{osdagText}{\osdagSoftwareDefaultNote}\hfil}%
       \vspace{2pt}%
     }{}%
-    {\color{osdagGreen}\hrule width\headwidth height 1pt}\vspace{4pt}%
+    \osdagFootRule%
   }
 }
 \fancypagestyle{firstpage}{
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{\osdagFooterLeft}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{{\color{osdagGreen}\hrule width\headwidth height 1pt}\vspace{4pt}}
+  \renewcommand{\footrule}{\osdagFootRule}
 }
 \pagestyle{main}
-\setstretch{1.15}
+""" + styles.line_spacing() + r"""
 % Characters pdflatex cannot print by default; without these they are
 % silently dropped from the PDF (e.g. "UR <= 1.0" lost its symbol).
 \DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
@@ -290,7 +271,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \def\nbcline#1{\@nbcline#1\@nil}
 \makeatother
 \makeatletter
-\newlength{\LTstartreserve}\setlength{\LTstartreserve}{7\baselineskip}
+\newlength{\LTstartreserve}""" + styles.longtable_start_reserve() + r"""
 \patchcmd{\LT@start}{\advance\dimen@ \ht\LT@foot}%
   {\advance\dimen@ \ht\LT@foot\advance\dimen@\LTstartreserve}{}%
   {\PackageWarning{osdagbridge}{Could not patch longtable start check}}
@@ -382,10 +363,8 @@ def title_page(m, osdag_logo, org_logo):
 
 def toc_section():
     return r"""
-% Chapter / TOC Formatting
-\titleformat{\chapter}[block]
-  {\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{0pt}{10pt}
+% TOC formatting (chapter heading style lives in styles.py, so it applies
+% whether or not the TOC is included)
 \setcounter{tocdepth}{2}
 
 % TOC styling using titletoc
@@ -645,8 +624,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return r"\osdagPassText{PASS}"
+                return r"\osdagFailText{FAIL}"
         except (TypeError, ValueError):
             pass
         return ""

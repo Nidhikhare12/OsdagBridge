@@ -126,7 +126,7 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
                 r'\vspace{-0.5em}' + '\n'
                 r'\centering' + '\n'
                 r'\includegraphics[' + opts + ']{' + p + '}\n'
-                r'\vspace{0.5em}' + '\n'
+                r'\vspace{\osdagSmallGap}' + '\n'
                 r'\caption*{\small ' + caption + '}\n'
                 r'\vspace{-0.5em}' + '\n'
                 r'\end{figure}')

@@ -56,12 +56,12 @@ form the basis of all design calculations in this software.
 \vspace{0.5cm}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{\osdagColSepCompact}
 \begin{table}[H]
-\caption{\textbf{IRC Codes}}
+\caption{IRC Codes}
 \begin{tabularx}{\linewidth}{|c|c|X|}
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
+\osdagHeadRow \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
 IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
 \hline
@@ -80,12 +80,12 @@ IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \endgroup
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{\osdagColSepCompact}
 \begin{table}[H]
-\caption{\textbf{IS Codes}}
+\caption{IS Codes}
 \begin{tabularx}{\linewidth}{|c|c|X|}
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Scope} \\
+\osdagHeadRow \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
 IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\
 \hline

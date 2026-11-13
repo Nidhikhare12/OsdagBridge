@@ -8,17 +8,21 @@ caller then omits the figure), so a missing value never crashes the report.
 import logging
 import os
 
+from osdagbridge.core.reports import styles
+
 logger = logging.getLogger(__name__)
 
-# Status colours: reserved for PASS / FAIL only and always paired with a text
+# All colours and fonts come from styles.py (shared with the LaTeX report).
+# Status colours are reserved for PASS / FAIL and always paired with a text
 # label, so the result never depends on colour alone (greyscale print, CVD).
-PASS_COLOR = "#0ca30c"
-FAIL_COLOR = "#d03b3b"
-LIMIT_COLOR = "#d03b3b"
-INK = "#1f1f1f"           # values, labels
-INK_MUTED = "#5f5f5f"     # axis text, notes
-GRID = "#d9d9d9"
-NO_DATA_EDGE = "#8a8a8a"
+PASS_COLOR = styles.CHART_PASS_COLOR
+FAIL_COLOR = styles.CHART_FAIL_COLOR
+LIMIT_COLOR = styles.CHART_LIMIT_COLOR
+INK = styles.CHART_INK
+INK_MUTED = styles.CHART_INK_MUTED
+GRID = styles.CHART_GRID
+NO_DATA_EDGE = styles.CHART_NO_DATA_EDGE
+DPI = styles.CHART_DPI
 
 UR_LIMIT = 1.0
 
@@ -35,19 +39,7 @@ def _pyplot():
     import matplotlib
     matplotlib.use("Agg")  # no display needed (also safe inside the Qt GUI)
     import matplotlib.pyplot as plt
-    plt.rcParams.update({
-        # Computer Modern, matching the report's LaTeX body text.
-        "font.family": "serif",
-        "font.serif": ["cmr10", "DejaVu Serif"],
-        "mathtext.fontset": "cm",
-        "axes.formatter.use_mathtext": True,
-        "axes.unicode_minus": False,
-        "font.size": 9,
-        "axes.edgecolor": INK_MUTED,
-        "axes.labelcolor": INK,
-        "xtick.color": INK_MUTED,
-        "ytick.color": INK_MUTED,
-    })
+    plt.rcParams.update(styles.chart_rc())  # same font as the report body
     return plt
 
 
@@ -97,7 +89,7 @@ def utilization_summary_chart(ur_records, out_path, no_data_text=None):
     values = [g[0] if g else 0.0 for g in gov.values()]
     top = max(1.25, max(values) * 1.22)
 
-    fig, ax = plt.subplots(figsize=(6.4, 3.1), dpi=200)
+    fig, ax = plt.subplots(figsize=(6.4, 3.1), dpi=DPI)
     _style_axes(ax)
     x = range(len(UR_ELEMENTS))
     for i, element in zip(x, UR_ELEMENTS):
@@ -143,7 +135,7 @@ def utilization_summary_chart(ur_records, out_path, no_data_text=None):
 
     fig.tight_layout()
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.05)
+    fig.savefig(out_path, dpi=DPI, bbox_inches="tight", pad_inches=0.05)
     plt.close(fig)
     return out_path
 
@@ -171,7 +163,7 @@ def utilization_detail_chart(ur_records, out_path):
 
     top = max(1.25, max(vals) * 1.15)
     fig_h = 0.9 + 0.24 * len(vals) + 0.2 * len(group_spans)
-    fig, ax = plt.subplots(figsize=(6.4, fig_h), dpi=200)
+    fig, ax = plt.subplots(figsize=(6.4, fig_h), dpi=DPI)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
     ax.xaxis.grid(True, color=GRID, linewidth=0.6)
@@ -204,7 +196,7 @@ def utilization_detail_chart(ur_records, out_path):
 
     fig.tight_layout()
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.05)
+    fig.savefig(out_path, dpi=DPI, bbox_inches="tight", pad_inches=0.05)
     plt.close(fig)
     return out_path
 
@@ -222,7 +214,7 @@ def safe_chart(func, *args, **kwargs):
 # ── Chapter 7: material quantity charts ────────────────────────────────────
 # Osdag green, darkened from the report's #91B014 so bars keep >= 3:1
 # contrast on white. One hue: these charts show magnitude, not status.
-QTY_COLOR = "#6b8510"
+QTY_COLOR = styles.CHART_QUANTITY_COLOR
 
 
 def parse_quantity(value):
@@ -286,12 +278,12 @@ def steel_tonnage_chart(parts, out_path):
     if not any(v is not None for v in values):
         return None, None
     plt = _pyplot()
-    fig, ax = plt.subplots(figsize=(6.4, 0.75 + 0.55 * len(parts)), dpi=200)
+    fig, ax = plt.subplots(figsize=(6.4, 0.75 + 0.55 * len(parts)), dpi=DPI)
     _hbar_panel(ax, [l for l, _ in parts], values, "MT", share=True)
     ax.set_xlabel("Structural steel weight (MT)")
     fig.tight_layout()
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.05)
+    fig.savefig(out_path, dpi=DPI, bbox_inches="tight", pad_inches=0.05)
     plt.close(fig)
     return out_path, sum(v for v in values if v is not None)
 
@@ -306,7 +298,7 @@ def concrete_reinforcement_chart(concrete_parts, rebar_parts, out_path, ratio_te
         return None
     plt = _pyplot()
     n = max(len(concrete_parts), len(rebar_parts))
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6.6, 0.95 + 0.55 * n), dpi=200)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6.6, 0.95 + 0.55 * n), dpi=DPI)
     _hbar_panel(ax1, [l for l, _ in concrete_parts], [v for _, v in concrete_parts], r"m$^3$", slots=n)
     ax1.set_title(r"Concrete volume (m$^3$)", fontsize=10, color=INK, loc="left")
     _hbar_panel(ax2, [l for l, _ in rebar_parts], [v for _, v in rebar_parts], "MT", slots=n)
@@ -320,6 +312,6 @@ def concrete_reinforcement_chart(concrete_parts, rebar_parts, out_path, ratio_te
             ax2.set_xlabel(ratio_text, fontsize=8.5, color=INK_MUTED)
     fig.tight_layout(w_pad=2.5)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.05)
+    fig.savefig(out_path, dpi=DPI, bbox_inches="tight", pad_inches=0.05)
     plt.close(fig)
     return out_path
