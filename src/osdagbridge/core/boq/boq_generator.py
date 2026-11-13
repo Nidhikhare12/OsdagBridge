@@ -330,6 +330,14 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 quantities[f"{prefix}_wt_single"] = "N.A."
                 quantities[f"{prefix}_wt_total"] = "N.A."
 
+        # 5d. End Diaphragms (Cross Bracing type) -- same method as the
+        # intermediate bracing above (area x length x 7.85 t/m3), using the
+        # backend's end-diaphragm geometry (PlateGirderBridge.
+        # _design_end_diaphragm_members): depth h = 0.85 x girder depth,
+        # width s = girder spacing, diagonal horizontal projection s (X) or
+        # s/2 (K). One diaphragm at each support (members E{i}M1 / E{i}M2).
+        quantities.update(_end_diaphragm_quantities(inputs, outputs, n_girders, spacing))
+
         # 6. Crash Barrier (Cu.m) and Weight (MT)
         KEY_CB_AREA = "typical_section.crash_barrier.area"
         cb_area = 0.0
@@ -364,3 +372,77 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         logger.warning(f"Error calculating material quantities: {exc}")
 
     return quantities
+
+
+_ED_PREFIXES = ("ed_top", "ed_bot", "ed_diag")
+_ED_DETAILS = "member_properties.end_diaphragm_details"
+_ED_PROPS = "transverse_member_design.ed.section_properties"
+_STEEL_T_PER_M3 = 7.85  # same density as the intermediate bracing rows
+
+
+def _end_diaphragm_quantities(inputs: dict, outputs: dict, n_girders: int, spacing: float) -> dict:
+    """Quantities for Cross-Bracing-type end diaphragms (rows 2(d)-2(f)).
+
+    Uses only defined members and backend values: section area per girder
+    pair from outputs (cm^2), geometry as in the backend end-diaphragm design.
+    Anything missing (or a Rolled / Welded beam end diaphragm, whose take-off
+    is not implemented) leaves the rows as "N.A." -- never as zero.
+    """
+    na = {f"{p}_{f}": "N.A." for p in _ED_PREFIXES
+          for f in ("vol_formula", "qty", "vol_total", "wt_single", "wt_total")}
+    try:
+        from osdagbridge.core.utils.common import KEY_MP_GIRDER_DEPTH
+        depth = float(resolve_girder_value(inputs, KEY_MP_GIRDER_DEPTH))
+        if depth <= 0 or spacing <= 0 or n_girders < 2:
+            return na
+        h = 0.85 * depth   # depth in m, exactly as the backend uses it
+
+        totals = {p: {"qty": 0, "vol": 0.0} for p in _ED_PREFIXES}
+        first = {}
+        for g in range(1, n_girders):
+            pair_id = f"G{g}G{g + 1}"
+            for end in (1, 2):
+                sfx = f".{pair_id}.E{g}M{end}"
+                ed_type = str(inputs.get(f"{_ED_DETAILS}.type{sfx}") or "").strip()
+                if not ed_type:
+                    continue
+                if ed_type != "Cross Bracing":
+                    return na   # rolled / welded beam take-off not implemented
+                brace = str(inputs.get(f"{_ED_DETAILS}.bracing_type{sfx}") or "X").upper()
+                horiz = spacing if brace.startswith("X") else spacing / 2.0
+                diag_len = math.hypot(horiz, h)
+                members = [("ed_diag", "end_diaphragm", diag_len, 2)]
+                for flag, prefix, props in (("top_chord", "ed_top", "top_chord"),
+                                            ("bottom_chord", "ed_bot", "bottom_chord")):
+                    on = str(inputs.get(f"{_ED_DETAILS}.{flag}{sfx}", "Yes")).strip().lower()
+                    if on not in ("no", "false", "0"):
+                        members.append((prefix, props, spacing, 1))
+                for prefix, props, length, count in members:
+                    area_cm2 = outputs.get(f"{_ED_PROPS}.{props}.{pair_id}.A")
+                    if area_cm2 is None:
+                        return na   # section not resolved by the backend
+                    area = float(area_cm2) / 10000.0
+                    totals[prefix]["qty"] += count
+                    totals[prefix]["vol"] += count * area * length
+                    first.setdefault(prefix, (area, length))
+
+        if not first:
+            return na
+        out = dict(na)
+        for prefix in _ED_PREFIXES:
+            if prefix not in first:
+                out.update({f"{prefix}_qty": "0", f"{prefix}_vol_total": "0.00",
+                            f"{prefix}_wt_total": "0.00", f"{prefix}_vol_formula": "Not provided"})
+                continue
+            area, length = first[prefix]
+            vol_single = area * length
+            out[f"{prefix}_vol_formula"] = (f"${area:.5f}\\text{{ m}}^2 \\times {length:.2f}\\text{{ m}}"
+                                            f" = {vol_single:.5f}\\text{{ m}}^3$")
+            out[f"{prefix}_qty"] = str(totals[prefix]["qty"])
+            out[f"{prefix}_vol_total"] = f"{totals[prefix]['vol']:.2f}"
+            out[f"{prefix}_wt_single"] = f"{vol_single * _STEEL_T_PER_M3:.4f}"
+            out[f"{prefix}_wt_total"] = f"{totals[prefix]['vol'] * _STEEL_T_PER_M3:.2f}"
+        return out
+    except Exception as exc:  # keep the rest of the take-off working
+        logger.warning(f"End-diaphragm quantities not calculated: {exc}")
+        return na

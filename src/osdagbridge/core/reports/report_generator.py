@@ -124,6 +124,7 @@ from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
 from .chap3 import ch3_loads
 from .chap4 import ch4_analysis
+from . import styles
 from .chap5 import ch5_design_checks
 from .chap6 import ch6_drawings
 from .chap7 import ch7_quantities
@@ -138,7 +139,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # LaTeX template sections for OsdagBridge Design Report
 # Matches the LaTeX template used in the OsdagBridge desktop application.
-# Color: osdagGreen = #91B014
+# Colours, fonts and spacing: see styles.py (single source of truth)
 # =============================================================================
 
 
@@ -153,10 +154,11 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     rd = _tex(report_date)
     rv = _tex(report_version)
     return r"""
-\documentclass[12pt,a4paper]{report}
+""" + styles.document_class() + r"""
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+""" + styles.geometry_package() + r"""
+""" + styles.font_packages() + r"""
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -171,12 +173,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{enumitem}
 \usepackage{caption}
 
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
@@ -192,74 +188,94 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
-
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
+% Fonts, colours, table spacing, captions, headings and header/footer
+% rules all come from reports/styles.py (single source of truth).
+% (longtables get no \needspace hook: it breaks longtable's own start check;
+% that check is tuned with \LTstartreserve below.)
+""" + styles.latex_style_definitions() + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{\osdagFooterLeft}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \renewcommand{\headrule}{\osdagHeadRule}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+      \hbox to \headwidth{\textcolor{osdagText}{\osdagSoftwareDefaultNote}\hfil}%
+      \vspace{2pt}%
+    }{}%
+    \osdagFootRule%
   }
 }
 \fancypagestyle{plain}{
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{\osdagFooterLeft}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \renewcommand{\headrule}{\osdagHeadRule}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+      \hbox to \headwidth{\textcolor{osdagText}{\osdagSoftwareDefaultNote}\hfil}%
+      \vspace{2pt}%
+    }{}%
+    \osdagFootRule%
   }
 }
 \fancypagestyle{firstpage}{
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{\osdagFooterLeft}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
+  \renewcommand{\footrule}{\osdagFootRule}
 }
 \pagestyle{main}
-\setstretch{1.15}
+""" + styles.line_spacing() + r"""
+% Characters pdflatex cannot print by default; without these they are
+% silently dropped from the PDF (e.g. "UR <= 1.0" lost its symbol).
+\DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
+\DeclareUnicodeCharacter{2260}{\ensuremath{\neq}}
+\DeclareUnicodeCharacter{2248}{\ensuremath{\approx}}
+\DeclareUnicodeCharacter{209B}{\ensuremath{_{s}}}
+\setlength{\emergencystretch}{2em}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
 \newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+% \hspace{0pt} lets TeX hyphenate the first word of a cell (e.g. a long
+% bold heading in a narrow column) instead of pushing it into the border.
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash\hspace{0pt}}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash\hspace{0pt}}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash\hspace{0pt}}p{#1}}
+% Multi-page longtable markers: used in \endhead / \endfoot so column
+% headings repeat on every continuation page. #1 = number of columns.
+\newcommand{\ltcontinuedhead}[1]{\multicolumn{#1}{l}{\small\textit{Table~\thetable{} (continued)}}\\}
+\newcommand{\ltcontinuedfoot}[1]{\multicolumn{#1}{r}{\small\textit{Continued on next page}}\\}
+% longtable decides whether a table may start on the current page by
+% measuring only a strut-high sliver of the first row. Our first rows are
+% often several lines tall, so the table could "start" with no room, leaving
+% an empty footer behind and pushing the caption below the continuation
+% header on the next page. Reserve extra room in that start-of-table check.
+% (7 lines: smallest value with no stranded tables in testing.)
+\makeatletter
+% \nbcline: a \cline that forbids a page break right after the partial rule.
+% Plain \cline leaves a breakable \vskip, so longtable could split a
+% multirow group (e.g. one girder's checks) and strand its label.
+\let\@nbcline\@cline
+\patchcmd{\@nbcline}{\noalign{\vskip-\arrayrulewidth}}%
+  {\noalign{\penalty\@M\vskip-\arrayrulewidth}}{}%
+  {\PackageWarning{osdagbridge}{Could not patch cline}}
+\def\nbcline#1{\@nbcline#1\@nil}
+\makeatother
+\makeatletter
+\newlength{\LTstartreserve}""" + styles.longtable_start_reserve() + r"""
+\patchcmd{\LT@start}{\advance\dimen@ \ht\LT@foot}%
+  {\advance\dimen@ \ht\LT@foot\advance\dimen@\LTstartreserve}{}%
+  {\PackageWarning{osdagbridge}{Could not patch longtable start check}}
+\makeatother
 
 % Software-default asterisk
 \newcommand{\sdstar}{\textsuperscript{*}}
@@ -336,6 +352,8 @@ def title_page(m, osdag_logo, org_logo):
 \hline
 \end{tabular}
 \end{titlepage}
+% titlepage resets the page counter to 1; continue from 2 so "Page X of Y" matches the PDF.
+\setcounter{page}{2}
 """
 
 
@@ -345,10 +363,8 @@ def title_page(m, osdag_logo, org_logo):
 
 def toc_section():
     return r"""
-% Chapter / TOC Formatting
-\titleformat{\chapter}[block]
-  {\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{0pt}{10pt}
+% TOC formatting (chapter heading style lives in styles.py, so it applies
+% whether or not the TOC is included)
 \setcounter{tocdepth}{2}
 
 % TOC styling using titletoc
@@ -486,6 +502,21 @@ class ReportDataBridge:
         except (KeyError, TypeError):
             return {}
 
+    def end_diaphragm_view(self) -> "ReportDataBridge":
+        """Same accessors as cross bracing, but reading the end-diaphragm
+        results (end_diaphragm_forces_dict / end_diaphragm_design_results)."""
+        return _EndDiaphragmDataBridge(self.output_dict, self.input_dict, self.payload)
+
+    def has_bracing_results(self) -> bool:
+        """True when at least one member has an actual Osdag design result.
+        False means the backend produced no forces / designs to report."""
+        for members in (self._cb_pair_designs() or {}).values():
+            for by_force in (members or {}).values():
+                for raw in (by_force or {}).values():
+                    if raw:
+                        return True
+        return False
+
     def get_cb_pairs(self) -> list:
         """Return sorted list of girder pair keys e.g. ['G1-G2', 'G2-G3']."""
         try:
@@ -593,8 +624,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return r"\osdagPassText{PASS}"
+                return r"\osdagFailText{FAIL}"
         except (TypeError, ValueError):
             pass
         return ""
@@ -619,10 +650,12 @@ class ReportDataBridge:
         try:
             geom = self.get_cb_geometry()
             if member == "diagonal":
-                L_m = geom.get("diagonal_length_m", 0)
+                L_m = geom.get("diagonal_length_m")
             else:
-                L_m = geom.get("horiz_proj_m", 0)
-            return f"{L_m * 1000:.0f}"   # convert m → mm
+                L_m = geom.get("horiz_proj_m")
+            if not L_m:
+                return "---"   # geometry not stored (e.g. end diaphragm); never show 0
+            return f"{float(L_m) * 1000:.0f}"   # convert m → mm
         except (TypeError, ValueError):
             return ""
 
@@ -632,6 +665,17 @@ class ReportDataBridge:
             return f"{self.get_cb_geometry().get('alpha_deg', 0):.2f}"
         except Exception:
             return ""
+
+
+class _EndDiaphragmDataBridge(ReportDataBridge):
+    """ReportDataBridge whose bracing accessors read end-diaphragm results."""
+
+    def _cb_forces_dict(self) -> dict:
+        return self.output_dict.get("end_diaphragm_forces_dict", {}) or {}
+
+    def _cb_pair_designs(self) -> dict:
+        return self.output_dict.get("end_diaphragm_design_results", {}) or {}
+
 
 def _format_project_location(pl_data):
     if not pl_data:
@@ -924,11 +968,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, images_dir=tmp_images))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, images_dir=tmp_images))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}

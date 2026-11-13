@@ -56,12 +56,12 @@ form the basis of all design calculations in this software.
 \vspace{0.5cm}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{\osdagColSepCompact}
 \begin{table}[H]
-\caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\caption{IRC Codes}
+\begin{tabularx}{\linewidth}{|c|c|X|}
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
+\osdagHeadRow \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
 IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
 \hline
@@ -75,16 +75,17 @@ IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, 
 \hline
 IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
 \hline
-\end{tabular}
+\end{tabularx}
 \end{table}
+\endgroup
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{\osdagColSepCompact}
 \begin{table}[H]
-\caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\caption{IS Codes}
+\begin{tabularx}{\linewidth}{|c|c|X|}
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Scope} \\
+\osdagHeadRow \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
 IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\
 \hline
@@ -96,8 +97,9 @@ IS 1893 (Part 3) & 2014 & Earthquake resistant design \\
 \hline
 IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
-\end{tabular}
+\end{tabularx}
 \end{table}
+\endgroup
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}
@@ -149,7 +151,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \begin{itemize}
 \item Dead load densities per IRC 6:2017 Cl.203: structural steel $78.5 \ \text{kN/m}^3$, concrete $25.0 \ \text{kN/m}^3$, bituminous wearing course $24.0 \ \text{kN/m}^3$.
 \item Multi-lane live load reduction factors per IRC 6:2017 Cl.204.4 Table 6A: 1st lane = 1.0, 2nd lane = 0.8, 3rd lane onwards = 0.4.
-\item Impact factor (dynamic load allowance) computed from span per IRC 6:2017 Cl.208.2/208.3.
+\item Impact factor (dynamic load allowance) computed from span per IRC 6:2017 Cl.208.2/\allowbreak{}208.3.
 \item Wind load applied as transverse, longitudinal, and vertical components per IRC 6:2017 Cl.209.3.3--209.3.5.
 \end{itemize}
 

@@ -140,9 +140,12 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
 
     # Column widths: row-label column fixed at 2.8cm; girder columns share remainder
     label_col_cm = 2.8
-    # Available width ≈ 15.0cm for A4 with 1in margins; each girder col gets equal share
-    girder_col_cm = round(max(1.5, (15.0 - label_col_cm) / n_cols), 1)
-    col_spec = '|C{' + str(label_col_cm) + 'cm}|' + '|'.join(['C{' + str(girder_col_cm) + 'cm}'] * n_cols) + '|'
+    # Girder columns share whatever line width remains after the label column,
+    # cell padding and rules, so the table fits any page margins / girder count.
+    girder_col = (r'\dimexpr(\linewidth-' + str(label_col_cm) + r'cm-'
+                  + str(2 * (n_cols + 1)) + r'\tabcolsep-'
+                  + str(n_cols + 2) + r'\arrayrulewidth)/' + str(n_cols) + r'\relax')
+    col_spec = '|C{' + str(label_col_cm) + 'cm}|' + '|'.join(['C{' + girder_col + '}'] * n_cols) + '|'
 
     # Header row
     hdr_cells = ' &\n  '.join([r'\textbf{' + _tex(lbl) + '}' for lbl, _ in labels])
@@ -161,11 +164,11 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
     table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
-              r'\vspace{0.4em}' + '\n'
+              r'\vspace{\osdagSmallGap}' + '\n'
               r'\noindent' + '\n'
               r'\begin{tabular}{' + col_spec + '}\n'
               r'\hline' + '\n'
-              + header_row +
+              + r'\osdagHeadRow ' + header_row +
               r'\hline' + '\n'
               + member_id_row +
               r'\hline' + '\n'
@@ -179,7 +182,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
 
     return r"""
 \newpage
-{\centering\Large\bfseries Executive Summary\par}
+\osdagUnnumberedHeading{Executive Summary}
 \addcontentsline{toc}{chapter}{Executive Summary}
 \vspace{0.8em}
 
@@ -221,10 +224,10 @@ This section provides a concise summary of the bridge design, key inputs, govern
 
 """ + cs_fig + '\n\n' + geom_fig + '\n\n' + table1 + r"""
 
-\vspace{0.4em}
+\vspace{\osdagSmallGap}
 \noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value $< 1.0$ indicates a passing check.}
 
-\vspace{1em}
+\vspace{\osdagBlockGap}
 
 \section*{Key Design Outcomes Summary}
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
@@ -246,7 +249,4 @@ Deck design pass
 \item Splice connections and bearings are not designed in this version.
 \end{itemize}
 
-% Restore numbered chapter format
-\titleformat{\chapter}[block]{\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{-30pt}{10pt}
 """

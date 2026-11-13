@@ -889,8 +889,18 @@ class IRC6_2017:
         """
         Returns braking force as per IRC:6-2017 Clause 211.2.
         Returns:
-            float: Braking force in t (rounded to 3 decimal places)
+            float: Braking force in N (rounded to 3 decimal places). The
+            vehicle wheel loads used below are stored in N, so the result is
+            in N as well (e.g. 2 lanes -> 0.20 x 543474 N = 108694.8 N).
         """
+        if design_lanes is None or int(design_lanes) < 1:
+            # No lanes means missing/invalid input, not a zero braking force.
+            raise ValueError("design_lanes must be at least 1")
+        design_lanes = int(design_lanes)
+        # Cl. 211.2(b): the 5% component applies only to lanes in excess of
+        # two, so for one- or two-lane bridges it is genuinely zero. It was
+        # previously never initialised, which crashed every call.
+        braking_force_2 = 0.0
         for lane in range(1, design_lanes + 1):
             if lane == 1 or lane == 2:
                 wheel_load = IRC6_2017.cl_204_1_ClassA_vehicle()['wheel_loads']
