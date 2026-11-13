@@ -7,6 +7,7 @@ caller then omits the figure), so a missing value never crashes the report.
 """
 import logging
 import os
+import textwrap
 
 from osdagbridge.core.reports import styles
 
@@ -23,6 +24,11 @@ INK_MUTED = styles.CHART_INK_MUTED
 GRID = styles.CHART_GRID
 NO_DATA_EDGE = styles.CHART_NO_DATA_EDGE
 DPI = styles.CHART_DPI
+FS = styles.CHART_FONT_SIZE
+FS_SMALL = styles.CHART_FONT_SIZE_SMALL
+FS_NOTE = styles.CHART_FONT_SIZE_NOTE
+FS_LABEL = styles.CHART_FONT_SIZE_LABEL
+FS_TITLE = styles.CHART_FONT_SIZE_TITLE
 
 UR_LIMIT = 1.0
 
@@ -99,8 +105,11 @@ def utilization_summary_chart(ur_records, out_path, no_data_text=None):
             ax.bar(i, top * 0.18, width=0.56, facecolor="none", edgecolor=NO_DATA_EDGE,
                    linestyle=(0, (3, 2)), linewidth=0.9, zorder=3)
             reason = no_data_text.get(element, "No result")
+            # White backing keeps the note legible if a large CHART_FONT_SIZE
+            # pushes it up across the UR = 1.0 limit line.
             ax.text(i, top * 0.18 + top * 0.025, reason, ha="center", va="bottom",
-                    fontsize=8.5, color=INK_MUTED, linespacing=1.1, zorder=5)
+                    fontsize=FS_NOTE, color=INK_MUTED, linespacing=1.1, zorder=5,
+                    bbox=dict(facecolor="white", edgecolor="none", pad=1.0))
             continue
         ur, _check = g
         fail = ur > UR_LIMIT
@@ -111,7 +120,7 @@ def utilization_summary_chart(ur_records, out_path, no_data_text=None):
         if UR_LIMIT - top * 0.12 < ur <= UR_LIMIT:
             label_y = UR_LIMIT + top * 0.025
         ax.text(i, label_y, f"{ur:.2f}\n{'FAIL' if fail else 'PASS'}",
-                ha="center", va="bottom", fontsize=9.5, color=INK, fontweight="bold",
+                ha="center", va="bottom", fontsize=FS_LABEL, color=INK, fontweight="bold",
                 linespacing=1.15, zorder=5,
                 bbox=dict(boxstyle="square,pad=0.15", facecolor="white", edgecolor="none"))
 
@@ -119,19 +128,42 @@ def utilization_summary_chart(ur_records, out_path, no_data_text=None):
     # Label the limit in the right margin so it never overlaps a bar.
     ax.annotate("UR = 1.0\nlimit", xy=(1.0, UR_LIMIT), xycoords=("axes fraction", "data"),
                 xytext=(4, 0), textcoords="offset points", ha="left", va="center",
-                fontsize=8.5, color=LIMIT_COLOR, linespacing=1.1, annotation_clip=False)
+                fontsize=FS_NOTE, color=LIMIT_COLOR, linespacing=1.1, annotation_clip=False)
 
-    labels = []
-    for element in UR_ELEMENTS:
-        g = gov[element]
-        labels.append(element + ("\n(" + g[1] + ")" if g else "\n "))
+    # Wrap category names so neighbouring labels never collide, whatever
+    # CHART_FONT_SIZE is set to in styles.py: start unwrapped and narrow the
+    # wrap width until the rendered labels have a clear gap between them.
     ax.set_xticks(list(x))
-    ax.set_xticklabels(labels, fontsize=9.5, color=INK, linespacing=1.3)
     ax.tick_params(axis="x", length=0, pad=6)
     ax.set_xlim(-0.6, len(UR_ELEMENTS) - 0.4)
     ax.set_ylim(0, top)
-    ax.set_ylabel("Utilization Ratio (UR)", fontsize=9.5)
+    ax.set_ylabel("Utilization Ratio (UR)", fontsize=FS_LABEL)
     ax.set_xlabel("Structural element (governing check)", color=INK_MUTED, labelpad=6)
+    renderer = fig.canvas.get_renderer()
+    gap = FS_LABEL * 0.6 * DPI / 72      # ~0.6 em of space, in pixels
+    # Words are never split; if even one word per line does not fit, the
+    # figure is widened a step at a time (it is scaled to the text width in
+    # the PDF, so this only happens for unusually large chart fonts).
+    def wrap(t, n):
+        return textwrap.fill(t, n, break_long_words=False, break_on_hyphens=False)
+
+    fitted = False
+    for _widen in range(8):
+        for wrap_at in range(40, 5, -1):
+            labels = []
+            for element in UR_ELEMENTS:
+                g = gov[element]
+                gov_txt = wrap("(" + g[1] + ")", wrap_at) if g else " "
+                labels.append(wrap(element, wrap_at) + "\n" + gov_txt)
+            ticks = ax.set_xticklabels(labels, fontsize=FS_LABEL, color=INK, linespacing=1.3)
+            fig.tight_layout()   # final axes width, so the measurement is real
+            boxes = [t.get_window_extent(renderer) for t in ticks]
+            if all(b2.x0 - b1.x1 >= gap for b1, b2 in zip(boxes, boxes[1:])):
+                fitted = True
+                break
+        if fitted:
+            break
+        fig.set_figwidth(fig.get_figwidth() * 1.1)
 
     fig.tight_layout()
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
@@ -177,12 +209,12 @@ def utilization_detail_chart(ur_records, out_path):
         if UR_LIMIT - top * 0.08 < ur <= UR_LIMIT:
             lx = UR_LIMIT + top * 0.012   # keep clear of the dashed limit line
         ax.text(lx, yy, f"{ur:.2f}" + ("  FAIL" if fail else ""),
-                va="center", ha="left", fontsize=8, color=INK,
+                va="center", ha="left", fontsize=FS_SMALL, color=INK,
                 fontweight="bold" if fail else "normal", zorder=5)
 
     _limit_line(ax, horizontal=False)
     ax.set_yticks(ys)
-    ax.set_yticklabels(labels, fontsize=8, color=INK)
+    ax.set_yticklabels(labels, fontsize=FS_SMALL, color=INK)
     ax.tick_params(axis="y", length=0)
     ax.invert_yaxis()
     ax.set_xlim(0, top)
@@ -192,7 +224,7 @@ def utilization_detail_chart(ur_records, out_path):
     for element, y0, _y1 in group_spans:
         ax.annotate(element, xy=(0, y0 - 0.62), xycoords=("axes fraction", "data"),
                     xytext=(-4, 0), textcoords="offset points", ha="right", va="center",
-                    fontsize=8, fontweight="bold", color=INK, annotation_clip=False)
+                    fontsize=FS_SMALL, fontweight="bold", color=INK, annotation_clip=False)
 
     fig.tight_layout()
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
@@ -248,15 +280,15 @@ def _hbar_panel(ax, labels, values, unit, decimals=2, share=False, missing_text=
             ax.barh(y, xmax * 0.22, height=0.52, facecolor="none", edgecolor=NO_DATA_EDGE,
                     linestyle=(0, (3, 2)), linewidth=0.9, zorder=3)
             ax.text(xmax * 0.24, y, missing_text, va="center", ha="left",
-                    fontsize=8.5, color=INK_MUTED, zorder=5)
+                    fontsize=FS_NOTE, color=INK_MUTED, zorder=5)
             continue
         ax.barh(y, v, height=0.52, color=QTY_COLOR, linewidth=0, zorder=3)
         txt = f"{v:,.{decimals}f} {unit}"
         if share and total > 0 and len(present) > 1:
             txt += f"  ({100.0 * v / total:.1f}%)"
-        ax.text(v + xmax * 0.012, y, txt, va="center", ha="left", fontsize=9, color=INK, zorder=5)
+        ax.text(v + xmax * 0.012, y, txt, va="center", ha="left", fontsize=FS, color=INK, zorder=5)
     ax.set_yticks(ys)
-    ax.set_yticklabels(labels, fontsize=9.5, color=INK)
+    ax.set_yticklabels(labels, fontsize=FS_LABEL, color=INK)
     ax.tick_params(axis="y", length=0)
     # Fixed slot count keeps bar thickness equal across side-by-side panels.
     n = max(slots or len(labels), len(labels))
@@ -300,16 +332,16 @@ def concrete_reinforcement_chart(concrete_parts, rebar_parts, out_path, ratio_te
     n = max(len(concrete_parts), len(rebar_parts))
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6.6, 0.95 + 0.55 * n), dpi=DPI)
     _hbar_panel(ax1, [l for l, _ in concrete_parts], [v for _, v in concrete_parts], r"m$^3$", slots=n)
-    ax1.set_title(r"Concrete volume (m$^3$)", fontsize=10, color=INK, loc="left")
+    ax1.set_title(r"Concrete volume (m$^3$)", fontsize=FS_TITLE, color=INK, loc="left")
     _hbar_panel(ax2, [l for l, _ in rebar_parts], [v for _, v in rebar_parts], "MT", slots=n)
-    ax2.set_title("Reinforcement steel (MT)", fontsize=10, color=INK, loc="left")
+    ax2.set_title("Reinforcement steel (MT)", fontsize=FS_TITLE, color=INK, loc="left")
     if ratio_text:
         # In the first empty row slot (or under the axis if there is none).
         if len(rebar_parts) < n:
             ax2.text(0.02, len(rebar_parts), ratio_text, transform=ax2.get_yaxis_transform(),
-                     fontsize=8.5, color=INK_MUTED, ha="left", va="center", wrap=True)
+                     fontsize=FS_NOTE, color=INK_MUTED, ha="left", va="center", wrap=True)
         else:
-            ax2.set_xlabel(ratio_text, fontsize=8.5, color=INK_MUTED)
+            ax2.set_xlabel(ratio_text, fontsize=FS_NOTE, color=INK_MUTED)
     fig.tight_layout(w_pad=2.5)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     fig.savefig(out_path, dpi=DPI, bbox_inches="tight", pad_inches=0.05)

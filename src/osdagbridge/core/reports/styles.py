@@ -84,7 +84,13 @@ CHART_INK = "#1f1f1f"
 CHART_INK_MUTED = "#5f5f5f"
 CHART_GRID = "#d9d9d9"
 CHART_NO_DATA_EDGE = "#8a8a8a"
-CHART_FONT_SIZE = 9
+CHART_FONT_SIZE = 9               # base size (tick labels, value labels)
+# Other chart text sizes are offsets from the base, so changing
+# CHART_FONT_SIZE rescales every chart consistently.
+CHART_FONT_SIZE_SMALL = CHART_FONT_SIZE - 1      # dense detail chart labels
+CHART_FONT_SIZE_NOTE = CHART_FONT_SIZE - 0.5     # annotations, limit label
+CHART_FONT_SIZE_LABEL = CHART_FONT_SIZE + 0.5    # axis labels, category names
+CHART_FONT_SIZE_TITLE = CHART_FONT_SIZE + 1      # panel titles
 
 _CHART_FONTS = {
     "computer-modern": (["cmr10", "DejaVu Serif"], "cm"),
