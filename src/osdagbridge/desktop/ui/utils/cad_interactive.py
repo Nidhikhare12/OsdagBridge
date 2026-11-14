@@ -4,9 +4,10 @@ Enables dynamic, double-click editing of fundamental bridge parameters directly
 within the 2D CAD canvas and provides read-only feedback for derived parameters.
 """
 
+import re
 from PySide6.QtWidgets import QWidget, QLineEdit
 from PySide6.QtCore import Qt, QObject, QRectF, QPoint, Signal, QEvent
-from PySide6.QtGui import QCursor
+from PySide6.QtGui import QCursor, QFont, QFontMetrics
 from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
 
 
@@ -40,7 +41,8 @@ class InteractiveCADManager(QObject):
         param_name: str,
         current_value: float | int,
         unit: str = "m",
-        is_editable: bool = True
+        is_editable: bool = True,
+        full_text: str = ""
     ):
         """
         Register a parameter label's bounding box and metadata.
@@ -58,6 +60,7 @@ class InteractiveCADManager(QObject):
             'value': current_value,
             'unit': unit,
             'editable': is_editable,
+            'full_text': full_text,
         })
 
     def handle_mouse_move(self, event) -> bool:
@@ -117,6 +120,43 @@ class InteractiveCADManager(QObject):
 
         return False
 
+    def _compute_number_rect(self, item: dict) -> QRectF:
+        """
+        Compute the sub-rectangle corresponding specifically to the numerical value
+        within the label's drawn bounding box.
+        Keeps the parameter title and unit visible on the canvas while editing.
+        """
+        draw_rect = item.get('draw_rect')
+        if draw_rect is None or draw_rect.isEmpty():
+            return draw_rect if draw_rect is not None else QRectF()
+
+        full_text = item.get('full_text', '')
+        if not full_text:
+            return draw_rect
+
+        font = QFont('Arial', 9, QFont.Normal)
+        metrics = QFontMetrics(font)
+
+        lines = full_text.split('\n')
+        line_height = metrics.height()
+        padding = 2  # matches padding in draw_text_with_background
+
+        for i, line in enumerate(lines):
+            match = re.search(r"[-+]?\d*\.?\d+", line)
+            if match:
+                prefix = line[:match.start()]
+                num_str = match.group(0)
+
+                prefix_w = metrics.horizontalAdvance(prefix) if hasattr(metrics, 'horizontalAdvance') else metrics.boundingRect(prefix).width()
+                num_w = metrics.horizontalAdvance(num_str) if hasattr(metrics, 'horizontalAdvance') else metrics.boundingRect(num_str).width()
+
+                num_x = draw_rect.x() + padding + prefix_w
+                num_y = draw_rect.y() + padding + i * line_height
+
+                return QRectF(num_x, num_y, num_w, line_height)
+
+        return draw_rect
+
     def spawn_editor(self, item: dict):
         """Create and show a styled QLineEdit overlay directly on the text label."""
         self.close_editor(commit=False)
@@ -138,12 +178,13 @@ class InteractiveCADManager(QObject):
 
         editor.setText(text_val)
 
-        # Center the editor over the drawn text rectangle
-        draw_rect = item['draw_rect'].toRect()
-        w = max(draw_rect.width() + 16, 75)
-        h = max(draw_rect.height() + 8, 24)
-        x = draw_rect.center().x() - w // 2
-        y = draw_rect.center().y() - h // 2
+        # Locate the sub-rectangle of only the number portion
+        num_rect = self._compute_number_rect(item)
+
+        w = max(int(num_rect.width()) + 14, 48)
+        h = max(int(num_rect.height()) + 4, 20)
+        x = int(num_rect.center().x() - w // 2)
+        y = int(num_rect.center().y() - h // 2)
 
         # Keep editor within canvas bounds
         x = max(2, min(x, self.canvas.width() - w - 2))
@@ -155,12 +196,12 @@ class InteractiveCADManager(QObject):
             QLineEdit {
                 background-color: #ffffff;
                 color: #000000;
-                border: 2px solid #90AF13;
-                border-radius: 3px;
+                border: 1.5px solid #90AF13;
+                border-radius: 2px;
                 font-family: Arial;
-                font-size: 11px;
+                font-size: 10px;
                 font-weight: bold;
-                padding: 1px 2px;
+                padding: 0px 2px;
             }
         """)
 

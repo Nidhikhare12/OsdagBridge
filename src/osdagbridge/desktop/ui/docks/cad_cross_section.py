@@ -2110,7 +2110,8 @@ class CrossSectionCADWidget(QWidget):
             param_name="Overall Bridge Width",
             current_value=total_width_m,
             unit="m",
-            is_editable=False
+            is_editable=False,
+            full_text=label_text
         )
 
         # LEVEL 2: Footpath dimensions
@@ -2163,7 +2164,8 @@ class CrossSectionCADWidget(QWidget):
                 param_name="Carriageway Width",
                 current_value=cw_m,
                 unit="m",
-                is_editable=True
+                is_editable=True,
+                full_text=label_cw
             )
             
             # Median dimension
@@ -2188,7 +2190,8 @@ class CrossSectionCADWidget(QWidget):
                 param_name="Carriageway Width",
                 current_value=cw_m,
                 unit="m",
-                is_editable=True
+                is_editable=True,
+                full_text=label_cw
             )
         else:
             # Single carriageway
@@ -2208,7 +2211,8 @@ class CrossSectionCADWidget(QWidget):
                 param_name="Carriageway Width",
                 current_value=cw_m,
                 unit="m",
-                is_editable=True
+                is_editable=True,
+                full_text=label_cw
             )
         
         # Right footpath dimension
@@ -2251,7 +2255,8 @@ class CrossSectionCADWidget(QWidget):
                 param_name="Overhang",
                 current_value=overhang_m,
                 unit="m",
-                is_editable=False
+                is_editable=False,
+                full_text=label_overhang
             )
         
         # Girder spacing
@@ -2279,7 +2284,8 @@ class CrossSectionCADWidget(QWidget):
                 param_name="Girder Spacing",
                 current_value=gs_m,
                 unit="m",
-                is_editable=True
+                is_editable=True,
+                full_text=label_gs
             )
         
         # FOOTPATH THICKNESS DIMENSION 
@@ -2365,7 +2371,8 @@ class CrossSectionCADWidget(QWidget):
                 param_name="Deck Thickness",
                 current_value=deck_t_mm,
                 unit="mm",
-                is_editable=True
+                is_editable=True,
+                full_text=text
             )
     def add_cross_section_hover_labels(self, painter, carriageway_start_x, carriageway_end_x,
                     left_barrier_x, right_barrier_x, deck_top_y, deck_bottom_y,

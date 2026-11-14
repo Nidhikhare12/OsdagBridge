@@ -1311,7 +1311,8 @@ class TopViewCADWidget(QWidget):
                 param_name="Bracing Spacing",
                 current_value=cb_spacing_m,
                 unit="m",
-                is_editable=False
+                is_editable=False,
+                full_text=label_cb
             )
             dim_y_next = dim_y_base + DIM_STACK_GAP
         else:
@@ -1336,7 +1337,8 @@ class TopViewCADWidget(QWidget):
             param_name="Span Length",
             current_value=span_m,
             unit="m",
-            is_editable=True
+            is_editable=True,
+            full_text=label_span
         )
 
         # GIRDER SPACING dimension (always visible)
@@ -1379,7 +1381,8 @@ class TopViewCADWidget(QWidget):
                 param_name="Girder Spacing",
                 current_value=gs_m,
                 unit="m",
-                is_editable=True
+                is_editable=True,
+                full_text=label_text
             )
 
         # CL OF BEARING labels - ALWAYS VISIBLE (moved outside hover condition)
