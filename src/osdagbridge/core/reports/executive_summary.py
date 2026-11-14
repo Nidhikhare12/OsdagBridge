@@ -3,6 +3,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from osdagbridge.core.reports.report_utils import _fig_or_placeholder, _render_value, _tex, get_girder_entries
+from .styles import pass_indicator, fail_indicator
 from osdagbridge.core.utils.common import (
     KEY_CARRIAGEWAY_WIDTH,
     KEY_SD_SECTION_DESIGNATION,
@@ -103,11 +104,21 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
                     girder_max_ur = dcr
 
     if not per_girder:
-        overall_design_status = ""
+        overall_design_status = str(output_dict.get("overall_design_status", "") or "")
     elif failing:
         overall_design_status = "Fail (" + ", ".join(failing) + ")"
     else:
         overall_design_status = "Pass"
+
+    if overall_design_status:
+        if "PASS" in overall_design_status.upper():
+            status_tex = pass_indicator(_tex(overall_design_status))
+        elif "FAIL" in overall_design_status.upper():
+            status_tex = fail_indicator(_tex(overall_design_status))
+        else:
+            status_tex = _tex(overall_design_status)
+    else:
+        status_tex = ""
 
     # Overall Utilization Ratio — the maximum UR across all bridge components,
     # tagged with the governing component (e.g. "1.05 (Deck slab)").
@@ -206,7 +217,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \hline
 \textbf{Deck Thickness} & """ + (_render_value(input_dict, KEY_TS_DECK_THICKNESS)) + r""" \\
 \hline
-\textbf{Overall Design Status} & """ + (_tex(overall_design_status)) + r""" \\
+\textbf{Overall Design Status} & """ + status_tex + r""" \\
 \hline
 \textbf{Governing Check} & """ + gov + r""" \\
 \hline

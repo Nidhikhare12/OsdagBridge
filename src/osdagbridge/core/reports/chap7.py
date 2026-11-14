@@ -1,5 +1,7 @@
-def ch7_quantities(input_dict):
-    return r"""
+from typing import Optional, Dict
+
+def ch7_quantities(input_dict: dict, fig_paths: Optional[Dict[str, str]] = None) -> str:
+    tex = r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
 
@@ -11,6 +13,22 @@ def ch7_quantities(input_dict):
 \hline
 \textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
 \hline
+\endfirsthead
+
+\hline
+\multicolumn{7}{|l|}{\small\textit{Table 7.1: Bill of Materials (continued from previous page)}} \\
+\hline
+\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{7}{|r|}{\small\textit{Continued on next page\dots}} \\
+\hline
+\endfoot
+
+\hline
+\endlastfoot
 1 & Structural Steel (IS 2062) for Girders & """ + str(input_dict.get("steel_girders_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_qty", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_total", "N.A.")) + r""" \\
 \hline
 2(a) & Cross Bracing - Top Chord & """ + str(input_dict.get("bracing_top_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_qty", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_wt_total", "N.A.")) + r""" \\
@@ -28,6 +46,16 @@ def ch7_quantities(input_dict):
 6 & Crash Barrier & """ + str(input_dict.get("crash_barrier_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_qty", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_total", "N.A.")) + r""" \\
 \hline
 \end{longtable}
+\endgroup
 """
-
-
+    if fig_paths:
+        from .report_utils import _fig_embed
+        if 'boq_steel' in fig_paths and fig_paths['boq_steel']:
+            tex += "\n" + _fig_embed(fig_paths['boq_steel'],
+                                     caption="Structural Steel Quantity Breakdown (Metric Tonnes)",
+                                     width=r'0.90\textwidth')
+        if 'boq_concrete' in fig_paths and fig_paths['boq_concrete']:
+            tex += "\n" + _fig_embed(fig_paths['boq_concrete'],
+                                     caption="Concrete Volume vs. Rebar Weight Comparison",
+                                     width=r'0.90\textwidth')
+    return tex

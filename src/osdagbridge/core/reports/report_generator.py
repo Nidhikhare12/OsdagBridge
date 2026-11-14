@@ -119,6 +119,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from .styles import get_preamble_styles, ARRAY_STRETCH, pass_indicator, fail_indicator
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -156,7 +157,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2.0cm, right=2.0cm, headheight=15pt, footskip=30pt]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -194,19 +195,22 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
 \setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
+\renewcommand{\arraystretch}{""" + str(ARRAY_STRETCH) + r"""}
 \setlength{\LTpre}{0pt}
 \setlength{\LTpost}{6pt}
 % Table rules (outline thickness) and small extra row height for clarity
 \setlength{\arrayrulewidth}{0.5pt}
 \setlength{\extrarowheight}{0.6pt}
 
-% Prevent tables from overflowing past the page bottom:
+% Prevent headings and tables from overflowing past page boundaries or being orphaned:
 % if fewer than 5 baseline-skips remain, break to the next page first.
 \BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
 \BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+\pretocmd{\section}{\needspace{5\baselineskip}}{}{}
+\pretocmd{\subsection}{\needspace{4\baselineskip}}{}{}
+\pretocmd{\subsubsection}{\needspace{3\baselineskip}}{}{}
 
-\definecolor{osdagGreen}{HTML}{91B014}
+""" + get_preamble_styles() + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -593,8 +597,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return pass_indicator("PASS")
+                return fail_indicator("FAIL")
         except (TypeError, ValueError):
             pass
         return ""
@@ -899,6 +903,15 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
+            # ── Generate dynamic headless charts for Section 5.5 and Chapter 7 ──
+            from .chart_generator import generate_ur_chart, generate_quantity_charts
+            ur_png = generate_ur_chart(payload.design_checks, tmp_images)
+            fig_paths['ur_summary'] = ur_png.replace('\\', '/')
+
+            steel_png, conc_png = generate_quantity_charts(payload.inputs, tmp_images)
+            fig_paths['boq_steel'] = steel_png.replace('\\', '/')
+            fig_paths['boq_concrete'] = conc_png.replace('\\', '/')
+
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
@@ -924,11 +937,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, fig_paths=fig_paths))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, fig_paths=fig_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
