@@ -506,6 +506,7 @@ class TopViewCADWidget(QWidget):
         painter.fillRect(self.rect(), QColor(255, 255, 255))
         
         self.draw_top_view(painter)
+        self.interactive_mgr.draw_indicators(painter)
         
     def draw_text_with_background(self, painter, x, y, text,
                               bg_color=QColor(255, 255, 255, 230), 

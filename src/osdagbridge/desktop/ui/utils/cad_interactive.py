@@ -5,9 +5,9 @@ within the 2D CAD canvas and provides read-only feedback for derived parameters.
 """
 
 import re
-from PySide6.QtWidgets import QWidget, QLineEdit
-from PySide6.QtCore import Qt, QObject, QRectF, QPoint, Signal, QEvent
-from PySide6.QtGui import QCursor, QFont, QFontMetrics
+from PySide6.QtWidgets import QWidget, QLineEdit, QToolTip
+from PySide6.QtCore import Qt, QObject, QRectF, QPoint, QPointF, Signal, QEvent
+from PySide6.QtGui import QCursor, QFont, QFontMetrics, QPainter, QPen, QColor
 from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
 
 
@@ -65,7 +65,7 @@ class InteractiveCADManager(QObject):
 
     def handle_mouse_move(self, event) -> bool:
         """
-        Update the mouse cursor when hovering over interactive labels.
+        Update mouse cursor and show informative tooltips when hovering over interactive labels.
         Returns True if hovering over an interactive CAD label.
         """
         if self._active_editor is not None and self._active_editor.isVisible():
@@ -74,12 +74,16 @@ class InteractiveCADManager(QObject):
         pos = event.position() if hasattr(event, 'position') else event.pos()
         for item in self.labels:
             if item['rect'].contains(pos):
+                global_pt = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
                 if item['editable']:
                     self.canvas.setCursor(Qt.PointingHandCursor)
+                    QToolTip.showText(global_pt, f"✏️ Double-click to edit {item['name']}", self.canvas)
                 else:
                     self.canvas.setCursor(Qt.ForbiddenCursor)
+                    QToolTip.showText(global_pt, f"🔒 {item['name']} is derived (Read-only)", self.canvas)
                 return True
 
+        QToolTip.hideText()
         return False
 
     def handle_mouse_press(self, event) -> bool:
@@ -87,12 +91,46 @@ class InteractiveCADManager(QObject):
         Commit active editor if clicking outside its area.
         Returns True if handled.
         """
+        QToolTip.hideText()
         if self._active_editor is not None and self._active_editor.isVisible():
             pos = event.position() if hasattr(event, 'position') else event.pos()
             if not self._active_editor.geometry().contains(pos.toPoint()):
                 self.commit_editor()
                 return True
         return False
+
+    def draw_indicators(self, painter: QPainter):
+        """
+        Draw subtle static visual cues (dashed underline in Osdag green)
+        under editable parameters to indicate they can be interacted with.
+        """
+        if not self.labels:
+            return
+
+        painter.save()
+        painter.setRenderHint(QPainter.Antialiasing, True)
+
+        pen = QPen(QColor(144, 175, 19, 230), 1.5)  # #90AF13 Osdag green
+        pen.setStyle(Qt.CustomDashLine)
+        pen.setDashPattern([3, 2])
+        painter.setPen(pen)
+
+        for item in self.labels:
+            if not item.get('editable', False):
+                continue
+
+            num_rect = self._compute_number_rect(item)
+            if num_rect.isEmpty():
+                continue
+
+            # Draw dashed line 1 pixel below the bottom of the number
+            y = num_rect.bottom() + 1
+            x1 = num_rect.left()
+            x2 = num_rect.right()
+
+            painter.drawLine(QPointF(x1, y), QPointF(x2, y))
+
+        painter.restore()
 
     def handle_double_click(self, event) -> bool:
         """

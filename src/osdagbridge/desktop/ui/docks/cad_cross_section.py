@@ -757,6 +757,7 @@ class CrossSectionCADWidget(QWidget):
             painter.setRenderHint(QPainter.Antialiasing)
             painter.fillRect(self.rect(), QColor(255, 255, 255))
             self.draw_cross_section(painter)
+            self.interactive_mgr.draw_indicators(painter)
         except Exception as e:
             print(" PAINT ERROR:", repr(e))
         finally:
