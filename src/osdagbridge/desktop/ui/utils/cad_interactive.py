@@ -45,9 +45,10 @@ class InteractiveCADManager(QObject):
         full_text: str = ""
     ):
         """
-        Register a parameter label's bounding box and metadata.
+        Register an editable parameter label's bounding box and metadata.
+        Non-editable labels are ignored so they remain plain static text.
         """
-        if rect is None or rect.isEmpty():
+        if not is_editable or rect is None or rect.isEmpty():
             return
 
         # Give a small padding margin around the text to make targeting easier
@@ -59,7 +60,7 @@ class InteractiveCADManager(QObject):
             'name': param_name,
             'value': current_value,
             'unit': unit,
-            'editable': is_editable,
+            'editable': True,
             'full_text': full_text,
         })
 

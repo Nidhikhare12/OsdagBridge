@@ -1302,18 +1302,9 @@ class TopViewCADWidget(QWidget):
             x1_brace = bracing_positions[0] + x_offset_last
             x2_brace = bracing_positions[1] + x_offset_last
             
-            rect_cb = self.draw_dimension_arrow_with_extensions_up(
+            self.draw_dimension_arrow_with_extensions_up(
                 painter, x1_brace, dim_y1, x2_brace, dim_y1,
                 label_cb, last_girder_y
-            )
-            self.interactive_mgr.register_label(
-                rect=rect_cb,
-                param_key=KEY_MP_CB_SPACING,
-                param_name="Bracing Spacing",
-                current_value=cb_spacing_m,
-                unit="m",
-                is_editable=False,
-                full_text=label_cb
             )
             dim_y_next = dim_y_base + DIM_STACK_GAP
         else:

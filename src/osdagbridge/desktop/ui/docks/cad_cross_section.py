@@ -2095,7 +2095,7 @@ class CrossSectionCADWidget(QWidget):
         text_w = metrics.boundingRect(label_text).width()
         text_y = Y_OVERALL - 5  # Moved down more
 
-        rect_overall = self.draw_text_with_background(
+        self.draw_text_with_background(
             painter,
             mid_x - text_w / 2.0,
             text_y,
@@ -2104,15 +2104,6 @@ class CrossSectionCADWidget(QWidget):
             QColor(0, 0, 0),
             9,
             False
-        )
-        self.interactive_mgr.register_label(
-            rect=rect_overall,
-            param_key=KEY_TS_OVERALL_WIDTH,
-            param_name="Overall Bridge Width",
-            current_value=total_width_m,
-            unit="m",
-            is_editable=False,
-            full_text=label_text
         )
 
         # LEVEL 2: Footpath dimensions
@@ -2246,19 +2237,10 @@ class CrossSectionCADWidget(QWidget):
             if self.show_carriageway_values:
                 label_overhang += f" = {overhang_m:.2f} m"
                 
-            rect_ov = self.draw_dimension_arrow(painter, deck_left_x, Y_OVERHANG, first_girder_x, Y_OVERHANG,
+            self.draw_dimension_arrow(painter, deck_left_x, Y_OVERHANG, first_girder_x, Y_OVERHANG,
                                     label_overhang, True,
                                     extension_direction='up',
                                     extension_end_y=deck_bottom_y)
-            self.interactive_mgr.register_label(
-                rect=rect_ov,
-                param_key=KEY_TS_DECK_OVERHANG,
-                param_name="Overhang",
-                current_value=overhang_m,
-                unit="m",
-                is_editable=False,
-                full_text=label_overhang
-            )
         
         # Girder spacing
         if n > 1 and len(positions) >= 2:
