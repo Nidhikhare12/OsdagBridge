@@ -788,6 +788,81 @@ class CustomWindow(QWidget):
         # This will update the CAD whenever any input field changes
         if hasattr(self.input_dock, 'input_value_changed'):
             self.input_dock.input_value_changed.connect(self.update_cad_from_inputs)        
+        
+        # Connect interactive CAD parameter editing to synchronize inputs
+        if hasattr(self.cad_comp_widget, 'parameter_edited'):
+            self.cad_comp_widget.parameter_edited.connect(self.on_cad_parameter_edited)
+
+    def on_cad_parameter_edited(self, key: str, value: float):
+        """
+        Handle parameter edits from double-clicking directly on the 2D CAD canvas.
+        Validates the new value, pushes to input_dict and InputDock, and redraws CAD.
+        """
+        if not self.input_dock or not hasattr(self.input_dock, "validator"):
+            return
+
+        validator = self.input_dock.validator
+        temp_dict = dict(self.input_dict)
+
+        # 1. Validation & Dict Assignment
+        if key in (KEY_SPAN, KEY_CARRIAGEWAY_WIDTH):
+            temp_dict[key] = value
+            result = validator.validate_basic_inputs(key, temp_dict)
+            if result is not None:
+                corrected, message = result
+                CustomMessageBox(
+                    title="Input Validation",
+                    text=message,
+                    dialogType=MessageBoxType.Warning
+                ).exec()
+                value = corrected
+
+            # Format for input dock widget (string in meters)
+            val_str = f"{value:.2f}".rstrip('0').rstrip('.')
+            widget = self.input_dock.input_widget.findChild(QLineEdit, key)
+            if widget:
+                widget.blockSignals(True)
+                widget.setText(val_str)
+                widget.blockSignals(False)
+
+            self.input_dock._update_input_dict(key, val_str)
+            self.input_dock.is_require_field_changed = True
+
+            if key == KEY_CARRIAGEWAY_WIDTH:
+                try:
+                    solve_extend_basic_input_dict(self.input_dict)
+                    self.input_dock.is_require_field_changed = False
+                except Exception:
+                    pass
+
+        elif key in (KEY_TS_GIRDER_SPACING, KEY_TS_DECK_THICKNESS):
+            temp_dict[key] = value
+            result = validator.validate_additional_inputs(key, temp_dict)
+            if result is not None:
+                corrected, message = result
+                CustomMessageBox(
+                    title="Input Validation",
+                    text=message,
+                    dialogType=MessageBoxType.Warning
+                ).exec()
+                value = corrected
+
+            self.input_dict[key] = float(value)
+
+            # If AdditionalInputs dialog is instantiated, sync it too
+            if self._additional_inputs_dialog is not None:
+                try:
+                    self._additional_inputs_dialog.set_input_dictionary(self.input_dict)
+                    w = self._additional_inputs_dialog.findChild(QLineEdit, key)
+                    if w:
+                        w.blockSignals(True)
+                        w.setText(str(value))
+                        w.blockSignals(False)
+                except Exception:
+                    pass
+
+        # 2. Trigger CAD redraw with updated state
+        self.update_cad_from_inputs()        
             
     # Function for saving input dictionary into an OSI file
     def saveOSI_inputs(self):
