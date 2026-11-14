@@ -903,6 +903,15 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
+            # ── Generate dynamic headless charts for Section 5.5 and Chapter 7 ──
+            from .chart_generator import generate_ur_chart, generate_quantity_charts
+            ur_png = generate_ur_chart(payload.design_checks, tmp_images)
+            fig_paths['ur_summary'] = ur_png.replace('\\', '/')
+
+            steel_png, conc_png = generate_quantity_charts(payload.inputs, tmp_images)
+            fig_paths['boq_steel'] = steel_png.replace('\\', '/')
+            fig_paths['boq_concrete'] = conc_png.replace('\\', '/')
+
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)

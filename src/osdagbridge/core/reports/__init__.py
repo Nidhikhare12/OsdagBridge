@@ -24,6 +24,11 @@ from .styles import (
     status_indicator,
 )
 
+from .chart_generator import (
+    generate_ur_chart,
+    generate_quantity_charts,
+)
+
 __all__ = [
     "ReportMetadata", "ReportOptions", "ReportRequest",
     "ReportFigures", "ReportPayload", "ReportResult",
@@ -32,4 +37,5 @@ __all__ = [
     "COLOR_PASS", "COLOR_FAIL", "LATEX_COLOR_DEFINITIONS",
     "ARRAY_STRETCH", "TABLE_HEADER_FORMAT",
     "get_preamble_styles", "pass_indicator", "fail_indicator", "status_indicator",
+    "generate_ur_chart", "generate_quantity_charts",
 ]
