@@ -6,6 +6,7 @@ from osdagbridge.core.utils.common import (
     KEY_SD_DEFL_TOTAL,
 )
 from osdagbridge.core.reports.report_utils import _tex, _fig_embed
+from .styles import pass_indicator, fail_indicator, ARRAY_STRETCH
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -73,8 +74,8 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "---"
     _allow_live_str  = f"L/800 = {_allow_live_mm:.1f} mm"
     _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
-    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
-    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
+    _live_status     = (pass_indicator("PASS") if _live_mm  <= _allow_live_mm  else fail_indicator("FAIL")) if _live_mm  is not None else "---"
+    _total_status    = (pass_indicator("PASS") if _total_mm <= _allow_total_mm else fail_indicator("FAIL")) if _total_mm is not None else "---"
     return r"""
 \chapter{Analysis Results}
 
@@ -84,7 +85,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \begingroup
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
+\renewcommand{\arraystretch}{""" + str(ARRAY_STRETCH) + r"""}
 
 \begin{longtable}{|
 >{\centering\arraybackslash}p{3.1cm}|

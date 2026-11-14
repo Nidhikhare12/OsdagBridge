@@ -142,6 +142,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries
+from .styles import pass_indicator, fail_indicator, status_indicator
 
 if TYPE_CHECKING:
     pass
@@ -218,7 +219,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     try:
         _flex_ur = float(bridge.output_dict.get(KEY_UTIL_FLEXURE)) / 100.0
         _flex_ur_str = f"{_flex_ur:.2f}"
-        _flex_status = "PASS" if _flex_ur <= 1.0 else r"\textcolor{red}{FAIL}"
+        _flex_status = status_indicator(_flex_ur <= 1.0)
     except (TypeError, ValueError):
         _flex_ur_str = ""
         _flex_status = "---"
@@ -240,7 +241,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     try:
         _shear_ur = float(bridge.output_dict.get(KEY_UTIL_SHEAR)) / 100.0
         _shear_ur_str = f"{_shear_ur:.2f}"
-        _shear_status = "PASS" if _shear_ur <= 1.0 else r"\textcolor{red}{FAIL}"
+        _shear_status = status_indicator(_shear_ur <= 1.0)
     except (TypeError, ValueError):
         _shear_ur_str = ""
         _shear_status = "---"
@@ -270,10 +271,10 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     # Interaction DCRs use the engine bands: PASS <0.90, WARN <1.00, FAIL ≥1.00.
     def _interaction_status(ratio):
         if ratio < 0.90:
-            return "PASS"
+            return pass_indicator("PASS")
         elif ratio < 1.00:
-            return "WARN"
-        return r"\textcolor{red}{FAIL}"
+            return r"\textbf{WARN}"
+        return fail_indicator("FAIL")
     # M-V interaction UR stored as percent → show ratio (2 dp).
     try:
         _mv_ur = float(bridge.output_dict.get(KEY_UTIL_INTERACTION)) / 100.0
@@ -354,7 +355,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     # Status: PASS when Provided ≥ Required.
     def _ge_status(provided, required):
         try:
-            return "PASS" if float(provided) >= float(required) else r"\textcolor{red}{FAIL}"
+            return status_indicator(float(provided) >= float(required))
         except (TypeError, ValueError):
             return "---"
     _iys_status = _ge_status(bridge.output_dict.get(KEY_SD_IS_IYS_PROV),
@@ -420,7 +421,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
             return ("N/A", "N/A", "N/A")
         req_s  = f"{_bs_r} kN"
         prov_s = f"{prov} kN"
-        status = "PASS" if float(prov) >= float(_bs_r) else r"\textcolor{red}{FAIL}"
+        status = status_indicator(float(prov) >= float(_bs_r))
         return (req_s, prov_s, status)
     _wb_req, _wb_prov, _wb_st = _bs_check(KEY_SD_BS_FCDW_WB)
     _lc_req, _lc_prov, _lc_st = _bs_check(KEY_SD_BS_FCDW_LC)
@@ -450,7 +451,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     def _defl_status(actual, allowable):
         """PASS / red FAIL for deflection; '---' when values are missing."""
         try:
-            return "PASS" if float(actual) <= float(allowable) else r"\textcolor{red}{FAIL}"
+            return status_indicator(float(actual) <= float(allowable))
         except (TypeError, ValueError):
             return "---"
 
@@ -508,7 +509,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
 
     def _stress_status(actual, allow):
         try:
-            return "PASS" if float(actual) <= float(allow) else r"\textcolor{red}{FAIL}"
+            return status_indicator(float(actual) <= float(allow))
         except (TypeError, ValueError):
             return "---"
 
@@ -541,7 +542,12 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     def _fat_status(s):
         if s is None or str(s).strip() == "":
             return "---"
-        return r"\textcolor{red}{" + str(s) + "}" if "FAIL" in str(s).upper() else str(s)
+        s_str = str(s)
+        if "FAIL" in s_str.upper():
+            return fail_indicator(s_str)
+        if "PASS" in s_str.upper():
+            return pass_indicator(s_str)
+        return s_str
 
     t512_rows = []
     for _gi, (lbl, _) in enumerate(girder_entries, start=1):
@@ -669,7 +675,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     else:
         _ts_ur_str = "---"
     _ts_ok = _dr_sc.get("transverse_shear_ok")
-    _ts_status = (r"\textcolor{red}{FAIL}" if _ts_ok is False else "PASS") if _ts_ok is not None else "---"
+    _ts_status = (status_indicator(_ts_ok) if _ts_ok is not None else "---")
 
     _ast_req  = _dr_sc.get("Ast_required_cm2_per_m")
     # Provided transverse steel = the deck's main (bottom + top) bars, which run
@@ -753,7 +759,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     def get_status_str(slnd_str, limit):
         try:
             v = float(slnd_str)
-            return r"\textcolor{black}{PASS}" if v <= limit else r"\textcolor{red}{FAIL}"
+            return status_indicator(v <= limit)
         except (ValueError, TypeError):
             return ""
     cb_slenderness_rows = []
@@ -850,7 +856,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
 
     def _dks(ok):
         """PASS/FAIL status; '---' when deck design not run."""
-        return ("PASS" if ok else "FAIL") if _dk_has else "---"
+        return (status_indicator(ok) if _dk_has else "---")
 
     def _dkoh(key, nd=2, scale=1.0, unit=""):
         """Overhang value; 'N/A' when there is no overhang."""
@@ -894,7 +900,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         except (TypeError, ValueError):
             return ""
         s = f"{f:.2f}"
-        return (r"\textcolor{red}{" + s + "}") if f > 1.0 else s
+        return fail_indicator(s) if f > 1.0 else s
 
     def _lc_short(lc):
         # Show the full combination expression as-is, e.g.
