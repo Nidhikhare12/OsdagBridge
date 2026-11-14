@@ -65,22 +65,18 @@ class InteractiveCADManager(QObject):
 
     def handle_mouse_move(self, event) -> bool:
         """
-        Update mouse cursor and show informative tooltips when hovering over interactive labels.
-        Returns True if hovering over an interactive CAD label.
+        Update mouse cursor and show informative tooltips when hovering over editable labels.
+        Non-editable labels are treated as standard static text.
         """
         if self._active_editor is not None and self._active_editor.isVisible():
             return False
 
         pos = event.position() if hasattr(event, 'position') else event.pos()
         for item in self.labels:
-            if item['rect'].contains(pos):
+            if item.get('editable', False) and item['rect'].contains(pos):
                 global_pt = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
-                if item['editable']:
-                    self.canvas.setCursor(Qt.PointingHandCursor)
-                    QToolTip.showText(global_pt, f"✏️ Double-click to edit {item['name']}", self.canvas)
-                else:
-                    self.canvas.setCursor(Qt.ForbiddenCursor)
-                    QToolTip.showText(global_pt, f"🔒 {item['name']} is derived (Read-only)", self.canvas)
+                self.canvas.setCursor(Qt.PointingHandCursor)
+                QToolTip.showText(global_pt, f"✏️ Double-click to edit {item['name']}", self.canvas)
                 return True
 
         QToolTip.hideText()
@@ -135,26 +131,13 @@ class InteractiveCADManager(QObject):
     def handle_double_click(self, event) -> bool:
         """
         Handle double-click event on the canvas.
-        Returns True if a registered label was hit.
+        Spawns editor only for editable labels. Non-editable labels behave as normal static text.
         """
         pos = event.position() if hasattr(event, 'position') else event.pos()
         for item in self.labels:
-            if item['rect'].contains(pos):
-                if not item['editable']:
-                    # Derived / Read-only parameter
-                    CustomMessageBox(
-                        title="Read-Only Parameter",
-                        text=(
-                            f"'{item['name']}' is a derived parameter (Read-Only).\n\n"
-                            f"It is determined automatically to prevent mathematical conflicts."
-                        ),
-                        dialogType=MessageBoxType.Information
-                    ).exec()
-                    return True
-                else:
-                    # Editable parameter: spawn in-place editor
-                    self.spawn_editor(item)
-                    return True
+            if item.get('editable', False) and item['rect'].contains(pos):
+                self.spawn_editor(item)
+                return True
 
         return False
 
