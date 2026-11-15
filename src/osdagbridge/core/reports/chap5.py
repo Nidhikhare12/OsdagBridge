@@ -142,10 +142,11 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries
+from osdagbridge.core.reports.styles import chart_tex
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -165,6 +166,11 @@ def ch5_design_checks(checks_data, bridge) -> str:
     # common.KEY_DD_*. Populated by deckdesign.design_deck_slab(); empty
     # dict when deck design has not been run. Look up with deck_rpt.get(KEY_...).
     deck_rpt = bridge.output_dict.get("deck_report_values", {}) or {}
+    figure_paths = figure_paths or {}
+    utilization_chart = chart_tex(
+        figure_paths.get("utilization_summary", ""),
+        "Utilization ratios generated from the completed design checks.",
+    )
 
     # Generate Table 5.1 rows (per-girder section properties)
     t51_rows = []
@@ -1500,6 +1506,8 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 """ + t522_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
+
+""" + utilization_chart + r"""
 
 """
 

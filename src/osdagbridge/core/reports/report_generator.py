@@ -129,6 +129,8 @@ from .chap6 import ch6_drawings
 from .chap7 import ch7_quantities
 from .chap8 import ch8_design_log
 from .chap9 import references
+from .report_charts import build_chart_images
+from .styles import report_layout_tex
 
 logger = logging.getLogger(__name__)
 
@@ -154,59 +156,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     rv = _tex(report_version)
     return r"""
 \documentclass[12pt,a4paper]{report}
-
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{tabularx}
-\usepackage{float}
-\usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
-\usepackage{setspace}
-\usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
-\usepackage{subcaption}
-\usepackage{multirow}
-\usepackage{colortbl}
-\usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
-\usepackage{titlesec}
-\usepackage{titletoc}
-\usepackage{lastpage}
-\usepackage{makecell}
-\usepackage{etoolbox}
-\usepackage{needspace}
-
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
-
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
+""" + report_layout_tex() + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -898,6 +848,17 @@ def generate_report(payload, request):
             # Compute and inject quantities for Chapter 7
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
+            # Generate figures from calculated report data. They are stored in
+            # the existing temporary figure directory and never hard-coded.
+            chart_checks = payload.design_checks or payload.output_dict
+            payload.figure_data.update(build_chart_images(chart_checks, quantities))
+            for attr, img_bytes in list(payload.figure_data.items()):
+                if attr in fig_paths or not img_bytes:
+                    continue
+                p = os.path.join(tmp_images, attr + '.png')
+                with open(p, 'wb') as fh:
+                    fh.write(img_bytes)
+                fig_paths[attr] = p.replace('\\', '/')
 
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
@@ -924,11 +885,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, fig_paths))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, fig_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
