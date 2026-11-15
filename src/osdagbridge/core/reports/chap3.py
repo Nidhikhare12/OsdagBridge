@@ -142,6 +142,19 @@ def ch3_loads(input_dict):
     else:
         fp_str = "N/A"
 
+    # Centrifugal force is shown only when the backend supplies a calculated
+    # value. Do not synthesize a force without the required radius/speed inputs.
+    centrifugal_raw = next(
+        (input_dict.get(k) for k in (
+            "centrifugal_force", "centrifugal_load", "centrifugal_force_kN",
+            "centrifugal_load_kN", "ll_centrifugal_force"
+        ) if input_dict.get(k) not in (None, "")),
+        None
+    )
+    centrifugal_str = f"{centrifugal_raw} kN" if centrifugal_raw not in (None, "") else "N/A (not provided by backend)"
+
+    fp_tex = _tex(fp_str).replace("kN/m²", r"kN/m\textsuperscript{2}")
+
     # Vz / Pz — prefer stored computed values; fall back to IRC6 Table 12
     vz_val = input_dict.get(KEY_WL_HOURLY_MEAN_WIND)
     pz_val = input_dict.get(KEY_WL_HOURLY_WIND_PRESSURE)
@@ -301,9 +314,9 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}
+\caption{\textbf{Vehicle Live Loads (LL)}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} \\
 \hline
 \textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
 \hline
@@ -311,7 +324,17 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
 \hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Centrifugal Force (if applicable)} & """ + _tex(centrifugal_str) + r""" \\[6pt]
+\hline
+\end{longtable}
+
+\vspace{1em}
+\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\caption{\textbf{Footway Live Load}}
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+\textnormal{Footway Load (IRC 6 Cl. 206.1)} & """ + fp_tex + r""" \\[6pt]
 \hline
 \end{longtable}
 
