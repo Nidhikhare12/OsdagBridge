@@ -112,4 +112,29 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
             r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
             r'}}')
 
+def make_longtable(colspec, caption, header, body, header_gap="6pt"):
+    r"""Build a LaTeX longtable whose header row repeats on every page.
 
+    colspec     column spec, e.g. r"|C{4.0cm}|p{11.5cm}|"
+    caption     caption text (the helper wraps it in \textbf{})
+    header      header row WITHOUT the trailing \\, e.g.
+                r"\textbf{ID} & \textbf{Load Cases}"
+    body        table body rows. Each row ends with \\ and its own \hline,
+                exactly as the chapter code already writes them.
+    header_gap  extra space under the header row
+    """
+    head = (
+        "\\hline\n"
+        + header + " \\\\[" + header_gap + "]\n"
+        + "\\hline\n"
+    )
+    return (
+        "\\begin{longtable}{" + colspec + "}\n"
+        + "\\caption{\\textbf{" + caption + "}}\\\\\n"
+        + head
+        + "\\endfirsthead\n\n"
+        + head
+        + "\\endhead\n\n"
+        + body + "\n"
+        + "\\end{longtable}\n"
+    )
