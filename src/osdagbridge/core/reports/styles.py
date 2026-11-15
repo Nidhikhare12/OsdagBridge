@@ -91,9 +91,11 @@ def _table_layout_block() -> str:
         + rf"\setlength{{\extrarowheight}}{{{TABLE_EXTRA_ROW_HEIGHT}}}" + "\n"
         + "\n"
         + "% Prevent tables from overflowing past the page bottom:\n"
+        + "% Prevent floating tables from overflowing past the page bottom:\n"
         + f"% if fewer than {n} baseline-skips remain, break to the next page first.\n"
+        + "% Not applied to longtable: it splits across pages by itself, and a forced\n"
+        + "% break before it duplicates the repeated header at the top of the page.\n"
         + rf"\BeforeBeginEnvironment{{table}}{{\needspace{{{n}\baselineskip}}}}" + "\n"
-        + rf"\BeforeBeginEnvironment{{longtable}}{{\needspace{{{n}\baselineskip}}}}" + "\n"
     )
 
 
