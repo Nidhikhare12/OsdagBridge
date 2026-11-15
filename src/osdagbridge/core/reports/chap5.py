@@ -141,11 +141,11 @@ from osdagbridge.core.utils.common import (
     KEY_UTIL_SHEAR
 )
 
-from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries
+from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries, write_bar_chart
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, chart_dir=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -1065,6 +1065,64 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     ]
     t522_content = "\n".join(_t522)
 
+    # Build component-specific utilization charts from the exact UR cells used
+    # in Table 5.22. Missing/non-numeric ratios are omitted, never plotted as 0.
+    _chart_groups = {
+        "Plate girders": [],
+        "Concrete deck slab": [],
+        "Cross bracing": [],
+        "End diaphragms": [],
+    }
+    import re as _re
+    _chart_rows = list(_t522) + [_ed_moment_row, _ed_shear_row]
+    for _row in _chart_rows:
+        if not isinstance(_row, str) or "&" not in _row:
+            continue
+        _parts = _row.split("&")
+        _label = _parts[0].strip()
+        _ur_cell = _parts[-1].split(r"\\[6pt]")[0].replace(r"\hline", "").strip()
+        _match = _re.search(r"(?:\\textcolor\{red\}\{)?(-?\d+(?:\.\d+)?)", _ur_cell)
+        if not _match:
+            continue
+        _ur_value = float(_match.group(1))
+        _low = _label.lower()
+        if _low.startswith("girder"):
+            _group = "Plate girders"
+        elif _low.startswith(("deck", "transverse shear", "crack width")):
+            _group = "Concrete deck slab"
+        elif _low.startswith("cross bracing"):
+            _group = "Cross bracing"
+        elif _low.startswith("end diaphragm"):
+            _group = "End diaphragms"
+        else:
+            continue
+        _chart_groups[_group].append((_label.replace("---", "—"), _ur_value))
+
+    _chart_latex = ""
+    _chart_files = [
+        ("Plate girders", "ur_plate_girders.png"),
+        ("Concrete deck slab", "ur_concrete_deck_slab.png"),
+        ("Cross bracing", "ur_cross_bracing.png"),
+        ("End diaphragms", "ur_end_diaphragms.png"),
+    ]
+    for _group, _filename in _chart_files:
+        _items = _chart_groups[_group]
+        _path = write_bar_chart(
+            chart_dir, _filename,
+            [x[0] for x in _items], [x[1] for x in _items],
+            f"Utilization Ratios — {_group}", "Utilization ratio (UR)",
+            threshold=1.0, horizontal=False
+        )
+        if _path:
+            _chart_latex += (
+                "\n\\begin{figure}[H]\n\\centering\n"
+            + r"\includegraphics[width=0.92\textwidth]{" + _path + "}\n"
+                + r"\caption*{\textcolor{osdagGreen}{Utilization ratios — " + _tex(_group) + r"}}" + "\n"
+                + r"\end{figure}" + "\n"
+            )
+    if _chart_latex:
+        _chart_latex = r"\subsection{\textcolor{osdagGreen}{Utilization Ratio Charts}}" + "\n" + _chart_latex
+
     return r"""
 \chapter{Design Checks}
 
@@ -1487,19 +1545,32 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
 
 % ===========================
+\Needspace{24\baselineskip}
 \section{Overall Design Check Summary}
 \label{sec:overall-summary}
 % ===========================
 
-\vspace{1em}
+\vspace{0.4em}
 \begin{longtable}{|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|}
-\caption{\textbf{Overall Design Check Summary --- All Members}}
+\caption{\textbf{Overall Design Check Summary --- All Members}}\\
 \hline
 \textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
 \hline
+\endfirsthead
+\multicolumn{5}{c}{\tablename\ \thetable{} -- continued from previous page}\\
+\hline
+\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\hline
+\endhead
+\hline
+\multicolumn{5}{r}{Continued on next page}\\
+\endfoot
+\hline
+\endlastfoot
 """ + t522_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
 
-"""
+""" + _chart_latex + r"""
 
+"""
