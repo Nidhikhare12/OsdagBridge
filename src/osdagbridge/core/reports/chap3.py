@@ -168,8 +168,13 @@ def ch3_loads(input_dict):
         vehicle_rows.append(r"None selected & N/A \\[6pt]" + "\n" + r"\hline")
     vehicle_rows_str = "\n".join(vehicle_rows)
 
+    print("DEBUG fp_mode =", repr(fp_mode), "fp_value =", repr(fp_value))
     # --- Footpath live load for its own table ---
-    if str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
+    _fp_none = str(fp_mode).strip().lower() in ("none", "no footpath", "")
+
+    if _fp_none:
+        fp_tex = r"No footpath provided"
+    elif str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
         try:
             fp_tex = f"{IRC6_2017.cl_206_1_footway_load():.3f}" + r" kN/m\textsuperscript{2} (IRC 6 Cl. 206.1)"
         except Exception:
