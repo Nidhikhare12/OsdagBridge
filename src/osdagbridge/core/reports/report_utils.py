@@ -1,3 +1,4 @@
+import re
 from osdagbridge.core.utils.common import (
     KEY_MP_GD_MEMBER_ID,
     KEY_MP_GD_SELECT_GIRDER,
@@ -138,3 +139,76 @@ def make_longtable(colspec, caption, header, body, header_gap="6pt"):
         + body + "\n"
         + "\\end{longtable}\n"
     )
+_BEGIN = "\\begin{longtable}"
+_END = "\\end{longtable}"
+_ROW_END = re.compile(r"\\\\(\[[^\]]*\])?\s*$")
+
+
+def add_repeating_headers(tex):
+    r"""Make every longtable repeat its column-header row on each page.
+
+    Safety net for the legacy tables written as raw LaTeX strings in the
+    chapter files. A table is changed only when it has the standard shape
+
+        \begin{longtable}{...}
+        \caption{...}
+        \hline
+        <ONE header row ending in \\ or \\[6pt]>
+        \hline
+        <body rows>
+
+    and no working \endhead. Tables that already repeat their header, and
+    tables with any other shape (e.g. multi-row headers), are left untouched.
+    """
+    out = []
+    pos = 0
+    while True:
+        start = tex.find(_BEGIN, pos)
+        if start == -1:
+            out.append(tex[pos:])
+            break
+        end = tex.find(_END, start)
+        if end == -1:
+            out.append(tex[pos:])
+            break
+        end += len(_END)
+        out.append(tex[pos:start])
+        out.append(_fix_one(tex[start:end]))
+        pos = end
+    return "".join(out)
+
+
+def _fix_one(block):
+    lines = block.split("\n")
+    # lines[0] = \begin{longtable}{spec}   lines[1] = \caption{...}
+    if len(lines) < 6 or not lines[1].startswith("\\caption{"):
+        return block
+    if lines[2].strip() != "\\hline" or lines[4].strip() != "\\hline":
+        return block
+    header = lines[3].rstrip()
+    if not _ROW_END.search(header) or "\\cline" in header or '"""' in header:
+        return block
+    # A real header row has bold text in every cell; a data row does not.
+    cells = _ROW_END.sub("", header).split("&")
+    if not all("\\textbf" in c for c in cells):
+        return block
+
+    caption = lines[1].rstrip()
+    if not caption.endswith("\\\\"):
+        caption += "\\\\"
+    head = ["\\hline", header, "\\hline"]
+    rest = lines[5:]
+
+    # Case 1: no head markers at all -> add both.
+    if not any(l.strip() in ("\\endfirsthead", "\\endhead") for l in rest):
+        new = [lines[0], caption] + head + ["\\endfirsthead", ""] + head + ["\\endhead"] + rest
+        return "\n".join(new)
+
+    # Case 2: empty "\endfirsthead \endhead" pair -> fill the empty \endhead.
+    idx = [i for i, l in enumerate(rest) if l.strip() == "\\endfirsthead"]
+    if idx and idx[0] + 1 < len(rest) and rest[idx[0] + 1].strip() == "\\endhead":
+        i = idx[0]
+        new_rest = rest[: i + 1] + [""] + head + ["\\endhead"] + rest[i + 2:]
+        return "\n".join([lines[0], lines[1], *lines[2:5], *new_rest])
+
+    return block
