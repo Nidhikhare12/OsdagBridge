@@ -804,10 +804,9 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, chart_dir=tmp_images))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
-
             doc_parts.append(ch7_quantities(payload.inputs))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
@@ -825,7 +824,7 @@ def generate_report(payload, request):
             # files get \endfirsthead / \endhead added here, so column headings
             # repeat on every page. Tables that already do this are left alone.
             full_tex = add_repeating_headers(full_tex)
-            
+
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
 

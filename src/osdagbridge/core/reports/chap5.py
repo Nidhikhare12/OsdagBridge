@@ -142,10 +142,11 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries
+from osdagbridge.core.reports.charts import ur_chart_tex
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, chart_dir=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -1064,6 +1065,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         _ed_shear_row,
     ]
     t522_content = "\n".join(_t522)
+    ur_chart_block = ur_chart_tex(_t522, chart_dir)    
 
     return r"""
 \chapter{Design Checks}
@@ -1500,6 +1502,6 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 """ + t522_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
-
+""" + ur_chart_block + r"""
 """
 
