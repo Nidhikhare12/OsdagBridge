@@ -11,6 +11,8 @@ from osdagbridge.core.utils.common import (
     KEY_TS_NO_OF_GIRDERS,
     KEY_TS_DECK_THICKNESS,
     KEY_TS_GIRDER_SPACING,
+    KEY_MP_ED_TYPE,
+    KEY_TD_ED_PROP_A,
 )
 
 logger = logging.getLogger("osdagbridge.core.boq_generator")
@@ -89,6 +91,12 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         "crash_barrier_vol_total": "N.A.",
         "crash_barrier_wt_single": "N.A.",
         "crash_barrier_wt_total": "N.A.",
+
+        "end_diaphragm_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "end_diaphragm_qty": "N.A.",
+        "end_diaphragm_vol_total": "N.A.",
+        "end_diaphragm_wt_single": "N.A.",
+        "end_diaphragm_wt_total": "N.A.",
     }
     try:
         span_val = inputs.get(KEY_SPAN)
@@ -329,6 +337,97 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 quantities[f"{prefix}_vol_total"] = "N.A."
                 quantities[f"{prefix}_wt_single"] = "N.A."
                 quantities[f"{prefix}_wt_total"] = "N.A."
+
+        # 5d. End Diaphragms (Cu.m) and Weight (MT)
+        # Cross-bracing type end diaphragms at the two support lines. Panel
+        # geometry follows the design module: chords span the girder spacing
+        # and diagonals rise to 85 % of the girder depth, which reproduces the
+        # effective lengths printed in the Chapter 5 end-diaphragm tables.
+        # The section area is the end-diaphragm panel area when the design
+        # publishes it, otherwise the cross-bracing area — which is exactly the
+        # section the report shows for those panels.
+        ed_area_cm2 = 0.0
+        ed_members = 0
+        ed_vol_total = 0.0
+        ed_vol_single = 0.0
+        ed_diag_len = 0.0
+
+        ed_spacing = 0.0
+        try:
+            ed_spacing = float(inputs.get(KEY_TS_GIRDER_SPACING) or 0.0)
+        except (TypeError, ValueError):
+            ed_spacing = 0.0
+
+        # Girder depth: the section_input.depth key, else back it out of the
+        # cross-bracing diagonal (which is available whenever bracing exists).
+        ed_depth_m = 0.0
+        for _src in (inputs, outputs):
+            try:
+                _depth_val = float(resolve_girder_value(
+                    _src, "member_properties.girder_details.section_input.depth", 0))
+            except Exception:
+                _depth_val = 0.0
+            if _depth_val > 0.0:
+                ed_depth_m = _depth_val / 1000.0 if _depth_val > 10.0 else _depth_val
+                break
+        if ed_depth_m <= 0.0 and bracing_len > ed_spacing > 0.0:
+            _leg = (bracing_len ** 2 - ed_spacing ** 2) ** 0.5
+            ed_depth_m = _leg if _leg > 0.0 else 0.0
+
+        # Type: only a cross-braced diaphragm can be valued this way. If the UI
+        # key is not reachable, assume cross bracing (the case the report's
+        # end-diaphragm tables show).
+        _ed_types = [str(value) for key, value in (inputs or {}).items()
+                     if str(key).startswith(KEY_MP_ED_TYPE) and value]
+        _ed_is_bracing = (not _ed_types) or any(
+            "brac" in value.lower() for value in _ed_types)
+
+        def _ed_area_cm2(pair_id):
+            """Area (cm²) of one end-diaphragm panel, from any key spelling."""
+            for key in (f"{KEY_TD_ED_PROP_A}.{pair_id}",
+                        f"{KEY_TD_ED_PROP_A}.{pair_id}.A",
+                        f"transverse_member_design.ed.section_properties."
+                        f"end_diaphragm.{pair_id}.A"):
+                try:
+                    return float(outputs.get(key))
+                except (TypeError, ValueError):
+                    pass
+            for key, value in (outputs or {}).items():
+                key = str(key)
+                if "end_diaphragm" in key and key.endswith(pair_id) and ".A" in key:
+                    try:
+                        return float(value)
+                    except (TypeError, ValueError):
+                        pass
+            return None
+
+        if _ed_is_bracing and ed_spacing > 0.0 and ed_depth_m > 0.0:
+            ed_diag_len = math.hypot(ed_spacing, 0.85 * ed_depth_m)
+            for i in range(1, n_girders):
+                pair_id = f"G{i}G{i + 1}"
+                area_cm2 = _ed_area_cm2(pair_id)
+                if area_cm2 is None and bracing_area > 0.0:
+                    area_cm2 = bracing_area * 10000.0     # m² → cm²
+                if not area_cm2 or area_cm2 <= 0.0:
+                    continue
+                ed_area_cm2 = area_cm2
+                area_m2 = area_cm2 / 10000.0              # cm² → m²
+                # One diagonal plus a top and a bottom chord per panel.
+                len_per_end = ed_diag_len + 2.0 * ed_spacing
+                # Two support lines share the same panel design.
+                for _ in range(2):
+                    ed_vol_total += area_m2 * len_per_end
+                    ed_members += 3
+                ed_vol_single = area_m2 * ed_diag_len
+
+        if ed_vol_total > 0.0:
+            quantities["end_diaphragm_vol_formula"] = (
+                f"${ed_area_cm2 / 10000.0:.5f}\\text{{ m}}^2 \\times "
+                f"{ed_diag_len:.2f}\\text{{ m}} = {ed_vol_single:.5f}\\text{{ m}}^3$")
+            quantities["end_diaphragm_qty"] = str(ed_members)
+            quantities["end_diaphragm_vol_total"] = f"{ed_vol_total:.3f}"
+            quantities["end_diaphragm_wt_single"] = f"{ed_vol_single * 7.85:.4f}"
+            quantities["end_diaphragm_wt_total"] = f"{ed_vol_total * 7.85:.3f}"
 
         # 6. Crash Barrier (Cu.m) and Weight (MT)
         KEY_CB_AREA = "typical_section.crash_barrier.area"
