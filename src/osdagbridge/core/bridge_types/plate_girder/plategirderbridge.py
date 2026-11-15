@@ -374,6 +374,8 @@ class PlateGirderBridge:
         # Immutable snapshot of input_dict captured at the start of design().
         # All 3D CAD / IFC methods read from this instead of the live input_dict.
         self.output_dict: types.MappingProxyType = types.MappingProxyType({})
+        # optimisation bounds
+        self.optimisation_bounds : dict = {}
 
         # Results populated by design()
         self.grillage_geometry: GrillageGeometry | None = None
@@ -485,7 +487,7 @@ class PlateGirderBridge:
     # Design pipeline
     # ─────────────────────────────────────────────────────────────────────────
 
-    def _resolve_optimized_bounds_to_mm(self) -> None:
+    def _resolve_optimized_bounds_to_mm(self) -> dict:
         """
         For Optimised design, per-girder dimensional keys may hold list values
         (user-supplied optimisation bounds in mm) or the string "All".
@@ -545,9 +547,11 @@ class PlateGirderBridge:
         solver = BridgeConfigurationSolver(
             carriageway_width=float(inp.get(KEY_CARRIAGEWAY_WIDTH))
         )
-
-        def _resolve_one(full_key: str, initial_sizing_mm: float) -> None:
+        optimisation_bounds = {}    # maintain a dict to store user-given optimisation bounds since they get wiped after this function
+        def _resolve_one(base_key: str, initial_sizing_mm: float, suffix: str) -> None:
+            full_key = f'{base_key}{suffix}'
             raw = inp.get(full_key)
+            optimisation_bounds[full_key] = raw     # enters user-given optimisation bounds into dict
             if isinstance(raw, list) and raw:
                 list_min = min(float(v) for v in raw)
                 list_max = max(float(v) for v in raw)
@@ -556,6 +560,13 @@ class PlateGirderBridge:
             elif isinstance(raw, str):
                 # "All" → snap initial sizing up to the next SAIL-approved thickness.
                 inp[full_key] = _snap_up_to_sail(initial_sizing_mm) / 1000.0
+                if raw=="All":
+                    optimisation_bounds[full_key] = SAIL_APPROVED_THICKNESS_VALUES
+                else:
+                    full_key = f'{base_key}.selected{suffix}'
+                    optimisation_bounds[f'{base_key}{suffix}'] = inp[full_key]
+            elif isinstance(raw, dict):
+                inp[full_key] = initial_sizing_mm
             # float mm value — left for _convert_girder_dims_mm_to_m to divide by 1000
 
         for gi in range(count):
@@ -565,11 +576,13 @@ class PlateGirderBridge:
 
             for base_key, prop_key in _DIM_KEYS:
                 initial_sizing_mm = props[prop_key] * 1e3  # m → mm
-                _resolve_one(f"{base_key}{suffix}", initial_sizing_mm)
+                _resolve_one(f"{base_key}", initial_sizing_mm, f'{suffix}')
                 # Legacy scalar (un-suffixed) key, resolved first by no-index
                 # consumers (e.g. SteelSection); use the first girder's sizing.
                 if gi == 0:
-                    _resolve_one(base_key, initial_sizing_mm)
+                    _resolve_one(base_key, initial_sizing_mm, '')
+        
+        return optimisation_bounds
 
     def _convert_girder_dims_mm_to_m(self) -> None:
         """
@@ -702,7 +715,7 @@ class PlateGirderBridge:
         self.output_dict["end_diaphragm_design_results"] = self.end_diaphragm_design_results
         return self.crossbracing_design_results
 
-    def design(self) -> None:
+    def customized_design(self) -> None:
         """
         Run the full analysis/design pipeline.
         Orchestrates the 14 linear stages mapping exactly to the revised architecture.
@@ -722,9 +735,8 @@ class PlateGirderBridge:
 
         try:
             # Pre-stage: Unit conversions (must run before validation)
-            self._resolve_optimized_bounds_to_mm()
+            # self._resolve_optimized_bounds_to_mm()
             self._convert_girder_dims_mm_to_m()
-            
             # Stage 1: Input Validation
             self._run_stage("1", self._validate_inputs)
             
@@ -1373,7 +1385,7 @@ class PlateGirderBridge:
     # Dead loads — permanent loads applied after the grillage model is built
     # ─────────────────────────────────────────────────────────────────────────
 
-    def add_dead_loads(self) -> None:
+    def add_dead_loads(self, optimisation: bool = False) -> None:
         """
         Apply all permanent dead loads to the grillage model in order:
           1. Girder self weight     — line load along each longitudinal member
@@ -3786,3 +3798,154 @@ class PlateGirderBridge:
         out[KEY_SD_WEB_TYPE] = str(
             inp.get(KEY_MP_GIRDER_WEB_TYPE) or "Thin Web with ITS"
         )
+
+# --------------------------------------------------------------------------------------------------
+    """
+    Optimisation functions for optimized design 
+    """
+
+    def optimize_girder_dimensions(self, optimisation_bounds: dict, run : int):
+        
+        from osdagbridge.core.bridge_types.plate_girder.optimiser import optimise_girder_dimensions
+        return optimise_girder_dimensions(self, optimisation_bounds, run)
+    
+    """
+    Per run optimised design analysis function.
+    Takes after most of the functions from customized design but not all
+    """          
+    def optimized_design(self, run: int) -> dict:
+        bridge_logger.analysis_start()
+
+        # Log memory at the start of every design so per-iteration growth is visible.
+        log_memory("design: START")
+        tracemalloc_mark_start()
+
+        self.memory.release()
+
+        try:
+            # Pre-stage: Unit conversions (must run before validation)
+            # self.optimisation_bounds = self._resolve_optimized_bounds_to_mm()
+            self._convert_girder_dims_mm_to_m()
+            
+            # Stage 1: Input Validation
+            self._run_stage("1", self._validate_inputs)
+            
+            # Stage 2: Bridge Layout Solving
+            self._run_stage("2", self._solve_bridge_layout)
+            
+            # Stage 3: Grillage Setup
+            self._run_stage("3", self._stage_grillage_setup)
+            
+            # Stage 4A: Dead Load Application
+            self._run_stage("4A", self.add_dead_loads)
+            
+            # Stage 4B: Live Load Application
+            self._run_stage("4B", self.add_live_loads)
+            
+            # Stage 4C: Wind Load Application
+            self._run_stage("4C", self.add_wind_loads)
+            
+            # Stage 4D: Temperature Load Application
+            self._run_stage("4D", self.add_temperature_load)
+            
+            # Stage 4E: Seismic Load Application
+            self._run_stage("4E", self.add_seismic_loads)
+            
+            # Stage 4F: Load Combination Envelope
+            self._run_stage("4F", self._stage_load_combinations)
+            
+            # Stage 4G: Structural Analysis
+            dataset = self._run_stage("4G", self._reanalyze_with_dedup)
+            dataset = self.create_envelope_load_case(dataset)
+            dataset = self._drop_moving_increment_cases(dataset)
+
+            self.memory.clear_intermediate_results()
+            self.result_data = self.grillage_model.get_result_data()
+            
+            optimised_dict = self.optimize_girder_dimensions(self.optimisation_bounds, run)
+            return optimised_dict
+            """
+            # Stage 5: Girder Design Checks
+            self._run_stage("5", self._run_dcr_checks)
+
+            # Stage 6: Deck Slab Design
+            self.deck_design_results = self._run_stage("6", self.design_deck_slab)
+            
+            """
+        except Exception as e:
+            bridge_logger.analysis_failed(str(e))
+            raise
+
+    def optimised_design_deck_slab(self):
+        
+        rebar_grade = str(self.input_dict[KEY_DS_REINF_MATERIAL]).strip()
+        
+        # Use already-resolved concrete props (handles custom grades).
+        fck  = self.material_props.concrete_prop.fck
+        Ecm  = self.material_props.concrete_prop.Ecm
+        fctm = self.material_props.concrete_prop.fctm
+        fy = self._lookup_material(rebar_grade, "fy")
+        Es = self._lookup_material(rebar_grade, "Es")
+
+        inp = self.input_dict.copy()
+        deck_thk = 150
+        status = False
+        while status is False and deck_thk <= 500:
+            verdict, _ = deckdesign.design_deck_slab(
+                inp, fck=fck, fctm=fctm, fy=fy, Ecm=Ecm, Es=Es,
+                design_results=None,
+                bf_top_mm=resolve_girder_value(self.input_dict, KEY_MP_GIRDER_TOP_FLANGE_WIDTH) * 1000.0,
+                stud_height_mm=float(self.input_dict[KEY_DS_STUD_HEIGHT]),
+                deck_thk = deck_thk,
+                optimisation=True
+            )
+            if verdict["status"] == "PASS":
+                status = True
+            else:
+                deck_thk += 25
+        
+        if status:
+            print("OPTIMISED DECK SLAB THICKNESS = ", deck_thk)
+        else:
+            print("NO OPTIMISED SOLUTION FOR DECK SLAB")
+            deck_thk = 250
+        
+        return deck_thk
+
+    def optimise_design_input_dict(self, number_of_runs: int):
+        
+        import csv
+        file_path = r"E:\Osdag\OsdagBridge\src\osdagbridge\core\bridge_types\plate_girder\pso_results.csv"
+        
+        header_row = ['Girder','Run', 'Iteration','Best_Val']
+        with open(file = file_path, mode="w", newline="", encoding="utf-8") as file:
+                        
+            writer = csv.writer(file)
+            writer.writerow(header_row)
+
+        self.optimisation_bounds = self._resolve_optimized_bounds_to_mm()
+
+        for i in range(number_of_runs):
+            optimised_dict = self.optimized_design(run = i)
+            self.input_dict.update(optimised_dict)
+            self.input_dict[KEY_TS_DECK_THICKNESS] = self.optimised_design_deck_slab()
+            self.input_dict[KEY_DESIGN_MODE] = 'Custom' # set design mode  to custom after first run is over
+            self.set_input(self.input_dict)
+        
+        
+    def design(self):
+        
+        if self.input_dict[KEY_DESIGN_MODE] == 'Optimized':
+            
+            import time
+            start_time = time.perf_counter()
+            print("                      BEGINNING OPTIMISATION")
+            
+            self.optimise_design_input_dict(number_of_runs=3)
+            
+            end_time = time.perf_counter()
+            execution_time = end_time - start_time
+            print(f"                      OPTIMISATION FINISHED IN {execution_time} seconds")
+            
+        self.input_dict[KEY_DESIGN_MODE] = 'Custom'
+        self.customized_design()
