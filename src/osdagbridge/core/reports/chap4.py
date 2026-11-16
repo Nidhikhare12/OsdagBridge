@@ -7,7 +7,8 @@ from osdagbridge.core.utils.common import (
 )
 from osdagbridge.core.reports.report_utils import _tex, _fig_embed
 from osdagbridge.core.reports.latex.tables import ReportTable, KeyValueTable
-from osdagbridge.core.reports.latex.text import status_fail
+from osdagbridge.core.reports.latex.text import status_fail, vspace
+from osdagbridge.core.reports.theme import get_active_theme
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -73,9 +74,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else status_fail("FAIL")) if _live_mm  is not None else "---"
     _total_status    = ("PASS" if _total_mm <= _allow_total_mm else status_fail("FAIL")) if _total_mm is not None else "---"
 
-    col_spec = (
-        r"|p{3.1cm}|p{1.7cm}|p{1.2cm}|p{1.3cm}|p{1.7cm}|p{1.2cm}|p{1.3cm}|p{1.6cm}|p{1.6cm}|"
-    )
+    theme = get_active_theme()
     header_tex = r"""\hline
 \multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
@@ -93,7 +92,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
 \hline"""
 
     demands_table = ReportTable(
-        columns=col_spec,
+        preset=theme.columns.DEMAND_9COL,
         caption=r"\textbf{Summary of Maximum Demands}",
         header_tex=header_tex,
     )
@@ -104,7 +103,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         demands_table.add_row(["---"] * 9)
 
     rxn_table = ReportTable(
-        columns="|C{5.2cm}|C{5.2cm}|C{5.2cm}|",
+        columns=theme.columns.CH4_RXN_3COL,
         caption=r"\textbf{Reactions at Supports}",
         header_rows=[["Load Case", "Left Support (kN)", "Right Support (kN)"]],
     )
@@ -114,7 +113,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
 
     defl_table = KeyValueTable(
         caption=r"\textbf{Deflection Summary (Live Load \& Total Load)}",
-        preset=("7.0cm", "8.5cm"),
+        preset=theme.columns.CH4_DEFL_KEY_VALUE,
         headers=("Parameter", "Value"),
         rows=[
             (r"\textnormal{Deflection due to Live Load, $\delta_{LL}$}", _live_str),
@@ -126,21 +125,22 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         ],
     )
 
+    sp = vspace(theme.spacing.space_md)
     return rf"""
 \chapter{{Analysis Results}}
 
 A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements --- longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
 
-\vspace{{1em}}
+{sp}
 {demands_table.dumps()}
 
-\vspace{{1em}}
+{sp}
 {rxn_table.dumps()}
 
-\vspace{{1em}}
+{sp}
 {defl_table.dumps()}
 
-\vspace{{1em}}
+{sp}
 \noindent
 {_fig_embed(fig_paths.get('bm_envelope'), 'Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).', width=r'0.75\textwidth')}
 {_fig_embed(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=r'0.75\textwidth')}

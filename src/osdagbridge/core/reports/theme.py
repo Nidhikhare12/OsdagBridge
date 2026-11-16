@@ -85,19 +85,75 @@ class TableTheme:
     needspace_min_body_rows: int = 4
     needspace_foot_lines: int = 1
 
+    @property
+    def row_end(self) -> str:
+        """Standard row terminator with padding."""
+        return rf"\\[{self.row_pad_pt:.0f}pt]"
+
+
+@dataclass(frozen=True)
+class SpacingTheme:
+    """Document and table vertical spacing tokens."""
+    space_xs: str = "4pt"
+    space_sm: str = "0.4em"
+    space_md: str = "1.0em"
+    space_lg: str = "1.5cm"
+    space_xl: str = "2.2em"
+    gap_table_caption: str = "2pt"
+
 
 @dataclass(frozen=True)
 class ColumnPresets:
     """Standardized column width specifications across report chapters."""
     KEY_VALUE: Tuple[str, str] = ("5.5cm", "10.0cm")
-    SUMMARY_4COL: Tuple[str, str, str, str] = ("4.0cm", "4.0cm", "4.0cm", "3.5cm")
+    CH1_KEY_VALUE: Tuple[str, str] = ("5.5cm", "8.5cm")
+    CH2_GEN_5COL: Tuple[str, ...] = ("2.2cm", "1.8cm", "3.8cm", "3.8cm", "3.8cm")
+    CH2_DIM_5COL: Tuple[str, ...] = ("1.8cm", "2.3cm", "1.8cm", "4.8cm", "4.8cm")
+    CH2_RST_6COL: Tuple[str, ...] = ("1.4cm", "2.2cm", "2.2cm", "3.0cm", "2.4cm", "2.2cm")
+    CH2_CB_5COL: Tuple[str, ...] = ("2.2cm", "2.2cm", "3.0cm", "2.5cm", "2.0cm")
+    CH2_ED_4COL: Tuple[str, ...] = ("2.5cm", "2.5cm", "3.5cm", "3.5cm")
+    CH3_COMBOS_2COL: Tuple[str, str] = ("4.0cm", "11.5cm")
     DEMAND_9COL: Tuple[str, ...] = (
-        "3.2cm", "1.8cm", "1.2cm", "1.4cm", "1.8cm", "1.2cm", "1.4cm", "1.6cm", "1.6cm"
+        "3.1cm", "1.7cm", "1.2cm", "1.3cm", "1.7cm", "1.2cm", "1.3cm", "1.6cm", "1.6cm"
     )
+    CH4_RXN_3COL: Tuple[str, ...] = ("5.2cm", "5.2cm", "5.2cm")
+    CH4_DEFL_KEY_VALUE: Tuple[str, str] = ("7.0cm", "8.5cm")
+    SUMMARY_4COL: Tuple[str, str, str, str] = ("4.0cm", "4.0cm", "4.0cm", "3.5cm")
     CHECK_5COL: Tuple[str, str, str, str, str] = ("4.0cm", "4.0cm", "3.5cm", "2.5cm", "1.8cm")
     QUANTITY_8COL: Tuple[str, ...] = (
         "1.0cm", "4.5cm", "3.5cm", "1.5cm", "1.8cm", "1.8cm", "1.8cm"
     )
+    CH7_QUANTITY_7COL: Tuple[str, ...] = (
+        "1.0cm", "3.8cm", "2.6cm", "1.8cm", "1.8cm", "1.8cm", "1.8cm"
+    )
+    CH8_STANDARDS_3COL: Tuple[str, ...] = ("2.5cm", "2.0cm", "11.0cm")
+    TITLE_2COL: Tuple[str, str] = ("4.0cm", "10.0cm")
+    ch5: "Chapter5Columns" = field(default_factory=lambda: Chapter5Columns())
+
+
+@dataclass(frozen=True)
+class Chapter5Columns:
+    """Chapter 5 design check table column specifications."""
+    PROPERTIES_3COL: str = r"|C{2.5cm}|L{8.0cm}|>{\centering\arraybackslash}p{5.0cm}|"
+    CLASSIFICATION_5COL: str = r"|C{2.5cm}|L{3cm}|C{3.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{4.0cm}|"
+    CAPACITY_5COL: str = r"|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|"
+    CAPACITY_ALT_5COL: str = r"|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|"
+    CAPACITY_ALT2_5COL: str = r"|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.5cm}|"
+    CAPACITY_ALT3_5COL: str = r"|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.5cm}|"
+    CAPACITY_ALT4_5COL: str = r"|C{3.0cm}|C{3.5cm}|C{3.0cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|"
+    STIFFENER_SUMMARY_3COL: str = r"|C{2.5cm}|L{6.5cm}|>{\arraybackslash}p{6.5cm}|"
+    DECK_DETAILS_4COL: str = r"|L{3.2cm}|>{\centering\arraybackslash}p{4.3cm}|>{\centering\arraybackslash}p{4.3cm}|C{2.0cm}|"
+    DEFLECTION_4COL: str = r"|L{5.5cm}|>{\centering\arraybackslash}p{4.1cm}|>{\centering\arraybackslash}p{4.1cm}|C{1.8cm}|"
+    SUMMARY_4COL: str = r"|L{3.8cm}|L{4.4cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|"
+    BRACING_FORCES_8COL: str = r"|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|"
+    BRACING_MEMBERS_6COL: str = r"|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|"
+    BRACING_PROPERTIES_7COL: str = r"|C{1.6cm}|>{\centering\arraybackslash}p{3.6cm}|C{2.4cm}|C{2.0cm}|C{2.1cm}|C{1.7cm}|C{1.5cm}|"
+    BRACING_CHECKS_6COL: str = r"|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|"
+    SHEAR_KEYVAL_2COL: str = r"|L{5.5cm}|p{10.0cm}|"
+    SHEAR_FORCES_4COL: str = r"|L{3.6cm}|C{5.6cm}|>{\centering\arraybackslash}p{2.6cm}|L{3.0cm}|"
+    SHEAR_STUDS_4COL: str = r"|L{5.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.5cm}|C{2cm}|"
+    SHEAR_CHECKS_3COL: str = r"|L{5.3cm}|>{\arraybackslash}p{7.2cm}|C{2.0cm}|"
+    DIAPHRAGM_ASSUMPTIONS_2COL: str = r"|L{7cm}|>{\arraybackslash}p{8.5cm}|"
 
 
 @dataclass(frozen=True)
@@ -237,6 +293,7 @@ class Theme:
     palette: Palette = field(default_factory=Palette)
     typography: Typography = field(default_factory=Typography)
     table: TableTheme = field(default_factory=TableTheme)
+    spacing: SpacingTheme = field(default_factory=SpacingTheme)
     columns: ColumnPresets = field(default_factory=ColumnPresets)
     header_footer: HeaderFooterTheme = field(default_factory=HeaderFooterTheme)
     chart: ChartTheme = field(default_factory=ChartTheme)

@@ -1,9 +1,10 @@
 from osdagbridge.core.reports.latex.tables import ReportTable
+from osdagbridge.core.reports.theme import get_active_theme
 
 
 def ch7_quantities(input_dict):
+    theme = get_active_theme()
     caption = "Bill of Materials (Steel, Concrete, and Reinforcement Quantities)"
-    col_spec = "|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|"
     headers = [
         "S.N.",
         "Item Description",
@@ -15,7 +16,7 @@ def ch7_quantities(input_dict):
     ]
 
     tbl = ReportTable(
-        columns=col_spec,
+        columns=theme.columns.CH7_QUANTITY_7COL,
         caption=caption,
         label="ch:material-takeoff",
         header_rows=[headers],

@@ -71,6 +71,8 @@ from osdagbridge.core.utils.common import (
 
 from osdagbridge.core.reports.report_utils import _render_value, get_girder_entries, _tex
 from osdagbridge.core.reports.latex.tables import ReportTable, KeyValueTable
+from osdagbridge.core.reports.latex.text import vspace
+from osdagbridge.core.reports.theme import get_active_theme
 
 # Printed wherever the software has no value for a cell (never a bare unit).
 _DASH = "---"
@@ -186,11 +188,12 @@ def ch2_input_parameters(m, input_dict, output_dict=None):
         rows=comp_rows,
     )
 
+    theme = get_active_theme()
+    sp_sm = vspace(theme.spacing.space_sm)
+    sp_md = vspace(theme.spacing.space_md)
+
     return rf"""
 \chapter{{Input Parameters}}
-
-\setlength{{\abovecaptionskip}}{{2pt}}
-\setlength{{\belowcaptionskip}}{{2pt}}
 
 This section documents all inputs provided to OsdagBridge. User-provided inputs are clearly distinguished from software-assumed defaults. Where the user did not supply a value, the software has applied the IRC/IS code default or an empirical guideline; these are annotated with an asterisk (\sdstar{{}}).
 
@@ -200,13 +203,13 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 \noindent\textit{{Note: These inputs are mandatory and were provided by the user.}}
 
 {t_loc.dumps()}
-\vspace{{0.4cm}}
+{sp_sm}
 
 {t_geom.dumps()}
-\vspace{{0.4cm}}
+{sp_sm}
 
 {t_mat.dumps()}
-\vspace{{0.4cm}}
+{sp_sm}
 
 \newpage
 \section{{Additional Inputs}}
@@ -214,11 +217,11 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 
 Where the user has modified additional inputs, those values are reported here. Where no modification was made, the software default is shown.
 
-\vspace{{0.8cm}}
+{sp_md}
 
 {t_sec.dumps()}
 
-\vspace{{0.8em}}
+{sp_md}
 {t_comp.dumps()}
 
 {_girder_tables(input_dict, n_girders)}
@@ -232,6 +235,7 @@ Where the user has modified additional inputs, those values are reported here. W
 
 
 def _girder_tables(input_dict, n_girders):
+    theme = get_active_theme()
     n = n_girders if n_girders >= 1 else 1
     girder_entries = get_girder_entries(input_dict)
     if not girder_entries:
@@ -244,7 +248,7 @@ def _girder_tables(input_dict, n_girders):
 
     # 1. Girder General Information
     t_gen = ReportTable(
-        columns="|L{2.2cm}|L{1.8cm}|p{3.8cm}|p{3.8cm}|p{3.8cm}|",
+        columns=theme.columns.CH2_GEN_5COL,
         caption=r"\textbf{Girder General Information}",
         header_rows=[["Girder", "Member ID", "Design Mode", "Girder Type", "Girder Symmetry"]],
     )
@@ -259,7 +263,7 @@ def _girder_tables(input_dict, n_girders):
 
     # 2. Girder Section Dimensions
     t_dim = ReportTable(
-        columns="|L{1.8cm}|L{2.3cm}|L{1.8cm}|p{4.8cm}|p{4.8cm}|",
+        columns=theme.columns.CH2_DIM_5COL,
         caption=r"\textbf{Girder Section Dimensions}",
         header_rows=[[
             "Girder",
@@ -280,7 +284,7 @@ def _girder_tables(input_dict, n_girders):
 
     # 3. Girder Restraint and Stiffener Details
     t_rst = ReportTable(
-        columns="|L{1.4cm}|p{2.2cm}|p{2.2cm}|p{3.0cm}|p{2.4cm}|p{2.2cm}|",
+        columns=theme.columns.CH2_RST_6COL,
         caption=r"\textbf{Girder Restraint and Stiffener Details}",
         header_rows=[[
             "Girder",
@@ -301,28 +305,32 @@ def _girder_tables(input_dict, n_girders):
             f"No.: {_value(input_dict, f'{KEY_MP_STIFFENER_NO_BEARING_STIFFENERS}.G{i}.M1')}; Spacing: {_value(input_dict, f'{KEY_MP_STIFFENER_SPACING}.G{i}.M1', ' mm')}; Thickness: {_value(input_dict, f'{KEY_MP_STIFFENER_BEARING_THICKNESS}.G{i}.M1', ' mm')}",
         ])
 
+    sp_sm = vspace(theme.spacing.space_sm)
+    sp_xs = vspace(theme.spacing.space_xs)
+
     return rf"""
 \newpage
 
-\vspace{{0.4em}}
+{sp_sm}
 \noindent
 
-\vspace{{4pt}}
+{sp_xs}
 {t_gen.dumps()}
 
-\vspace{{0.6em}}
+{sp_sm}
 
-\vspace{{4pt}}
+{sp_xs}
 {t_dim.dumps()}
 
-\vspace{{0.6em}}
+{sp_sm}
 
-\vspace{{4pt}}
+{sp_xs}
 {t_rst.dumps()}
 """
 
 
 def _bracing_tables(input_dict, n_girders):
+    theme = get_active_theme()
     n = n_girders if n_girders >= 2 else 2
     panels = [
         (
@@ -336,7 +344,7 @@ def _bracing_tables(input_dict, n_girders):
     ]
 
     t_cb = ReportTable(
-        columns="|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{2.0cm}|",
+        columns=theme.columns.CH2_CB_5COL,
         caption=r"\textbf{Member Properties: Cross Bracing Details}",
         header_rows=[["Location", "Member IDs", "Type of Bracing", "Bracing Section", "Spacing (m)"]],
     )
@@ -350,7 +358,7 @@ def _bracing_tables(input_dict, n_girders):
         ])
 
     t_ed = ReportTable(
-        columns="|L{2.5cm}|L{2.5cm}|L{3.5cm}|L{3.5cm}|",
+        columns=theme.columns.CH2_ED_4COL,
         caption=r"\textbf{Member Properties: End Diaphragm Details}",
         header_rows=[["Location", "Member IDs", "Type of Bracing", "Bracing Section"]],
     )
@@ -362,14 +370,15 @@ def _bracing_tables(input_dict, n_girders):
             _value(input_dict, f"{KEY_MP_ED_BRACING_SECTION_DESIGNATION}.G{i}G{i+1}.E{i}M1"),
         ])
 
+    sp_sm = vspace(theme.spacing.space_sm)
     return rf"""
 \newpage
 
-\vspace{{0.4em}}
+{sp_sm}
 
 {t_cb.dumps()}
 
-\vspace{{0.4em}}
+{sp_sm}
 \noindent
 
 {t_ed.dumps()}
@@ -377,10 +386,11 @@ def _bracing_tables(input_dict, n_girders):
 
 
 def _shear_connector_table(input_dict, output_dict=None):
+    theme = get_active_theme()
     od = output_dict or {}
     t_sc = KeyValueTable(
         caption=r"\textbf{Shear Connector Details}",
-        preset=("5.5cm", "10.0cm"),
+        preset=theme.columns.KEY_VALUE,
         headers=("Parameter", "Value"),
         rows=[
             (r"\textnormal{Stud Diameter (mm)}", _value(od, KEY_SD_SHEAR_DIAMETER, " mm")),
@@ -390,20 +400,23 @@ def _shear_connector_table(input_dict, output_dict=None):
             (r"\textnormal{No. of Studs per Section}", _value(od, KEY_SD_SHEAR_STUDS_PER_SECTION)),
         ],
     )
+    sp_xl = vspace(theme.spacing.space_xl)
+    sp_sm = vspace(theme.spacing.space_sm)
     return rf"""
 \label{{subsec:shear-connectors}}
 
-\vspace{{2.2em}}
+{sp_xl}
 
-\vspace{{0.4em}}
+{sp_sm}
 {t_sc.dumps()}
 """
 
 
 def _safety_factors_table(input_dict):
+    theme = get_active_theme()
     t_sf = KeyValueTable(
         caption=r"\textbf{Partial Safety Factors}",
-        preset=("5.5cm", "10.0cm"),
+        preset=theme.columns.KEY_VALUE,
         headers=("Parameter", "Value"),
         rows=[
             (r"\textnormal{$\gamma_{M0}$ (Yielding / Buckling)}", _value(input_dict, KEY_DO_GAMMA_M0)),
@@ -415,14 +428,16 @@ def _safety_factors_table(input_dict):
             (r"\textnormal{$\gamma_{Mft}$ (Fatigue Strength)}", _value(input_dict, KEY_DO_GAMMA_MF)),
         ],
     )
+    sp_xl = vspace(theme.spacing.space_xl)
+    sp_sm = vspace(theme.spacing.space_sm)
     return rf"""
 \label{{subsec:safety-factors}}
 
-\vspace{{2.2em}}
+{sp_xl}
 
-\vspace{{0.3em}}
+{sp_sm}
 \noindent\textit{{Note: All values are per IRC 22 Table 1 unless user-modified.}}
 
-\vspace{{0.4em}}
+{sp_sm}
 {t_sf.dumps()}
 """

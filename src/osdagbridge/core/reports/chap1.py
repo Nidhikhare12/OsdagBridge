@@ -1,10 +1,12 @@
 from osdagbridge.core.reports.report_utils import _tex
 from osdagbridge.core.reports.latex.tables import SimpleTable
+from osdagbridge.core.reports.theme import get_active_theme
 
 
 def ch1_project_info(m):
+    theme = get_active_theme()
     tbl = SimpleTable(
-        col_spec="|L{5.5cm}|L{8.5cm}|",
+        col_spec=theme.columns.CH1_KEY_VALUE,
         rows=[
             [r"\textbf{Project Name}", _tex(m.project_name)],
             [r"\textbf{Project Location}", _tex(m.project_location)],

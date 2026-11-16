@@ -30,3 +30,34 @@ def note(text: str, theme: Theme | None = None) -> str:
 def unit(text: str) -> str:
     """Format engineering units consistently."""
     return rf"\textnormal{{{text}}}"
+
+
+def vspace(token: str = "1.0em") -> str:
+    """Format vertical spacing directive."""
+    return rf"\vspace{{{token}}}"
+
+
+def vspace_star(token: str = "1.5cm") -> str:
+    """Format starred vertical spacing directive."""
+    return rf"\vspace*{{{token}}}"
+
+
+def textcolor(color_name: str, text: str) -> str:
+    """Format text colored with named color."""
+    return rf"\textcolor{{{color_name}}}{{{text}}}"
+
+
+def row_pad(pt: float = 6.0) -> str:
+    """Format row ending with padding."""
+    return rf"\\[{pt:.0f}pt]"
+
+
+def row_end() -> str:
+    """Format standard row terminator using active theme."""
+    t = get_active_theme()
+    return rf"\\[{t.table.row_pad_pt:.0f}pt]"
+
+
+def row_end_nobreak(pt: float = 6.0) -> str:
+    """Format non-breaking row terminator with padding."""
+    return rf"\\*[{pt:.0f}pt]"

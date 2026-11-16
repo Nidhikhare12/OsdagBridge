@@ -4,6 +4,8 @@ from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE
 )
 from osdagbridge.core.reports.latex.tables import ReportTable
+from osdagbridge.core.reports.latex.text import textcolor, vspace
+from osdagbridge.core.reports.theme import get_active_theme
 
 
 def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
@@ -24,13 +26,13 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                 upper = line.upper()
                 if 'WARNING' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
+                        textcolor('blue', escaped) + r'\\')
                 elif 'ERROR' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
+                        textcolor('red', escaped) + r'\\')
                 elif 'INFO' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
+                        textcolor('osdagGreen', escaped) + r'\\')
                 else:
                     continue  # skip lines without a known level — Osdag patter
 
@@ -40,8 +42,9 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
 
 
 def _ch8_assumptions(is_custom: bool) -> str:
+    theme = get_active_theme()
     t_irc = ReportTable(
-        columns="|C{2.5cm}|C{2.0cm}|p{11.0cm}|",
+        columns=theme.columns.CH8_STANDARDS_3COL,
         caption=r"\textbf{IRC Codes}",
         header_rows=[["Code", "Year", "Title / Scope"]],
     )
@@ -53,7 +56,7 @@ def _ch8_assumptions(is_custom: bool) -> str:
     t_irc.add_row(["IRC SP 114", "2018", "Seismic Design of Road Bridges"])
 
     t_is = ReportTable(
-        columns="|C{2.5cm}|C{2.0cm}|p{11.0cm}|",
+        columns=theme.columns.CH8_STANDARDS_3COL,
         caption=r"\textbf{IS Codes}",
         header_rows=[["Code", "Year", "Scope"]],
     )
@@ -77,7 +80,9 @@ design modules, and notes the limitations of the current software version.
 The following Indian Road Congress (IRC) codes and Indian Standards (IS) 
 form the basis of all design calculations in this software.
 
-\vspace{0.5cm}
+"""
+        + vspace(theme.spacing.space_md)
+        + r"""
 
 """
         + t_irc.dumps()

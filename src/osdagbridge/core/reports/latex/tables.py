@@ -80,8 +80,8 @@ class ReportTable:
 
     def __init__(
         self,
-        columns: int | str | Sequence[str],
-        caption: str,
+        columns: int | str | Sequence[str] | None = None,
+        caption: str = "",
         label: str | None = None,
         header_rows: Sequence[Sequence[Any]] | Sequence[Any] | None = None,
         header_tex: str | None = None,
@@ -311,3 +311,20 @@ class SimpleTable:
             lines.append(r"\hline")
         lines.append(r"\end{tabular}")
         return "\n".join(lines)
+
+
+def row_end(pt: float | None = None) -> str:
+    """Format standard table row terminator."""
+    t = get_active_theme()
+    p = pt if pt is not None else t.table.row_pad_pt
+    return rf"\\[{p:.0f}pt]"
+
+
+def row_end_nobreak(pt: float = 6.0) -> str:
+    """Format non-breaking row terminator with padding."""
+    return rf"\\*[{pt:.0f}pt]"
+
+
+def row_pad(pt: float = 6.0) -> str:
+    """Format row terminator with explicit padding."""
+    return rf"\\[{pt:.0f}pt]"

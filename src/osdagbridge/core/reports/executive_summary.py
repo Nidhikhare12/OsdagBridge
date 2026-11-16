@@ -4,6 +4,8 @@
 
 from osdagbridge.core.reports.report_utils import _fig_or_placeholder, _render_value, _tex, get_girder_entries
 from osdagbridge.core.reports.latex.tables import SimpleTable
+from osdagbridge.core.reports.latex.text import vspace
+from osdagbridge.core.reports.theme import get_active_theme
 from osdagbridge.core.utils.common import (
     KEY_CARRIAGEWAY_WIDTH,
     KEY_SD_SECTION_DESIGNATION,
@@ -155,15 +157,16 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
             ["Utilization Ratio"] + [ur] * n_cols,
         ],
     )
+    theme = get_active_theme()
     table1 = (
         r"\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}" + "\n\n"
-        r"\vspace{0.4em}" + "\n"
+        + vspace(theme.spacing.space_sm) + "\n"
         r"\noindent" + "\n"
         + t_geom1.dumps()
     )
 
     t_ovw = SimpleTable(
-        col_spec="|L{5.5cm}|L{8.5cm}|",
+        col_spec=theme.columns.CH1_KEY_VALUE,
         rows=[
             [r"\textbf{Bridge Type}", _render_value(input_dict, KEY_STRUCTURE_TYPE)],
             [r"\textbf{Design Standard}", "IRC 5, IRC 6, IRC 22, IRC 24, IS 800"],
@@ -182,7 +185,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
 \newpage
 {\centering\Large\bfseries Executive Summary\par}
 \addcontentsline{toc}{chapter}{Executive Summary}
-\vspace{0.8em}
+""" + vspace(theme.spacing.space_md) + r"""
 
 This section provides a concise summary of the bridge design, key inputs, governing loads, and final design outcomes.
 
@@ -198,10 +201,10 @@ This section provides a concise summary of the bridge design, key inputs, govern
 
 """ + cs_fig + '\n\n' + geom_fig + '\n\n' + table1 + r"""
 
-\vspace{0.4em}
+""" + vspace(theme.spacing.space_sm) + r"""
 \noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value $< 1.0$ indicates a passing check.}
 
-\vspace{1em}
+""" + vspace(theme.spacing.space_md) + r"""
 
 \section*{Key Design Outcomes Summary}
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
