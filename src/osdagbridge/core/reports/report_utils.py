@@ -147,6 +147,9 @@ def make_longtable(colspec, caption, header, body, header_gap="6pt"):
         + body + "\n"
         + "\\end{longtable}\n"
     )
+_BEGIN = "\\begin{longtable}"
+_END = "\\end{longtable}"
+_ROW_END = re.compile(r"\\\\(\[[^\]]*\])?\s*$")
 
 def add_repeating_headers(tex):
     r"""Make every longtable repeat its column-header row on each page.
@@ -238,3 +241,6 @@ def _pin_closing_rule(block):
 
 def _fix_one(block):
     return _pin_closing_rule(_add_header(block))
+
+
+
