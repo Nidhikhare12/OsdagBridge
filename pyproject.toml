@@ -51,6 +51,7 @@ dependencies = [
   "openseespy>=3.2.2.6",
   "opsvis>=1.0",
   "xarray",
+  "pylatex>=1.4.2",
 ]
 
 [project.optional-dependencies]
