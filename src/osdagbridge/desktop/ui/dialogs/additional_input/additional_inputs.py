@@ -113,6 +113,9 @@ class AdditionalInputs(QDialog):
         # This is required for end connectors
         self.interacted_first = True
  
+        # Tracks unsaved modifications for closeEvent confirmation
+        self.is_modified = False
+
         # Store all Compute functions to be called at Design
         self._compute_functions = []
 
@@ -303,6 +306,8 @@ class AdditionalInputs(QDialog):
             self.interacted_first = False
             from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import END_CONNECTORS
             UIBuilder.wire_end_connectors(END_CONNECTORS, ai=self)
+
+        self.is_modified = False
 
     def set_defaults(self) -> None:  # lifecycle: populates all widgets from working_input_dict; called at init time only
         """
@@ -562,6 +567,26 @@ class AdditionalInputs(QDialog):
             if hasattr(tab_widget, "refresh_active_tab"):
                 tab_widget.refresh_active_tab()
 
+    def closeEvent(self, event):  # Qt event: warns before closing if unsaved changes exist
+        if getattr(self, "is_modified", False):
+            box = CustomMessageBox(
+                title="Unsaved Changes",
+                text="You have unsaved changes. Closing this window will discard them. Do you want to proceed?",
+                buttons=["Discard", "Cancel"],
+                dialogType=MessageBoxType.Warning,
+            )
+            res = box.exec()
+            if res == "Discard":
+                self.is_modified = False
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()
+
+    def reject(self):  # Qt dialog: routes Escape key through closeEvent for unsaved changes confirmation
+        self.close()
+
     # ── Dialog Persistence ───────────────────────────────────────────────────────
 
     def _switch_to_widget_tab(self, widget: QWidget):
@@ -659,7 +684,9 @@ class AdditionalInputs(QDialog):
         cad = self.findChild(CrossSectionCADWidget, KEY_TS_CAD_PREVIEW)
         if cad:
             self.update_template_page_2d_cad.emit(cad.params)
-        
+
+        self.is_modified = False
+
         CustomMessageBox(
             title="Saved",
             text="Inputs saved successfully.",
@@ -736,6 +763,7 @@ class AdditionalInputs(QDialog):
         self._update_additional_input_cad()
 
     def _update_input_dict(self, key: str, value: str):  # utility: writes a value to working_input_dict, falling back to default if empty
+        self.is_modified = True
         if value is None or value == "":
             self.working_input_dict[key] = self.default_input_dict.get(key)
         else:
