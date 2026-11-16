@@ -293,7 +293,7 @@ class SimpleTable:
             base_spec = col_spec
 
         ncols = _count_cols(base_spec)
-        self.col_spec, _ = _fit_col_spec(base_spec, ncols, self.theme)
+        self.col_spec, self.is_dense = _fit_col_spec(base_spec, ncols, self.theme)
 
         self.rows: list[list[Any]] = []
         if rows:
@@ -304,12 +304,19 @@ class SimpleTable:
         self.rows.append(list(cells))
 
     def dumps(self) -> str:
-        lines = [rf"\begin{{tabular}}{{{self.col_spec}}}", r"\hline"]
+        tbl = self.theme.table
+        t = self.theme
+        lines = []
+        if getattr(self, "is_dense", False):
+            lines.append(f"{{\\setlength{{\\tabcolsep}}{{{tbl.dense_col_sep_pt:.1f}pt}}{t.typography.table_font_size_dense}")
+        lines.extend([rf"\begin{{tabular}}{{{self.col_spec}}}", r"\hline"])
         for row in self.rows:
             formatted = " & ".join(str(c) for c in row) + r" \\"
             lines.append(formatted)
             lines.append(r"\hline")
         lines.append(r"\end{tabular}")
+        if getattr(self, "is_dense", False):
+            lines.append("}")
         return "\n".join(lines)
 
 

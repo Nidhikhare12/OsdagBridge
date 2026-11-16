@@ -143,8 +143,8 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
 
     # Column widths: row-label column fixed at 2.8cm; girder columns share remainder
     label_col_cm = 2.8
-    # Available width ≈ 13.8cm for A4 with 2.0cm margins; each girder col gets equal share
-    girder_col_cm = round(max(1.5, (13.8 - label_col_cm) / n_cols), 2)
+    # Available width ≈ 12.8cm for A4; each girder col gets equal share
+    girder_col_cm = round(max(1.0, (12.8 - label_col_cm) / n_cols), 2)
     col_spec = '|C{' + str(label_col_cm) + 'cm}|' + '|'.join(['C{' + str(girder_col_cm) + 'cm}'] * n_cols) + '|'
 
     t_geom1 = SimpleTable(
