@@ -107,6 +107,16 @@ def run_latex(tex_path: str | Path, max_passes: int = 4) -> CompileReport:
     log_file = path.with_suffix(".log")
     pdf_file = path.with_suffix(".pdf")
 
+    # Stale output from an earlier run must not be mistaken for a fresh PDF.
+    if pdf_file.is_file():
+        try:
+            pdf_file.unlink()
+        except OSError:
+            pass
+
+    # Always run at least two passes (contents page, page total) when allowed.
+    min_passes = min(2, max_passes)
+
     for pass_idx in range(1, max_passes + 1):
         passes_run = pass_idx
         res = subprocess.run([compiler, "-interaction=nonstopmode", f"{stem}.tex"], **kwargs)
@@ -120,24 +130,22 @@ def run_latex(tex_path: str | Path, max_passes: int = 4) -> CompileReport:
         else:
             log_content = res.stdout or ""
 
-        # Check if another pass is required
-        rerun_needed = False
-        rerun_patterns = [
-            "Rerun to get",
-            "Table widths have changed. Rerun LaTeX",
-            "Please rerun LaTeX",
-            "Label(s) may have changed. Rerun to get cross-references right",
-        ]
-        for pattern in rerun_patterns:
-            if pattern in log_content:
-                rerun_needed = True
-                break
-
-        # If it failed with fatal errors, don't keep rerunning
-        if "! " in log_content:
+        # A pass that yields no PDF is fatal: rerunning cannot help.
+        if not pdf_file.is_file():
             break
 
-        if not rerun_needed:
+        # Recoverable errors (nonstopmode carries on past them) must NOT stop
+        # the rerun loop: the table of contents, the page total and longtable
+        # column widths all need a further pass whether or not errors occurred.
+        rerun_patterns = (
+            "Rerun to get",
+            "Rerun LaTeX",
+            "Please rerun LaTeX",
+            "There were undefined references",
+        )
+        rerun_needed = any(pattern in log_content for pattern in rerun_patterns)
+
+        if pass_idx >= min_passes and not rerun_needed:
             break
 
     report = parse_log(log_content)

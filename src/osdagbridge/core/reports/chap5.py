@@ -859,14 +859,14 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
 
     def _render_t522_row(r):
         if r.note and ("design to be added" in r.note or "not implemented" in r.note):
-            return f"{r.check_name} & \\multicolumn{{4}}{{c|}}{{{r.note}}} \\[6pt]\n\\hline"
+            return f"{r.check_name} & \\multicolumn{{4}}{{c|}}{{{r.note}}} \\\\[6pt]\n\\hline"
         ur_str = "---"
         if r.ur is not None:
             ur_str = f"{r.ur:.2f}"
             if r.ur > 1.0:
                 ur_str = status_fail(ur_str)
         cells = [r.governing_combo or "---", r.demand_str or "---", r.capacity_str or "---", ur_str]
-        return f"{r.check_name} & " + " & ".join(cells) + " \\[6pt]\n\\hline"
+        return f"{r.check_name} & " + " & ".join(cells) + " \\\\[6pt]\n\\hline"
 
     t522_content = "\n".join(_render_t522_row(r) for r in ud.records)
 

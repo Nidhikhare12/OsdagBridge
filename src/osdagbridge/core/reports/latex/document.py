@@ -65,6 +65,17 @@ def build_preamble(
 \usepackage{{etoolbox}}
 \usepackage{{needspace}}
 
+% Unicode symbols that reach the report inside engine-generated strings
+\DeclareUnicodeCharacter{{2264}}{{\ensuremath{{\leq}}}}
+\DeclareUnicodeCharacter{{2265}}{{\ensuremath{{\geq}}}}
+\DeclareUnicodeCharacter{{00D7}}{{\ensuremath{{\times}}}}
+\DeclareUnicodeCharacter{{00B5}}{{\ensuremath{{\mu}}}}
+\DeclareUnicodeCharacter{{03C6}}{{\ensuremath{{\phi}}}}
+\DeclareUnicodeCharacter{{2212}}{{\ensuremath{{-}}}}
+\DeclareUnicodeCharacter{{2248}}{{\ensuremath{{\approx}}}}
+\DeclareUnicodeCharacter{{2260}}{{\ensuremath{{\neq}}}}
+\DeclareUnicodeCharacter{{00B1}}{{\ensuremath{{\pm}}}}
+
 \numberwithin{{table}}{{chapter}}
 \numberwithin{{figure}}{{chapter}}
 

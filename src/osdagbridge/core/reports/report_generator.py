@@ -449,6 +449,10 @@ class ReportPayload:
 class ReportResult:
     pdf_path: Optional[str]
     tex_path: Optional[str]
+    log_path: Optional[str] = None
+    passes: int = 0
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
 
 
 class ReportDataBridge:
@@ -983,7 +987,7 @@ def generate_report(payload, request):
 
             # Compile with automatic rerun detection (longtable widths, TOC, references)
             from osdagbridge.core.reports.latex.compile import run_latex
-            compile_rep = run_latex(tmp_tex, max_passes=4)
+            compile_rep = run_latex(tmp_tex, max_passes=5)
 
             tmp_log = os.path.join(tmp_dir, request.file_stem + '.log')
             log_dest = os.path.join(request.output_dir, request.file_stem + '.log')
@@ -996,8 +1000,17 @@ def generate_report(payload, request):
                 shutil.copy2(tmp_pdf, pdf_path)
 
         if os.path.exists(pdf_path):
-            logger.info("Report generated: %s", pdf_path)
-            return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
+            logger.info("Report generated: %s (%d LaTeX passes)", pdf_path, compile_rep.passes)
+            for _err in compile_rep.errors[:20]:
+                logger.warning("LaTeX error: %s", _err)
+            return ReportResult(
+                pdf_path=pdf_path,
+                tex_path=tex_path,
+                log_path=log_dest if os.path.exists(log_dest) else None,
+                passes=compile_rep.passes,
+                errors=list(compile_rep.errors),
+                warnings=list(compile_rep.warnings),
+            )
 
         logger.error("pdflatex ran but no PDF was produced.")
         if 'res' in locals():
