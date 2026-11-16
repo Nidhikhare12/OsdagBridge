@@ -1,18 +1,22 @@
+from __future__ import annotations
+
 import os
 import re
 import datetime
+import tempfile
+from typing import Dict, List, Optional
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit,
     QPushButton, QTextEdit, QTreeWidget, QTreeWidgetItem,
-    QStackedWidget, QWidget, QFileDialog, QLabel, QMessageBox,
-    QGroupBox, QGridLayout, QComboBox, QCheckBox,
+    QStackedWidget, QWidget, QFileDialog, QLabel,
+    QGroupBox, QComboBox, QCheckBox, QSizeGrip,
 )
 from PySide6.QtCore import Qt
 from osdagbridge.core.reports.report_generator import (
     ReportMetadata, ReportOptions, ReportRequest
 )
-
-
+from osdagbridge.core.reports.themes import list_themes
 from osdagbridge.desktop.ui.utils.custom_titlebar import CustomTitleBar
 from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
 from osdagbridge.desktop.ui.utils.custom_cursors import pointing_hand_cursor
@@ -28,7 +32,7 @@ class ReportOptionsDialog(QDialog):
     _OSDAG_GREEN_DARK = "#64850c"
 
     def __init__(self, parent=None):
-        super().__init__(None)
+        super().__init__(parent)
         self._main_window = parent
         self.setObjectName("report_options_dialog")
         self.resize(520, 650)
@@ -148,7 +152,6 @@ class ReportOptionsDialog(QDialog):
         self.content_widget.setObjectName("contentWidget")
         main_layout.addWidget(self.content_widget, 1)
 
-        from PySide6.QtWidgets import QSizeGrip
         self.size_grip = QSizeGrip(self)
         self.size_grip.setFixedSize(16, 16)
 
@@ -299,6 +302,7 @@ class ReportOptionsDialog(QDialog):
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
         self.tree.setRootIsDecorated(False)
+        self.tree.setMinimumHeight(180)
         layout.addWidget(self.tree)
 
         for label, key, locked in self._REPORT_CHAPTERS:
@@ -322,7 +326,6 @@ class ReportOptionsDialog(QDialog):
         theme_layout = QHBoxLayout()
         theme_lbl = QLabel("Report Theme:")
         self.theme_combo = QComboBox()
-        from osdagbridge.core.reports.themes import list_themes
         for t_name in list_themes():
             self.theme_combo.addItem(t_name)
         theme_layout.addWidget(theme_lbl)
@@ -486,7 +489,7 @@ class ReportOptionsDialog(QDialog):
             ).exec()
             return
 
-        parsed: dict[str, str] = {}
+        parsed: Dict[str, str] = {}
         for match in self._PROFILE_RE.finditer(content):
             parsed[match.group("key")] = match.group("value")
 
@@ -576,7 +579,6 @@ class ReportOptionsDialog(QDialog):
         )
 
     def preview_pdf(self):
-        import tempfile
         tmp_dir = tempfile.mkdtemp(prefix="osdag_preview_")
         path = os.path.join(tmp_dir, "preview_report.pdf")
         self.request = self.build_request(path)

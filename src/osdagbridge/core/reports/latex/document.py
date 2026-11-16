@@ -121,10 +121,10 @@ def build_preamble(
 
 \fancypagestyle{{main}}{{
   \fancyhf{{}}
-  \fancyhead[L]{{\footnotesize {pn}}}
-  \fancyhead[R]{{\footnotesize {jn}\ \textperiodcentered\ {rd}}}
-  \fancyfoot[L]{{\footnotesize {hf.footer_text}}}
-  \fancyfoot[R]{{\footnotesize Page \thepage\ of \pageref{{LastPage}}}}
+  \fancyhead[L]{{\parbox[b]{{0.58\headwidth}}{{\raggedright\footnotesize {pn}}}}}
+  \fancyhead[R]{{\parbox[b]{{0.40\headwidth}}{{\raggedleft\footnotesize {jn}\ \textperiodcentered\ {rd}}}}}
+  \fancyfoot[L]{{\parbox[b]{{0.70\headwidth}}{{\raggedright\footnotesize {hf.footer_text}}}}}
+  \fancyfoot[R]{{\parbox[b]{{0.28\headwidth}}{{\raggedleft\footnotesize Page \thepage\ of \pageref{{LastPage}}}}}}
   \renewcommand{{\headrule}}{{\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{2pt}}}}
   \renewcommand{{\footrule}}{{%
     \ifbool{{hasSDonPage}}{{%
@@ -138,10 +138,10 @@ def build_preamble(
 
 \fancypagestyle{{plain}}{{
   \fancyhf{{}}
-  \fancyhead[L]{{\footnotesize {pn}}}
-  \fancyhead[R]{{\footnotesize {jn}\ \textperiodcentered\ {rd}}}
-  \fancyfoot[L]{{\footnotesize {hf.footer_text}}}
-  \fancyfoot[R]{{\footnotesize Page \thepage\ of \pageref{{LastPage}}}}
+  \fancyhead[L]{{\parbox[b]{{0.58\headwidth}}{{\raggedright\footnotesize {pn}}}}}
+  \fancyhead[R]{{\parbox[b]{{0.40\headwidth}}{{\raggedleft\footnotesize {jn}\ \textperiodcentered\ {rd}}}}}
+  \fancyfoot[L]{{\parbox[b]{{0.70\headwidth}}{{\raggedright\footnotesize {hf.footer_text}}}}}
+  \fancyfoot[R]{{\parbox[b]{{0.28\headwidth}}{{\raggedleft\footnotesize Page \thepage\ of \pageref{{LastPage}}}}}}
   \renewcommand{{\headrule}}{{\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{2pt}}}}
   \renewcommand{{\footrule}}{{%
     \ifbool{{hasSDonPage}}{{%

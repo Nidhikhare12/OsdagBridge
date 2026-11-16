@@ -774,15 +774,17 @@ def generate_report(payload, request):
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            if not secs or 'quantities' in secs:
+                doc_parts.append(ch7_quantities(payload.inputs))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
-        
 
-            doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
+            if not secs or 'standards' in secs or 'design_log' in secs or 'design_log_window' in secs:
+                doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
 
-            doc_parts.append(references())
+            if not secs or 'references' in secs:
+                doc_parts.append(references())
             doc_parts.append(r"\end{document}")
 
             full_tex = "\n".join(doc_parts)
