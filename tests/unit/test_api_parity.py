@@ -88,7 +88,11 @@ def test_t_parity_baseline(tmp_path, fixtures_dir):
     baseline_nums = set(num_pattern.findall(baseline_content))
     new_nums = set(num_pattern.findall(new_content))
 
-    missing_nums = baseline_nums - new_nums
+    # Reviewed allowlist of intended changes per PLAN.md section 7 (T-PARITY):
+    # '7.1': Table 7.1 raw uncaptioned text replaced by LaTeX longtable caption
+    parity_allowlist = {"7.1"}
+
+    missing_nums = baseline_nums - new_nums - parity_allowlist
     assert not missing_nums, f"Numeric values changed or missing from report: {missing_nums}"
 
     # Extract all table captions
