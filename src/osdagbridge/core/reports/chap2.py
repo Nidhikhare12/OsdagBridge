@@ -237,20 +237,33 @@ def _girder_tables(input_dict, n_girders):
         )
     ]
 
+    # Helper: a girder dimension shown in mm. The optimiser stores these section
+    # dimensions in metres (1.12, 0.008, ...), while user-entered values are in mm,
+    # so anything below `metres_below` is taken as metres and converted.
+    def _dim_mm(key, metres_below):
+        raw = input_dict.get(key)
+        try:
+            v = float(raw)
+        except (TypeError, ValueError):
+            return _render_value(input_dict, key, ' mm')
+        if v < metres_below:
+            v *= 1000.0
+        return f"{v:g} mm"
+
     # Helper: one girder-dimension row
     def _dim_row(g_lbl, i):
         return (g_lbl + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_DEPTH}.G{i}.M1", ' mm'))
+                + _dim_mm(f"{KEY_MP_GIRDER_DEPTH}.G{i}.M1", 20)
                 + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_WEB_THICKNESS}.G{i}.M1", ' mm'))
+                + _dim_mm(f"{KEY_MP_GIRDER_WEB_THICKNESS}.G{i}.M1", 1)
                 + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_TOP_FLANGE_WIDTH}.G{i}.M1", ' mm'))
+                + _dim_mm(f"{KEY_MP_GIRDER_TOP_FLANGE_WIDTH}.G{i}.M1", 20)
                 + ', '
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_TOP_FLANGE_THICKNESS}.G{i}.M1", ' mm'))
+                + _dim_mm(f"{KEY_MP_GIRDER_TOP_FLANGE_THICKNESS}.G{i}.M1", 1)
                 + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH}.G{i}.M1", ' mm'))
+                + _dim_mm(f"{KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH}.G{i}.M1", 20)
                 + ', '
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS}.G{i}.M1", ' mm'))
+                + _dim_mm(f"{KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS}.G{i}.M1", 1)
                 + r""" \\[8pt]
 \hline
 """)
@@ -328,7 +341,7 @@ def _girder_tables(input_dict, n_girders):
 \vspace{0.6em}
 
 \vspace{4pt}
-\begin{longtable}{|L{1.4cm}|p{2.2cm}|p{2.2cm}|p{3.0cm}|p{2.4cm}|p{2.2cm}|}
+\begin{longtable}{|L{1.4cm}|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.4cm}|L{2.2cm}|}
 \caption{\textbf{Girder Restraint and Stiffener Details}}\\
 \hline
 \textbf{Girder} & \textbf{Torsional / Warping Restraint} & \textbf{Web Philosophy} & \textbf{Intermediate Stiffeners} & \textbf{Longitudinal Stiffeners} & \textbf{Bearing Stiffener} \\[6pt]

@@ -102,11 +102,14 @@ def _table_layout_block() -> str:
 def _colors_block() -> str:
     return rf"\definecolor{{osdagGreen}}{{HTML}}{{{OSDAG_GREEN_HEX}}}" + "\n"
 
-
 def _head_block(project: str, job: str, date: str, version: str) -> str:
+    # Join with a separator only between non-empty parts, so an empty project
+    # name / job number does not leave a lone "|" in the page header.
+    left = " $|$ ".join(x for x in (project, job) if x)
+    right = " $|$ ".join(x for x in (date, version) if x)
     return (
-        rf"  \fancyhead[L]{{{project} $|$ {job}}}" + "\n"
-        + rf"  \fancyhead[R]{{{date} $|$ {version}}}" + "\n"
+        rf"  \fancyhead[L]{{{left}}}" + "\n"
+        + rf"  \fancyhead[R]{{{right}}}" + "\n"
     )
 
 
@@ -127,7 +130,7 @@ def _page_style(name: str, project: str, job: str, date: str, version: str) -> s
         + _footer_block()
         + rf"  \renewcommand{{\headrule}}{{\color{{osdagGreen}}\hrule width\headwidth height {h} \vspace{{2pt}}}}" + "\n"
         + r"""  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
+    \ifsdonpage{%
       \vspace{-20pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
       \vspace{4pt}%
@@ -165,13 +168,15 @@ def _custom_commands_block() -> str:
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 \newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
 
-% Software-default asterisk
-\newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
+% Software-default asterisk. Each star writes the page it is printed on to the .aux
+% file (the page number is expanded at shipout, so it is the real page, even for
+% longtable rows). The footer shows the note only on pages listed there.
+% Like \pageref{LastPage}, this needs two LaTeX runs.
+\makeatletter
+\newcommand{\sdonpage}[1]{\global\@namedef{sd@page@#1}{}}
+\newcommand{\sdstar}{\textsuperscript{*}\protected@write\@auxout{}{\string\sdonpage{\thepage}}}
+\newcommand{\ifsdonpage}[2]{\ifcsname sd@page@\thepage\endcsname #1\else #2\fi}
+\makeatother
 
 \title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
 \author{}
