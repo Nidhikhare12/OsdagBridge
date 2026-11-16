@@ -94,13 +94,11 @@ def build_preamble(
   \renewcommand{{\headrule}}{{\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{2pt}}}}
   \renewcommand{{\footrule}}{{%
     \ifbool{{hasSDonPage}}{{%
-      \vspace{{-20pt}}%
-      \hbox to \headwidth{{\textcolor{{black}}{{\footnotesize\textit{{* Software default value}}}}\hfil}}%
-      \vspace{{4pt}}%
+      \noindent\parbox[b]{{\headwidth}}{{\textcolor{{black}}{{\footnotesize\textit{{* Software default value}}}}}}\par\vspace{{2pt}}%
     }}{{%
-      \vspace{{-8pt}}%
+      \vspace{{{hf.sd_note_reserved_height_pt}pt}}%
     }}%
-    \color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{6pt}}%
+    \color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{4pt}}%
   }}
 }}
 
@@ -113,13 +111,11 @@ def build_preamble(
   \renewcommand{{\headrule}}{{\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{2pt}}}}
   \renewcommand{{\footrule}}{{%
     \ifbool{{hasSDonPage}}{{%
-      \vspace{{-20pt}}%
-      \hbox to \headwidth{{\textcolor{{black}}{{\footnotesize\textit{{* Software default value}}}}\hfil}}%
-      \vspace{{4pt}}%
+      \noindent\parbox[b]{{\headwidth}}{{\textcolor{{black}}{{\footnotesize\textit{{* Software default value}}}}}}\par\vspace{{2pt}}%
     }}{{%
-      \vspace{{-8pt}}%
+      \vspace{{{hf.sd_note_reserved_height_pt}pt}}%
     }}%
-    \color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{6pt}}%
+    \color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{4pt}}%
   }}
 }}
 
@@ -128,7 +124,7 @@ def build_preamble(
   \renewcommand{{\headrulewidth}}{{0pt}}
   \fancyfoot[L]{{{hf.footer_text}}}
   \fancyfoot[R]{{Page \thepage\ of \pageref{{LastPage}}}}
-  \renewcommand{{\footrule}}{{\vspace{{-8pt}}\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{6pt}}}}
+  \renewcommand{{\footrule}}{{\vspace{{{hf.sd_note_reserved_height_pt}pt}}\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{4pt}}}}
 }}
 
 \pagestyle{{main}}
@@ -170,7 +166,7 @@ def title_page(metadata, osdag_logo: str | None, org_logo: str | None, theme: Th
         rhs = ""
 
     logos_tex = rf"""\noindent
-\begin{minipage}[c]{{0.6\textwidth}}
+\begin{{minipage}}[c]{{0.6\textwidth}}
 \raggedright
 {lhs}
 \end{{minipage}}%

@@ -14,12 +14,12 @@ class PageTheme:
     paper: str = "a4paper"
     font_size_pt: int = 12
     margin_top_cm: float = 2.54
-    margin_bottom_cm: float = 2.54
+    margin_bottom_cm: float = 2.80
     margin_left_cm: float = 2.54
     margin_right_cm: float = 2.54
-    head_height_pt: float = 28.0
-    head_sep_pt: float = 16.0
-    foot_skip_pt: float = 30.0
+    head_height_pt: float = 20.0
+    head_sep_pt: float = 14.0
+    foot_skip_pt: float = 38.0
     line_stretch: float = 1.15
 
 
@@ -57,7 +57,7 @@ class TableTheme:
     row_stretch: float = 1.12
     row_pad_pt: float = 6.0
     rule_width_pt: float = 0.5
-    min_rows_before_break: int = 3
+    min_rows_before_break: int = 5
     continued_label: str = "(continued)"
     continues_label: str = "Continued on next page"
     header_bold: bool = True
@@ -85,7 +85,7 @@ class HeaderFooterTheme:
     rule_color: str = "91B014"
     footer_text: str = r"Osdag \textbar{} FOSSEE \textbar{} Indian Institute of Technology Bombay"
     sd_note_text: str = r"\footnotesize * Software default value"
-    sd_note_reserved_height_pt: float = 14.0
+    sd_note_reserved_height_pt: float = 12.0
 
 
 @dataclass(frozen=True)

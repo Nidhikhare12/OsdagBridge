@@ -32,19 +32,22 @@ def check_footer_overlap(pdf_path: str | Path, tolerance_pt: float = 4.0) -> Lis
 
             # Find horizontal lines that could be the footer rule (typically green, within bottom 100 pt)
             footer_rule_y = None
-            for line in page.lines:
-                # Horizontal line: top == bottom or close
-                if abs(line["top"] - line["bottom"]) <= 2.0:
-                    # In bottom 15% of page
-                    if line["top"] > page_height * 0.85:
-                        footer_rule_y = line["top"]
-                        break
+            rules = [
+                l["top"]
+                for l in page.lines
+                if abs(l["top"] - l["bottom"]) <= 2.0 and l["top"] > (page_height - 100.0)
+            ]
+            if rules:
+                footer_rule_y = max(rules)
 
             # If no explicit rule line was drawn, fallback to 45pt from bottom
             threshold_y = (footer_rule_y - tolerance_pt) if footer_rule_y else (page_height - 50.0)
 
             # Extract words
-            footer_tokens = {"osdag", "fossee", "indian", "institute", "of", "technology", "bombay", "|", "page"}
+            footer_tokens = {
+                "osdag", "fossee", "indian", "institute", "of", "technology", "bombay",
+                "|", "page", "*", "software", "default", "value"
+            }
             words = page.extract_words()
             for w in words:
                 text = w["text"].strip()

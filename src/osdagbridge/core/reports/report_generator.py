@@ -120,6 +120,7 @@ from osdagbridge.core.utils.common import (
 
 from osdagbridge.core.reports.report_utils import _tex
 from osdagbridge.core.reports.latex.text import status_fail
+from osdagbridge.core.reports.latex.document import build_preamble, title_page as doc_title_page, toc_section as doc_toc_section
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -905,11 +906,11 @@ def generate_report(payload, request):
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
             doc_parts = []
-            doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
-            doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
+            doc_parts.append(build_preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
+            doc_parts.append(doc_title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
 
             if payload.options.include_toc:
-                doc_parts.append(toc_section())
+                doc_parts.append(doc_toc_section())
 
             # Chapter inclusion is driven by the canonical section keys
             # selected in the report-options dialog (TOC). The first three
