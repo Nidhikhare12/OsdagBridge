@@ -75,8 +75,8 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "---"
     _allow_live_str  = f"L/800 = {_allow_live_mm:.1f} mm"
     _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
-    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
-    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
+    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{reportFail}{FAIL}") if _live_mm  is not None else "---"
+    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{reportFail}{FAIL}") if _total_mm is not None else "---"
     return r"""
 \chapter{Analysis Results}
 
@@ -99,7 +99,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 
 \caption{\textbf{Summary of Maximum Demands}}\\
 \hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
+\makecell{\textbf{Load Case}\\\textbf{/ Comb.}}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
 & \multicolumn{3}{c|}{\textbf{Shear Force}}
 & \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
@@ -117,7 +117,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \endfirsthead
 
 \hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
+\makecell{\textbf{Load Case}\\\textbf{/ Comb.}}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
 & \multicolumn{3}{c|}{\textbf{Shear Force}}
 & \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\

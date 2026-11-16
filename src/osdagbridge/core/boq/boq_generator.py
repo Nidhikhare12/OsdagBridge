@@ -5,6 +5,7 @@
 import logging
 import math
 from typing import Any
+from osdagbridge.core.utils import common as keys
 
 from osdagbridge.core.utils.common import (
     KEY_SPAN,
@@ -14,6 +15,64 @@ from osdagbridge.core.utils.common import (
 )
 
 logger = logging.getLogger("osdagbridge.core.boq_generator")
+
+
+def end_diaphragm_quantities(inputs: dict, outputs: dict) -> dict:
+    """Estimate fabricated member steel at both ends of the modeled span."""
+    def positive(value):
+        n = float(value)
+        if not math.isfinite(n) or n <= 0:
+            raise ValueError("Missing positive diaphragm dimension or mass")
+        return n
+
+    def pair_value(key, pair):
+        prefix, field = key.rsplit(".", 1)
+        return outputs.get(f"{prefix}.{pair}.{field}")
+
+    try:
+        spacing = positive(inputs.get(KEY_TS_GIRDER_SPACING))
+        girder_count = int(inputs[KEY_TS_NO_OF_GIRDERS])
+        total_kg = 0.0
+        for i in range(1, girder_count):
+            pair = f"G{i}G{i+1}"
+            suffix = f".{pair}"
+            kind = pair_value(keys.KEY_MP_ED_TYPE, pair)
+            if kind in ("Rolled Beam", "Welded Beam"):
+                total_kg += 2 * spacing * positive(pair_value(keys.KEY_TD_ED_PROP_M, pair))
+                continue
+            if kind != "Cross Bracing":
+                return {}
+            layout = pair_value(keys.KEY_MP_ED_BRACING_TYPE, pair)
+            if layout not in ("X", "X-Bracing", "K", "K-Bracing"):
+                return {}
+            # Use the same centerline geometry as the diaphragm design.
+            depth = positive(resolve_girder_value(inputs, keys.KEY_MP_GIRDER_DEPTH))
+            projection = spacing if layout.startswith("X") else spacing / 2
+            members = [(keys.KEY_TD_ED_PROP_M, keys.KEY_MP_ED_BRACING_SECTION,
+                        2 * math.hypot(projection, 0.85 * depth))]
+            for enabled, mass, profile in (
+                (keys.KEY_MP_ED_TOP_CHORD, keys.KEY_TD_ED_TOP_CHORD_PROP_M, keys.KEY_MP_ED_TOP_CHORD_SECTION_TYPE),
+                (keys.KEY_MP_ED_BOTTOM_CHORD, keys.KEY_TD_ED_BOTTOM_CHORD_PROP_M, keys.KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE),
+            ):
+                if pair_value(enabled, pair) is True:
+                    members.append((mass, profile, spacing))
+            for mass, profile, length in members:
+                for end in (1, 2):
+                    section = str(inputs.get(f"{profile}{suffix}.E{i}M{end}", "")).lower()
+                    if not section:
+                        return {}
+                    multiplier = 2 if section.startswith("double ") else 1
+                    total_kg += multiplier * length * positive(pair_value(mass, pair))
+        if total_kg > 0:
+            return {
+                "end_diaphragms_vol_formula": r"$\sum A_i L_i$",
+                "end_diaphragms_qty": str(2 * (girder_count - 1)),
+                "end_diaphragms_vol_total": f"{total_kg / 7850:.3f}",
+                "end_diaphragms_wt_total": f"{total_kg / 1000:.3f}",
+            }
+    except (KeyError, TypeError, ValueError):
+        pass
+    return {}
 
 
 def resolve_girder_value(source: dict, base_key: str, i: int = 0) -> Any:
@@ -363,4 +422,5 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
     except Exception as exc:
         logger.warning(f"Error calculating material quantities: {exc}")
 
+    quantities.update(end_diaphragm_quantities(inputs, outputs))
     return quantities

@@ -1,84 +1,28 @@
-# LaTeX Report Generator Refactoring and Enhancements
+# OsdagBridge report generator: technical changes
 
-## Scope
+The report changes build on upstream `dev` commit `d74f56dd7f22925fb8148cabf5740ed8d1e39ff3`, which matches the supplied ZIP.
 
-This change improves the plate-girder design report generator while preserving
-the existing report payload and UI workflow. It covers the six requested areas:
-repeated table headers, printable page layout, separated load tables,
-utilization charts, material-quantity charts, and centralized report styling.
+| Area | Implementation |
+| --- | --- |
+| Table continuation | `core/reports/styles.py` supplies repeat headers and continuation markers. Its chapter adapter normalizes existing longtable widths against the printable line width and preserves explicit multi-row headers, including Chapter 4. The executive summary and Chapters 1–9 use the shared layout. |
+| Page layout | The shared preamble defines A4 margins, base font size, table padding, row spacing and header/footer rules. Chapter 5 fixes malformed row endings; Chapter 8 uses pageable standards tables. The G4 row and its note fit above the footer in the comparison. |
+| Live loads | `chap3.py` and `load_tables.py` split road vehicles and footway loads into tables with unit columns. Vehicle names follow the selection flags, including opted-in custom vehicles. The tables use existing IRC helpers for supported factors and braking inputs. Missing inputs are shown as unavailable; the current solver exposes no centrifugal force value. |
+| Utilization | `report_charts.py` reads governing ratios from the girder, deck, cross bracing and end diaphragm result structures. `chap5.py` embeds the plot in §5.5 with a dashed red line at 1.0. Missing data receives a label instead of a zero bar. The diaphragm table uses diaphragm results. |
+| Quantities | `chap7.py` embeds the take-off plot. Steel is compared in tonnes; concrete volume and reinforcement weight have separate axes. `core/boq/boq_generator.py` estimates diaphragm steel from section line mass and modeled member lengths at both ends. The estimate excludes fittings and connection steel. Reinforcement uses the existing 120 kg/m³ estimate. |
+| Compilation and theme | `styles.py` holds the shared document settings, table styling, status colors and PyLaTeX figure helper. `report_generator.py` stages chart images with the report assets, saves a compilable source folder, and checks both PDF compiler passes. Matplotlib uses a local canvas so it does not switch the desktop plot backend. |
 
-## Changes
+Reusing the existing raw LaTeX chapter templates keeps engineering values and their display logic separate from layout settings. PyLaTeX is used for the new figure wrappers; the charts and tables consume the same calculation data as the report.
 
-### 1. Repeating table headers
+## Comparison and verification
 
-`core/reports/styles.py` provides `repeating_longtable_header()`, the shared
-LaTeX fragment for `LongTable` first, continued, and final page headers.
-Chapter 3 applies it to the load-combination table and Chapter 7 applies it to
-the bill of materials. The helper includes `\\endfirsthead`, `\\endhead`,
-`\\endfoot`, and `\\endlastfoot`, so a table that crosses a page repeats its
-column labels and clearly marks continuation pages.
+[Original report](report-comparison/Report_Before.pdf) · [Updated report](report-comparison/Report_After.pdf)
 
-### 2. Page layout and footer safety
+Both reports use one calculated 20 m, four-girder custom bridge case. The original ZIP's compiler returned exit code 1 with table alignment errors but still emitted the baseline PDF. The enhanced report compiled in two successful passes. The final build showed no vertical box overflow; the updated source has a header block for each longtable. The G4 table, live-load split, and both chart pages were visually reviewed.
 
-`styles.py` centralizes the A4 margins, header height, header/footer spacing,
-table padding, row stretch, colors, and `needspace` protection. The report
-preamble now consumes this module. The 0.95-inch bottom margin and 30-point
-footer skip reserve printable space before a footer; tables are moved to the
-next page when fewer than six baselines remain.
+The sample returned utilization ratios for the girders, deck and cross bracing. It did not return an end diaphragm utilization ratio, so that chart category is labeled unavailable; its steel take-off is reported separately. The case has no footway and no explicit lane count. It is a format verification case and contains failed girder checks. The full desktop Design → Generate Report flow was not verified: the app started but the Windows desktop interaction did not finish. The calculation engine and the production report entry point were exercised directly. The drawing chapter contains placeholders because no GUI CAD exports were provided.
 
-### 3. Vehicle and footway load tables
+## Reproduce
 
-Chapter 3 now emits a `Vehicle Live Loads` table and a distinct `Footway Live
-Load` table. The vehicle table derives the selected standard and custom
-vehicles directly from the report input dictionary. The footway table shows its
-mode, calculated/entered intensity, units, and IRC 6 reference separately.
-
-### 4. Utilization-ratio chart
-
-`core/reports/report_charts.py` discovers utilization values from the structured
-design-check payload (supporting `utilization_ratio`, `ur`, `dcr`, and `ratio`).
-It renders a PNG bar chart with a UR=1.0 limit line and pass/fail colours.
-`report_generator.py` creates this image from the active report payload and
-Chapter 5 embeds it after the design-check summary. No chart value is
-hard-coded.
-
-### 5. Material-quantity chart
-
-The same chart module reads calculated bill-of-material values for structural
-steel, bracing, concrete deck, reinforcement, and shear studs. Chapter 7
-embeds the resulting PNG beneath its bill of materials. Values originate in
-`calculate_material_quantities()`.
-
-### 6. Centralized theme
-
-`core/reports/styles.py` is the source of truth for report colors, margins,
-table sizing, long-table behavior, and image embedding. The report generator
-imports this module instead of owning its own package/layout block.
-
-## Files changed
-
-- `src/osdagbridge/core/reports/styles.py` - central report theme and LaTeX helpers.
-- `src/osdagbridge/core/reports/report_charts.py` - data-derived PNG chart generation.
-- `src/osdagbridge/core/reports/report_generator.py` - applies the shared theme,
-  creates temporary chart assets, and passes them to report chapters.
-- `src/osdagbridge/core/reports/chap3.py` - separate live-vehicle and footway tables.
-- `src/osdagbridge/core/reports/chap5.py` - utilization chart placement.
-- `src/osdagbridge/core/reports/chap7.py` - repeated bill-of-material headers and
-  material chart placement.
-- `tests/test_report_enhancements.py` - focused regression coverage.
-
-## Verification
-
-`python -m pytest tests -q` passes all 10 tests. The chart tests validate PNG
-output generated from supplied calculation values, and the LaTeX tests validate
-the shared layout, repeated headers, and report chapter integration.
-
-## PDF evidence status
-
-The supplied source archive contains no completed bridge design input/output
-case and this environment has no available `pdflatex` executable. Therefore
-`Report_Before.pdf` and `Report_After.pdf` are not included: creating them here
-would require fabricated engineering results. To produce the final evidence,
-run a representative completed bridge design once before the changes and once
-after the changes in an environment with the Osdag LaTeX runtime available;
-save the two generated PDFs with the required names.
+1. Set up and activate the repository's Conda environment from `environment.yml`. Run `python -m pip install -e ".[test]"` to install the report dependency and test tools.
+2. From the enhanced checkout, run `python -m pytest tests -q` (17 passed) and `python examples/report_verification/run_design_case.py`. The second command creates a local `design_case.pkl` next to the script. Only use a snapshot you generated locally.
+3. Run `python examples/report_verification/render_case.py Report_After <output-directory>`. For the baseline, point `PYTHONPATH` to the original ZIP checkout's `src` directory and run the same render script with `Report_Before`. Both commands use the saved snapshot and record the second compiler pass.

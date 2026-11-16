@@ -38,6 +38,8 @@ def live_load_tables(inputs):
     value = inputs.get(keys.KEY_LL_FOOTPATH_PRESSURE_VALUE, 'Unavailable')
     if str(mode).lower().replace(' ', '') in {'automatic', 'asperirc6'}:
         value = IRC6_2017.cl_206_1_footway_load()
+    if str(inputs.get(keys.KEY_FOOTPATH, '')).strip().lower() in {'none', 'no'}:
+        mode, value = 'No footway', 'Not applicable'
     def table(title, rows):
         body = '\n'.join(' & '.join((_tex(label), _tex(value), unit)) + r' \\ \hline' for label, value, unit in rows)
         return (r'\begin{longtable}{|L{5cm}|L{8cm}|L{2cm}|}' + '\n' +

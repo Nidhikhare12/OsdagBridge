@@ -468,8 +468,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return r"\textcolor{reportPass}{PASS}"
+                return r"\textcolor{reportFail}{FAIL}"
         except (TypeError, ValueError):
             pass
         return ""
@@ -828,11 +828,6 @@ def generate_report(payload, request):
 
             full_tex = "\n".join(doc_parts)
 
-
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')

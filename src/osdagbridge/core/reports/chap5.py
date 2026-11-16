@@ -169,6 +169,21 @@ def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
     # dict when deck design has not been run. Look up with deck_rpt.get(KEY_...).
     deck_rpt = bridge.output_dict.get("deck_report_values", {}) or {}
     figure_paths = figure_paths or {}
+    # Diaphragm results have their own schema; cross-bracing rows belong to §5.3.
+    diaphragm_rows = []
+    for pair, members in (bridge.output_dict.get("end_diaphragm_design_results") or {}).items():
+        for member, checks in members.items():
+            for force, result in checks.items():
+                if not result:
+                    continue
+                designation = result.get("section_size.designation") or result.get("Optimum.Designation") or "---"
+                ratio = result.get("Member.efficiency")
+                if ratio is None:
+                    ratio = result.get("Optimum.UR")
+                fields = (pair, member, force, designation, ratio if ratio is not None else "---")
+                diaphragm_rows.append(" & ".join(_tex(str(value)) for value in fields) + r" \\ \hline")
+    diaphragm_body = "\n".join(diaphragm_rows) or r"\multicolumn{5}{|l|}{No end diaphragm capacity checks were returned.} \\ \hline"
+
     utilization_chart = chart_tex(
         figure_paths.get("utilization_summary", ""),
         "Utilization ratios generated from the completed design checks.",
@@ -226,7 +241,7 @@ def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
     try:
         _flex_ur = float(bridge.output_dict.get(KEY_UTIL_FLEXURE)) / 100.0
         _flex_ur_str = f"{_flex_ur:.2f}"
-        _flex_status = "PASS" if _flex_ur <= 1.0 else r"\textcolor{red}{FAIL}"
+        _flex_status = "PASS" if _flex_ur <= 1.0 else r"\textcolor{reportFail}{FAIL}"
     except (TypeError, ValueError):
         _flex_ur_str = ""
         _flex_status = "---"
@@ -248,7 +263,7 @@ def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
     try:
         _shear_ur = float(bridge.output_dict.get(KEY_UTIL_SHEAR)) / 100.0
         _shear_ur_str = f"{_shear_ur:.2f}"
-        _shear_status = "PASS" if _shear_ur <= 1.0 else r"\textcolor{red}{FAIL}"
+        _shear_status = "PASS" if _shear_ur <= 1.0 else r"\textcolor{reportFail}{FAIL}"
     except (TypeError, ValueError):
         _shear_ur_str = ""
         _shear_status = "---"
@@ -281,7 +296,7 @@ def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
             return "PASS"
         elif ratio < 1.00:
             return "WARN"
-        return r"\textcolor{red}{FAIL}"
+        return r"\textcolor{reportFail}{FAIL}"
     # M-V interaction UR stored as percent → show ratio (2 dp).
     try:
         _mv_ur = float(bridge.output_dict.get(KEY_UTIL_INTERACTION)) / 100.0
@@ -362,7 +377,7 @@ def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
     # Status: PASS when Provided ≥ Required.
     def _ge_status(provided, required):
         try:
-            return "PASS" if float(provided) >= float(required) else r"\textcolor{red}{FAIL}"
+            return "PASS" if float(provided) >= float(required) else r"\textcolor{reportFail}{FAIL}"
         except (TypeError, ValueError):
             return "---"
     _iys_status = _ge_status(bridge.output_dict.get(KEY_SD_IS_IYS_PROV),
@@ -412,7 +427,7 @@ def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
             return ("N/A", "N/A", "N/A")
         req_s  = f"{_bs_r} kN"
         prov_s = f"{prov} kN"
-        status = "PASS" if float(prov) >= float(_bs_r) else r"\textcolor{red}{FAIL}"
+        status = "PASS" if float(prov) >= float(_bs_r) else r"\textcolor{reportFail}{FAIL}"
         return (req_s, prov_s, status)
     _wb_req, _wb_prov, _wb_st = _bs_check(KEY_SD_BS_FCDW_WB)
     _lc_req, _lc_prov, _lc_st = _bs_check(KEY_SD_BS_FCDW_LC)
@@ -442,7 +457,7 @@ def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
     def _defl_status(actual, allowable):
         """PASS / red FAIL for deflection; '---' when values are missing."""
         try:
-            return "PASS" if float(actual) <= float(allowable) else r"\textcolor{red}{FAIL}"
+            return "PASS" if float(actual) <= float(allowable) else r"\textcolor{reportFail}{FAIL}"
         except (TypeError, ValueError):
             return "---"
 
@@ -500,7 +515,7 @@ def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
 
     def _stress_status(actual, allow):
         try:
-            return "PASS" if float(actual) <= float(allow) else r"\textcolor{red}{FAIL}"
+            return "PASS" if float(actual) <= float(allow) else r"\textcolor{reportFail}{FAIL}"
         except (TypeError, ValueError):
             return "---"
 
@@ -533,7 +548,7 @@ def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
     def _fat_status(s):
         if s is None or str(s).strip() == "":
             return "---"
-        return r"\textcolor{red}{" + str(s) + "}" if "FAIL" in str(s).upper() else str(s)
+        return r"\textcolor{reportFail}{" + str(s) + "}" if "FAIL" in str(s).upper() else str(s)
 
     t512_rows = []
     for _gi, (lbl, _) in enumerate(girder_entries, start=1):
@@ -661,7 +676,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     else:
         _ts_ur_str = "---"
     _ts_ok = _dr_sc.get("transverse_shear_ok")
-    _ts_status = (r"\textcolor{red}{FAIL}" if _ts_ok is False else "PASS") if _ts_ok is not None else "---"
+    _ts_status = (r"\textcolor{reportFail}{FAIL}" if _ts_ok is False else "PASS") if _ts_ok is not None else "---"
 
     _ast_req  = _dr_sc.get("Ast_required_cm2_per_m")
     # Provided transverse steel = the deck's main (bottom + top) bars, which run
@@ -745,7 +760,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     def get_status_str(slnd_str, limit):
         try:
             v = float(slnd_str)
-            return r"\textcolor{black}{PASS}" if v <= limit else r"\textcolor{red}{FAIL}"
+            return r"\textcolor{reportPass}{PASS}" if v <= limit else r"\textcolor{reportFail}{FAIL}"
         except (ValueError, TypeError):
             return ""
     cb_slenderness_rows = []
@@ -886,7 +901,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         except (TypeError, ValueError):
             return ""
         s = f"{f:.2f}"
-        return (r"\textcolor{red}{" + s + "}") if f > 1.0 else s
+        return (r"\textcolor{reportFail}{" + s + "}") if f > 1.0 else s
 
     def _lc_short(lc):
         # Show the full combination expression as-is, e.g.
@@ -1451,48 +1466,17 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 % ===========================
 \section{End Diaphragm Design}
 \label{sec:end-diaphragm}
-% ===========================
 
-End diaphragms at the supports transfer transverse loads to the bearings, restrain the bottom flanges against lateral displacement, and maintain the girder cross-section geometry during construction and in service. They are designed per IS~800:2007 and IRC~24:2010 Cl.~507.
+End diaphragms at the supports transfer transverse loads and help maintain the girder cross-section geometry.
 
-\vspace{1em}
-
-\vspace{0.4em}
-\noindent
-\setlength{\LTleft}{0pt}
-\setlength{\LTright}{\fill}
-
-\begin{longtable}{|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|}
-\caption{\textbf{End Diaphragm --- Connection and Section Properties}}
+\begin{longtable}{|L{2cm}|L{3cm}|L{3cm}|L{5cm}|C{2cm}|}
+\caption{\textbf{End Diaphragm Design --- Capacity Summary}}\\
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
+\textbf{Panel} & \textbf{Member} & \textbf{Force type} & \textbf{Section} & \textbf{UR} \\
 \hline
-""" + cb_forces_content + r"""
+""" + diaphragm_body + r"""
 \end{longtable}
-\noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
 
-\vspace{1em}
-\begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
-\caption{\textbf{End Diaphragm --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
-\hline
-""" + cb_slenderness_content + r"""
-\end{longtable}
-\noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
-
-\vspace{1em}
-
-\begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
-\caption{\textbf{End Diaphragm Design --- Capacity Summary}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
-\hline
-""" + cb_capacity_content + r"""
-\end{longtable}
-\noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
-
-% ===========================
 \section{Overall Design Check Summary}
 \label{sec:overall-summary}
 % ===========================

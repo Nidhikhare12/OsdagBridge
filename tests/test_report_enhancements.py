@@ -103,6 +103,26 @@ def test_chart_rendering_does_not_change_gui_backend():
     assert matplotlib.get_backend() == before
 
 
+def test_end_diaphragm_takeoff_counts_both_ends_and_all_pairs():
+    from osdagbridge.core.boq.boq_generator import end_diaphragm_quantities
+    from osdagbridge.core.utils import common as k
+
+    def for_pair(key, pair):
+        prefix, field = key.rsplit(".", 1)
+        return f"{prefix}.{pair}.{field}"
+
+    inputs = {k.KEY_TS_GIRDER_SPACING: 2.5, k.KEY_TS_NO_OF_GIRDERS: 3}
+    outputs = {}
+    for pair, mass in [('G1G2', 20), ('G2G3', 30)]:
+        outputs[for_pair(k.KEY_MP_ED_TYPE, pair)] = 'Rolled Beam'
+        outputs[for_pair(k.KEY_TD_ED_PROP_M, pair)] = mass
+    result = end_diaphragm_quantities(inputs, outputs)
+    assert result['end_diaphragms_qty'] == '4'
+    assert result['end_diaphragms_wt_total'] == '0.250'
+    del outputs[for_pair(k.KEY_TD_ED_PROP_M, 'G2G3')]
+    assert end_diaphragm_quantities(inputs, outputs) == {}
+
+
 def test_failed_compiler_never_returns_an_existing_pdf(tmp_path, monkeypatch):
     import subprocess
     from osdagbridge.core.reports import report_generator as g
