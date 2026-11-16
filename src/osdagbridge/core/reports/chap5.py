@@ -1419,40 +1419,30 @@ Clear Cover (IRC 112 Cl. 15.2) & $\geq$ """ + _dkf(KEY_DD_MIN_COVER, nd=0) + r""
 Cross bracing between adjacent plate girders provides lateral stability during construction, resists transverse loads (wind, seismic, braking) in service, and prevents lateral torsional buckling of the girders. Members are designed per IS~800:2007 Cl.~7 (compression) and Cl.~6 (tension). Forces are derived from the grillage model under the governing load combination  (DL + LL + WL).
 
 \vspace{1em}
-
-\vspace{0.4em}
-\noindent
-\setlength{\tabcolsep}{4pt}
-\setlength\LTleft{0pt}
-\setlength\LTright{\fill}
-
-\begin{longtable}{|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|}
-\caption{\textbf{Cross Bracing --- Connection and Section Properties}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
-\hline
-""" + cb_forces_content + r"""
-\end{longtable}
+""" + _make_table(
+        r"|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|",
+        r"\textbf{Cross Bracing --- Connection and Section Properties}",
+        [["Panel", "Member", "Connection", "Section", r"$A_g$ (mm²)", r"$r_{min}$ (mm)"]],
+        cb_forces_content,
+    ) + r"""
 \noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
 
 \vspace{1em}
-\begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
-\caption{\textbf{Cross Bracing --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
-\hline
-""" + cb_slenderness_content + r"""
-\end{longtable}
+""" + _make_table(
+        r"|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|",
+        r"\textbf{Cross Bracing --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}",
+        [["Panel", "Member", "Nature", r"Eff.\ Length $KL$ (mm)", r"$KL/r$", "Limit / Status"]],
+        cb_slenderness_content,
+    ) + r"""
 \noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
 
 \vspace{1em}
-\begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
-\caption{\textbf{Cross Bracing Design --- Capacity Summary}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
-\hline
-""" + cb_capacity_content + r"""
-\end{longtable}
+""" + _make_table(
+        r"|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|",
+        r"\textbf{Cross Bracing Design --- Capacity Summary}",
+        [["Panel", "Member", "Section", "Governing LC", "Demand (kN)", "Capacity (kN)", "UR", "Status"]],
+        cb_capacity_content,
+    ) + r"""
 \noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
 
 % ===========================
