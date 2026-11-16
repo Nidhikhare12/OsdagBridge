@@ -103,7 +103,7 @@
 #                                                          else → CustomMessageBox("Report Saved")
 #==============================================================================
 
-import os, shutil, logging, datetime, tempfile, subprocess
+import os, shutil, logging, datetime, tempfile, subprocess, re
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
 
@@ -119,6 +119,8 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from . import styles
+from . import charts
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -156,7 +158,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[""" + styles.geometry_options() + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -192,21 +194,11 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+""" + styles.table_setup() + r"""
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+""" + styles.caption_setup() + r"""
 
-\definecolor{osdagGreen}{HTML}{91B014}
+""" + styles.color_defs() + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -257,9 +249,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
 \newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+""" + styles.column_types() + r"""
 
 % Software-default asterisk
 \newcommand{\sdstar}{\textsuperscript{*}}
@@ -833,6 +823,150 @@ _FIGURE_MAP = [
     ('defl_ll',               'defl_ll.png'),
 ]
 
+def ensure_repeating_headers(tex: str) -> str:
+    """Give every ``longtable`` a header that survives a page break.
+
+    Tables migrated to :func:`styles.longtable` already contain the four
+    ``\\end*`` markers and are left untouched.  Tables still written as raw
+    LaTeX strings get the markers injected here, using their first
+    ``\\hline header \\hline`` group as the repeating header row.
+
+    Also normalises manual row spacing (``\\\\[6pt]``) inside table bodies,
+    which is what used to push the last row into the page footer.
+    """
+    lines = tex.split("\n")
+    out = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if not line.lstrip().startswith(r"\begin{longtable}"):
+            out.append(line)
+            i += 1
+            continue
+
+        block = [line]
+        i += 1
+        while i < len(lines) and r"\end{longtable}" not in lines[i]:
+            block.append(lines[i])
+            i += 1
+        if i < len(lines):
+            block.append(lines[i])
+            i += 1
+
+        out.extend(_normalise_row_height(_add_repeating_header(block)))
+    return "\n".join(out)
+
+
+def _close_row(line: str) -> str:
+    """Terminate a ``\\caption``/``\\label`` line so it forms a complete row."""
+    stripped = line.rstrip()
+    if not stripped:
+        return line
+    if stripped.startswith((r"\caption", r"\label")) and not stripped.endswith(r"\\"):
+        return stripped + r" \\"
+    return line
+
+
+def _caption_text(prefix) -> str:
+    """Return the braced argument of the table's own ``\\caption{...}``."""
+    for line in prefix:
+        stripped = line.strip()
+        if not stripped.startswith(r"\caption"):
+            continue
+        if stripped.startswith(r"\caption*"):
+            return ""
+        start = stripped.find("{")
+        if start < 0:
+            return ""
+        depth = 0
+        for pos in range(start, len(stripped)):
+            if stripped[pos] == "{":
+                depth += 1
+            elif stripped[pos] == "}":
+                depth -= 1
+                if depth == 0:
+                    return stripped[start + 1:pos]
+        return ""
+    return ""
+
+
+def _add_repeating_header(block):
+    interior = block[1:-1] if len(block) > 2 else []
+    end_line = block[-1] if len(block) > 1 else r"\end{longtable}"
+
+    if not interior:
+        return block
+
+    # Already handled (either styles.longtable or a hand-written table).
+    if any(r"\endhead" in ln for ln in interior):
+        return _with_endfoot(block, interior)
+
+    hlines = [n for n, ln in enumerate(interior) if ln.strip() == r"\hline"]
+    if len(hlines) < 2:
+        return block
+
+    first, second = hlines[0], hlines[1]
+    header = interior[first + 1:second]
+    if not header or not any(ln.strip() for ln in header):
+        return block
+
+    # A ``\caption`` inside a longtable head is itself a table row and must be
+    # closed with ``\\``; otherwise the following ``\hline`` raises
+    # "Misplaced \noalign".  Pre-existing tables omitted the ``\\``.
+    prefix = [_close_row(ln) for ln in interior[:first + 1]]
+    rest = interior[second + 1:]
+
+    # Drop trailing rules/blank lines: \endlastfoot supplies the closing rule.
+    while rest and (not rest[-1].strip() or rest[-1].strip() == r"\hline"):
+        rest.pop()
+
+    has_caption = any(ln.lstrip().startswith(r"\caption") for ln in prefix)
+    caption_text = _caption_text(prefix) if has_caption else None
+
+    new = list(prefix)
+    new.extend(header)
+    new.append(r"\hline")
+    new.append(r"\endfirsthead")
+    if has_caption:
+        cont = (caption_text + r" \textit{(continued)}") if caption_text else r"\textit{continued}"
+        new.append(r"\caption[]{" + cont + r"}\\")
+        new.append(r"\hline")
+    new.extend(header)
+    new.append(r"\hline")
+    new.append(r"\endhead")
+    new.append(r"\hline")
+    new.append(r"\endfoot")
+    new.append(r"\hline")
+    new.append(r"\endlastfoot")
+    new.extend(rest)
+
+    return [block[0]] + new + [end_line]
+
+
+def _normalise_row_height(block):
+    """Give every row the same height.
+
+    Manual ``\\[6pt]`` row skips made some rows taller than others and were
+    a direct cause of a table row ending up inside the page footer.  Only
+    row-final skips are touched; skips *inside* a ``\\makecell{..}`` are
+    intentional multi-line layout and are preserved.
+    """
+    return [re.sub(r"\\\\\[[0-9.]+pt\]\s*$", r"\\\\", ln) for ln in block]
+
+
+def _with_endfoot(block, interior):
+    """Add the page-footer rules to a table that only declared ``\\endhead``."""
+    if any(r"\endfoot" in ln for ln in interior):
+        return block
+    idx = next((n for n, ln in enumerate(interior) if r"\endhead" in ln), None)
+    if idx is None:
+        return block
+    interior = (interior[:idx + 1]
+                + [r"\hline", r"\endfoot", r"\hline", r"\endlastfoot"]
+                + interior[idx + 1:])
+    return [block[0]] + interior + [block[-1]]
+
+
 def generate_report(payload, request):
     # type: (ReportPayload, ReportRequest) -> ReportResult
     """Compile the full OsdagBridge Design Report to PDF (+ .tex source)."""
@@ -899,6 +1033,21 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
+            # ── Charts (matplotlib PNG, no LaTeX involvement) ──
+            steel_chart = charts.material_steel_png(
+                quantities, os.path.join(tmp_images, 'mat_steel.png'))
+            if steel_chart:
+                fig_paths['mat_steel'] = steel_chart.replace('\\', '/')
+
+            concrete_chart = charts.material_concrete_rebar_png(
+                quantities, os.path.join(tmp_images, 'mat_concrete.png'))
+            if concrete_chart:
+                fig_paths['mat_concrete'] = concrete_chart.replace('\\', '/')
+
+            def _ur_chart(rows):
+                return charts.ur_summary_png(
+                    rows, os.path.join(tmp_images, 'ur_summary.png'))
+
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
@@ -924,11 +1073,15 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge,
+                                                   ur_chart=_ur_chart))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, figures={
+                'steel': fig_paths.get('mat_steel'),
+                'concrete': fig_paths.get('mat_concrete'),
+            }))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -940,6 +1093,10 @@ def generate_report(payload, request):
             doc_parts.append(r"\end{document}")
 
             full_tex = "\n".join(doc_parts)
+
+            # Guarantee repeating headers on every longtable in the document,
+            # including chapters that still build raw LaTeX strings.
+            full_tex = ensure_repeating_headers(full_tex)
 
 
             # NOTE: longtable header repetition is handled per-table in each

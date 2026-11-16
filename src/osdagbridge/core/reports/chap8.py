@@ -3,6 +3,7 @@ from typing import List
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE
 )
+from osdagbridge.core.reports import styles
 
 
 def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
@@ -22,14 +23,11 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                     .replace('#', r'\#'))
                 upper = line.upper()
                 if 'WARNING' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
+                    lines_tex.append(styles.color('user', escaped) + r" \\")
                 elif 'ERROR' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
+                    lines_tex.append(styles.color('default', escaped) + r" \\")
                 elif 'INFO' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
+                    lines_tex.append(styles.color('code', escaped) + r" \\")
                 else:
                     continue  # skip lines without a known level — Osdag patter
 
@@ -55,8 +53,7 @@ form the basis of all design calculations in this software.
 
 \vspace{0.5cm}
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
+""" + styles.table_open(tabcolsep="3.5pt") + r"""
 \begin{table}[H]
 \caption{\textbf{IRC Codes}}
 \begin{tabular}{|c|c|p{13cm}|}
@@ -77,9 +74,9 @@ IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \hline
 \end{tabular}
 \end{table}
+""" + styles.table_close() + r"""
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
+""" + styles.table_open(tabcolsep="3.5pt") + r"""
 \begin{table}[H]
 \caption{\textbf{IS Codes}}
 \begin{tabular}{|c|c|p{13cm}|}
@@ -98,6 +95,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
 \end{tabular}
 \end{table}
+""" + styles.table_close() + r"""
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}

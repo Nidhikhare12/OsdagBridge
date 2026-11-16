@@ -22,6 +22,12 @@ def _tex(value):
                     ('~', r'\textasciitilde{}'), ('^', r'\^{}')]:
         s = s.replace(ch, esc)
     s = s.replace(':', r':\allowbreak{}')
+    # Math symbols that arrive in solver messages (e.g. "Leg ≤ H_limit") and
+    # would otherwise raise "Unicode character ... not set up for use with
+    # LaTeX".  Replaced after the escaping pass so the inserted macros survive.
+    for uni, latex in [('≤', r'$\leq$'), ('≥', r'$\geq$'), ('≈', r'$\approx$'),
+                       ('±', r'$\pm$'), ('≠', r'$\neq$'), ('→', r'$\rightarrow$')]:
+        s = s.replace(uni, latex)
     return s
 
 
