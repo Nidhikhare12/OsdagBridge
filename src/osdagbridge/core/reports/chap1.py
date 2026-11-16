@@ -1,6 +1,5 @@
 from osdagbridge.core.reports.report_utils import _tex
 
-
 def ch1_project_info(m):
     return r"""
 \chapter{Project Information}
@@ -28,7 +27,6 @@ This section records all project metadata as entered by the designer.
 \hline
 \end{tabular}
 
-
 \section{Applicable Codes and Standards}
 \label{sec:codes}
 
@@ -44,5 +42,4 @@ This section records all project metadata as entered by the designer.
 \item Indian Standard (IS) 6006: Steel Bearings
 \end{itemize}
 """
-
 

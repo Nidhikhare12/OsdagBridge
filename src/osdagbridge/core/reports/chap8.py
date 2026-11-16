@@ -4,6 +4,7 @@ from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE
 )
 
+from osdagbridge.core.reports import styles as S
 
 def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
     """Render Chapter 8 using real log_entries, matching Osdag color convention."""
@@ -23,20 +24,19 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                 upper = line.upper()
                 if 'WARNING' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
+                        S.text_colored(S.COLOR_INFO, escaped) + r'\\')
                 elif 'ERROR' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
+                        S.text_colored(S.COLOR_FAIL, escaped) + r'\\')
                 elif 'INFO' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
+                        S.text_colored(S.COLOR_OSDAG_GREEN, escaped) + r'\\')
                 else:
                     continue  # skip lines without a known level — Osdag patter
 
     mode = str(input_dict.get(KEY_DESIGN_MODE, 'Optimized')).strip().lower()
     is_custom = mode in {'custom', 'customized'}
     return _ch8_assumptions(is_custom)
-
 
 def _ch8_assumptions(is_custom: bool) -> str:
     assumptions = [
@@ -53,15 +53,21 @@ design modules, and notes the limitations of the current software version.
 The following Indian Road Congress (IRC) codes and Indian Standards (IS) 
 form the basis of all design calculations in this software.
 
-\vspace{0.5cm}
+\OsdagVspacePointFiveCm
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\OsdagTabcolsepThreePtFive
+\begin{longtable}{|c|c|p{13cm}|}
+\caption{\textbf{IRC Codes}}\\
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
+\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\
+\hline
+\endhead
+ 
 \hline
 IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
 \hline
@@ -75,17 +81,21 @@ IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, 
 \hline
 IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\OsdagTabcolsepThreePtFive
+\begin{longtable}{|c|c|p{13cm}|}
+\caption{\textbf{IS Codes}} \\
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
+\endfirsthead
+\hline
+\textbf{Code} & \textbf{Year} & \textbf{Scope} \\
+\hline
+\endhead
+
 IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\
 \hline
 IS 456 & 2000 & Concrete - simplified stress-block for deck moment capacity \\
@@ -96,8 +106,7 @@ IS 1893 (Part 3) & 2014 & Earthquake resistant design \\
 \hline
 IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}
@@ -191,5 +200,4 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 """)
 
     return "\n".join(assumptions)
-
 

@@ -1,3 +1,4 @@
+from osdagbridge.core.reports import styles as S
 def ch6_drawings(fig_paths):
     """Chapter 6 – Drawings and Visualizations.
 
@@ -28,7 +29,7 @@ def ch6_drawings(fig_paths):
             p = path.replace('\\', '/')
             return (r'\begin{figure}[H]' + '\n'
                     r'\centering' + '\n'
-                    r'\vspace{4pt}' + '\n'
+                    r'\OsdagVspaceFourPt' + '\n'
                     r'\includegraphics[width=0.85\textwidth]{' + p + '}\n'
                     r'\caption{' + title + '}\n'
                     + label_tex
@@ -66,7 +67,6 @@ def ch6_drawings(fig_paths):
                 + label_tex + '\n'
                 r'\end{minipage}')
 
-    # Cross Bracing section views (Figures 6.8, 6.9, 6.10) — 3 columns
     cb_bracing = _sec_cell(
         fig_paths.get('cb_bracing'),
         'Cross Bracing -- Bracing Section',
@@ -95,7 +95,6 @@ def ch6_drawings(fig_paths):
 
     eddia  = _sec_fig(fig_paths.get('ed_diagram'),        'End Diaphragm Layout',              'fig:ed-layout')
 
-    # End Diaphragm section views (Figures 6.12, 6.13, 6.14) — 3 columns
     ed_bracing = _sec_cell(
         fig_paths.get('ed_bracing'),
         'End Diaphragm -- Bracing Section',

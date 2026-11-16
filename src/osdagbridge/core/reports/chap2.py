@@ -1,4 +1,3 @@
-# Chapter 2: Input Parameters — exact LaTeX template match
 
 
 from osdagbridge.core.utils.common import (
@@ -71,11 +70,11 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _render_value, get_girder_entries, _tex
+from osdagbridge.core.reports import styles as S
 
 def ch2_input_parameters(m, input_dict, output_dict=None):
     girder_entries = get_girder_entries(input_dict)
     n_girders = len(girder_entries)
-    # Median row only shown when the user included a median
     median_row = ""
     if str(input_dict.get(KEY_INCLUDE_MEDIAN, "")).strip().lower() in ("yes", "true", "1"):
         median_row = (r"\textnormal{Median Type} & "
@@ -86,8 +85,8 @@ def ch2_input_parameters(m, input_dict, output_dict=None):
     return r"""
 \chapter{Input Parameters}
 
-\setlength{\abovecaptionskip}{2pt}
-\setlength{\belowcaptionskip}{2pt}
+\OsdagCaptionSkipAbove
+\OsdagCaptionSkipBelow
 
 This section documents all inputs provided to OsdagBridge. User-provided inputs are clearly distinguished from software-assumed defaults. Where the user did not supply a value, the software has applied the IRC/IS code default or an empirical guideline; these are annotated with an asterisk (\sdstar{}).
 
@@ -96,13 +95,18 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 
 \noindent\textit{Note: These inputs are mandatory and were provided by the user.}
 
-\begin{table}[H]
+\begin{longtable}{|L{5.5cm}|L{8.5cm}|}
 \caption{\textbf{Project Location}}
-\label{subsec:project-location}
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\label{subsec:project-location} \\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
+\endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
+
 \textnormal{Project Location} & """ + _tex(m.project_location) + r""" \\
 \hline
 \textnormal{Latitude / Longitude} & """ + (_render_value(input_dict,'latitude')) + ', ' + (_render_value(input_dict,'longitude')) + r""" \\
@@ -113,17 +117,20 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 \hline
 \textnormal{Shade Temp. Max / Min (IRC 6)} & """ + (_render_value(input_dict,'shade_temp_max','')) + r""" °C / """ + (_render_value(input_dict,'shade_temp_min','')) + r""" °C \\
 \hline
-\end{tabular}
-\vspace{0.4cm}
-\end{table}
+\end{longtable}
 
-\begin{table}[H]
+\begin{longtable}{|L{5.5cm}|L{8.5cm}|}
 \caption{\textbf{Bridge Geometry}}
-\label{subsec:bridge-geometry}
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\label{subsec:bridge-geometry} \\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
+\endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
+
 \textnormal{Type of Structure} & """ + (_render_value(input_dict, KEY_STRUCTURE_TYPE)) + r""" \\
 \hline
 \textnormal{Span (m)} & """ + (_render_value(input_dict, KEY_SPAN, ' m')) + r""" \\
@@ -136,17 +143,21 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 \hline
 \textnormal{Skew Angle (degrees)} & """ + (_render_value(input_dict, KEY_SKEW_ANGLE, '°')) + r""" (IRC 24 Cl. 504.8 limit: $\pm$15°) \\
 \hline
-\end{tabular}
-\end{table}
-\vspace{0.4cm}
+\end{longtable}
+\OsdagVspacePointFourCm
 
-\begin{table}[H]
+\begin{longtable}{|L{5.5cm}|L{8.5cm}|}
 \caption{\textbf{Material Selection}}
-\label{subsec:material}
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\label{subsec:material} \\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
+\endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
+
 \textnormal{Girder Steel Grade (IS 2062)} & """ + (_render_value(input_dict, KEY_GIRDER)) + r""" \\
 \hline
 \textnormal{Cross Bracing Steel Grade} & """ + (_render_value(input_dict, KEY_CROSS_BRACING)) + r""" \\
@@ -155,9 +166,8 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 \hline
 \textnormal{Concrete Deck Grade (IRC 22)} & """ + (_render_value(input_dict, KEY_DECK_CONCRETE_GRADE_BASIC)) + r""" \\
 \hline
-\end{tabular}
-\end{table}
-\vspace{0.4cm}
+\end{longtable}
+\OsdagVspacePointFourCm
 
 \newpage
 \section{Additional Inputs}
@@ -165,13 +175,17 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 
 Where the user has modified additional inputs, those values are reported here. Where no modification was made, the software default is shown.
 
-\vspace{0.8cm}
+\OsdagVspacePointEightCm
 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Typical Section Details}}
+ \\\hline
+\textbf{parameter} & \textbf{value} \\
+\hline\endfirsthead
 \hline
 \textbf{parameter} & \textbf{value} \\
-\hline
+\hline\endhead
+
 \textnormal{Overall Bridge Width (m)} & """ + (_render_value(input_dict, KEY_TS_OVERALL_WIDTH)) + r""" \\[6pt]
 \hline
 \textnormal{No. of Girders} & """ + (_render_value(input_dict, KEY_TS_NO_OF_GIRDERS)) + r""" \\[6pt]
@@ -188,13 +202,17 @@ Where the user has modified additional inputs, those values are reported here. W
 \hline
 \end{longtable}
 
-\vspace{0.8em}
+\OsdagVspacePointEightEm
 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Components Details}}
+ \\\hline
+\textbf{parameter} & \textbf{value} \\
+\hline\endfirsthead
 \hline
 \textbf{parameter} & \textbf{value} \\
-\hline
+\hline\endhead
+
 \textnormal{Crash Barrier Type} & """ + (_render_value(input_dict, KEY_CB_TYPE)) + r""" \\[6pt]
 \hline
 \textnormal{Crash Barrier Load (kN/m)} & """ + (_render_value(input_dict, KEY_CB_LOAD)) + r""" \\[6pt]
@@ -218,12 +236,7 @@ Where the user has modified additional inputs, those values are reported here. W
 
 """ + _safety_factors_table(input_dict)
 
-
 def _girder_tables(input_dict, n_girders):
-    # Fetch backend-populated labels via exact suffix pattern (defaults.py)
-    # KEY_MP_GD_SELECT_GIRDER.G{i}    = 'G{i}'
-    # KEY_MP_GD_MEMBER_ID.G{i}.M1     = 'G{i}M1'
-    # All other girder/stiffener keys: {BASE_KEY}.G{i}.M1
     n = n_girders if n_girders >= 1 else 1
     girder_entries = get_girder_entries(input_dict)
     if not girder_entries:
@@ -237,7 +250,6 @@ def _girder_tables(input_dict, n_girders):
         )
     ]
 
-    # Helper: one girder-dimension row
     def _dim_row(g_lbl, i):
         return (g_lbl + r""" & """
                 + (_render_value(input_dict, f"{KEY_MP_GIRDER_DEPTH}.G{i}.M1", ' mm'))
@@ -255,7 +267,6 @@ def _girder_tables(input_dict, n_girders):
 \hline
 """)
 
-    # Helper: one general-info row
     def _gen_row(g_lbl, m_id, i):
         return (g_lbl + r""" & """ + m_id + r""" & """
                 + (_render_value(input_dict, KEY_DESIGN_MODE))
@@ -267,7 +278,6 @@ def _girder_tables(input_dict, n_girders):
 \hline
 """)
 
-    # Helper: one restraint/stiffener row
     def _rst_row(g_lbl, i):
         return (g_lbl + r""" & """
                 + (_render_value(input_dict, f"{KEY_MP_GIRDER_TORSIONAL_RESTRAINT}.G{i}.M1"))
@@ -300,34 +310,42 @@ def _girder_tables(input_dict, n_girders):
     return (r"""
 \newpage
 
-\vspace{0.4em}
+\OsdagVspacePointFourEm
 \noindent
             
-\vspace{4pt}
+\OsdagVspaceFourPt
 \begin{longtable}{|L{2.2cm}|L{1.8cm}|p{3.8cm}|p{3.8cm}|p{3.8cm}|}
 \caption{\textbf{Girder General Information}}
+ \\\hline
+\textbf{Girder} & \textbf{Member ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
+\hline\endfirsthead
 \hline
 \textbf{Girder} & \textbf{Member ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
-\hline
+\hline\endhead
+
 """
             + gen_rows
             + r"""\end{longtable}
 
-\vspace{0.6em}
+\OsdagVspacePointSixEm
 
-\vspace{4pt}
+\OsdagVspaceFourPt
 \begin{longtable}{|L{1.8cm}|L{2.3cm}|L{1.8cm}|p{4.8cm}|p{4.8cm}|}
 \caption{\textbf{Girder Section Dimensions}}
+ \\\hline
+\textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]
+\hline\endfirsthead
 \hline
 \textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]
-\hline
+\hline\endhead
+
 """
             + dim_rows
             + r"""\end{longtable}
 
-\vspace{0.6em}
+\OsdagVspacePointSixEm
 
-\vspace{4pt}
+\OsdagVspaceFourPt
 \begin{longtable}{|L{1.4cm}|p{2.2cm}|p{2.2cm}|p{3.0cm}|p{2.4cm}|p{2.2cm}|}
 \caption{\textbf{Girder Restraint and Stiffener Details}}\\
 \hline
@@ -340,7 +358,6 @@ def _girder_tables(input_dict, n_girders):
             + rst_rows
             + r"""\end{longtable}
 """)
-
 
 def _bracing_tables(input_dict, n_girders):
     n = n_girders if n_girders >= 2 else 2
@@ -355,7 +372,6 @@ def _bracing_tables(input_dict, n_girders):
         for i in range(1, n)
     ]
 
-    # Helper: one cross-bracing row (all locations share same bracing config)
     def _cb_row(location, member_ids, i):
         return (location + r""" & """ + member_ids + r""" & """
                 + (_render_value(input_dict, f"{KEY_MP_CB_TYPE}.G{i}G{i+1}.B{i}M1"))
@@ -367,7 +383,6 @@ def _bracing_tables(input_dict, n_girders):
 \hline
 """)
 
-    # Helper: one end-diaphragm row (all locations share same config)
     def _ed_row(location, member_ids, i):
         return (location + r""" & """ + member_ids + r""" & """
                 + (_render_value(input_dict, f"{KEY_MP_ED_TYPE}.G{i}G{i+1}.E{i}M1"))
@@ -383,51 +398,61 @@ def _bracing_tables(input_dict, n_girders):
     return (r"""
 \newpage
 
-\vspace{0.4em}
-\setlength{\tabcolsep}{4pt}
+\OsdagVspacePointFourEm
+\OsdagTabcolsepFourPt
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
 \caption{\textbf{Member Properties: Cross Bracing Details}}
+ \\\hline
+\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
+\hline\endfirsthead
 \hline
 \textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
-\hline
+\hline\endhead
+
 """
 + cb_rows
 + r"""\end{longtable}
 
-\vspace{0.4em}
+\OsdagVspacePointFourEm
 \noindent
-\setlength{\tabcolsep}{4pt}
+\OsdagTabcolsepFourPt
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
 \caption{\textbf{Member Properties: End Diaphragm Details}}
+ \\\hline
+\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
+\hline\endfirsthead
 \hline
 \textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
-\hline
+\hline\endhead
+
 """
 + ed_rows
 + r"""\end{longtable}
 """)
 
-
 def _shear_connector_table(input_dict, output_dict=None):
-    # Stud computed properties live in output_dict (populated by store_design_results)
     od = output_dict or {}
     return r"""
 \label{subsec:shear-connectors}
 
-\vspace{2.2em}
+\OsdagVspaceTwoPointTwoEm
 
-\vspace{0.4em}
+\OsdagVspacePointFourEm
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Shear Connector Details}}
+ \\\hline
+\textbf{parameter} & \textbf{value} \\
+\hline\endfirsthead
 \hline
 \textbf{parameter} & \textbf{value} \\
-\hline
+\hline\endhead
+
 \textnormal{Stud Diameter (mm)} & """ + (_render_value(od, KEY_SD_SHEAR_DIAMETER, ' mm')) + r""" \\[6pt]
 \hline
 \textnormal{Stud Height (mm)} & """ + (_render_value(od, KEY_SD_SHEAR_HEIGHT, ' mm')) + r""" \\[6pt]
@@ -445,17 +470,21 @@ def _safety_factors_table(input_dict):
     return r"""
 \label{subsec:safety-factors}
 
-\vspace{2.2em}
+\OsdagVspaceTwoPointTwoEm
 
-\vspace{0.3em}
+\OsdagVspacePointThreeEm
 \noindent\textit{Note: All values are per IRC 22 Table 1 unless user-modified.}
 
-\vspace{0.4em}
+\OsdagVspacePointFourEm
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Partial Safety Factors}}
+ \\\hline
+\textbf{parameter} & \textbf{value} \\
+\hline\endfirsthead
 \hline
 \textbf{parameter} & \textbf{value} \\
-\hline
+\hline\endhead
+
 \textnormal{$\gamma_{M0}$ (Yielding / Buckling)} & """ + (_render_value(input_dict, KEY_DO_GAMMA_M0)) + r""" \\[6pt]
 \hline
 \textnormal{$\gamma_{M1}$ (Ultimate Stress)} & """ + (_render_value(input_dict, KEY_DO_GAMMA_M1)) + r""" \\[6pt]
