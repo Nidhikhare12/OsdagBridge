@@ -55,6 +55,7 @@ from osdagbridge.core.utils.common import (
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value
 from osdagbridge.core.reports.latex.tables import ReportTable, KeyValueTable
+from osdagbridge.core.reports.data.live_loads import collect_live_loads
 
 def ch3_loads(input_dict):
     # Live load vehicle names mapping
@@ -276,18 +277,49 @@ def ch3_loads(input_dict):
         ],
     )
 
-    # 3. Live Loads
-    t_ll = KeyValueTable(
-        caption=r"\textbf{Live Loads (LL)}",
-        preset=("5.5cm", "10.0cm"),
-        headers=("parameter", "value"),
-        rows=[
-            ("Vehicles Considered", _tex(vehicles_str)),
-            ("Impact Factor (IRC 6)", _tex(impact_factor_str)),
-            ("Braking Load (IRC 6)", _tex(braking_force_str)),
-            ("Footpath Live Load (if applicable)", _render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, r" kN/m\textsuperscript{2}")),
-        ],
+    ll_data = collect_live_loads(input_dict)
+
+    # 3. Vehicular Live Loads (Requirement R3)
+    header_veh = r"""\hline
+\multirow{2}{*}{\textbf{Vehicle Class}} & \multirow{2}{*}{\makecell{\textbf{Total Load}\\\textbf{(kN)}}} & \multirow{2}{*}{\makecell{\textbf{Impact Factor}\\\textbf{($1+IF$)}}} & \multicolumn{3}{c|}{\textbf{Braking Load}} \\
+\cline{4-6}
+ & & & \textbf{Considered?} & \textbf{Value (kN)} & \textbf{Eccentricity} \\
+\hline"""
+
+    t_veh = ReportTable(
+        columns=r"|L{4.2cm}|C{2.3cm}|C{2.4cm}|C{2.0cm}|C{2.2cm}|C{2.5cm}|",
+        caption=r"\textbf{Vehicular Live Loads --- per IRC 6:2017}",
+        header_tex=header_veh,
     )
+    for v in ll_data.vehicles:
+        tot_s = f"{v.total_load_kN:.1f}" if v.total_load_kN is not None else "---"
+        if_s = f"{v.impact_factor:.3f}" if v.impact_factor is not None else "---"
+        br_s = "YES" if v.braking_considered else "NO"
+        br_v = f"{v.braking_value_kN:.2f}" if v.braking_value_kN is not None else "---"
+        br_e = _tex(v.braking_eccentricity) if v.braking_eccentricity else "---"
+        t_veh.add_row([_tex(v.name), tot_s, if_s, br_s, br_v, br_e])
+
+    # 4. Footpath Live Load (Requirement R3)
+    if ll_data.footpath is not None:
+        int_str = f"{ll_data.footpath.intensity_kN_m2:.3f} kN/m²" if ll_data.footpath.intensity_kN_m2 is not None else "---"
+        t_fp = KeyValueTable(
+            caption=r"\textbf{Footpath Live Load --- per IRC 6:2017 Cl. 206}",
+            preset=("5.5cm", "10.0cm"),
+            headers=("Parameter", "Design Value"),
+            rows=[
+                ("Footway Loading Intensity", int_str),
+                ("Footpath Calculation Mode", _tex(ll_data.footpath.mode)),
+                ("Number of Footpaths", f"{ll_data.footpath.count}"),
+                ("Footpath Width", f"{ll_data.footpath.width_m:.2f} m"),
+                ("Governing Clause", _tex(ll_data.footpath.clause)),
+            ],
+        )
+        fp_block = t_fp.dumps() + "\n"
+    else:
+        fp_block = r"""\noindent\textit{Note: Footpath is not provided for this bridge configuration (IRC 6:2017 Cl. 206 footway loading is not applicable).}
+
+\vspace{0.8em}
+"""
 
     # 4. Wind Load
     t_wl = KeyValueTable(
@@ -362,7 +394,12 @@ This section summarizes all loads applied to the bridge and the load combination
 {t_dw.dumps()}
 
 \vspace{{1em}}
-{t_ll.dumps()}
+{t_veh.dumps()}
+
+\noindent\textit{{Note: Live load parameters per IRC 6:2017 Cl. 204. Centrifugal forces not evaluated (straight alignment assumed).}}
+
+\vspace{{1em}}
+{fp_block}
 
 \vspace{{1em}}
 {t_wl.dumps()}

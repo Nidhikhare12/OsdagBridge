@@ -100,5 +100,7 @@ def test_t_parity_baseline(tmp_path, fixtures_dir):
     baseline_captions = set(caption_pattern.findall(baseline_content))
     new_captions = set(caption_pattern.findall(new_content))
 
-    missing_captions = baseline_captions - new_captions
+    # Reviewed caption allowlist per PLAN.md line 293 (Requirement R3 replaces unified Live Loads table)
+    caption_allowlist = {r"\textbf{Live Loads (LL)"}
+    missing_captions = baseline_captions - new_captions - caption_allowlist
     assert not missing_captions, f"Captions changed or missing: {missing_captions}"
