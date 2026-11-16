@@ -24,6 +24,57 @@ def _count_cols(col_spec: str) -> int:
     return max(1, pipes - 1 if pipes > 1 else pipes)
 
 
+def _parse_width_pt(val_str: str, unit: str) -> float:
+    v = float(val_str)
+    unit = unit.lower()
+    if unit == "cm":
+        return v * 28.45275
+    elif unit == "mm":
+        return v * 2.845275
+    elif unit == "in":
+        return v * 72.27
+    elif unit == "pt":
+        return v
+    return v * 28.45275
+
+
+def _fit_col_spec(col_spec: str, ncols: int, theme: Theme) -> Tuple[str, bool]:
+    """Check if table width exceeds text_width_pt and scale column widths if necessary.
+
+    Returns (fitted_col_spec, is_dense).
+    """
+    page = theme.page
+    tbl = theme.table
+    text_width_pt = page.text_width_pt
+    is_dense = ncols >= tbl.dense_min_cols
+    tabcolsep_pt = tbl.dense_col_sep_pt if is_dense else 6.0
+    arrayrulewidth_pt = 0.4
+    overhead_pt = (2 * ncols * tabcolsep_pt) + ((ncols + 1) * arrayrulewidth_pt)
+    avail_cols_pt = max(50.0, text_width_pt - overhead_pt - 25.0)
+
+    # Find all explicit widths e.g. L{3.5cm}, C{2.0cm}, p{1.5cm}
+    matches = list(re.finditer(r"([LCRpmb])\{([0-9.]+)\s*(cm|mm|in|pt)\}", col_spec))
+    if matches and len(matches) == ncols:
+        widths_pt = [_parse_width_pt(m.group(2), m.group(3)) for m in matches]
+        total_cols_pt = sum(widths_pt)
+        if total_cols_pt > avail_cols_pt:
+            scale = avail_cols_pt / total_cols_pt
+            new_spec = col_spec
+            for m, w_pt in reversed(list(zip(matches, widths_pt))):
+                scaled_w_cm = (w_pt * scale) / 28.45275
+                replacement = f"{m.group(1)}{{{scaled_w_cm:.2f}cm}}"
+                new_spec = new_spec[: m.start()] + replacement + new_spec[m.end() :]
+            return new_spec, is_dense
+
+    # Handle bare columns when ncols > tbl.max_bare_cols
+    if ncols > tbl.max_bare_cols and not matches:
+        w_each_cm = (avail_cols_pt / ncols) / 28.45275
+        new_spec = "|" + "|".join([f"L{{{w_each_cm:.2f}cm}}"] * ncols) + "|"
+        return new_spec, is_dense
+
+    return col_spec, is_dense
+
+
 class ReportTable:
     """Standard multipage longtable with repeated headers and pagination rules."""
 
@@ -62,7 +113,9 @@ class ReportTable:
         else:
             raise TypeError(f"Invalid columns argument: {type(columns)}")
 
+        self.col_spec, self._is_dense = _fit_col_spec(self.col_spec, self.ncols, self.theme)
         self._table = pylatex.LongTable(self.col_spec, width=self.ncols)
+        self._row_count = 0
 
         # Normalize header rows
         if header_rows is not None and len(header_rows) > 0:
@@ -136,6 +189,7 @@ class ReportTable:
 
         escaped_cells = [NoEscape(str(c)) for c in cells]
         self._table.add_row(escaped_cells)
+        self._row_count += 1
         if hline:
             self._table.add_hline()
 
@@ -144,6 +198,7 @@ class ReportTable:
         n = ncols or self.ncols
         self._table.append(NoEscape(rf"\multicolumn{{{n}}}{{{align}}}{{\textbf{{{text}}}}} \\"))
         self._table.add_hline()
+        self._row_count += 1
 
     def add_group_row(self, label: str) -> None:
         """Add a member/girder group row and keep with next rows."""
@@ -166,10 +221,27 @@ class ReportTable:
         clean = raw_rows_tex.strip()
         if clean:
             self._table.append(NoEscape(clean))
+            self._row_count += max(1, clean.count(r"\\"))
 
     def dumps(self) -> str:
         """Render the complete LaTeX representation of the table."""
-        return self._table.dumps()
+        t = self.theme
+        tbl = t.table
+        header_rows_count = len(self.header_list) if self.header_list else 1
+        total_rows = getattr(self, "_row_count", 0)
+        n_lines = (
+            tbl.needspace_caption_lines
+            + (tbl.needspace_lines_per_header_row * header_rows_count)
+            + (min(total_rows, tbl.needspace_min_body_rows) if total_rows > 0 else tbl.needspace_min_body_rows)
+            + tbl.needspace_foot_lines
+        )
+        prefix = f"\\par\\Needspace*{{{n_lines}\\baselineskip}}\n"
+        if getattr(self, "_is_dense", False):
+            prefix += f"{{\\setlength{{\\tabcolsep}}{{{tbl.dense_col_sep_pt:.1f}pt}}{t.typography.table_font_size_dense}\n"
+            suffix = "\n}"
+        else:
+            suffix = ""
+        return prefix + self._table.dumps() + suffix
 
 
 class KeyValueTable:
@@ -216,9 +288,12 @@ class SimpleTable:
     ):
         self.theme = theme or get_active_theme()
         if isinstance(col_spec, (list, tuple)):
-            self.col_spec = "|" + "|".join(f"L{{{w}}}" for w in col_spec) + "|"
+            base_spec = "|" + "|".join(f"L{{{w}}}" for w in col_spec) + "|"
         else:
-            self.col_spec = col_spec
+            base_spec = col_spec
+
+        ncols = _count_cols(base_spec)
+        self.col_spec, _ = _fit_col_spec(base_spec, ncols, self.theme)
 
         self.rows: list[list[Any]] = []
         if rows:

@@ -80,7 +80,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
 \multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
 & \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
+& \multicolumn{2}{c|}{\makecell{\textbf{Reaction at}\\\textbf{Supports}}}\\
 \cline{2-9}
 & \makecell{\textbf{Max}\\\textbf{(kNm)}}
 & \textbf{Girder}
@@ -115,7 +115,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     defl_table = KeyValueTable(
         caption=r"\textbf{Deflection Summary (Live Load \& Total Load)}",
         preset=("7.0cm", "8.5cm"),
-        headers=("parameter", "value"),
+        headers=("Parameter", "Value"),
         rows=[
             (r"\textnormal{Deflection due to Live Load, $\delta_{LL}$}", _live_str),
             (r"\textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)}", _allow_live_str),

@@ -1,13 +1,139 @@
-"""Material quantity bar charts for structural steel and concrete vs rebar (Requirement R5)."""
+"""Material quantity bar charts for Chapter 7 (Requirement R5).
+
+The charts plot exactly the numbers of ``data/quantities.py``
+(``collect_quantities``). A quantity the bill of materials does not provide is
+drawn as an explicit "Not computed" marker, never as a bar.
+
+``build_*_figure`` returns the matplotlib Figure (for inspection in tests);
+``plot_*`` builds, saves and returns the path of the image.
+"""
 
 from __future__ import annotations
-from pathlib import Path
-from typing import Optional
-import matplotlib.pyplot as plt
 
-from osdagbridge.core.reports.theme import get_active_theme, Theme
-from osdagbridge.core.reports.charts.base import setup_figure, save_chart
+from pathlib import Path
+from typing import Any, List, Optional, Sequence, Tuple
+
+from matplotlib.figure import Figure
+
+from osdagbridge.core.reports.charts.base import (
+    add_missing_marker,
+    add_value_label,
+    apply_margins,
+    chart_style,
+    draw_bars,
+    new_figure,
+    resolve_theme,
+    save_chart,
+    set_title,
+    set_value_axis_label,
+    value_limit,
+)
 from osdagbridge.core.reports.data.quantities import QuantitySummary
+from osdagbridge.core.reports.theme import ChartTheme, Theme
+
+UNIT_TONNE = "MT"
+UNIT_VOLUME = "m$^{3}$"          # mathtext superscript
+
+STEEL_TITLE = "Structural Steel Tonnage"
+STEEL_AXIS_LABEL = f"Steel Weight ({UNIT_TONNE})"
+CONCRETE_TITLE = "Concrete Volume"
+CONCRETE_AXIS_LABEL = f"Volume ({UNIT_VOLUME})"
+REBAR_TITLE = "Reinforcement Steel Weight"
+REBAR_AXIS_LABEL = f"Weight ({UNIT_TONNE})"
+
+LABEL_GIRDERS = "Plate Girders"
+LABEL_BRACING = "Cross Bracing\n(top + bottom + diagonal)"
+LABEL_DIAPHRAGMS = "End Diaphragms"
+LABEL_STUDS = "Shear Studs"
+LABEL_DECK = "Deck Slab"
+LABEL_BARRIER = "Crash Barrier"
+LABEL_REBAR = "Deck Slab Reinforcement"
+
+# One category of a quantity chart: (axis label, value or None, bar colour)
+Category = Tuple[str, Optional[float], str]
+
+
+def format_quantity(value: float) -> str:
+    """Two decimals, or three when the third one is significant (0.158 stays 0.158)."""
+    text = f"{value:.3f}"
+    return text[:-1] if text.endswith("0") else text
+
+
+def steel_categories(summary: QuantitySummary, c: ChartTheme) -> List[Category]:
+    """Plate girders, cross bracing and end diaphragms always; shear studs when the BOQ has them."""
+    categories: List[Category] = [
+        (LABEL_GIRDERS, summary.steel_girders_wt, c.element_girder),
+        (LABEL_BRACING, summary.bracing_total_wt, c.element_bracing),
+        (LABEL_DIAPHRAGMS, summary.end_diaphragm_wt, c.element_diaphragm),
+    ]
+    if summary.shear_studs_wt is not None:
+        categories.append((LABEL_STUDS, summary.shear_studs_wt, c.element_studs))
+    return categories
+
+
+def concrete_categories(summary: QuantitySummary, c: ChartTheme) -> List[Category]:
+    categories: List[Category] = [(LABEL_DECK, summary.concrete_deck_vol, c.concrete_color)]
+    if summary.crash_barrier_vol is not None and summary.crash_barrier_vol > 0:
+        categories.append((LABEL_BARRIER, summary.crash_barrier_vol, c.concrete_color))
+    return categories
+
+
+def rebar_categories(summary: QuantitySummary, c: ChartTheme) -> List[Category]:
+    return [(LABEL_REBAR, summary.rebar_deck_wt, c.rebar_color)]
+
+
+def _draw_quantity_panel(ax: Any, categories: Sequence[Category], unit: str, c: ChartTheme,
+                         title: str, axis_label: str) -> None:
+    """One bar per category with its value and unit above it."""
+    positions = [float(i) for i in range(len(categories))]
+    drawn = [(p, cat) for p, cat in zip(positions, categories) if cat[1] is not None]
+
+    bars = draw_bars(ax, [p for p, _cat in drawn], [float(cat[1]) for _p, cat in drawn],
+                     [cat[2] for _p, cat in drawn], c, c.bar_width_quantity)
+    for bar, (p, (label, value, _color)) in zip(bars, drawn):
+        bar.set_gid("quantity:" + label.split("\n")[0])
+        add_value_label(ax, p, float(value), f"{format_quantity(float(value))} {unit}", c)
+    for p, (_label, value, _color) in zip(positions, categories):
+        if value is None:
+            add_missing_marker(ax, p, c)
+
+    extra = max(0.0, (c.min_category_slots - len(categories)) / 2.0)
+    ax.set_xlim(-0.5 - extra, len(categories) - 0.5 + extra)
+    ax.set_ylim(0.0, value_limit(max((float(cat[1]) for _p, cat in drawn), default=0.0), c))
+    ax.set_xticks(positions)
+    ax.set_xticklabels([label for label, _value, _color in categories], fontsize=c.tick_label_size)
+    set_value_axis_label(ax, axis_label, c)
+    set_title(ax, title, c)
+
+
+def build_steel_quantities_figure(
+    summary: QuantitySummary,
+    theme: Theme | None = None,
+) -> Figure:
+    """Structural steel tonnage by element."""
+    t = resolve_theme(theme)
+    with chart_style(t) as c:
+        fig, ax = new_figure(c.figsize_steel, theme=t)
+        apply_margins(fig, c.margins_quantity)
+        _draw_quantity_panel(ax, steel_categories(summary, c), UNIT_TONNE, c,
+                             STEEL_TITLE, STEEL_AXIS_LABEL)
+    return fig
+
+
+def build_concrete_vs_rebar_figure(
+    summary: QuantitySummary,
+    theme: Theme | None = None,
+) -> Figure:
+    """Concrete volume and reinforcement weight as two panels, each with its own axis and unit."""
+    t = resolve_theme(theme)
+    with chart_style(t) as c:
+        fig, (ax_concrete, ax_rebar) = new_figure(c.figsize_quantity, theme=t, ncols=2)
+        apply_margins(fig, c.margins_quantity)
+        _draw_quantity_panel(ax_concrete, concrete_categories(summary, c), UNIT_VOLUME, c,
+                             CONCRETE_TITLE, CONCRETE_AXIS_LABEL)
+        _draw_quantity_panel(ax_rebar, rebar_categories(summary, c), UNIT_TONNE, c,
+                             REBAR_TITLE, REBAR_AXIS_LABEL)
+    return fig
 
 
 def plot_steel_quantities(
@@ -15,81 +141,9 @@ def plot_steel_quantities(
     output_path: str | Path,
     theme: Theme | None = None,
 ) -> Optional[str]:
-    """Generate structural steel tonnage breakdown bar chart (Requirement R5)."""
-    t = theme or get_active_theme()
-    c = t.chart
-    pal = t.palette
-
-    fig, ax = setup_figure(figsize=(8.0, 4.2), dpi=c.dpi, theme=t)
-
-    # Categories to plot
-    categories = []
-    values = []
-    colors = []
-
-    # 1. Plate Girders
-    if summary.steel_girders_wt is not None:
-        categories.append("Plate Girders")
-        values.append(summary.steel_girders_wt)
-        colors.append(f"#{pal.brand}")
-
-    # 2. Cross Bracing (Total)
-    if summary.bracing_total_wt is not None:
-        categories.append("Cross Bracing\n(Top+Bot+Diag)")
-        values.append(summary.bracing_total_wt)
-        colors.append("#FCC419")  # Amber / Warm Yellow
-
-    # 3. End Diaphragms
-    categories.append("End Diaphragm\n(Pending)")
-    values.append(summary.end_diaphragm_wt or 0.0)
-    colors.append("#CED4DA")  # Light gray
-
-    # 4. Shear Studs
-    if summary.shear_studs_wt is not None:
-        categories.append("Shear Studs")
-        values.append(summary.shear_studs_wt)
-        colors.append("#20C997")  # Teal
-
-    x_indices = range(len(categories))
-    bars = ax.bar(x_indices, values, color=colors, edgecolor="#212529", linewidth=0.8, width=0.52)
-
-    # Add annotations and handle the "Not computed" case for End Diaphragm
-    for i, (bar, val, cat) in enumerate(zip(bars, values, categories)):
-        height = bar.get_height()
-        if "End Diaphragm" in cat and summary.end_diaphragm_wt is None:
-            bar.set_hatch("//")
-            bar.set_edgecolor("#868E96")
-            ax.annotate(
-                "Not computed\n(U8 pending)",
-                xy=(bar.get_x() + bar.get_width() / 2, 0.2),
-                xytext=(0, 10),
-                textcoords="offset points",
-                ha="center",
-                va="bottom",
-                fontsize=8.5,
-                fontstyle="italic",
-                color="#495057",
-            )
-        else:
-            ax.annotate(
-                f"{val:.2f} MT",
-                xy=(bar.get_x() + bar.get_width() / 2, height),
-                xytext=(0, 4),
-                textcoords="offset points",
-                ha="center",
-                va="bottom",
-                fontsize=9,
-                fontweight="bold",
-            )
-
-    max_v = max(values) if values else 10.0
-    ax.set_ylim(0, max(1.0, max_v * 1.18))
-    ax.set_ylabel("Weight (Metric Tonnes --- MT)", fontweight="bold")
-    ax.set_xticks(list(x_indices))
-    ax.set_xticklabels(categories, fontsize=9.5)
-    ax.set_title("Structural Steel Tonnage Breakdown", pad=12)
-
-    return save_chart(fig, output_path, dpi=c.dpi)
+    """Save the structural steel tonnage chart and return the image path."""
+    fig = build_steel_quantities_figure(summary, theme=theme)
+    return save_chart(fig, output_path, theme=theme)
 
 
 def plot_concrete_vs_rebar(
@@ -97,78 +151,6 @@ def plot_concrete_vs_rebar(
     output_path: str | Path,
     theme: Theme | None = None,
 ) -> Optional[str]:
-    """Generate side-by-side bar charts for concrete volume (m³) and rebar weight (MT) (Requirement R5)."""
-    t = theme or get_active_theme()
-    c = t.chart
-    pal = t.palette
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.5, 4.2), dpi=c.dpi)
-    plt.subplots_adjust(wspace=0.32)
-
-    # Apply base styling
-    for ax in (ax1, ax2):
-        ax.grid(True, linestyle=":", alpha=c.grid_alpha)
-        ax.set_axisbelow(True)
-
-    # Left panel: Concrete Volume (m³)
-    conc_cats = []
-    conc_vals = []
-    if summary.concrete_deck_vol is not None:
-        conc_cats.append("Deck Slab")
-        conc_vals.append(summary.concrete_deck_vol)
-    if summary.crash_barrier_vol is not None and summary.crash_barrier_vol > 0:
-        conc_cats.append("Crash Barrier")
-        conc_vals.append(summary.crash_barrier_vol)
-    if not conc_cats:
-        conc_cats.append("Deck Slab")
-        conc_vals.append(0.0)
-
-    x1 = range(len(conc_cats))
-    b1 = ax1.bar(x1, conc_vals, color="#495057", edgecolor="#212529", linewidth=0.8, width=0.45)
-    for bar, val in zip(b1, conc_vals):
-        ax1.annotate(
-            f"{val:.2f} m³",
-            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
-            xytext=(0, 4),
-            textcoords="offset points",
-            ha="center",
-            va="bottom",
-            fontsize=9,
-            fontweight="bold",
-        )
-    ax1.set_ylim(0, max(1.0, max(conc_vals) * 1.18))
-    ax1.set_ylabel("Volume (m³)", fontweight="bold")
-    ax1.set_xticks(list(x1))
-    ax1.set_xticklabels(conc_cats, fontsize=9.5)
-    ax1.set_title("Concrete Volume (M40)", pad=10, fontweight="bold")
-
-    # Right panel: Reinforcement Steel Weight (MT)
-    rebar_cats = []
-    rebar_vals = []
-    if summary.rebar_deck_wt is not None:
-        rebar_cats.append("Deck Rebar\n(Fe 500)")
-        rebar_vals.append(summary.rebar_deck_wt)
-    if not rebar_cats:
-        rebar_cats.append("Deck Rebar")
-        rebar_vals.append(0.0)
-
-    x2 = range(len(rebar_cats))
-    b2 = ax2.bar(x2, rebar_vals, color="#1971C2", edgecolor="#212529", linewidth=0.8, width=0.45)
-    for bar, val in zip(b2, rebar_vals):
-        ax2.annotate(
-            f"{val:.2f} MT",
-            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
-            xytext=(0, 4),
-            textcoords="offset points",
-            ha="center",
-            va="bottom",
-            fontsize=9,
-            fontweight="bold",
-        )
-    ax2.set_ylim(0, max(1.0, max(rebar_vals) * 1.18))
-    ax2.set_ylabel("Weight (Metric Tonnes --- MT)", fontweight="bold")
-    ax2.set_xticks(list(x2))
-    ax2.set_xticklabels(rebar_cats, fontsize=9.5)
-    ax2.set_title("Reinforcement Steel Weight", pad=10, fontweight="bold")
-
-    return save_chart(fig, output_path, dpi=c.dpi)
+    """Save the concrete volume / reinforcement weight chart and return the image path."""
+    fig = build_concrete_vs_rebar_figure(summary, theme=theme)
+    return save_chart(fig, output_path, theme=theme)

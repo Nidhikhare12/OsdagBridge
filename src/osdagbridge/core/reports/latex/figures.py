@@ -22,19 +22,20 @@ def figure(
         r"\centering" + "\n"
         rf"\includegraphics[{opts}]{{{p}}}" + "\n"
         r"\vspace{0.5em}" + "\n"
-        rf"\caption*{{\small {caption}}}" + "\n"
+        rf"\caption{{\small {caption}}}" + "\n"
         + label_cmd
         + r"\vspace{-0.5em}" + "\n"
         r"\end{figure}"
     )
 
 
-def placeholder(caption: str, width: str = r"0.97\textwidth") -> str:
+def placeholder(caption: str, width: str = r"0.95\linewidth") -> str:
     """Format a structured placeholder box when a CAD figure or asset is unavailable."""
     return (
-        r"\noindent\fbox{\parbox{" + width + r"}{" + "\n"
+        r"\par\noindent\fbox{\parbox{" + width + r"}{" + "\n"
+        r"\centering" + "\n"
         rf"\textit{{[ PLACEHOLDER: {caption} ]}}" + "\n"
-        r"}}"
+        r"}}\par"
     )
 
 
@@ -46,16 +47,16 @@ def figure_or_placeholder(path: str | Path | None, caption: str, width: str = r"
             r"\begin{figure}[H]" + "\n"
             r"\centering" + "\n"
             rf"\includegraphics[width={width}]{{{p}}}" + "\n"
-            rf"\caption*{{{caption}}}" + "\n"
+            rf"\caption{{\parbox{{\linewidth}}{{\centering\small {caption}}}}}" + "\n"
             r"\end{figure}"
         )
     return (
         r"\begin{figure}[H]" + "\n"
         r"\centering" + "\n"
-        r"\fbox{\parbox{0.97\textwidth}{" + "\n"
-        rf"\textit{{[ PLACEHOLDER: {caption} ]}}" + "\n"
+        r"\fbox{\parbox{0.95\linewidth}{" + "\n"
+        rf"\centering\textit{{[ PLACEHOLDER: {caption} ]}}" + "\n"
         r"}}" + "\n"
-        rf"\caption*{{{caption}}}" + "\n"
+        rf"\caption*{{\parbox{{\linewidth}}{{\centering\small {caption}}}}}" + "\n"
         r"\end{figure}"
     )
 
@@ -78,12 +79,13 @@ def figure_embed(
             r"\centering" + "\n"
             rf"\includegraphics[{opts}]{{{p}}}" + "\n"
             r"\vspace{0.5em}" + "\n"
-            rf"\caption*{{\small {caption}}}" + "\n"
+            rf"\caption{{\parbox{{\linewidth}}{{\centering\small {caption}}}}}" + "\n"
             r"\vspace{-0.5em}" + "\n"
             r"\end{figure}"
         )
     return (
-        r"\noindent\fbox{\parbox{0.97\textwidth}{" + "\n"
+        r"\par\noindent\fbox{\parbox{0.95\linewidth}{" + "\n"
+        r"\centering" + "\n"
         rf"\textit{{[ PLACEHOLDER: {caption} ]}}" + "\n"
-        r"}}"
+        r"}}\par"
     )

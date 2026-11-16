@@ -1287,7 +1287,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{1em}
 """ + _make_table(
-        r"|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|",
+        r"|L{3.8cm}|L{4.4cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|",
         r"\textbf{Overall Design Check Summary --- All Members}",
         [["Member / Check", "Governing Load Combo", "Demand", "Capacity", "UR"]],
         t522_content,

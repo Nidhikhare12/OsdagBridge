@@ -22,10 +22,25 @@ def build_preamble(
     tbl = t.table
     hf = t.header_footer
 
-    pn = tex(project_name)
-    jn = tex(job_number)
-    rd = tex(report_date)
-    rv = tex(report_version)
+    raw_pn = str(project_name or "")
+    if len(raw_pn) > hf.header_left_max_chars:
+        raw_pn = raw_pn[: hf.header_left_max_chars - 1].rstrip() + "..."
+    pn = tex(raw_pn)
+
+    raw_jn = str(job_number or "")
+    if len(raw_jn) > hf.header_job_max_chars:
+        raw_jn = raw_jn[: hf.header_job_max_chars - 1].rstrip() + "..."
+    jn = tex(raw_jn)
+
+    raw_rd = str(report_date or "")
+    if len(raw_rd) > hf.header_date_max_chars:
+        raw_rd = raw_rd[: hf.header_date_max_chars - 1].rstrip() + "..."
+    rd = tex(raw_rd)
+
+    raw_rv = str(report_version or "")
+    if len(raw_rv) > hf.footer_center_max_chars:
+        raw_rv = raw_rv[: hf.footer_center_max_chars - 1].rstrip() + "..."
+    rv = tex(raw_rv)
 
     return rf"""
 \documentclass[{p.font_size_pt}pt,{p.paper}]{{report}}
@@ -56,7 +71,7 @@ def build_preamble(
 \usepackage{{multirow}}
 \usepackage{{colortbl}}
 \usepackage{{longtable}}
-\setlength{{\LTleft}}{{\fill}}
+\setlength{{\LTleft}}{{0pt}}
 \setlength{{\LTright}}{{\fill}}
 \usepackage{{titlesec}}
 \usepackage{{titletoc}}
@@ -89,7 +104,6 @@ def build_preamble(
 
 % Prevent tables from overflowing past page bottom
 \BeforeBeginEnvironment{{table}}{{\needspace{{{tbl.min_rows_before_break}\baselineskip}}}}
-\BeforeBeginEnvironment{{longtable}}{{\needspace{{{tbl.min_rows_before_break}\baselineskip}}}}
 
 \definecolor{{osdagBrand}}{{HTML}}{{{pal.brand}}}
 \definecolor{{osdagRuleLight}}{{HTML}}{{{pal.rule_light}}}
@@ -98,10 +112,11 @@ def build_preamble(
 
 \fancypagestyle{{main}}{{
   \fancyhf{{}}
-  \fancyhead[L]{{{pn} \textbar{{}} {jn}}}
-  \fancyhead[R]{{{rd} \textbar{{}} {rv}}}
-  \fancyfoot[L]{{{hf.footer_text}}}
-  \fancyfoot[R]{{Page \thepage\ of \pageref{{LastPage}}}}
+  \fancyhead[L]{{\footnotesize {pn}}}
+  \fancyhead[R]{{\footnotesize {jn}\ \textperiodcentered\ {rd}}}
+  \fancyfoot[L]{{\footnotesize {hf.footer_text}}}
+  \fancyfoot[C]{{\footnotesize {rv}}}
+  \fancyfoot[R]{{\footnotesize Page \thepage\ of \pageref{{LastPage}}}}
   \renewcommand{{\headrule}}{{\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{2pt}}}}
   \renewcommand{{\footrule}}{{%
     \ifbool{{hasSDonPage}}{{%
@@ -115,10 +130,11 @@ def build_preamble(
 
 \fancypagestyle{{plain}}{{
   \fancyhf{{}}
-  \fancyhead[L]{{{pn} \textbar{{}} {jn}}}
-  \fancyhead[R]{{{rd} \textbar{{}} {rv}}}
-  \fancyfoot[L]{{{hf.footer_text}}}
-  \fancyfoot[R]{{Page \thepage\ of \pageref{{LastPage}}}}
+  \fancyhead[L]{{\footnotesize {pn}}}
+  \fancyhead[R]{{\footnotesize {jn}\ \textperiodcentered\ {rd}}}
+  \fancyfoot[L]{{\footnotesize {hf.footer_text}}}
+  \fancyfoot[C]{{\footnotesize {rv}}}
+  \fancyfoot[R]{{\footnotesize Page \thepage\ of \pageref{{LastPage}}}}
   \renewcommand{{\headrule}}{{\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{2pt}}}}
   \renewcommand{{\footrule}}{{%
     \ifbool{{hasSDonPage}}{{%
