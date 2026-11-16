@@ -848,9 +848,6 @@ def generate_report(payload, request):
             latex_env = getattr(module, 'OsdagLatexEnv')()
             if latex_env.pdflatex:
                 compiler = str(latex_env.pdflatex)
-                # Ensure the bin directory is in PATH so subprocess can find DLLs if needed
-                if latex_env.bin_dir:
-                    os.environ['PATH'] = str(latex_env.bin_dir) + os.pathsep + os.environ.get('PATH', '')
         except Exception as e:
             logger.info("osdag_latex_env not found or failed to load. (%s)", e)
             
@@ -904,6 +901,21 @@ def generate_report(payload, request):
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
+
+            # Generate charts for Chapter 5 (R4)
+            if payload.options.include_figures:
+                try:
+                    from .data.utilization import collect_utilization
+                    from .charts.utilization_chart import plot_overall_utilization, plot_girder_utilization
+                    ud = collect_utilization(bridge)
+                    ur_overall_file = os.path.join(tmp_assets, 'ur_overall.png')
+                    ur_girder_file = os.path.join(tmp_assets, 'ur_girder.png')
+                    if plot_overall_utilization(ud.records, ur_overall_file):
+                        bridge.ur_overall_chart = 'assets/ur_overall.png'
+                    if plot_girder_utilization(ud.girder_records, ur_girder_file):
+                        bridge.ur_girder_chart = 'assets/ur_girder.png'
+                except Exception as exc:
+                    logger.warning("Could not generate utilization charts: %s", exc)
 
             doc_parts = []
             doc_parts.append(build_preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
