@@ -5,8 +5,7 @@ from osdagbridge.core.utils.common import (
     KEY_SD_DEFL_LIVE,
     KEY_SD_DEFL_TOTAL,
 )
-from osdagbridge.core.reports.report_utils import _tex, _fig_embed
-
+from osdagbridge.core.reports.report_utils import _tex, _fig_embed, make_longtable
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
 
@@ -48,7 +47,14 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         _merged_row(lc, lc_summary.get(lc), rxn_summary.get(lc))
         for lc in all_lcs
     ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \\[6pt]"
-
+    rxn_rows = [
+        _tex(lc) + r" & " + _fmt(rxn_summary[lc].get('left_kN')) + r" & "
+        + _fmt(rxn_summary[lc].get('right_kN')) + r" \\[6pt]" + "\n" + r"\hline"
+        for lc in all_lcs if lc in rxn_summary
+    ]
+    rxn_body = "\n".join(rxn_rows) if rxn_rows else (
+        r"--- & --- & --- \\[6pt]" + "\n" + r"\hline")
+    
     _span_m         = float(bridge.input_dict.get(KEY_SPAN, 0) or 0)
     _allow_live_mm  = _span_m * 1000.0 / 800.0
     _allow_total_mm = _span_m * 1000.0 / 600.0
@@ -141,18 +147,12 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \endgroup
 
 \vspace{1em}
-\begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
-\hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
-\end{longtable}
+""" + make_longtable(
+    r"|L{6.0cm}|C{4.0cm}|C{4.0cm}|",
+    "Reactions at Supports",
+    r"\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)}",
+    rxn_body,
+) + r"""
 
 \vspace{1em}
 \begin{longtable}{|L{7cm}|p{8.5cm}|}
