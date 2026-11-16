@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Optional, Sequence, Tuple
 
 import matplotlib
+matplotlib.use("Agg", force=True)
 from matplotlib import patheffects
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.container import BarContainer

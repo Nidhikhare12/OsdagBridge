@@ -3,6 +3,7 @@
 from __future__ import annotations
 import os
 import re
+import shutil
 from pathlib import Path
 import subprocess
 import logging
@@ -91,6 +92,22 @@ def run_latex(tex_path: str | Path, max_passes: int = 4) -> CompileReport:
     stem = path.stem
     compiler, env = find_compiler()
 
+    log_file = path.with_suffix(".log")
+    pdf_file = path.with_suffix(".pdf")
+
+    compiler_path = shutil.which(compiler, path=env.get("PATH"))
+    if not compiler_path and not (os.path.isabs(compiler) and os.path.isfile(compiler)):
+        msg = f"LaTeX compiler executable not found: '{compiler}'. Please ensure TeX Live or MiKTeX is installed."
+        logger.error(msg)
+        return CompileReport(
+            success=False,
+            passes=0,
+            errors=[msg],
+            warnings=[],
+            missing_packages=[],
+            log_path=str(log_file) if log_file.is_file() else None,
+        )
+
     kwargs = {
         "cwd": cwd,
         "stdout": subprocess.PIPE,
@@ -104,8 +121,6 @@ def run_latex(tex_path: str | Path, max_passes: int = 4) -> CompileReport:
 
     passes_run = 0
     log_content = ""
-    log_file = path.with_suffix(".log")
-    pdf_file = path.with_suffix(".pdf")
 
     # Stale output from an earlier run must not be mistaken for a fresh PDF.
     if pdf_file.is_file():
@@ -119,7 +134,19 @@ def run_latex(tex_path: str | Path, max_passes: int = 4) -> CompileReport:
 
     for pass_idx in range(1, max_passes + 1):
         passes_run = pass_idx
-        res = subprocess.run([compiler, "-interaction=nonstopmode", f"{stem}.tex"], **kwargs)
+        try:
+            res = subprocess.run([compiler, "-interaction=nonstopmode", f"{stem}.tex"], **kwargs)
+        except FileNotFoundError:
+            msg = f"LaTeX compiler executable '{compiler}' could not be executed."
+            logger.error(msg)
+            return CompileReport(
+                success=False,
+                passes=passes_run,
+                errors=[msg],
+                warnings=[],
+                missing_packages=[],
+                log_path=str(log_file) if log_file.is_file() else None,
+            )
 
         if log_file.is_file():
             try:

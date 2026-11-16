@@ -55,7 +55,16 @@ def build_preamble(
 \usepackage{{tabularx}}
 \usepackage{{float}}
 \usepackage{{fancyhdr}}
-\usepackage[hidelinks]{{hyperref}}
+\usepackage[
+  hidelinks,
+  pdfstartview=FitH,
+  bookmarks=true,
+  bookmarksnumbered=true,
+  bookmarksopen=false,
+  pdftitle={{{pn}}},
+  pdfsubject={{OsdagBridge Structural Design Report}},
+  pdfcreator={{OsdagBridge Report Generator}}
+]{{hyperref}}
 \usepackage{{xcolor}}
 \usepackage{{setspace}}
 \usepackage{{enumitem}}
