@@ -408,6 +408,10 @@ class ReportOptions:
     include_figures: bool
     include_toc: bool
     include_pdf: bool
+    # Added by the report-engine refactor; defaults keep existing callers working.
+    theme: str = "osdag_classic"
+    include_utilization_charts: bool = True
+    include_quantity_charts: bool = True
 
 @dataclass
 class ReportRequest:
@@ -839,6 +843,10 @@ _FIGURE_MAP = [
     ('defl_ll',               'defl_ll.png'),
 ]
 
+class _ChartsDisabled(Exception):
+    """Internal signal: the user switched a chart group off in the report options."""
+
+
 def generate_report(payload, request):
     # type: (ReportPayload, ReportRequest) -> ReportResult
     """Compile the full OsdagBridge Design Report to PDF (+ .tex source)."""
@@ -906,9 +914,21 @@ def generate_report(payload, request):
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
+            # Apply the style preset before any builder runs (R6: one source of truth)
+            try:
+                from .theme import set_active_theme
+                set_active_theme(getattr(payload.options, "theme", None) or "osdag_classic")
+            except Exception as exc:
+                logger.warning("Unknown report theme %r, using default: %s", getattr(payload.options, "theme", None), exc)
+
+            _want_ur_charts = payload.options.include_figures and getattr(payload.options, "include_utilization_charts", True)
+            _want_qty_charts = payload.options.include_figures and getattr(payload.options, "include_quantity_charts", True)
+
             # Generate charts for Chapter 5 (R4)
             if payload.options.include_figures:
                 try:
+                    if not _want_ur_charts:
+                        raise _ChartsDisabled()
                     from .data.utilization import collect_utilization
                     from .charts.utilization_chart import plot_overall_utilization, plot_girder_utilization
                     ud = collect_utilization(bridge)
@@ -918,11 +938,15 @@ def generate_report(payload, request):
                         bridge.ur_overall_chart = 'assets/ur_overall.png'
                     if plot_girder_utilization(ud.girder_records, ur_girder_file):
                         bridge.ur_girder_chart = 'assets/ur_girder.png'
+                except _ChartsDisabled:
+                    pass
                 except Exception as exc:
                     logger.warning("Could not generate utilization charts: %s", exc)
 
                 # Generate charts for Chapter 7 (R5)
                 try:
+                    if not _want_qty_charts:
+                        raise _ChartsDisabled()
                     from .data.quantities import collect_quantities
                     from .charts.quantity_charts import plot_steel_quantities, plot_concrete_vs_rebar
                     qs = collect_quantities(payload.inputs)
@@ -932,6 +956,8 @@ def generate_report(payload, request):
                         payload.inputs['_qty_steel_chart'] = 'assets/steel_quantities.png'
                     if plot_concrete_vs_rebar(qs, conc_chart_file):
                         payload.inputs['_qty_concrete_rebar_chart'] = 'assets/concrete_vs_rebar.png'
+                except _ChartsDisabled:
+                    pass
                 except Exception as exc:
                     logger.warning("Could not generate quantity charts: %s", exc)
 
