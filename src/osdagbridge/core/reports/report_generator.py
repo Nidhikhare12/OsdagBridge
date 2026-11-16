@@ -637,6 +637,8 @@ def generate_report(payload, request):
     # type: (ReportPayload, ReportRequest) -> ReportResult
     """Compile the full OsdagBridge Design Report to PDF (+ .tex source)."""
     tex_path = None
+    compile_rep = None
+    log_dest = None
     try:
         # Use OsdagLatexEnv to discover the bundled pdflatex path
         compiler = 'pdflatex'
@@ -825,10 +827,17 @@ def generate_report(payload, request):
             )
 
         logger.error("pdflatex ran but no PDF was produced.")
-        if 'res' in locals():
-            logger.error("pdflatex STDOUT:\n%s", res.stdout.decode('utf-8', 'ignore'))
-            logger.error("pdflatex STDERR:\n%s", res.stderr.decode('utf-8', 'ignore'))
-        return ReportResult(pdf_path=None, tex_path=tex_path)
+        if compile_rep and compile_rep.errors:
+            for _err in compile_rep.errors[:20]:
+                logger.error("LaTeX error: %s", _err)
+        return ReportResult(
+            pdf_path=None,
+            tex_path=tex_path,
+            log_path=log_dest if (log_dest and os.path.exists(log_dest)) else None,
+            passes=compile_rep.passes if compile_rep else 0,
+            errors=list(compile_rep.errors) if compile_rep else [],
+            warnings=list(compile_rep.warnings) if compile_rep else [],
+        )
 
     except Exception as exc:
         logger.error("generate_report failed: %s", exc, exc_info=True)

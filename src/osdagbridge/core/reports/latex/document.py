@@ -115,7 +115,6 @@ def build_preamble(
   \fancyhead[L]{{\footnotesize {pn}}}
   \fancyhead[R]{{\footnotesize {jn}\ \textperiodcentered\ {rd}}}
   \fancyfoot[L]{{\footnotesize {hf.footer_text}}}
-  \fancyfoot[C]{{\footnotesize {rv}}}
   \fancyfoot[R]{{\footnotesize Page \thepage\ of \pageref{{LastPage}}}}
   \renewcommand{{\headrule}}{{\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{2pt}}}}
   \renewcommand{{\footrule}}{{%
@@ -133,7 +132,6 @@ def build_preamble(
   \fancyhead[L]{{\footnotesize {pn}}}
   \fancyhead[R]{{\footnotesize {jn}\ \textperiodcentered\ {rd}}}
   \fancyfoot[L]{{\footnotesize {hf.footer_text}}}
-  \fancyfoot[C]{{\footnotesize {rv}}}
   \fancyfoot[R]{{\footnotesize Page \thepage\ of \pageref{{LastPage}}}}
   \renewcommand{{\headrule}}{{\color{{osdagBrand}}\hrule width\headwidth height {hf.rule_height_pt}pt \vspace{{2pt}}}}
   \renewcommand{{\footrule}}{{%
