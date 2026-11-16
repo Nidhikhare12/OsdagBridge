@@ -794,6 +794,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                 + r" & " + gov_lc + r" & " + force_str + r" & " + capacity
                 + r" & " + ur + r" & " + status + r" \\[6pt]\cline{2-8}"
             )
+        rows_for_pair[-1] = rows_for_pair[-1].replace(r"\cline{2-8}", "")
         first = r"\multirow{2}{*}{\makecell{" + _tex(pair) + r"}}" + rows_for_pair[0]
         rest  = rows_for_pair[1:]
         cb_capacity_rows.append(first)
