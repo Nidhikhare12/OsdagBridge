@@ -1437,7 +1437,7 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 
 \vspace{1em}
 \Needspace{12\baselineskip}
-\begin{longtable}{|C{1.3cm}|L{1.6cm}|C{1.9cm}|C{1.7cm}|C{1.7cm}|C{1.7cm}|C{1.0cm}|C{1.4cm}|}
+\begin{longtable}{|C{1.4cm}|L{1.7cm}|C{2.3cm}|C{2.2cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.6cm}|}
 \caption{\textbf{Cross Bracing Design --- Capacity Summary}}
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
@@ -1482,8 +1482,8 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{1em}
 
-\begin{longtable}{|C{1.3cm}|L{1.6cm}|C{1.9cm}|C{1.7cm}|C{1.7cm}|C{1.7cm}|C{1.0cm}|C{1.4cm}|}
 \Needspace{12\baselineskip}
+\begin{longtable}{|C{1.4cm}|L{1.7cm}|C{2.3cm}|C{2.2cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.6cm}|}
 \caption{\textbf{End Diaphragm Design --- Capacity Summary}}
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
