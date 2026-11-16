@@ -33,12 +33,14 @@ class ReportTable:
         caption: str,
         label: str | None = None,
         header_rows: Sequence[Sequence[Any]] | Sequence[Any] | None = None,
+        header_tex: str | None = None,
         preset: Sequence[str] | None = None,
         theme: Theme | None = None,
     ):
         self.theme = theme or get_active_theme()
         self.caption = caption
         self.label = label
+        self.header_tex = header_tex
 
         # Resolve column specification and width
         if preset is not None:
@@ -83,15 +85,24 @@ class ReportTable:
         if self.caption:
             self._table.append(NoEscape(rf"\caption{{{self.caption}}}{label_cmd}\\"))
 
+        def _render_headers():
+            if self.header_tex:
+                self._table.append(NoEscape(self.header_tex))
+            else:
+                self._table.add_hline()
+                for hrow in self.header_list:
+                    if isinstance(hrow, str):
+                        self._table.append(NoEscape(hrow))
+                    else:
+                        formatted_cells = [
+                            NoEscape(rf"\textbf{{{c}}}") if (tbl.header_bold and "\\textbf" not in str(c)) else NoEscape(str(c))
+                            for c in hrow
+                        ]
+                        self._table.add_row(formatted_cells)
+                        self._table.add_hline()
+
         # 2. First-page header row(s)
-        self._table.add_hline()
-        for hrow in self.header_list:
-            formatted_cells = [
-                NoEscape(rf"\textbf{{{c}}}") if (tbl.header_bold and "\\textbf" not in str(c)) else NoEscape(str(c))
-                for c in hrow
-            ]
-            self._table.add_row(formatted_cells)
-            self._table.add_hline()
+        _render_headers()
 
         # 3. End first head
         self._table.append(NoEscape(r"\endfirsthead"))
@@ -101,14 +112,7 @@ class ReportTable:
             cont_caption = f"{self.caption} {tbl.continued_label}"
             self._table.append(NoEscape(rf"\caption[]{{{cont_caption}}}\\"))
 
-        self._table.add_hline()
-        for hrow in self.header_list:
-            formatted_cells = [
-                NoEscape(rf"\textbf{{{c}}}") if (tbl.header_bold and "\\textbf" not in str(c)) else NoEscape(str(c))
-                for c in hrow
-            ]
-            self._table.add_row(formatted_cells)
-            self._table.add_hline()
+        _render_headers()
 
         # 5. End regular head
         self._table.append(NoEscape(r"\endhead"))
