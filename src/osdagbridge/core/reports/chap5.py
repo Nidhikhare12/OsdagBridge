@@ -380,14 +380,12 @@ def ch5_design_checks(checks_data, bridge) -> str:
     if _is_custom:
         t58_block = r"""
 \vspace{1em}
-
-\begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
-\caption{Intermediate Stiffener Checks}
-\hline
-\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
-\hline
-""" + t58_content + r"""
-\end{longtable}
+""" + _make_table(
+            r"|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|",
+            r"\textbf{Intermediate Stiffener Checks}",
+            [["", "Check", "Required", "Provided", "Status"]],
+            t58_content,
+        ) + r"""
 \noindent\textit{Note: IS 800 Cl. 8.7.1.2}
 """
     else:
@@ -1485,13 +1483,12 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 % ===========================
 
 \vspace{1em}
-\begin{longtable}{|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|}
-\caption{\textbf{Overall Design Check Summary --- All Members}}
-\hline
-\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
-\hline
-""" + t522_content + r"""
-\end{longtable}
+""" + _make_table(
+        r"|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|",
+        r"\textbf{Overall Design Check Summary --- All Members}",
+        [["Member / Check", "Governing Load Combo", "Demand", "Capacity", "UR"]],
+        t522_content,
+    ) + r"""
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
 
 """
