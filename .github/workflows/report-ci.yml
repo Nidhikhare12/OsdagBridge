@@ -27,17 +27,15 @@ jobs:
             texlive-latex-recommended \
             texlive-latex-extra \
             texlive-fonts-recommended \
-            ghostscript
+            ghostscript \
+            libgl1 \
+            libglib2.0-0
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pylatex matplotlib pdfplumber pytest pytest-cov
-
-      - name: Install OsdagBridge in editable mode
-        run: |
-          pip install -e . --no-deps || true
-          # Add src directory to PYTHONPATH for headless runner
+          pip install pylatex matplotlib pdfplumber pytest pytest-cov openseespy opsvis scipy shapely pydantic xarray
+          pip install -e . --no-deps
           echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
 
       - name: Run automated test suite
