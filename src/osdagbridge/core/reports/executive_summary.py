@@ -176,7 +176,28 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
               + urs + '\n'
               r'\hline' + '\n'
               r'\end{tabular}')
+    # --- Key Design Outcomes: one line per component, pass/fail from the stored results ---
+    def _outcome(label, ur, detail=""):
+        if ur is None:
+            return label + " design: not evaluated"
+        if ur <= 1.0:
+            return label + " design pass"
+        return label + r" design \textcolor{red}{FAIL}" + detail
 
+    if not per_girder:
+        girder_line = "Girder design: not evaluated"
+    elif failing:
+        girder_line = r"Girder design \textcolor{red}{FAIL} (" + _tex(", ".join(failing)) + ")"
+    else:
+        girder_line = "Girder design pass"
+    _cb_ur = _max_member_efficiency(cb_results)
+    _ed_ur = _max_member_efficiency(ed_results)
+    outcomes_tex = (
+        r"\noindent " + girder_line + " \\\\\n"
+        + _outcome("Cross bracing", _cb_ur) + " \\\\\n"
+        + _outcome("End Diaphragm", _ed_ur) + " \\\\\n"
+        + _outcome("Deck", deck_max)
+    )
     return r"""
 \newpage
 {\centering\Large\bfseries Executive Summary\par}
@@ -230,10 +251,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
 \label{sec:key-outcomes}
 
-\noindent Girder design pass \\
-Cross bracing design pass \\
-End Diaphragm design pass \\
-Deck design pass
+""" + outcomes_tex + r"""
 
 \section*{Design Assumptions and Limitations}
 \addcontentsline{toc}{section}{Design Assumptions and Limitations}
