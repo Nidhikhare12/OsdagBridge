@@ -63,6 +63,7 @@ def _packages_block() -> str:
 \usepackage{multirow}
 \usepackage{colortbl}
 \usepackage{longtable}
+\usepackage{needspace}
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
 \usepackage{titlesec}

@@ -795,6 +795,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                 + r" & " + ur + r" & " + status + r" \\[6pt]\cline{2-8}"
             )
         rows_for_pair[-1] = rows_for_pair[-1].replace(r"\cline{2-8}", "")
+        rows_for_pair[0] = rows_for_pair[0].replace(r"\\[6pt]", r"\\*[6pt]")        
         first = r"\multirow{2}{*}{\makecell{" + _tex(pair) + r"}}" + rows_for_pair[0]
         rest  = rows_for_pair[1:]
         cb_capacity_rows.append(first)
@@ -1435,7 +1436,8 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \noindent\textit{Note: Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
 
 \vspace{1em}
-\begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
+\Needspace{12\baselineskip}
+\begin{longtable}{|C{1.3cm}|L{1.6cm}|C{1.9cm}|C{1.7cm}|C{1.7cm}|C{1.7cm}|C{1.0cm}|C{1.4cm}|}
 \caption{\textbf{Cross Bracing Design --- Capacity Summary}}
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
@@ -1480,7 +1482,8 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{1em}
 
-\begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
+\begin{longtable}{|C{1.3cm}|L{1.6cm}|C{1.9cm}|C{1.7cm}|C{1.7cm}|C{1.7cm}|C{1.0cm}|C{1.4cm}|}
+\Needspace{12\baselineskip}
 \caption{\textbf{End Diaphragm Design --- Capacity Summary}}
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
