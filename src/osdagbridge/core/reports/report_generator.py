@@ -917,6 +917,20 @@ def generate_report(payload, request):
                 except Exception as exc:
                     logger.warning("Could not generate utilization charts: %s", exc)
 
+                # Generate charts for Chapter 7 (R5)
+                try:
+                    from .data.quantities import collect_quantities
+                    from .charts.quantity_charts import plot_steel_quantities, plot_concrete_vs_rebar
+                    qs = collect_quantities(payload.inputs)
+                    steel_chart_file = os.path.join(tmp_assets, 'steel_quantities.png')
+                    conc_chart_file = os.path.join(tmp_assets, 'concrete_vs_rebar.png')
+                    if plot_steel_quantities(qs, steel_chart_file):
+                        payload.inputs['_qty_steel_chart'] = 'assets/steel_quantities.png'
+                    if plot_concrete_vs_rebar(qs, conc_chart_file):
+                        payload.inputs['_qty_concrete_rebar_chart'] = 'assets/concrete_vs_rebar.png'
+                except Exception as exc:
+                    logger.warning("Could not generate quantity charts: %s", exc)
+
             doc_parts = []
             doc_parts.append(build_preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
             doc_parts.append(doc_title_page(payload.metadata, osdag_logo_latex, org_logo_latex))

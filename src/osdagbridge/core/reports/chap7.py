@@ -43,9 +43,33 @@ def ch7_quantities(input_dict):
             str(input_dict.get(f"{prefix}_wt_total", "N.A.")),
         ])
 
+    charts_latex = []
+    steel_chart_path = input_dict.get("_qty_steel_chart")
+    conc_chart_path = input_dict.get("_qty_concrete_rebar_chart")
+
+    if steel_chart_path:
+        from osdagbridge.core.reports.latex.figures import figure
+        charts_latex.append(
+            figure(
+                path=steel_chart_path,
+                caption=r"\textbf{Structural Steel Tonnage Breakdown} \textit{(IS 2062 steel for girders and cross bracing; end diaphragm pending)}",
+                width=r"\textwidth",
+            )
+        )
+    if conc_chart_path:
+        from osdagbridge.core.reports.latex.figures import figure
+        charts_latex.append(
+            figure(
+                path=conc_chart_path,
+                caption=r"\textbf{Concrete Volume (m$^3$) and Reinforcement Steel Weight (MT)} \textit{(M40 grade concrete and Fe 500 reinforcement for deck slab)}",
+                width=r"\textwidth",
+            )
+        )
+    charts_section = ("\n\n" + "\n\n".join(charts_latex) + "\n\n") if charts_latex else "\n"
+
     return rf"""
 \chapter{{Material Take-off \& Quantity Summary}}
 \label{{ch:material-takeoff}}
 
 {tbl.dumps()}
-"""
+{charts_section}"""
