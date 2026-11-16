@@ -69,10 +69,30 @@ def check_footer_overlap(pdf_path: str | Path, tolerance_pt: float = 4.0) -> Lis
     return violations
 
 
-def check_header_repeat(pdf_path: str | Path) -> List[PDFViolation]:
-    """Verify that multi-page tables repeat headers across page breaks."""
-    # Stub for R1 validation; populated during Phase 3
-    return []
+def check_header_repeat(pdf_path: str | Path, expected_header_text: str | None = None) -> List[PDFViolation]:
+    """Verify that multi-page tables repeat headers across page breaks.
+    
+    If expected_header_text is provided, verifies that every page where the table
+    continues contains the expected header string.
+    """
+    path = Path(pdf_path).resolve()
+    violations: List[PDFViolation] = []
+
+    with pdfplumber.open(path) as pdf:
+        for p_idx, page in enumerate(pdf.pages, start=1):
+            text = page.extract_text() or ""
+            if expected_header_text and expected_header_text not in text:
+                violations.append(
+                    PDFViolation(
+                        page=p_idx,
+                        rule="R1-MISSING-REPEATED-HEADER",
+                        message=f"Page {p_idx} missing expected repeated header '{expected_header_text}'",
+                        y_coord=0.0,
+                        text=text[:100],
+                    )
+                )
+
+    return violations
 
 
 def summary(pdf_path: str | Path) -> Dict[str, Any]:
