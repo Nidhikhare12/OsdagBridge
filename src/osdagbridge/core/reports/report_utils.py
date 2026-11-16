@@ -129,6 +129,13 @@ def make_longtable(colspec, caption, header, body, header_gap="6pt"):
         + header + " \\\\[" + header_gap + "]\n"
         + "\\hline\n"
     )
+    # The table's closing rule goes into \endlastfoot so LaTeX can never
+    # push it alone onto a new page (the "lone header bar").
+    body = body.rstrip()
+    closing = ""
+    if body.endswith("\\hline"):
+        body = body[: -len("\\hline")].rstrip()
+        closing = "\\hline\n\\endlastfoot\n\n"
     return (
         "\\begin{longtable}{" + colspec + "}\n"
         + "\\caption{\\textbf{" + caption + "}}\\\\\n"
@@ -136,13 +143,10 @@ def make_longtable(colspec, caption, header, body, header_gap="6pt"):
         + "\\endfirsthead\n\n"
         + head
         + "\\endhead\n\n"
+        + closing
         + body + "\n"
         + "\\end{longtable}\n"
     )
-_BEGIN = "\\begin{longtable}"
-_END = "\\end{longtable}"
-_ROW_END = re.compile(r"\\\\(\[[^\]]*\])?\s*$")
-
 
 def add_repeating_headers(tex):
     r"""Make every longtable repeat its column-header row on each page.
@@ -178,7 +182,7 @@ def add_repeating_headers(tex):
     return "".join(out)
 
 
-def _fix_one(block):
+def _add_header(block):
     lines = block.split("\n")
     # lines[0] = \begin{longtable}{spec}   lines[1] = \caption{...}
     if len(lines) < 6 or not lines[1].startswith("\\caption{"):
@@ -212,3 +216,25 @@ def _fix_one(block):
         return "\n".join([lines[0], lines[1], *lines[2:5], *new_rest])
 
     return block
+
+def _pin_closing_rule(block):
+    r"""Move a table's final \hline into \endlastfoot so LaTeX cannot push
+    it alone onto a new page (the lone header bar)."""
+    if "\\endlastfoot" in block or "\\endhead" not in block:
+        return block
+    lines = block.rstrip().split("\n")
+    if lines[-1].strip() != "\\end{longtable}":
+        return block
+    j = len(lines) - 2
+    while j >= 0 and not lines[j].strip():
+        j -= 1
+    if j < 0 or lines[j].strip() != "\\hline":
+        return block
+    del lines[j]
+    k = next(i for i, l in enumerate(lines) if l.strip() == "\\endhead")
+    lines[k + 1:k + 1] = ["\\hline", "\\endlastfoot"]
+    return "\n".join(lines)
+
+
+def _fix_one(block):
+    return _pin_closing_rule(_add_header(block))

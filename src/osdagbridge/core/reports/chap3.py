@@ -310,12 +310,18 @@ def ch3_loads(input_dict):
 This section summarizes all loads applied to the bridge and the load combinations considered for analysis and design.
 
 \vspace{1em}
-""" + make_longtable(
-    r"|C{4.0cm}|p{11.5cm}|",
-    "Load Combinations",
-    r"\textbf{Combination ID} & \textbf{Load Cases}",
-    lc_rows_str,
-) + r"""
+\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\caption{\textbf{Dead Load -- Self Weight}}
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+\hline
+\textnormal{Concrete Deck Weight} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+\hline
+\textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR)) + r""" \\[6pt]
+\hline
+\end{longtable}
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
