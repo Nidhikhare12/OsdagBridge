@@ -955,25 +955,14 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            # Compile twice for TOC and references
-            for _ in range(2):
-                try:
-                    kwargs = {
-                        'cwd': tmp_dir,
-                        'stdout': subprocess.PIPE,
-                        'stderr': subprocess.PIPE,
-                        'check': False,
-                        'env': os.environ.copy()
-                    }
-                    if os.name == 'nt':
-                        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
-                    res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
-                        **kwargs
-                    )
-                except Exception as exc:
-                    logger.warning(f"pdflatex run failed: {exc}")
+            # Compile with automatic rerun detection (longtable widths, TOC, references)
+            from osdagbridge.core.reports.latex.compile import run_latex
+            compile_rep = run_latex(tmp_tex, max_passes=4)
+
+            tmp_log = os.path.join(tmp_dir, request.file_stem + '.log')
+            log_dest = os.path.join(request.output_dir, request.file_stem + '.log')
+            if os.path.exists(tmp_log):
+                shutil.copy2(tmp_log, log_dest)
 
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)

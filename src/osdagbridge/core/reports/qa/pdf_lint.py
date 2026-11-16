@@ -46,7 +46,7 @@ def check_footer_overlap(pdf_path: str | Path, tolerance_pt: float = 4.0) -> Lis
             # Extract words
             footer_tokens = {
                 "osdag", "fossee", "indian", "institute", "of", "technology", "bombay",
-                "|", "page", "*", "software", "default", "value"
+                "|", "page", "*", "software", "default", "value", "??", "?"
             }
             words = page.extract_words()
             for w in words:

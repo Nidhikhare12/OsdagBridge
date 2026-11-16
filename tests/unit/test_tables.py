@@ -89,7 +89,7 @@ def test_200_row_table_header_repeat():
         header_rows=[["Member ID", "Bending Moment (kNm)"]],
     )
     for i in range(1, 201):
-        tbl.add_row([f"M_{i}", f"{1000 + i * 5:.2f}"])
+        tbl.add_row([f"$M_{{{i}}}$", f"{1000 + i * 5:.2f}"])
 
     tex_content = "\n".join([
         build_preamble("Stress Test", "JOB-200", "2026-11-16"),
