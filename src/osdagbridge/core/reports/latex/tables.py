@@ -8,8 +8,8 @@ ensuring repeated table headers across page breaks without footer overlap.
 from __future__ import annotations
 import re
 from typing import Sequence, Any, Tuple
-import pylatex
-from pylatex.utils import NoEscape
+import pylatex  # type: ignore
+from pylatex.utils import NoEscape  # type: ignore
 
 from osdagbridge.core.reports.theme import Theme, get_active_theme
 
