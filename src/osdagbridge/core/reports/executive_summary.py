@@ -3,6 +3,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from osdagbridge.core.reports.report_utils import _fig_or_placeholder, _render_value, _tex, get_girder_entries
+from osdagbridge.core.reports.latex.tables import SimpleTable
 from osdagbridge.core.utils.common import (
     KEY_CARRIAGEWAY_WIDTH,
     KEY_SD_SECTION_DESIGNATION,
@@ -144,38 +145,38 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     girder_col_cm = round(max(1.5, (15.0 - label_col_cm) / n_cols), 1)
     col_spec = '|C{' + str(label_col_cm) + 'cm}|' + '|'.join(['C{' + str(girder_col_cm) + 'cm}'] * n_cols) + '|'
 
-    # Header row
-    hdr_cells = ' &\n  '.join([r'\textbf{' + _tex(lbl) + '}' for lbl, _ in labels])
-    header_row = r'  \textbf{} &' + '\n  ' + hdr_cells + r' \\' + '\n'
+    t_geom1 = SimpleTable(
+        col_spec=col_spec,
+        rows=[
+            [r"\textbf{}"] + [rf"\textbf{{{_tex(lbl)}}}" for lbl, _ in labels],
+            ["Member ID"] + [_tex(mid) for _, mid in labels],
+            ["Section Designation"] + [sec] * n_cols,
+            ["Governing Check"] + [gov] * n_cols,
+            ["Utilization Ratio"] + [ur] * n_cols,
+        ],
+    )
+    table1 = (
+        r"\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}" + "\n\n"
+        r"\vspace{0.4em}" + "\n"
+        r"\noindent" + "\n"
+        + t_geom1.dumps()
+    )
 
-    # Member ID row
-    mid_cells = ' & '.join([_tex(mid) for _, mid in labels])
-    member_id_row = 'Member ID & ' + mid_cells + r' \\' + '\n'
-
-    # Section / Governing Check / UR rows
-    sec_cells = ' & '.join([sec] * n_cols)
-    sections = f"Section Designation & {sec_cells} \\\\"
-    gov_cells = ' & '.join([gov] * n_cols)
-    gov_checks = f"Governing Check & {gov_cells} \\\\"
-    ur_cells = ' & '.join([ur] * n_cols)
-    urs = f"Utilization Ratio & {ur_cells} \\\\"
-
-    table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
-              r'\vspace{0.4em}' + '\n'
-              r'\noindent' + '\n'
-              r'\begin{tabular}{' + col_spec + '}\n'
-              r'\hline' + '\n'
-              + header_row +
-              r'\hline' + '\n'
-              + member_id_row +
-              r'\hline' + '\n'
-              + sections + '\n'
-              r'\hline' + '\n'
-              + gov_checks + '\n'
-              r'\hline' + '\n'
-              + urs + '\n'
-              r'\hline' + '\n'
-              r'\end{tabular}')
+    t_ovw = SimpleTable(
+        col_spec="|L{5.5cm}|L{8.5cm}|",
+        rows=[
+            [r"\textbf{Bridge Type}", _render_value(input_dict, KEY_STRUCTURE_TYPE)],
+            [r"\textbf{Design Standard}", "IRC 5, IRC 6, IRC 22, IRC 24, IS 800"],
+            [r"\textbf{Span}", _render_value(input_dict, KEY_SPAN, ' m')],
+            [r"\textbf{Carriageway Width}", _render_value(input_dict, KEY_CARRIAGEWAY_WIDTH, ' m')],
+            [r"\textbf{No. of Girders}", _render_value(input_dict, KEY_TS_NO_OF_GIRDERS)],
+            [r"\textbf{Girder Spacing}", _render_value(input_dict, KEY_TS_GIRDER_SPACING)],
+            [r"\textbf{Deck Thickness}", _render_value(input_dict, KEY_TS_DECK_THICKNESS)],
+            [r"\textbf{Overall Design Status}", _tex(overall_design_status)],
+            [r"\textbf{Governing Check}", gov],
+            [r"\textbf{Overall Utilization Ratio (max)}", ur],
+        ],
+    )
 
     return r"""
 \newpage
@@ -189,31 +190,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \addcontentsline{toc}{section}{Project Overview}
 \label{sec:project-overview}
 
-
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
-\hline
-\textbf{Bridge Type} & """ + (_render_value(input_dict, KEY_STRUCTURE_TYPE)) + r""" \\
-\hline
-\textbf{Design Standard} & IRC 5, IRC 6, IRC 22, IRC 24, IS 800 \\
-\hline
-\textbf{Span} & """ + (_render_value(input_dict, KEY_SPAN, ' m')) + r""" \\
-\hline
-\textbf{Carriageway Width} & """ + (_render_value(input_dict, KEY_CARRIAGEWAY_WIDTH, ' m')) + r""" \\
-\hline
-\textbf{No. of Girders} & """ + (_render_value(input_dict, KEY_TS_NO_OF_GIRDERS)) + r""" \\
-\hline
-\textbf{Girder Spacing} & """ + (_render_value(input_dict, KEY_TS_GIRDER_SPACING)) + r""" \\
-\hline
-\textbf{Deck Thickness} & """ + (_render_value(input_dict, KEY_TS_DECK_THICKNESS)) + r""" \\
-\hline
-\textbf{Overall Design Status} & """ + (_tex(overall_design_status)) + r""" \\
-\hline
-\textbf{Governing Check} & """ + gov + r""" \\
-\hline
-\textbf{Overall Utilization Ratio (max)} & """ + ur + r""" \\
-\hline
-\end{tabular}
-
+""" + t_ovw.dumps() + r"""
 
 """ + plan_fig + r"""
 
