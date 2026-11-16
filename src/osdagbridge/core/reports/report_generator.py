@@ -464,7 +464,7 @@ def _collect_utilization_ratios(output_dict: dict, bridge) -> dict:
     """Worst utilization ratio per primary element for the §5.5 chart."""
     urs = {}
 
-    def _max_dcr(checks):
+    def max_dcr(checks):
         best = None
         for chk in checks or []:
             try:
@@ -476,24 +476,24 @@ def _collect_utilization_ratios(output_dict: dict, bridge) -> dict:
         return best
 
     try:
-        pg = (output_dict.get("design_results", {}) or {}).get("per_girder", {}) or {}
+        per_girder = (output_dict.get("design_results", {}) or {}).get("per_girder", {}) or {}
     except Exception:
         pg = {}
     g_best = None
-    for _g, gd in pg.items():
-        if str(_g).startswith("EB"):
+    for girder, gd in per_girder.items():
+        if str(girder).startswith("EB"):
             continue
-        for _lc, ld in (gd.get("per_lc") or {}).items():
-            d = _max_dcr(ld.get("checks"))
+        for lc, ld in (gd.get("per_lc") or {}).items():
+            d = max_dcr(ld.get("checks"))
             if d is not None and (g_best is None or d > g_best):
                 g_best = d
-        d = _max_dcr(gd.get("checks"))
+        d = max_dcr(gd.get("checks"))
         if d is not None and (g_best is None or d > g_best):
             g_best = d
     if g_best is not None:
         urs["Steel Plate Girders"] = g_best
 
-    def _scan_ur(obj, depth=0):
+    def scan_ur(obj, depth=0):
         best = None
         if depth > 6:
             return None
@@ -508,17 +508,17 @@ def _collect_utilization_ratios(output_dict: dict, bridge) -> dict:
                     except (TypeError, ValueError):
                         pass
                 else:
-                    d = _scan_ur(v, depth + 1)
+                    d = scan_ur(v, depth + 1)
                     if d is not None and (best is None or d > best):
                         best = d
         elif isinstance(obj, (list, tuple)):
             for v in obj:
-                d = _scan_ur(v, depth + 1)
+                d = scan_ur(v, depth + 1)
                 if d is not None and (best is None or d > best):
                     best = d
         return best
 
-    deck = _scan_ur(output_dict.get("deck_design_results", {}) or {})
+    deck = scan_ur(output_dict.get("deck_design_results", {}) or {})
     if deck is not None:
         urs["Concrete Deck Slab"] = deck
 
@@ -540,7 +540,7 @@ def _collect_utilization_ratios(output_dict: dict, bridge) -> dict:
     if cb_best is not None:
         urs["Cross Bracing"] = cb_best
 
-    ed = _scan_ur(output_dict.get("end_diaphragm_design_results", {}) or {})
+    ed = scan_ur(output_dict.get("end_diaphragm_design_results", {}) or {})
     if ed is not None:
         urs["End Diaphragms"] = ed
 
@@ -604,27 +604,27 @@ def generate_report(payload, request):
 
             try:
                 from osdagbridge.core.reports.charts import material_quantity_figures
-                for _attr, _png in material_quantity_figures(payload.inputs).items():
-                    _p = os.path.join(tmp_images, _attr + '.png')
-                    with open(_p, 'wb') as _fh:
-                        _fh.write(_png)
-                    fig_paths[_attr] = _p.replace('\\', '/')
-            except Exception as _ce:
-                logger.warning("Material charts failed: %s", _ce)
+                for name, png in material_quantity_figures(payload.inputs).items():
+                    path = os.path.join(tmp_images, name + '.png')
+                    with open(path, 'wb') as fh:
+                        fh.write(png)
+                    fig_paths[name] = path.replace('\\', '/')
+            except Exception as exc:
+                logger.warning("Material charts failed: %s", exc)
 
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
 
             try:
-                _urs = _collect_utilization_ratios(payload.output_dict, bridge)
+                urs = _collect_utilization_ratios(payload.output_dict, bridge)
                 from osdagbridge.core.reports.charts import ur_summary_figure
-                _png = ur_summary_figure(_urs)
-                if _png:
-                    _p = os.path.join(tmp_images, 'chart_ur_summary.png')
-                    with open(_p, 'wb') as _fh:
-                        _fh.write(_png)
-                    fig_paths['chart_ur_summary'] = _p.replace('\\', '/')
-            except Exception as _ue:
-                logger.warning("UR chart failed: %s", _ue)
+                png = ur_summary_figure(urs)
+                if png:
+                    path = os.path.join(tmp_images, 'chart_ur_summary.png')
+                    with open(path, 'wb') as fh:
+                        fh.write(png)
+                    fig_paths['chart_ur_summary'] = path.replace('\\', '/')
+            except Exception as exc:
+                logger.warning("UR chart failed: %s", exc)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
             doc_parts = []
