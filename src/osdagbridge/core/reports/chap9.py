@@ -1,3 +1,5 @@
+from .styles import styled_chapter
+@styled_chapter
 def references():
     return r"""
 \chapter*{References}

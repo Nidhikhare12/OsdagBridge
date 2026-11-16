@@ -3,6 +3,8 @@
 # Extracted from report_generator.py — DO NOT add business logic here.
 # =============================================================================
 
+from .styles import styled_chapter
+from .load_tables import live_load_tables
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,
     KEY_LL_CUSTOM_VEHICLES,
@@ -56,6 +58,7 @@ from osdagbridge.core.utils.common import (
 from osdagbridge.core.reports.report_utils import _tex, _render_value
 from osdagbridge.core.reports.styles import repeating_longtable_header
 
+@styled_chapter
 def ch3_loads(input_dict):
     # Live load vehicle names mapping
     vehicles = []
@@ -267,7 +270,7 @@ def ch3_loads(input_dict):
 
     lc_rows_str = "\n".join(lc_rows)
     load_combo_header = repeating_longtable_header(
-        r"\textbf{Combination ID} & \textbf{Load Cases} \\\\[6pt]"
+        r"\textbf{Combination ID} & \textbf{Load Cases} \\[6pt]"
     )
 
     return r"""
@@ -304,32 +307,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Vehicle Live Loads (LL)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
-\textnormal{Vehicles selected in the design UI} & """ + _tex(vehicles_str) + r""" \\[6pt]
-\hline
-\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
-\hline
-\textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
-\hline
-\end{longtable}
-
-\vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Footway Live Load (LL)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
-\textnormal{Footway loading mode} & """ + _tex(str(fp_mode or "Not specified")) + r""" \\[6pt]
-\hline
-\textnormal{Footway live-load intensity} & """ + _tex(fp_str) + r""" \\[6pt]
-\hline
-\textnormal{Applicable reference} & IRC 6:2017, Clause 206.1 \\[6pt]
-\hline
-\end{longtable}
+""" + live_load_tables(input_dict) + r"""
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}

@@ -149,82 +149,7 @@ logger = logging.getLogger(__name__)
 # PREAMBLE
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def preamble(project_name, job_number, report_date, report_version='Rev 0'):
-    pn = _tex(project_name)
-    jn = _tex(job_number)
-    rd = _tex(report_date)
-    rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
-""" + report_layout_tex() + r"""
-
-\fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
-\pagestyle{main}
-\setstretch{1.15}
-
-% Custom Commands
-\newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
-\newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
-
-% Software-default asterisk
-\newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
-
-\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
-\author{}
-\date{}
-
-\begin{document}
-"""
+from .styles import preamble
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -823,7 +748,7 @@ def generate_report(payload, request):
                     p = os.path.join(tmp_images, attr + '.png')
                     with open(p, 'wb') as fh:
                         fh.write(img_bytes)
-                    fig_paths[attr] = p.replace('\\', '/')
+                    fig_paths[attr] = 'images/' + attr + '.png'
             payload.figure_data.clear()  # bytes no longer needed — free RAM now
 
             # ── Write title-page logos into tmp_dir/assets (auto-deleted) ──
@@ -851,14 +776,15 @@ def generate_report(payload, request):
             # Generate figures from calculated report data. They are stored in
             # the existing temporary figure directory and never hard-coded.
             chart_checks = payload.design_checks or payload.output_dict
-            payload.figure_data.update(build_chart_images(chart_checks, quantities))
+            payload.figure_data.update(build_chart_images(chart_checks, quantities, payload.output_dict))
             for attr, img_bytes in list(payload.figure_data.items()):
                 if attr in fig_paths or not img_bytes:
                     continue
                 p = os.path.join(tmp_images, attr + '.png')
                 with open(p, 'wb') as fh:
                     fh.write(img_bytes)
-                fig_paths[attr] = p.replace('\\', '/')
+                fig_paths[attr] = 'images/' + attr + '.png'
+            payload.figure_data.clear()
 
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
@@ -914,6 +840,15 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
+            source_dir = os.path.join(request.output_dir, request.file_stem + '_source')
+            os.makedirs(source_dir, exist_ok=True)
+            shutil.copytree(tmp_images, os.path.join(source_dir, 'images'), dirs_exist_ok=True)
+            shutil.copytree(tmp_assets, os.path.join(source_dir, 'assets'), dirs_exist_ok=True)
+            shutil.copy2(tmp_tex, os.path.join(source_dir, request.file_stem + '.tex'))
+            shutil.copy2(tmp_tex, tex_path)
+            if not payload.options.include_pdf:
+                return ReportResult(pdf_path=None, tex_path=tex_path)
+
             # Compile twice for TOC and references
             for _ in range(2):
                 try:
@@ -928,11 +863,18 @@ def generate_report(payload, request):
                         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
                     
                     res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
+                        [compiler, '-interaction=nonstopmode', '-halt-on-error', request.file_stem + '.tex'],
+                        timeout=180,
                         **kwargs
                     )
+                    with open(os.path.join(source_dir, request.file_stem + '.compiler.log'), 'wb') as log:
+                        log.write(res.stdout + res.stderr)
+                    if res.returncode != 0:
+                        logger.error('LaTeX compilation failed; see %s', source_dir)
+                        return ReportResult(pdf_path=None, tex_path=tex_path)
                 except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
+                    return ReportResult(pdf_path=None, tex_path=tex_path)
 
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)

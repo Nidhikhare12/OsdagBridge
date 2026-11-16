@@ -3,6 +3,7 @@
 # Extracted from report_generator.py — DO NOT add business logic here.
 # =============================================================================
 from __future__ import annotations
+from .styles import styled_chapter
 from typing import TYPE_CHECKING
 
 from osdagbridge.core.utils.common import (
@@ -146,6 +147,7 @@ from osdagbridge.core.reports.styles import chart_tex
 
 if TYPE_CHECKING:
     pass
+@styled_chapter
 def ch5_design_checks(checks_data, bridge, figure_paths=None) -> str:
     """Chapter 5 — Design Checks.
 
@@ -1414,7 +1416,6 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 
 \vspace{0.4em}
 \noindent
-\setlength{\tabcolsep}{4pt}
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
 
@@ -1458,7 +1459,6 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{0.4em}
 \noindent
-\setlength{\tabcolsep}{4pt}
 \setlength{\LTleft}{0pt}
 \setlength{\LTright}{\fill}
 

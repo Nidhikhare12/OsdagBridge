@@ -9,7 +9,7 @@ from osdagbridge.core.reports.styles import repeating_longtable_header
 def test_shared_theme_reserves_header_and_footer_space():
     latex = preamble("Demo", "JOB-1", "2026-11-15")
     assert "bottom=0.95in" in latex
-    assert "headheight=16pt" in latex
+    assert "headheight=20pt" in latex
     assert "reportPass" in latex
 
 
@@ -48,3 +48,76 @@ def test_chapter_seven_repeats_header_and_embeds_quantity_chart():
     latex = ch7_quantities({}, {"material_quantities": "images/material_quantities.png"})
     assert r"\endfirsthead" in latex
     assert "material_quantities.png" in latex
+
+
+def test_selected_vehicles_exclude_false_flags_and_escape_names():
+    from osdagbridge.core.reports.load_tables import live_load_tables
+    from osdagbridge.core.utils import common as k
+    latex = live_load_tables({k.KEY_LL_IRC_CLASS_A: 'Yes', k.KEY_LL_IRC_AA_TRACKED: 'No',
+                             k.KEY_LL_CUSTOM_VEHICLES: [
+                                 {'name': 'Hidden', 'included': False},
+                                 {'name': 'Truck & trailer', 'included': True}]})
+    assert 'Class A' in latex
+    assert 'Class AA (Tracked)' not in latex
+    assert 'Hidden' not in latex
+    assert r'Truck \& trailer' in latex
+    assert r'kN/m$^2$' in latex
+
+
+def test_component_ratios_use_all_four_actual_result_schemas():
+    from osdagbridge.core.reports.report_charts import component_utilizations
+    outputs = {
+        'design_results': {'per_girder': {
+            'G1': {'checks': [{'dcr': 0.8}, {'dcr': 1.3}]},
+            'EB1': {'checks': [{'dcr': 99}]} }},
+        'deck_design_results': {'ur_bot_uls': 0.9, 'ur_top_uls': float('nan')},
+        'crossbracing_design_results': {'G1-G2': {'diagonal': {
+            'tension': {'Member.efficiency': 0.7}, 'compression': None}}},
+        'end_diaphragm_design_results': {'G1-G2': {'chord': {
+            'compression': {'Optimum.UR': 1.1}}}},
+    }
+    assert [value for _, value in component_utilizations(outputs)] == [1.3, 0.9, 0.7, 1.1]
+    assert [value for _, value in component_utilizations({})] == [None] * 4
+
+
+def test_multiline_header_keeps_body_and_is_idempotent():
+    from osdagbridge.core.reports.styles import format_tables
+    original = r'''\begin{longtable}{|L{3cm}|C{2cm}|}
+\caption{A sample}
+\hline
+\textbf{Member} & \textbf{Value} \\ \hline
+G4 & 0.88 \\ \hline
+\end{longtable}'''
+    result = format_tables(original)
+    assert result.count(r'\textbf{Member}') == 2
+    assert result.count('G4 & 0.88') == 1
+    assert r'\multicolumn{2}' in result
+    assert r'\caption{A sample}\\' in result
+    assert format_tables(result) == result
+
+
+def test_chart_rendering_does_not_change_gui_backend():
+    import matplotlib
+    before = matplotlib.get_backend()
+    build_chart_images([], {}, {})
+    assert matplotlib.get_backend() == before
+
+
+def test_failed_compiler_never_returns_an_existing_pdf(tmp_path, monkeypatch):
+    import subprocess
+    from osdagbridge.core.reports import report_generator as g
+    metadata = g.ReportMetadata('Test', '', '', '', '')
+    options = g.ReportOptions([], False, False, True)
+    request = g.ReportRequest(metadata, options, str(tmp_path), 'report')
+    payload = g.ReportPayload(metadata, options, {}, {}, [], g.ReportFigures())
+    (tmp_path / 'report.pdf').write_bytes(b'stale PDF')
+    for name in ('executive_summary', 'ch1_project_info', 'ch2_input_parameters',
+                 'ch7_quantities', 'ch8_design_log', 'references'):
+        monkeypatch.setattr(g, name, lambda *args: '')
+    monkeypatch.setattr(g, 'build_chart_images', lambda *args: {})
+    monkeypatch.setattr(g.subprocess, 'run', lambda *a, **kw:
+                        subprocess.CompletedProcess(a[0], 1, b'Compiler failed', b''))
+    result = g.generate_report(payload, request)
+    assert result.pdf_path is None
+    assert result.tex_path
+    assert (tmp_path / 'report_source' / 'report.compiler.log').read_bytes() == b'Compiler failed'

@@ -1,3 +1,5 @@
+from .styles import styled_chapter
+@styled_chapter
 def ch6_drawings(fig_paths):
     """Chapter 6 – Drawings and Visualizations.
 

@@ -1,3 +1,4 @@
+from .styles import styled_chapter
 from typing import TYPE_CHECKING
 from osdagbridge.core.utils.common import (
     KEY_SPAN,
@@ -10,6 +11,7 @@ from osdagbridge.core.reports.report_utils import _tex, _fig_embed
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
 
+@styled_chapter
 def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     lc_summary  = (asum or {}).get('load_cases', {})
     rxn_summary = (asum or {}).get('reactions',  {})
@@ -83,8 +85,6 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \vspace{1em}
 \begingroup
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
 
 \begin{longtable}{|
 >{\centering\arraybackslash}p{3.1cm}|

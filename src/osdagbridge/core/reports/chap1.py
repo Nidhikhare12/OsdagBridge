@@ -1,6 +1,8 @@
+from .styles import styled_chapter
 from osdagbridge.core.reports.report_utils import _tex
 
 
+@styled_chapter
 def ch1_project_info(m):
     return r"""
 \chapter{Project Information}
