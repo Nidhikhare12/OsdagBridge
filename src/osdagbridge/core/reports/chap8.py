@@ -79,19 +79,13 @@ form the basis of all design calculations in this software.
 
 \vspace{0.5cm}
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
 """
         + t_irc.dumps()
         + r"""
-\endgroup
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
 """
         + t_is.dumps()
         + r"""
-\endgroup
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}

@@ -47,8 +47,5 @@ def ch7_quantities(input_dict):
 \chapter{{Material Take-off \& Quantity Summary}}
 \label{{ch:material-takeoff}}
 
-\begingroup
-\setlength{{\tabcolsep}}{{3.5pt}}
 {tbl.dumps()}
-\endgroup
 """
