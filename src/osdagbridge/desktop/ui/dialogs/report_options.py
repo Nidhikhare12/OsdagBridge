@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit,
     QPushButton, QTextEdit, QTreeWidget, QTreeWidgetItem,
     QStackedWidget, QWidget, QFileDialog, QLabel, QMessageBox,
-    QGroupBox, QGridLayout,
+    QGroupBox, QGridLayout, QComboBox, QCheckBox,
 )
 from PySide6.QtCore import Qt
 from osdagbridge.core.reports.report_generator import (
@@ -313,6 +313,33 @@ class ReportOptionsDialog(QDialog):
 
         self.tree.expandAll()
 
+        # ── Theme & Visualizations Options ───────────────────────────
+        opt_group = QGroupBox("Theme && Visualization Options")
+        opt_layout = QVBoxLayout()
+        opt_layout.setContentsMargins(10, 10, 10, 10)
+        opt_layout.setSpacing(8)
+
+        theme_layout = QHBoxLayout()
+        theme_lbl = QLabel("Report Theme:")
+        self.theme_combo = QComboBox()
+        from osdagbridge.core.reports.themes import list_themes
+        for t_name in list_themes():
+            self.theme_combo.addItem(t_name)
+        theme_layout.addWidget(theme_lbl)
+        theme_layout.addWidget(self.theme_combo, 1)
+        opt_layout.addLayout(theme_layout)
+
+        self.chk_utilization = QCheckBox("Include Utilization Ratio (UR) Charts (Section 5.5)")
+        self.chk_utilization.setChecked(True)
+        opt_layout.addWidget(self.chk_utilization)
+
+        self.chk_quantities = QCheckBox("Include Material Quantities Breakdown Charts (Chapter 7)")
+        self.chk_quantities.setChecked(True)
+        opt_layout.addWidget(self.chk_quantities)
+
+        opt_group.setLayout(opt_layout)
+        layout.addWidget(opt_group)
+
         btn_layout = QHBoxLayout()
         preview_btn = QPushButton("Preview PDF")
         preview_btn.setObjectName("ghost")
@@ -527,12 +554,18 @@ class ReportOptionsDialog(QDialog):
 
         checked_sections = self.get_checked_leaf_sections()
         include_figures = "drawings" in checked_sections
+        theme_name = self.theme_combo.currentText() if hasattr(self, "theme_combo") else "osdag_classic"
+        include_ur = self.chk_utilization.isChecked() if hasattr(self, "chk_utilization") else True
+        include_qty = self.chk_quantities.isChecked() if hasattr(self, "chk_quantities") else True
 
         options = ReportOptions(
             sections=checked_sections,
             include_figures=include_figures,
             include_toc=True,
-            include_pdf=True
+            include_pdf=True,
+            theme=theme_name,
+            include_utilization_charts=include_ur,
+            include_quantity_charts=include_qty,
         )
 
         return ReportRequest(

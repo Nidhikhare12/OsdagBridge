@@ -18,7 +18,7 @@ def ch7_quantities(input_dict):
     tbl = ReportTable(
         columns=theme.columns.CH7_QUANTITY_7COL,
         caption=caption,
-        label="ch:material-takeoff",
+        label="tab:material-takeoff",
         header_rows=[headers],
     )
 
