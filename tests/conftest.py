@@ -4,6 +4,8 @@ import json
 import os
 import shutil
 from pathlib import Path
+import matplotlib
+matplotlib.use("Agg")
 import pytest
 
 

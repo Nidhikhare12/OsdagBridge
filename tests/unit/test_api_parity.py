@@ -63,9 +63,9 @@ def test_t_parity_baseline(tmp_path, fixtures_dir):
 
     appear faithfully in newly generated reports, preserving all calculation outputs.
     """
-    baseline_tex = Path("C:/Users/prana/Desktop/FOSSEE/deliverables/Report_Before.tex")
+    baseline_tex = fixtures_dir / "baseline" / "Report_Before.tex"
     if not baseline_tex.is_file():
-        pytest.skip("Baseline Report_Before.tex not found")
+        pytest.fail(f"Baseline Report_Before.tex not found at {baseline_tex}")
 
     fixture_path = fixtures_dir / "baseline_default.json"
     result = run_report_from_fixture(

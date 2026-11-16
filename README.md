@@ -207,7 +207,7 @@ src/osdagbridge/core/reports/
 Generate a complete design report from a saved design fixture without launching the GUI:
 
 ```bash
-python -m osdagbridge.core.reports.cli --fixture tests/fixtures/reports/baseline_default.json --output-dir deliverables --file-stem Report_After
+python -m osdagbridge.core.reports.cli --fixture tests/fixtures/reports/baseline_default.json --out deliverables --stem Report_After
 ```
 
 ### Running Verification Tests

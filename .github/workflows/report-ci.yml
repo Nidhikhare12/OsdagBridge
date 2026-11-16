@@ -47,8 +47,8 @@ jobs:
           mkdir -p artifacts
           python -m osdagbridge.core.reports.cli \
             --fixture tests/fixtures/reports/baseline_default.json \
-            --output-dir artifacts \
-            --file-stem Report_After
+            --out artifacts \
+            --stem Report_After
 
       - name: Verify generated PDF
         run: |

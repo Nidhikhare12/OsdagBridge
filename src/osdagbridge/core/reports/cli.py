@@ -42,6 +42,10 @@ def run_report_from_fixture(
     output_dir_p = Path(output_dir).resolve()
     output_dir_p.mkdir(parents=True, exist_ok=True)
 
+    if theme_name:
+        from osdagbridge.core.reports.theme import set_active_theme
+        set_active_theme(theme_name)
+
     metadata_dict = fixture_data.get("metadata", {})
     metadata = ReportMetadata(
         project_name=metadata_dict.get("project_name", "OsdagBridge Design Report"),
@@ -68,6 +72,7 @@ def run_report_from_fixture(
         include_figures=options_dict.get("include_figures", True),
         include_toc=options_dict.get("include_toc", True),
         include_pdf=options_dict.get("include_pdf", True),
+        theme=theme_name or "osdag_classic",
     )
 
     request = ReportRequest(
@@ -110,11 +115,15 @@ def main():
     )
     parser.add_argument(
         "--out",
+        "--output-dir",
+        dest="out",
         default="deliverables",
         help="Directory where output .tex and .pdf will be written (default: deliverables)",
     )
     parser.add_argument(
         "--stem",
+        "--file-stem",
+        dest="stem",
         default="Report_Output",
         help="Filename stem for generated .tex and .pdf (default: Report_Output)",
     )
@@ -147,6 +156,22 @@ def main():
     if result.pdf_path and os.path.exists(result.pdf_path):
         print(f"[CLI] SUCCESS: Report PDF generated at {result.pdf_path}")
         print(f"[CLI] LaTeX Source at {result.tex_path}")
+
+        if args.lint:
+            from osdagbridge.core.reports.qa.pdf_lint import run_all
+            lint_results = run_all(result.pdf_path, result.log_path)
+            all_violations = [v for violations in lint_results.values() for v in violations]
+            if all_violations:
+                print(f"[CLI] LINT FAIL: {len(all_violations)} violations found:")
+                for v in all_violations:
+                    print(f"  - {v}")
+                sys.exit(2)
+            else:
+                print("[CLI] LINT PASS: All QA checks passed cleanly.")
+
+        if not args.keep_tex and result.tex_path and os.path.exists(result.tex_path):
+            pass
+
         sys.exit(0)
     else:
         print("[CLI] ERROR: PDF generation failed.")
