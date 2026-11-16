@@ -3,6 +3,7 @@ Additional Inputs Widget for Highway Bridge Design
 Provides detailed input fields for manual bridge parameter definition
 """
 from copy import deepcopy
+import re
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QTabBar, QLabel, QLineEdit,
@@ -22,6 +23,63 @@ from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builde
 from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import ADDITIONAL_INPUTS_SCHEMA
 from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder._load_combination_widget import LoadCombinationWidget
 from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builder import AdaptiveWidget
+
+# =================================================================================
+#   CUSTOM PARAMETER VALIDATION MAPPING (Task II - Centralized Keys)
+# =================================================================================
+
+CUSTOM_CONTROLS_MAP = [
+    {
+        "selector_key": KEY_CB_TYPE,
+        "custom_value": "Custom",
+        "target_keys": [
+            (KEY_CB_DENSITY, "Material Density (kN/m³)"),
+            (KEY_CB_WIDTH,   "Width (m)"),
+            (KEY_CB_HEIGHT,  "Height (m)"),
+            (KEY_CB_AREA,    "Area (m²)"),
+            (KEY_CB_LOAD,    "Load (kN/m)"),
+        ],
+    },
+    {
+        "selector_key": KEY_MD_TYPE,
+        "custom_value": "Custom",
+        "target_keys": [
+            (KEY_MD_DENSITY, "Material Density (kN/m³)"),
+            (KEY_MD_WIDTH,   "Width (m)"),
+            (KEY_MD_HEIGHT,  "Height (m)"),
+            (KEY_MD_AREA,    "Area (m²)"),
+            (KEY_MD_LOAD,    "Load (kN/m)"),
+        ],
+    },
+    {
+        "selector_key": KEY_RL_TYPE,
+        "custom_value": "Custom",
+        "target_keys": [
+            (KEY_RL_WIDTH,   "Railing Width (m)"),
+            (KEY_RL_HEIGHT,  "Railing Height (m)"),
+        ],
+    },
+    {
+        "selector_key": KEY_RL_LOAD_MODE,
+        "custom_value": "Custom",
+        "target_keys": [
+            (KEY_RL_LOAD_VALUE, "Railing Load (kN/m)"),
+        ],
+    },
+    {
+        "selector_key": KEY_WC_MATERIAL,
+        "custom_value": "Custom",
+        "target_keys": [
+            (KEY_WC_DENSITY, "Wearing Course Density (kN/m³)"),
+        ],
+    },
+]
+
+MODE_LINE_CUSTOM_MAP = [
+    (KEY_LL_FOOTPATH_PRESSURE, "Footpath Pressure (kN/mm²)"),
+    (KEY_SL_DEAD_LOAD,         "Dead Load for Seismic Force (kN)"),
+    (KEY_SL_LIVE_LOAD,         "Live Load for Seismic Force (kN)"),
+]
 
 # =================================================================================
 #   MAIN IMPLEMENTATION
@@ -506,7 +564,87 @@ class AdditionalInputs(QDialog):
 
     # ── Dialog Persistence ───────────────────────────────────────────────────────
 
+    def _switch_to_widget_tab(self, widget: QWidget):
+        """Activates any parent QTabWidget tabs containing the given widget."""
+        curr = widget.parentWidget()
+        while curr is not None and curr is not self:
+            parent = curr.parentWidget()
+            if isinstance(parent, QTabWidget):
+                idx = parent.indexOf(curr)
+                if idx != -1:
+                    parent.setCurrentIndex(idx)
+            curr = parent
+
+    def _validate_custom_inputs(self) -> bool:
+        """
+        Validates that any enabled parameter set to 'Custom' has non-empty inputs.
+        Halts save and prompts the user via CustomMessageBox if an empty custom value is found.
+        """
+        # 1. Standard combobox-controlled custom inputs
+        for rule in CUSTOM_CONTROLS_MAP:
+            combo = self.findChild(QComboBox, rule["selector_key"])
+            if not combo or combo.currentText().strip() != rule["custom_value"]:
+                continue
+            if not combo.isVisible() or not combo.isEnabled():
+                continue
+
+            for target_key, fallback_label in rule["target_keys"]:
+                line_edit = self.findChild(QLineEdit, target_key)
+                if not line_edit or not line_edit.isVisible() or not line_edit.isEnabled():
+                    continue
+
+                if not line_edit.text().strip():
+                    lbl = self.findChild(QLabel, f"{target_key}_label")
+                    if lbl and lbl.text().strip():
+                        clean_name = re.sub(r"<[^>]+>", "", lbl.text())
+                        param_name = clean_name.replace(":", "").strip()
+                    else:
+                        param_name = fallback_label
+
+                    self._switch_to_widget_tab(line_edit)
+                    line_edit.setFocus()
+                    line_edit.selectAll()
+
+                    CustomMessageBox(
+                        title="Input Error",
+                        text=f"Error: The custom value for '{param_name}' cannot be empty.",
+                        buttons=["OK"],
+                        dialogType=MessageBoxType.Critical,
+                    ).exec()
+                    return False
+
+        # 2. ModeLineWidget custom inputs (.mode combo + .value line edit)
+        for base_key, display_name in MODE_LINE_CUSTOM_MAP:
+            mode_combo = self.findChild(QComboBox, f"{base_key}.mode")
+            value_edit = self.findChild(QLineEdit, f"{base_key}.value")
+            if (
+                mode_combo
+                and value_edit
+                and mode_combo.isVisible()
+                and mode_combo.isEnabled()
+                and mode_combo.currentText().strip() == "Custom"
+                and value_edit.isVisible()
+                and value_edit.isEnabled()
+                and not value_edit.text().strip()
+            ):
+                self._switch_to_widget_tab(value_edit)
+                value_edit.setFocus()
+                value_edit.selectAll()
+
+                CustomMessageBox(
+                    title="Input Error",
+                    text=f"Error: The custom value for '{display_name}' cannot be empty.",
+                    buttons=["OK"],
+                    dialogType=MessageBoxType.Critical,
+                ).exec()
+                return False
+
+        return True
+
     def _save_inputs(self):  # on_change: validates all tabs then commits working_input_dict and emits CAD update signal
+        # Pre-save validation: ensure no enabled 'Custom' inputs are left empty
+        if not self._validate_custom_inputs():
+            return
 
         # Flush the currently-displayed stiffener member's widgets before committing.
         # _save_stiffener_member_data otherwise only runs when switching *away* from a
