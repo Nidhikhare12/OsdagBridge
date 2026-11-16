@@ -6,6 +6,7 @@
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,
     KEY_LL_CUSTOM_VEHICLES,
+    KEY_FOOTPATH,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
     KEY_LL_IRC_70R_BOGIE,
@@ -168,11 +169,7 @@ def ch3_loads(input_dict):
         vehicle_rows.append(r"None selected & N/A \\[6pt]" + "\n" + r"\hline")
     vehicle_rows_str = "\n".join(vehicle_rows)
 
-    print("DEBUG fp_mode =", repr(fp_mode), "fp_value =", repr(fp_value))
-    # --- Footpath live load for its own table ---
-    _fp_none = str(fp_mode).strip().lower() in ("none", "no footpath", "")
-
-    if _fp_none:
+    if str(input_dict.get(KEY_FOOTPATH, "")).strip().lower() in ("none", "no footpath"):
         fp_tex = r"No footpath provided"
     elif str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
         try:
