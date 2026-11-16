@@ -161,6 +161,12 @@ class ReportTable:
         """Explicitly add a horizontal line."""
         self._table.add_hline()
 
+    def add_raw_rows(self, raw_rows_tex: str) -> None:
+        """Append pre-formatted LaTeX row strings (e.g. multirow blocks) directly to table body."""
+        clean = raw_rows_tex.strip()
+        if clean:
+            self._table.append(NoEscape(clean))
+
     def dumps(self) -> str:
         """Render the complete LaTeX representation of the table."""
         return self._table.dumps()
