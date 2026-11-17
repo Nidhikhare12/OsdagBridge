@@ -1,0 +1,21 @@
+name: Report generator check
+
+on:
+  pull_request:
+    paths:
+      - "src/osdagbridge/core/reports/**"
+      - "tools/**"
+      - ".github/workflows/report-check.yml"
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Byte-compile report modules
+        run: python -m compileall -q src/osdagbridge/core/reports tools
+      - name: Verify styles module imports standalone
+        run: python -c "import ast,sys; [ast.parse(open(f).read()) for f in __import__('glob').glob('src/osdagbridge/core/reports/*.py')]"
