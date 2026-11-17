@@ -409,17 +409,6 @@ def ch5_design_checks(checks_data, bridge) -> str:
     # Optimized mode the stiffeners are auto-sized (nothing to verify), so the
     # whole table is omitted from the report.
     _is_custom = str(bridge.input_dict.get(KEY_DESIGN_MODE, "Optimized")).strip().lower() in {"custom", "customized"}
-    if _is_custom:
-        t58_block = "\n" + _VSPACE_MD + "\n" + _make_table(
-            _C5.CAPACITY_5COL,
-            r"\textbf{Intermediate Stiffener Checks}",
-            [["", "Check", "Required", "Provided", "Status"]],
-            t58_content,
-        ) + r"""
-\noindent\textit{Note: IS 800 Cl. 8.7.1.2}
-"""
-    else:
-        t58_block = ""
 
     # Generate Table 5.9 rows — bearing stiffener checks (IS 800 Cl.8.7.3).
     # End panel == bearing stiffener for this bridge. Each resistance vs reaction R.
