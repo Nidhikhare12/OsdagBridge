@@ -223,9 +223,9 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \hline
 \textbf{No. of Girders} & """ + (_render_value(input_dict, KEY_TS_NO_OF_GIRDERS)) + r""" \\
 \hline
-\textbf{Girder Spacing} & """ + (_render_value(input_dict, KEY_TS_GIRDER_SPACING)) + r""" \\
+\textbf{Girder Spacing} & """ + (_render_value(input_dict, KEY_TS_GIRDER_SPACING, ' m', nd=2)) + r""" \\
 \hline
-\textbf{Deck Thickness} & """ + (_render_value(input_dict, KEY_TS_DECK_THICKNESS)) + r""" \\
+\textbf{Deck Thickness} & """ + (_render_value(input_dict, KEY_TS_DECK_THICKNESS, ' mm')) + r""" \\
 \hline
 \textbf{Overall Design Status} & """ + (_tex(overall_design_status)) + r""" \\
 \hline

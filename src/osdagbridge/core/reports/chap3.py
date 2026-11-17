@@ -329,7 +329,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Wearing Course Load} & """ + (_render_value(input_dict, KEY_WC_MATERIAL)) + r""" x """ + (_render_value(input_dict, KEY_WC_THICKNESS)) + r""" \\[6pt]
+(_render_value(input_dict, KEY_WC_THICKNESS, ' mm'))
 \hline
 \textnormal{Additional SIDL (Crash Barrier)} & """ + (_render_value(input_dict, KEY_CB_LOAD)) + r""" kN/m per barrier \\[6pt]
 \hline
