@@ -372,9 +372,9 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         ed_prefix = "transverse_member_design.ed.section_properties."
         ed_members = {}
         for k, v in outputs.items():
-            if not (isinstance(k, str) and k.startswith(ed_prefix) and ".A." in k):
+            if not (isinstance(k, str) and k.startswith(ed_prefix) and k.endswith(".A")):
                 continue
-            member = k[len(ed_prefix):].split(".A.")[0]
+            member = k[len(ed_prefix):-2].split(".")[0]
             try:
                 area = float(v)
             except Exception:
