@@ -97,7 +97,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 >{\centering\arraybackslash}p{1.6cm}|
 >{\centering\arraybackslash}p{1.6cm}|}
 
-\caption{\textbf{Summary of Maximum Demands}}\\
+\caption{\textbf{Summary of Maximum Demands}} \label{tab:max-demands} \\
 \hline
 \multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
@@ -116,6 +116,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \endfirsthead
 
+\multicolumn{9}{c}{\small\textit{Summary of Maximum Demands (Continued)}} \\[4pt]
 \hline
 \multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
@@ -134,32 +135,58 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \endhead
 
+\hline
+\multicolumn{9}{r}{\small\textit{Continued on next page...}} \\
+\endfoot
+\hline
+\endlastfoot
+
 """ + merged_body + r"""
 
-\hline
 \end{longtable}
 \endgroup
 
 \vspace{1em}
 \begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
+\caption{\textbf{Reactions at Supports}} \label{tab:support-reactions} \\
 \hline
 \textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endfirsthead
+\multicolumn{3}{c}{\small\textit{Reactions at Supports (Continued)}} \\[4pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endhead
 \hline
+\multicolumn{3}{r}{\small\textit{Continued on next page...}} \\
+\endfoot
+\hline
+\endlastfoot
+Dead Load (DL) & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\hline
+Superimposed Dead Load (SIDL) & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\hline
+Live Load (LL Envelope) & """ + '' + r""" & """ + '' + r""" \\[6pt]
 \end{longtable}
 
 \vspace{1em}
 \begin{longtable}{|L{7cm}|p{8.5cm}|}
-\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
+\caption{\textbf{Deflection Summary (Live Load \& Total Load)}} \label{tab:deflection-summary} \\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value / Check Status} \\[6pt]
 \hline
+\endfirsthead
+\multicolumn{2}{c}{\small\textit{Deflection Summary (Continued)}} \\[4pt]
+\hline
+\textbf{Parameter} & \textbf{Value / Check Status} \\[6pt]
+\hline
+\endhead
+\hline
+\multicolumn{2}{r}{\small\textit{Continued on next page...}} \\
+\endfoot
+\hline
+\endlastfoot
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]
@@ -171,7 +198,6 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \textnormal{Allowable Total Deflection ($\Delta_{allow}$)} & """ + _allow_total_str + r""" \\[6pt]
 \hline
 \textnormal{Total Load Deflection Check Status} & """ + _total_status + r""" \\[6pt]
-\hline
 \end{longtable}
 
 \vspace{1em}
@@ -180,4 +206,3 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 """ + _fig_embed(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=r'0.75\textwidth') + r"""
 """ + _fig_embed(fig_paths.get('defl_ll'), 'Vertical Deflection D$_y$ (1.0 LL): Maximum deflection along span. Load Case: 1.0 LL, Combination: $D_y$. Nodes shown. Isometric view.', width=r'0.75\textwidth') + r"""
 """
-

@@ -23,15 +23,15 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                 upper = line.upper()
                 if 'WARNING' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
+                        rf'\textcolor{{statusWarn}}{{{escaped}}}\\')
                 elif 'ERROR' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
+                        rf'\textcolor{{statusFail}}{{{escaped}}}\\')
                 elif 'INFO' in upper:
                     lines_tex.append(
                         rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
                 else:
-                    continue  # skip lines without a known level — Osdag patter
+                    continue
 
     mode = str(input_dict.get(KEY_DESIGN_MODE, 'Optimized')).strip().lower()
     is_custom = mode in {'custom', 'customized'}
@@ -56,48 +56,70 @@ form the basis of all design calculations in this software.
 \vspace{0.5cm}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{|C{2.8cm}|C{1.8cm}|p{10.2cm}|}
+\caption{\textbf{Indian Road Congress (IRC) Design Codes}} \label{tab:irc-codes} \\
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
+\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\[6pt]
 \hline
-IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
+\endfirsthead
+\multicolumn{3}{c}{\small\textit{Table \thetable{} (Continued) --- IRC Design Codes}} \\[4pt]
 \hline
-IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\ 
+\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\[6pt]
 \hline
-IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\ 
+\endhead
 \hline
-IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\ 
+\multicolumn{3}{r}{\small\textit{Continued on next page...}} \\
+\endfoot
 \hline
-IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\ 
+\endlastfoot
+IRC 5 & 2015 & General Features of Design --- carriageway widths, kerb, footpath dimensions \\ 
+\hline
+IRC 6 & 2017 & Loads and Load Combinations --- dead load, live load, impact, wind, temperature, etc. \\ 
+\hline
+IRC 22 & 2015 & Composite Construction (LS) --- Composite section properties, ULS/SLS design, shear connectors \\ 
+\hline
+IRC 24 & 2010 & Steel Road Bridges (LS) --- Stiffener design, skew angle limits, diaphragm requirements \\ 
+\hline
+IRC 112 & 2020 & Concrete Road Bridges --- Deck slab flexure, shear, crack width, reinforcement \\ 
 \hline
 IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\endgroup
+
+\vspace{0.5cm}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{|C{2.8cm}|C{1.8cm}|p{10.2cm}|}
+\caption{\textbf{Bureau of Indian Standards (IS) Design Codes}} \label{tab:is-codes} \\
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Scope} \\
+\textbf{Code} & \textbf{Year} & \textbf{Scope} \\[6pt]
 \hline
-IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\
+\endfirsthead
+\multicolumn{3}{c}{\small\textit{Table \thetable{} (Continued) --- IS Design Codes}} \\[4pt]
 \hline
-IS 456 & 2000 & Concrete - simplified stress-block for deck moment capacity \\
+\textbf{Code} & \textbf{Year} & \textbf{Scope} \\[6pt]
+\hline
+\endhead
+\hline
+\multicolumn{3}{r}{\small\textit{Continued on next page...}} \\
+\endfoot
+\hline
+\endlastfoot
+IS 800 & 2007 & Steel construction --- tension, compression, bending, shear, LTB, stiffeners, combined checks \\
+\hline
+IS 456 & 2000 & Concrete --- simplified stress-block for deck moment capacity \\
 \hline
 IS 1786 & 2008 & Reinforcement steel properties \\
 \hline
 IS 1893 (Part 3) & 2014 & Earthquake resistant design \\
 \hline
-IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
+IS 2062 & 2011 & Structural steel --- yield and ultimate strength by grade \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\endgroup
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}
@@ -191,5 +213,3 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 """)
 
     return "\n".join(assumptions)
-
-
