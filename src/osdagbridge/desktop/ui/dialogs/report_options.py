@@ -69,6 +69,7 @@ class ReportOptionsDialog(QDialog):
             QDialog#report_options_dialog {{
                 background-color: #ffffff;
                 border: 1px solid {cls._OSDAG_GREEN};
+                font-family: 'Segoe UI', Arial, sans-serif;
             }}
 
             /* Labels */
