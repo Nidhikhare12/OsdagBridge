@@ -94,6 +94,95 @@ def _build_nodes_members() -> tuple[dict, dict]:
     return nodes, members
 
 
+def classify_transverse_members(
+    nodes: dict,
+    members: dict,
+    groups: dict | None = None,
+    z_tol: float = 1e-3,
+    x_tol: float = 1e-3,
+) -> dict[str, list[int]]:
+    """
+    Classify transverse grillage members into End Diaphragm and Intermediate Cross Bracing.
+
+    Parameters
+    ----------
+    nodes : dict
+        Nodal coordinates mapping {node_tag: [x, y, z]}.
+    members : dict
+        Element connectivity mapping {elem_tag: [n1, n2]}.
+    groups : dict, optional
+        ospgrillage element groups mapping {group_name: [elem_tag, ...]}.
+    z_tol : float
+        Tolerance for transverse delta-z classification.
+    x_tol : float
+        Tolerance for grouping elements along span x-stations.
+
+    Returns
+    -------
+    dict[str, list[int]]
+        Dictionary with keys:
+        - 'all': All transverse member element tags.
+        - 'end_diaphragm': Element tags belonging to End Diaphragms (at start/end supports).
+        - 'intermediate_cross_bracing': Element tags belonging to intermediate cross bracings.
+    """
+    # 1. First priority: if ospgrillage element groups are available and populated,
+    # use them directly.
+    if groups:
+        end_diaph = list(groups.get("start_edge", [])) + list(groups.get("end_edge", []))
+        intermediate = list(groups.get("transverse_slab", []))
+        all_trans = end_diaph + intermediate
+        if all_trans:
+            return {
+                "all": sorted(list(set(all_trans))),
+                "end_diaphragm": sorted(list(set(end_diaph))),
+                "intermediate_cross_bracing": sorted(list(set(intermediate))),
+            }
+
+    # 2. Geometric classification fallback
+    transverse_all = []
+    station_map = {}
+    for tag, (n1, n2) in members.items():
+        if n1 not in nodes or n2 not in nodes:
+            continue
+        c1, c2 = nodes[n1], nodes[n2]
+        # Transverse members connect across bridge width (Z-axis)
+        if abs(c1[2] - c2[2]) >= z_tol or abs(c1[1] - c2[1]) >= z_tol:
+            elem_tag = int(tag)
+            transverse_all.append(elem_tag)
+            x_mid = round((c1[0] + c2[0]) / 2.0, 3)
+            station_map[elem_tag] = x_mid
+
+    if not transverse_all:
+        return {"all": [], "end_diaphragm": [], "intermediate_cross_bracing": []}
+
+    stations = sorted(list(set(station_map.values())))
+    if len(stations) <= 2:
+        # If there are only 1 or 2 stations, they are at the support lines (end diaphragms)
+        return {
+            "all": transverse_all,
+            "end_diaphragm": transverse_all,
+            "intermediate_cross_bracing": [],
+        }
+
+    x_min = stations[0]
+    x_max = stations[-1]
+    end_diaphragms = []
+    intermediate_cross_bracings = []
+
+    for elem_tag in transverse_all:
+        x_pos = station_map[elem_tag]
+        if abs(x_pos - x_min) <= x_tol or abs(x_pos - x_max) <= x_tol:
+            end_diaphragms.append(elem_tag)
+        else:
+            intermediate_cross_bracings.append(elem_tag)
+
+    return {
+        "all": sorted(transverse_all),
+        "end_diaphragm": sorted(end_diaphragms),
+        "intermediate_cross_bracing": sorted(intermediate_cross_bracings),
+    }
+
+
 def dump_full_data(
     model,
     edge_dist: float = 0.0,
@@ -411,15 +500,18 @@ def _build_full_data(model, edge_dist: float = 0.0, dataset=None, lazy: bool = F
     # Classify members: longitudinal = both nodes share same Z and same Y
     _z_tol = 1e-3
     longitudinal_members = []
-    transverse_members = []
     for tag, (n1, n2) in members.items():
         if n1 not in nodes or n2 not in nodes:
             continue
         if (abs(nodes[n1][2] - nodes[n2][2]) < _z_tol and
                 abs(nodes[n1][1] - nodes[n2][1]) < _z_tol):
             longitudinal_members.append(tag)
-        else:
-            transverse_members.append(tag)
+
+    # Classify transverse members into End Diaphragm and Intermediate Cross Bracing
+    trans_classified = classify_transverse_members(nodes, members, groups=groups, z_tol=_z_tol)
+    transverse_members = trans_classified["all"]
+    end_diaphragm_members = trans_classified["end_diaphragm"]
+    intermediate_cross_bracing_members = trans_classified["intermediate_cross_bracing"]
 
     data: dict = {
         "nodes": {str(k): list(v) for k, v in nodes.items()},
@@ -427,6 +519,8 @@ def _build_full_data(model, edge_dist: float = 0.0, dataset=None, lazy: bool = F
         "groups": groups,
         "longitudinal_members": longitudinal_members,
         "transverse_members": transverse_members,
+        "end_diaphragm_members": end_diaphragm_members,
+        "intermediate_cross_bracing_members": intermediate_cross_bracing_members,
         "edge_dist": float(edge_dist),
         "loadcases": list(loadcases),
         "force_components": force_components,

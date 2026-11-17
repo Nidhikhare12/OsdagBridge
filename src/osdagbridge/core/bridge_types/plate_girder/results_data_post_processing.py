@@ -371,6 +371,8 @@ OUTPUT_KEYS = [
     "transverse_slab",
     "longitudinal_members",
     "transverse_members",
+    "end_diaphragm_members",
+    "intermediate_cross_bracing_members",
     "girders",
     "crossbracings",
     "forces",
