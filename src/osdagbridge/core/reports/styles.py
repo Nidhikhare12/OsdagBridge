@@ -1,8 +1,8 @@
 """
-OsdagBridge — Centralized Formatting & Style System (Single Source of Truth)
-=============================================================================
-Defines all global document settings, color palettes, table metrics,
-page geometries, and helper builders used across all report chapters.
+Centralized styling definitions and LaTeX helpers for OsdagBridge reports.
+
+Provides consistent document geometry, color definitions, table parameters,
+and longtable header builders across all report chapters.
 """
 
 from typing import Optional, List, Dict, Any

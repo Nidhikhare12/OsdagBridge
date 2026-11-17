@@ -1,10 +1,4 @@
-# =============================================================================
-# Chapter 3: Loads and Load Combinations
-# Refactored for OsdagBridge LaTeX Report Enhancement
-# - Separate vehicle live load and footpath live load tables
-# - Grouped multi-column Live Loads table matching IRC 6 specification
-# - Repeated table headers across all longtables
-# =============================================================================
+"""Chapter 3: Loads and Load Combinations."""
 
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,

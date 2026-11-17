@@ -125,7 +125,7 @@ from osdagbridge.core.reports.styles import (
     get_column_types,
     get_header_footer_styles
 )
-from osdagbridge.core.reports.chart_generator import (
+from osdagbridge.core.reports.charts import (
     generate_ur_summary_chart,
     generate_material_steel_chart,
     generate_concrete_vs_rebar_chart
@@ -932,6 +932,9 @@ def generate_report(payload, request):
             # post-processing is applied here to avoid mis-ordering captions
             # and column headings.
 
+            # Make image paths relative for portable LaTeX compilation
+            full_tex = full_tex.replace(tmp_images.replace('\\', '/') + '/', 'images/')
+
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
 
@@ -962,6 +965,16 @@ def generate_report(payload, request):
                 shutil.copy2(tmp_tex, tex_path)
             if os.path.exists(tmp_pdf):
                 shutil.copy2(tmp_pdf, pdf_path)
+            if os.path.exists(tmp_images):
+                out_images = os.path.join(request.output_dir, 'images')
+                os.makedirs(out_images, exist_ok=True)
+                for img_name in os.listdir(tmp_images):
+                    shutil.copy2(os.path.join(tmp_images, img_name), os.path.join(out_images, img_name))
+            if os.path.exists(tmp_assets):
+                out_assets = os.path.join(request.output_dir, 'assets')
+                os.makedirs(out_assets, exist_ok=True)
+                for asset_name in os.listdir(tmp_assets):
+                    shutil.copy2(os.path.join(tmp_assets, asset_name), os.path.join(out_assets, asset_name))
 
         if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)

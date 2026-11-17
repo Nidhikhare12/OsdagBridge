@@ -1,9 +1,4 @@
-# =============================================================================
-# Chapter 7: Material Take-off & Quantity Summary
-# Refactored for OsdagBridge LaTeX Report Enhancement
-# - Repeated table headers across page breaks on Bill of Materials
-# - Dynamic embedding of Structural Steel & Concrete vs. Rebar Bar Charts
-# =============================================================================
+"""Chapter 7: Material Take-off & Quantity Summary."""
 
 from typing import Optional, Dict
 

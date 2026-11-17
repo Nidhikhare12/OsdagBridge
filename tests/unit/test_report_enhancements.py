@@ -1,13 +1,9 @@
-r"""
-Comprehensive Unit & Regression Tests for OsdagBridge LaTeX Report Enhancements
-=============================================================================
-Validates all six requirements specified in the project scope:
-  1. Repeated Table Headers across page breaks (\endfirsthead / \endhead)
-  2. Layout, Footer Overlap, and Vertical Spacing Fixes (Geometry & Footskip)
-  3. Load & Geometry Table Refactoring (Separated Live Load & Footway tables)
-  4. Utilization Ratio (Demand/Capacity) Summary Visualizations (UR = 1.0 line)
-  5. Material Quantity Bar Charts (Structural Steel & Concrete vs. Rebar)
-  6. Centralized Formatting & Style System (Single Source of Truth)
+"""
+Unit tests for OsdagBridge LaTeX report generator.
+
+Covers longtable header repetition, geometry and footskip margins,
+load table formatting (IRC:6), UR and material quantity chart generation,
+and report assembly.
 """
 
 import os
@@ -27,8 +23,7 @@ from osdagbridge.core.reports.styles import (
     get_table_environment_settings,
     get_header_footer_styles
 )
-import osdagbridge.core.reports.theme as theme
-from osdagbridge.core.reports.chart_generator import (
+from osdagbridge.core.reports.charts import (
     generate_ur_summary_chart,
     generate_material_steel_chart,
     generate_concrete_vs_rebar_chart
@@ -59,12 +54,10 @@ from osdagbridge.core.utils.common import (
 class TestReportEnhancements(unittest.TestCase):
     """Test suite verifying all report generator refactoring deliverables."""
 
-    def test_01_centralized_styles_and_theme_alias(self):
-        """Verify centralized styling constants and theme module aliasing."""
+    def test_01_centralized_styles(self):
+        """Verify centralized styling constants and LaTeX definitions."""
         self.assertEqual(COLOR_OSDAG_GREEN, "#91B014")
         self.assertEqual(COLOR_THRESHOLD_LINE, "#DC2626")
-        self.assertEqual(theme.COLOR_OSDAG_GREEN, COLOR_OSDAG_GREEN)
-        self.assertEqual(theme.GEOMETRY_OPTIONS, GEOMETRY_OPTIONS)
 
         # Check geometry includes safe footskip
         self.assertIn("footskip=14mm", GEOMETRY_OPTIONS)
