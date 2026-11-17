@@ -668,7 +668,8 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            for _ in range(2):
+            compile_ok = True
+            for run in range(2):
                 try:
                     kwargs = {
                         'cwd': tmp_dir,
@@ -679,24 +680,53 @@ def generate_report(payload, request):
                     }
                     if os.name == 'nt':
                         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
+
                     res = subprocess.run(
                         [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
                         **kwargs
                     )
+                    if res.returncode != 0:
+                        compile_ok = False
+                        logger.warning("pdflatex run %d exited with code %d", run + 1, res.returncode)
                 except Exception as exc:
-                    logger.warning(f"pdflatex run failed: {exc}")
+                    compile_ok = False
+                    logger.warning("pdflatex run %d failed: %s", run + 1, exc)
 
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)
+
+            pdf_valid = False
             if os.path.exists(tmp_pdf):
+                try:
+                    with open(tmp_pdf, 'rb') as fh:
+                        header = fh.read(8)
+                        fh.seek(0, os.SEEK_END)
+                        size = fh.tell()
+                    pdf_valid = header.startswith(b'%PDF-') and size > 1024
+                except OSError:
+                    pdf_valid = False
+
+            if pdf_valid:
                 shutil.copy2(tmp_pdf, pdf_path)
+            elif compile_ok:
+                logger.warning("pdflatex exited cleanly but output PDF is missing or invalid")
 
         if os.path.exists(pdf_path):
-            logger.info("Report generated: %s", pdf_path)
-            return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
+            try:
+                with open(pdf_path, 'rb') as fh:
+                    valid = fh.read(5) == b'%PDF-'
+            except OSError:
+                valid = False
+            if valid:
+                logger.info("Report generated: %s", pdf_path)
+                return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
+            logger.error("PDF at %s failed %PDF- header validation", pdf_path)
+            try:
+                os.remove(pdf_path)
+            except OSError:
+                pass
 
-        logger.error("pdflatex ran but no PDF was produced.")
+        logger.error("pdflatex ran but no valid PDF was produced.")
         if 'res' in locals():
             logger.error("pdflatex STDOUT:\n%s", res.stdout.decode('utf-8', 'ignore'))
             logger.error("pdflatex STDERR:\n%s", res.stderr.decode('utf-8', 'ignore'))
