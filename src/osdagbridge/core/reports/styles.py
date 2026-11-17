@@ -17,10 +17,6 @@ Two consumption styles are provided:
   ready-made LaTeX fragments for dynamic content.
 """
 
-# =============================================================================
-# COLOR PALETTE
-# =============================================================================
-
 #: Osdag brand green (HTML hex, consumed by \definecolor{osdagGreen}).
 OSDAG_GREEN_HTML = "91B014"
 
@@ -31,7 +27,6 @@ COLOR_FAIL = "red"
 COLOR_INFO = "blue"
 COLOR_MUTED = "black"
 COLOR_HIGHLIGHT = "yellow"  # used by the \todo debug macro only
-
 
 # =============================================================================
 # SEMANTIC SPACING / FONT MACROS
@@ -82,15 +77,9 @@ SPACING_MACROS = {
     "OsdagCaptionSkipBelow":  r"\setlength{\belowcaptionskip}{2pt}",
 }
 
-
-# =============================================================================
-# STATUS / MARKER HELPERS  (Python side — return LaTeX fragments)
-# =============================================================================
-
 def text_colored(color: str, body: str) -> str:
     """Wrap ``body`` in a \\textcolor of the given LaTeX color name."""
     return r"\textcolor{%s}{%s}" % (color, body)
-
 
 #: Plain PASS marker.
 PASS = "PASS"
@@ -101,13 +90,11 @@ FAIL = text_colored(COLOR_FAIL, "PASS".replace("PASS", "FAIL"))
 #: Black PASS marker (used where PASS must stay neutral, e.g. ch5 utilization).
 PASS_BLACK = text_colored(COLOR_MUTED, "PASS")
 
-
 def status(ok: bool, *, muted_pass: bool = False) -> str:
     """Return the standard PASS/FAIL cell content for a boolean check."""
     if ok:
         return PASS_BLACK if muted_pass else PASS
     return FAIL
-
 
 def colored_status(value, *, fail_threshold=None, muted_pass: bool = False):
     """Color a numeric/string status red when it fails.
@@ -128,21 +115,14 @@ def colored_status(value, *, fail_threshold=None, muted_pass: bool = False):
         return text_colored(COLOR_FAIL, s)
     return text_colored(COLOR_MUTED, s) if muted_pass else s
 
-
 def sd() -> str:
     """Software-default marker (also flags the page footer asterisk)."""
     return r"\sdstar"
-
-
-# =============================================================================
-# DOCUMENT-LEVEL LATEX BLOCKS
-# =============================================================================
 
 def _macro_definitions() -> str:
     lines = [r"\newcommand{\%s}{%s}" % (name, frag)
              for name, frag in SPACING_MACROS.items()]
     return "\n".join(lines)
-
 
 def geometry_and_packages() -> str:
     """Document class options, package list and global table/layout metrics."""
@@ -200,7 +180,6 @@ def geometry_and_packages() -> str:
 \BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
 \BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
 """
-
 
 def color_and_page_styles(project_name: str, job_number: str,
                            report_date: str, report_version: str) -> str:
@@ -277,7 +256,6 @@ def color_and_page_styles(project_name: str, job_number: str,
 \AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
 """
 
-
 def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     """Full LaTeX preamble through \\begin{document}."""
     return (
@@ -292,7 +270,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \begin{document}
 """
     )
-
 
 def title_page(m, osdag_logo, org_logo):
     """Title page with logos and project metadata table."""
@@ -353,7 +330,6 @@ def title_page(m, osdag_logo, org_logo):
 \end{titlepage}
 """
 
-
 def toc_section() -> str:
     """Table-of-contents styling and \tableofcontents."""
     return r"""
@@ -386,11 +362,6 @@ def toc_section() -> str:
 \renewcommand{\contentsname}{\centering\Large\bfseries Table of Contents}
 \tableofcontents
 """
-
-
-# =============================================================================
-# INTERNAL HELPERS
-# =============================================================================
 
 def _escape_tex(value) -> str:
     """Local escape mirroring report_utils._tex without a hard dependency."""
