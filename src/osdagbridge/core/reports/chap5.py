@@ -155,6 +155,16 @@ _ROW_NOBREAK = row_end_nobreak(6.0)
 _VSPACE_MD = vspace(_THEME.spacing.space_md)
 _VSPACE_SM = vspace(_THEME.spacing.space_sm)
 _C5 = _THEME.columns.ch5
+from osdagbridge.core.reports.latex.text import vspace, row_end, row_pad, row_end_nobreak
+from osdagbridge.core.reports.theme import get_active_theme
+
+_THEME = get_active_theme()
+_ROW_END = row_end()
+_ROW_PAD_3 = row_pad(3.0)
+_ROW_NOBREAK = row_end_nobreak(6.0)
+_VSPACE_MD = vspace(_THEME.spacing.space_md)
+_VSPACE_SM = vspace(_THEME.spacing.space_sm)
+_C5 = _THEME.columns.ch5
 
 if TYPE_CHECKING:
     pass
@@ -354,7 +364,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
 
     # Generate Table 5.7 rows
     t57_rows = []
-    for lbl, _ in girder_entries:
+    for idx, (lbl, _) in enumerate(girder_entries):
+        if idx == 2:
+            t57_rows.append(r"\pagebreak")
         t57_rows.append(
             r"\multirow{6}{*}{\makecell{" + lbl + r"""}} & \textnormal{Shear Buckling Design Method} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_METHOD) + " " + _ROW_END + r"""
 \cline{2-3}
@@ -930,7 +942,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     t57_table = _make_table(
         _C5.STIFFENER_SUMMARY_3COL,
         r"\textbf{Stiffener Design Summary}",
-        None,
+        [["Girder", "Parameter", "Value"]],
         t57_content,
     )
     if _is_custom:
@@ -1023,7 +1035,7 @@ This section presents all structural design checks performed by OsdagBridge. For
 """ + t56_table + r"""
 \noindent\textit{Note: IRC 22 Cl. 603.3.3.1, IS 800 Cl. 8.2.2}
 
-""" + _VSPACE_MD + r"""
+\clearpage
 """ + t57_table + r"""
 """ + t58_block + r"""
 """ + _VSPACE_MD + r"""
