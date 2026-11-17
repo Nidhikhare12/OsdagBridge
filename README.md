@@ -148,7 +148,7 @@ Run the complete test suite:
 pytest -q
 ```
 
-Continuous integration runs automatically through GitHub Actions (`.github/workflows/ci.yml`).
+Continuous integration runs automatically through GitHub Actions (`.github/workflows/report-check.yml`).
 
 ---
 

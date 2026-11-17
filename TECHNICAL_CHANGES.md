@@ -41,10 +41,10 @@
   bar charts.
 
 ## Known gaps
-- UR chart wiring is in place but produced no figure on the smoke input —
-  `_collect_utilization_ratios` likely found no numeric URs in
-  `design_results`/`deck_design_results` for this case; verify keys against a
-  real GUI run.
+- UR chart: `_collect_utilization_ratios` extracts worst DCR/UR per element
+  (girders via `design_results.per_girder`, deck/diaphragms via recursive
+  ur/dcr scan, cross bracing via `get_cb_efficiency`). Renders only when data
+  exists; hidden otherwise. Verified embedded in Report_After.tex.
 - 5 small `table`[H]+`tabular` blocks (chap2 ×3, chap8 ×2) not converted.
 - Footer-bleed fix relies on longtable migration + needspace guard; visual
   check of ~page 30 recommended.

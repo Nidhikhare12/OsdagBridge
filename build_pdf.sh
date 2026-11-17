@@ -4,6 +4,13 @@
 # Runs the full plate-girder analysis/design pipeline and compiles the
 # LaTeX design report to PDF without needing the Qt GUI.
 #
+# Prerequisites:
+#   - macOS or Linux with Miniconda installed at ~/miniconda3 (or edit
+#     CONDA_SH below to point at your conda.sh)
+#   - conda env "osdagbridge-env" created from environment.yml
+#   - a real pdfTeX: TinyTeX at ~/Library/TinyTeX (macOS) or any TeX Live
+#     install; the script prefers TinyTeX's pdflatex when present
+#
 # Usage:
 #   ./build_pdf.sh [output_dir] [file_stem]
 #   ./build_pdf.sh reports Report_After
