@@ -16,6 +16,10 @@ from PySide6.QtCore import Qt, QEvent, QTimer
 
 from navcube import NavCubeOverlay, NavCubeStyle
 from osdagbridge.desktop.ui.utils.mpl_widget_navcube_sync import MatplotlibNavCubeSync
+from osdagbridge.core.utils.common import (
+    KEY_DISP_END_DIAPHRAGM,
+    KEY_DISP_INTERMEDIATE_CROSS_BRACING,
+)
 
 from osdagbridge.core.bridge_types.plate_girder.plot_generator import (
     build_figure_sfd,
@@ -589,7 +593,12 @@ class MplPlotWidget(QWidget):
 
             ax = self._fig.axes[0]
             if old_elev is not None and old_azim is not None:
-                ax.view_init(elev=old_elev, azim=old_azim)
+                if sel_girder in (KEY_DISP_END_DIAPHRAGM, KEY_DISP_INTERMEDIATE_CROSS_BRACING) and abs(old_azim - (-90)) < 1e-3:
+                    ax.view_init(elev=22, azim=-55)
+                else:
+                    ax.view_init(elev=old_elev, azim=old_azim)
+            elif sel_girder in (KEY_DISP_END_DIAPHRAGM, KEY_DISP_INTERMEDIATE_CROSS_BRACING):
+                ax.view_init(elev=22, azim=-55)
 
             title = ax.get_title()
             ax.set_title("")
@@ -1480,7 +1489,9 @@ class MplPlotWidget(QWidget):
         combo = self._output_dock.output_widget.findChild(
             QComboBox, "analysis.load_combination"
         )
-        return combo.currentText() if combo else (self._loadcases[0] if self._loadcases else "")
+        if combo and combo.currentText() and combo.currentText() != "-":
+            return combo.currentText()
+        return self._loadcases[0] if self._loadcases else ""
 
     def _current_force_key(self) -> str:
         from osdagbridge.desktop.ui.utils.custom_widgets import CustomRadioButton
