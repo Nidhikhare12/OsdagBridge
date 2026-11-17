@@ -312,6 +312,7 @@ KEY_DISP_SKEW_ANGLE = "Skew Angle (deg)"
 DISP_TITLE_MATERIAL = "Material Inputs"
 KEY_DISP_GIRDER = "Girder"
 KEY_DISP_CROSS_BRACING = "Cross Bracing"
+KEY_DISP_INTERMEDIATE_CROSS_BRACING = "Intermediate Cross Bracing"
 KEY_DISP_END_DIAPHRAGM = "End Diaphragm"
 KEY_DISP_DECK_CONCRETE_GRADE = "Deck"
 

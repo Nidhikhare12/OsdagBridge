@@ -249,7 +249,7 @@ class FrontendData:
                 {"kind": "analysis"}),
 
             (KEY_ANALYSIS_MEMBER, "Member",
-                TYPE_COMBOBOX, ["All"], True, "No Validator", {}),
+                TYPE_COMBOBOX, ["All", KEY_DISP_END_DIAPHRAGM, KEY_DISP_INTERMEDIATE_CROSS_BRACING], True, "No Validator", {}),
 
             (KEY_ANALYSIS_LOAD_COMBINATION, "Load Case /\nCombination",
                 TYPE_COMBOBOX, ["-"], True, "No Validator", {}),
