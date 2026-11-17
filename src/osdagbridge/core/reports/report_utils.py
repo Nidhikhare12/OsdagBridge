@@ -26,10 +26,15 @@ def _tex(value):
     return s
 
 
-def _render_value(source_dict, key, unit=""):
+def _render_value(source_dict, key, unit="", nd=None):
     val = source_dict.get(key)
     if val in ("", None):
         return ""
+    if nd is not None:
+        try:
+            val = f"{float(val):.{nd}f}"
+        except (TypeError, ValueError):
+            pass
     return _tex(val) + unit
 
 
