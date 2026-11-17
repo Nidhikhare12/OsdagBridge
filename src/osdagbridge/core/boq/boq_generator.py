@@ -89,6 +89,12 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         "crash_barrier_vol_total": "N.A.",
         "crash_barrier_wt_single": "N.A.",
         "crash_barrier_wt_total": "N.A.",
+
+        "end_diaphragm_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "end_diaphragm_qty": "N.A.",
+        "end_diaphragm_vol_total": "N.A.",
+        "end_diaphragm_wt_single": "N.A.",
+        "end_diaphragm_wt_total": "N.A.",
     }
     try:
         span_val = inputs.get(KEY_SPAN)
@@ -359,6 +365,39 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["crash_barrier_vol_total"] = "N.A."
             quantities["crash_barrier_wt_single"] = "N.A."
             quantities["crash_barrier_wt_total"] = "N.A."
+
+        # 7. End Diaphragm Steel (Cu.m) and Weight (MT)
+        # output_dict stores one entry per girder pair, e.g.
+        # "transverse_member_design.ed.section_properties.<member>.A.<PAIR>"
+        ed_prefix = "transverse_member_design.ed.section_properties."
+        ed_members = {}
+        for k, v in outputs.items():
+            if not (isinstance(k, str) and k.startswith(ed_prefix) and ".A." in k):
+                continue
+            member = k[len(ed_prefix):].split(".A.")[0]
+            try:
+                area = float(v)
+            except Exception:
+                continue
+            if area > 0:
+                ed_members[member] = max(ed_members.get(member, 0.0), area)
+        try:
+            ed_len = float(inputs.get(KEY_TS_GIRDER_SPACING) or 0)
+        except Exception:
+            ed_len = 0.0
+        if ed_members and ed_len > 0:
+            n_bays = max(int(n_girders) - 1, 1)
+            ed_qty = 2 * n_bays
+            ed_area_total = sum(ed_members.values())
+            ed_vol_each = ed_area_total * ed_len
+            ed_vol_total = ed_qty * ed_vol_each
+            ed_wt_each = ed_vol_each * 7.85
+            ed_wt_total = ed_qty * ed_wt_each
+            quantities["end_diaphragm_vol_formula"] = f"${ed_area_total:.5f}\\text{{ m}}^2 \\times {ed_len:.2f}\\text{{ m}} = {ed_vol_each:.5f}\\text{{ m}}^3$"
+            quantities["end_diaphragm_qty"] = str(ed_qty)
+            quantities["end_diaphragm_vol_total"] = f"{ed_vol_total:.4f}"
+            quantities["end_diaphragm_wt_single"] = f"{ed_wt_each:.4f}"
+            quantities["end_diaphragm_wt_total"] = f"{ed_wt_total:.4f}"
 
     except Exception as exc:
         logger.warning(f"Error calculating material quantities: {exc}")
