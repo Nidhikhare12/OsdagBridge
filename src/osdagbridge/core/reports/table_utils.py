@@ -1,86 +1,64 @@
-"""Table helpers for OsdagBridge reports.
-
-add_repeating_headers() post-processes the final LaTeX string and makes every
-longtable repeat its header row on continuation pages.
-
-Expected longtable shape (what the chapter files already produce):
-
-    \\begin{longtable}{|l|l|}
-    \\caption{...}\\label{...}\\\\
-    \\hline
-    \\textbf{A} & \\textbf{B} \\\\
-    \\hline
-    body rows...
-    \\end{longtable}
-
-After processing, the header block is followed by:
-
-    \\endfirsthead
-    \\hline
-    \\textbf{A} & \\textbf{B} \\\\
-    \\hline
-    \\endhead
-
-Tables are left untouched when they:
-  - already contain \\endhead (e.g. Table 2.8 and Table 4.1),
-  - have no plain header row (\\hline, row, \\hline) right after the caption,
-  - have a header row that uses \\multicolumn (multi-row/merged headers).
-"""
-
 import re
 
-_LONGTABLE_RE = re.compile(
-    r"\\begin\{longtable\}.*?\\end\{longtable\}", re.DOTALL
+_LONGTABLE = re.compile(r"\\begin\{longtable\}.*?\\end\{longtable\}", re.S)
+
+_HEADER = re.compile(
+    r"(?P<pre>[ \t]*\\hline[ \t]*\n)"
+    r"(?P<row>[^\n]*\\textbf\{[^\n]*\\\\(?:\[[^\]]*\])?[ \t]*)\n"
+    r"(?P<post>[ \t]*\\hline[ \t]*\n)"
 )
+_HEAD_BLOCK = re.compile(r"\\endfirsthead(.*?)\\endhead[ \t]*\n?", re.S)
+_CAPTION = re.compile(r"\\caption\{\\textbf\{(.*?)\}\}[ \t]*(?:\\\\)?[ \t]*\n")
+_LEADING_HLINE = re.compile(r"^[ \t]*\\hline[ \t]*\n")
+
+# Tables whose generated LaTeX has no header row: caption -> header row to add
+FALLBACK_HEADERS = {
+    "Stiffener Design Summary":
+        r"\textbf{Girder} & \textbf{Parameter} & \textbf{Value} \\[6pt]",
+    "Deck Slab --- Loading and Geometry":
+        r"\textbf{Parameter} & \textbf{Value} \\[6pt]",
+}
 
 
-def _is_hline(line):
-    return line.strip().startswith(r"\hline")
+def _nth_newline(text, n):
+    idx = -1
+    for _ in range(n):
+        idx = text.find("\n", idx + 1)
+        if idx == -1:
+            return len(text)
+    return idx
 
 
-def _process_longtable(block):
-    """Return the longtable block with a repeating header added, or unchanged."""
-    if r"\endhead" in block or r"\endfirsthead" in block:
+def _build_head(pre, row, post):
+    return "\\endfirsthead\n" + pre + row + "\n" + post + "\\endhead\n"
+
+
+def _fallback(block):
+    cap = _CAPTION.search(block)
+    if not cap:
         return block
-
-    lines = block.split("\n")
-
-    # First \hline after \begin{longtable}: top rule of the header.
-    top = next((i for i, ln in enumerate(lines) if i > 0 and _is_hline(ln)), None)
-    if top is None:
+    row = FALLBACK_HEADERS.get(cap.group(1).strip())
+    if not row:
         return block
+    head = "\\hline\n" + row + "\n\\hline\n" + _build_head("\\hline\n", row, "\\hline\n")
+    rest = _LEADING_HLINE.sub("", block[cap.end():], count=1)
+    return block[:cap.end()] + head + rest
 
-    # Header row: next non-empty line after that rule.
-    row = top + 1
-    while row < len(lines) and not lines[row].strip():
-        row += 1
-    if row >= len(lines):
-        return block
 
-    header = lines[row]
-    if not header.rstrip().endswith(r"\\"):
-        return block
-    if _is_hline(header) or r"\multicolumn" in header:
-        return block
+def _fix_table(block):
+    seg = _HEAD_BLOCK.search(block)
+    if seg:
+        if "&" in seg.group(1):
+            return block
+        block = block[:seg.start()] + block[seg.end():]
 
-    # Closing rule of the header.
-    bottom = row + 1
-    while bottom < len(lines) and not lines[bottom].strip():
-        bottom += 1
-    if bottom >= len(lines) or not _is_hline(lines[bottom]):
-        return block
+    m = _HEADER.search(block)
+    if m and m.start() <= _nth_newline(block, 6):
+        insert = _build_head(m.group("pre"), m.group("row"), m.group("post"))
+        return block[:m.end()] + insert + block[m.end():]
 
-    repeated = [
-        r"\endfirsthead",
-        lines[top],
-        header,
-        lines[bottom],
-        r"\endhead",
-    ]
-    new_lines = lines[: bottom + 1] + repeated + lines[bottom + 1:]
-    return "\n".join(new_lines)
+    return _fallback(block)
 
 
 def add_repeating_headers(tex):
-    """Add repeating header rows to every eligible longtable in `tex`."""
-    return _LONGTABLE_RE.sub(lambda m: _process_longtable(m.group(0)), tex)
+    return _LONGTABLE.sub(lambda m: _fix_table(m.group(0)), tex)
