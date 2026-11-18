@@ -930,12 +930,13 @@ def generate_report(payload, request):
             doc_parts.append(r"\end{document}")
 
             full_tex = "\n".join(doc_parts)
+            from .table_utils import add_repeating_headers
+            full_tex = add_repeating_headers(full_tex)
+            
 
 
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
+           # Header repetition is applied centrally by table_utils.add_repeating_headers().
+           # Tables that already define \endhead are left untouched.
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
