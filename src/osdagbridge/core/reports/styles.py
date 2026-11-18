@@ -106,8 +106,8 @@ def get_header_footer_styles(project_name: str, job_number: str, report_date: st
     return f"""
 \\fancypagestyle{{main}}{{
   \\fancyhf{{}}
-  \\fancyhead[L]{{{project_name} $|$ {job_number}}}
-  \\fancyhead[R]{{{report_date} $|$ {report_version}}}
+  \\fancyhead[L]{{\\parbox[b]{{0.52\\headwidth}}{{\\raggedright\\footnotesize {project_name} $|$ {job_number}}}}}
+  \\fancyhead[R]{{\\parbox[b]{{0.45\\headwidth}}{{\\raggedleft\\footnotesize {report_date} $|$ {report_version}}}}}
   \\fancyfoot[L]{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}
   \\fancyfoot[R]{{Page \\thepage\\ of \\pageref{{LastPage}}}}
   \\renewcommand{{\\headrule}}{{\\color{{osdagGreen}}\\hrule width\\headwidth height 1pt \\vspace{{2pt}}}}
@@ -124,8 +124,8 @@ def get_header_footer_styles(project_name: str, job_number: str, report_date: st
 
 \\fancypagestyle{{plain}}{{
   \\fancyhf{{}}
-  \\fancyhead[L]{{{project_name} $|$ {job_number}}}
-  \\fancyhead[R]{{{report_date} $|$ {report_version}}}
+  \\fancyhead[L]{{\\parbox[b]{{0.52\\headwidth}}{{\\raggedright\\footnotesize {project_name} $|$ {job_number}}}}}
+  \\fancyhead[R]{{\\parbox[b]{{0.45\\headwidth}}{{\\raggedleft\\footnotesize {report_date} $|$ {report_version}}}}}
   \\fancyfoot[L]{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}
   \\fancyfoot[R]{{Page \\thepage\\ of \\pageref{{LastPage}}}}
   \\renewcommand{{\\headrule}}{{\\color{{osdagGreen}}\\hrule width\\headwidth height 1pt \\vspace{{2pt}}}}
