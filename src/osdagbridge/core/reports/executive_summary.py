@@ -31,7 +31,17 @@ def _max_member_efficiency(pair_designs):
     """Maximum Osdag 'efficiency' (utilization ratio) over a cross-bracing or
     end-diaphragm result dump (nested pair -> member -> force_type -> raw).
     Reads already-computed results only; nothing is recalculated here."""
-    from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+    try:
+        from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+    except (ImportError, ModuleNotFoundError):
+        def _extract_osdag_summary(result: dict) -> dict:
+            if not result or not isinstance(result, dict):
+                return {}
+            for k in ("Member.efficiency", "Optimum.UR", "efficiency", "ur"):
+                v = result.get(k)
+                if v is not None:
+                    return {"efficiency": v}
+            return {}
     if not isinstance(pair_designs, dict):
         return None
     best = None
@@ -83,9 +93,13 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     for g, gd in per_girder.items():
         if str(g).startswith("EB"):     # skip edge-beam pseudo girders
             continue
-        for chk in (gd.get("checks") or []):
+        raw_checks = gd.get("checks") or []
+        checks_list = raw_checks.values() if isinstance(raw_checks, dict) else raw_checks
+        for chk in checks_list:
+            if not isinstance(chk, dict):
+                continue
             try:
-                _val = chk.get("dcr")
+                _val = chk.get("dcr") if "dcr" in chk else chk.get("ur")
                 if _val is None:
                     dcr = None
                 else:

@@ -118,6 +118,18 @@ from osdagbridge.core.utils.common import (
     KEY_TL_TEMP_RISE
 )
 
+from osdagbridge.core.reports.styles import (
+    GEOMETRY_OPTIONS,
+    get_latex_color_definitions,
+    get_table_environment_settings,
+    get_column_types,
+    get_header_footer_styles
+)
+from osdagbridge.core.reports.charts import (
+    generate_ur_summary_chart,
+    generate_material_steel_chart,
+    generate_concrete_vs_rebar_chart
+)
 from osdagbridge.core.reports.report_utils import _tex
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
@@ -152,11 +164,11 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     jn = _tex(job_number)
     rd = _tex(report_date)
     rv = _tex(report_version)
-    return r"""
+    return r'''
 \documentclass[12pt,a4paper]{report}
 
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
+% Document Geometry configured from centralized styles (includes safe footskip)
+\usepackage[''' + GEOMETRY_OPTIONS + r''']{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -192,74 +204,18 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
-
-\fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
+% Injected Centralized Formatting and Theming
+''' + get_latex_color_definitions() + '''
+''' + get_table_environment_settings() + '''
+''' + get_column_types() + '''
+''' + get_header_footer_styles(pn, jn, rd, rv) + r'''
 \pagestyle{main}
 \setstretch{1.15}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
 \newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
 
 % Software-default asterisk
 \newcommand{\sdstar}{\textsuperscript{*}}
@@ -274,7 +230,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \date{}
 
 \begin{document}
-"""
+'''
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -899,6 +855,35 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
+            # Programmatically generate charts for Section 5.5 and Chapter 7
+            try:
+                ur_bytes = generate_ur_summary_chart(payload.output_dict, payload.inputs)
+                p_ur = os.path.join(tmp_images, 'ur_summary.png')
+                with open(p_ur, 'wb') as fh:
+                    fh.write(ur_bytes)
+                fig_paths['ur_summary'] = p_ur.replace('\\', '/')
+            except Exception as e:
+                logger.warning('Failed generating UR summary chart: %s', e)
+
+            try:
+                steel_bytes = generate_material_steel_chart(payload.inputs)
+                p_steel = os.path.join(tmp_images, 'steel_quantities.png')
+                with open(p_steel, 'wb') as fh:
+                    fh.write(steel_bytes)
+                fig_paths['steel_quantities'] = p_steel.replace('\\', '/')
+            except Exception as e:
+                logger.warning('Failed generating steel take-off chart: %s', e)
+
+            try:
+                conc_bytes = generate_concrete_vs_rebar_chart(payload.inputs)
+                p_conc = os.path.join(tmp_images, 'concrete_vs_rebar.png')
+                with open(p_conc, 'wb') as fh:
+                    fh.write(conc_bytes)
+                fig_paths['concrete_vs_rebar'] = p_conc.replace('\\', '/')
+            except Exception as e:
+                logger.warning('Failed generating concrete vs rebar chart: %s', e)
+
+
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
@@ -924,11 +909,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, fig_paths))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, fig_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -946,6 +931,9 @@ def generate_report(payload, request):
             # chapter file (e.g. \endfirsthead / \endhead).  No automatic
             # post-processing is applied here to avoid mis-ordering captions
             # and column headings.
+
+            # Make image paths relative for portable LaTeX compilation
+            full_tex = full_tex.replace(tmp_images.replace('\\', '/') + '/', 'images/')
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
@@ -977,6 +965,16 @@ def generate_report(payload, request):
                 shutil.copy2(tmp_tex, tex_path)
             if os.path.exists(tmp_pdf):
                 shutil.copy2(tmp_pdf, pdf_path)
+            if os.path.exists(tmp_images):
+                out_images = os.path.join(request.output_dir, 'images')
+                os.makedirs(out_images, exist_ok=True)
+                for img_name in os.listdir(tmp_images):
+                    shutil.copy2(os.path.join(tmp_images, img_name), os.path.join(out_images, img_name))
+            if os.path.exists(tmp_assets):
+                out_assets = os.path.join(request.output_dir, 'assets')
+                os.makedirs(out_assets, exist_ok=True)
+                for asset_name in os.listdir(tmp_assets):
+                    shutil.copy2(os.path.join(tmp_assets, asset_name), os.path.join(out_assets, asset_name))
 
         if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)
