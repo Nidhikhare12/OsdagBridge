@@ -163,7 +163,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     table1_title = r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}'
     table1 = (r'\Needspace{9\baselineskip}' + '\n'
               + table1_title + '\n\n'
-              r'\vspace{0.4em}' + '\n'
+              r'\nopagebreak\vspace{0.4em}\nopagebreak' + '\n'
               r'\noindent' + '\n'
               r'\begin{tabular}{' + col_spec + '}\n'
               r'\hline' + '\n'
