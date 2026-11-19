@@ -62,7 +62,6 @@ from osdagbridge.core.utils.common import (
     KEY_DS_TOP_CLEAR_COVER,
     KEY_MATERIAL_DECK_FCK,
     KEY_MATERIAL_DECK_FCTM,
-    KEY_MP_ED_TYPE,
     KEY_SD_BOTTOM_FLANGE_THICKNESS,
     KEY_SD_BOTTOM_FLANGE_WIDTH,
     KEY_SD_BS_FCD,
@@ -1001,22 +1000,34 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         # Single message spanning the 4 data columns.
         return label + r" & \multicolumn{4}{c|}{" + msg + r"} \\[6pt]" + "\n\\hline"
 
-    # End diaphragm: when configured as Cross Bracing it is designed as bracing
-    # members → mirror the cross-bracing axial rows. For Rolled / Welded beam end
-    # diaphragms the moment/shear design is not implemented yet → show a message.
-    _ed_type = ""
-    for _k, _v in bridge.input_dict.items():
-        if str(_k).startswith(KEY_MP_ED_TYPE) and _v:
-            _ed_type = str(_v)
-            break
-    _ed_is_cb = "brac" in _ed_type.strip().lower()
-    if _ed_is_cb:
-        _ed_moment_row = _row522(r"End Diaphragm --- Moment", _cb_row("compression"))
-        _ed_shear_row  = _row522(r"End Diaphragm --- Shear",  _cb_row("tension"))
-    else:
-        _ed_msg = r"Rolled / Welded section --- design to be added"
-        _ed_moment_row = _row522_msg(r"End Diaphragm --- Moment", _ed_msg)
-        _ed_shear_row  = _row522_msg(r"End Diaphragm --- Shear",  _ed_msg)
+    from .diaphragm_checks import diaphragm_checks
+
+    diaphragm_details = []
+    diaphragm_summary = []
+    checks = list(diaphragm_checks(bridge.output_dict))
+    for pair, kind, member, force_type, combination, demand, capacity, ur, status in checks:
+        check_name = f"Axial {force_type.title()}" if force_type else "---"
+        cells = [_tex(pair), _tex(kind), _tex(member), check_name, _tex(combination),
+                 _vu_522(demand, ""), _vu_522(capacity, ""), _ur_522(ur), _tex(status)]
+        diaphragm_details.append(_row522(cells[0], cells[1:]))
+    for force_type in ("tension", "compression"):
+        governing = max(
+            (entry for entry in checks if entry[3] == force_type and entry[7] is not None),
+            key=lambda entry: entry[7], default=None,
+        )
+        label = f"End Diaphragm --- Axial {force_type.title()}"
+        if governing is None:
+            diaphragm_summary.append(_row522_msg(label, "Check unavailable"))
+            continue
+        pair, _, member, _, combo, demand, capacity, ur, status = governing
+        detail = _tex(", ".join(part for part in (pair, member, combo) if part))
+        ratio = _ur_522(ur) + (f" ({_tex(status)})" if status else "")
+        diaphragm_summary.append(_row522(
+            label, (detail, _vu_522(demand, "kN"), _vu_522(capacity, "kN"), ratio),
+        ))
+    if not diaphragm_details:
+        diaphragm_details.append(_row522("N/A", ("---",) * 8))
+    diaphragm_content = "\n".join(diaphragm_details)
 
     # Crack width (slab): governing crack width vs limit from the deck designer
     # (frequent SLS combination). _dk_gov_wk is the max of bottom/top/overhang wk.
@@ -1060,8 +1071,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         _row522(r"Cross Bracing --- Compression", _cb_row("compression")),
         _row522(r"Cross Bracing --- Tension",     _cb_row("tension")),
         _row522(r"Cross Bracing --- Slenderness", _cb_slender_row()),
-        _ed_moment_row,
-        _ed_shear_row,
+        *diaphragm_summary,
     ]
     t522_content = "\n".join(_t522)
 
@@ -1443,63 +1453,37 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 
 % ===========================
 \section{End Diaphragm Design}
-\label{sec:end-diaphragm}
-% ===========================
 
-End diaphragms at the supports transfer transverse loads to the bearings, restrain the bottom flanges against lateral displacement, and maintain the girder cross-section geometry during construction and in service. They are designed per IS~800:2007 and IRC~24:2010 Cl.~507.
-
-\vspace{1em}
-
-\vspace{0.4em}
-\noindent
-\setlength{\tabcolsep}{4pt}
-\setlength{\LTleft}{0pt}
-\setlength{\LTright}{\fill}
-
-\begin{longtable}{|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|}
-\caption{\textbf{End Diaphragm --- Connection and Section Properties}}
+\begin{longtable}{|L{1.5cm}|L{1.9cm}|L{1.5cm}|L{1.6cm}|L{2.2cm}|C{1.2cm}|C{1.2cm}|C{0.8cm}|L{1.4cm}|}
+\caption{\textbf{End Diaphragm Design --- Capacity Summary}} \\
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
+Pair & Type & Member & Check & Load Combination & Demand (kN) & Capacity (kN) & UR & Status \\
 \hline
-""" + cb_forces_content + r"""
+\endfirsthead
+\hline
+Pair & Type & Member & Check & Load Combination & Demand (kN) & Capacity (kN) & UR & Status \\
+\hline
+\endhead
+""" + diaphragm_content + r"""
 \end{longtable}
-\noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
-
-\vspace{1em}
-\begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
-\caption{\textbf{End Diaphragm --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
-\hline
-""" + cb_slenderness_content + r"""
-\end{longtable}
-\noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
-
-\vspace{1em}
-
-\begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
-\caption{\textbf{End Diaphragm Design --- Capacity Summary}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
-\hline
-""" + cb_capacity_content + r"""
-\end{longtable}
-\noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
 
 % ===========================
 \section{Overall Design Check Summary}
 \label{sec:overall-summary}
-% ===========================
 
 \vspace{1em}
 \begin{longtable}{|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|}
-\caption{\textbf{Overall Design Check Summary --- All Members}}
+\caption{\textbf{Overall Design Check Summary --- All Members}} \\
 \hline
 \textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
 \hline
+\endfirsthead
+\hline
+\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\hline
+\endhead
 """ + t522_content + r"""
 \end{longtable}
-\noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
+\noindent\textit{Note: UR = Demand / Capacity. A UR of $1.0$ marks demand equal to capacity. Verdicts follow the design checks. The governing check for each component is highlighted in the individual design check sections above.}
 
 """
-

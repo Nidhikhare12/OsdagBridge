@@ -81,6 +81,7 @@ def run_calculation(design_dict: Dict[str, Any], quiet: bool = True) -> Dict[str
             raise RuntimeError("Validation errors occurred during execution.")
 
         output_dict = _get_output_dictionary(module_instance)
+        output_dict["Design.Status"] = module_instance.design_status
 
         return output_dict
 
