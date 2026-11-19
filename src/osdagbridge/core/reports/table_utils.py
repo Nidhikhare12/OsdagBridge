@@ -1,4 +1,6 @@
 import re
+import math
+from .styles import TABLE
 
 _LONGTABLE = re.compile(r"\\begin\{longtable\}.*?\\end\{longtable\}", re.S)
 
@@ -44,8 +46,23 @@ def _fallback(block):
     rest = _LEADING_HLINE.sub("", block[cap.end():], count=1)
     return block[:cap.end()] + head + rest
 
+_CAPTION_LINE = re.compile(r"^([ \t]*\\caption\{.*\})[ \t]*$", re.M)
 
+
+def _fix_caption(block):
+    # longtable needs \\ after \caption, otherwise the header prints twice
+    return _CAPTION_LINE.sub(r"\1\\\\", block, count=1)
+
+_CLINE = re.compile(r"(\\cline\{[^}]*\})")
+def _keep_groups(block):
+    # inside \multirow groups, forbid page breaks after each row AND after each \cline
+    if "\\multirow" in block:
+        block = re.sub(r"\\\\(\[[^\]]*\])(\s*)\\cline\{", r"\\\\*\1\2\\cline{", block)
+        block = _CLINE.sub(r"\1\\noalign{\\penalty10000}", block)
+    return block
 def _fix_table(block):
+    block = _fix_caption(block)
+    block = _keep_groups(block)
     seg = _HEAD_BLOCK.search(block)
     if seg:
         if "&" in seg.group(1):

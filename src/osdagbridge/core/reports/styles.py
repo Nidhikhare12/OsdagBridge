@@ -26,6 +26,9 @@ TABLE = {
     "LTpre": "0pt",
     "LTpost": "6pt",
     "needspace_lines": 5,
+    "group_head_lines": 5,        # new
+    "group_row_lines": 2.6,       # new
+    "measure_margin_lines": 3,   
 }
 
 
@@ -56,5 +59,9 @@ def table_settings():
         rf"\setlength{{\arrayrulewidth}}{{{t['arrayrulewidth']}}}",
         rf"\setlength{{\extrarowheight}}{{{t['extrarowheight']}}}",
         rf"\BeforeBeginEnvironment{{table}}{{\needspace{{{n}\baselineskip}}}}",
-        rf"\BeforeBeginEnvironment{{longtable}}{{\needspace{{{n}\baselineskip}}}}",
+        # no needspace for longtable: it causes a stray header above captions
+        r"\makeatletter",
+        r"\patchcmd{\@cline}{\noalign{\vskip-\arrayrulewidth}}"
+        r"{\noalign{\nobreak\vskip-\arrayrulewidth}}{}{\FAIL}",
+        r"\makeatother",
     ])
