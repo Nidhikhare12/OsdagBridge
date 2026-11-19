@@ -1932,6 +1932,10 @@ class OspGrillage:
         # loop through each load object
         load_str = []
         for load_dict in load_groups:
+            factor = float(load_dict.get("factor", 1))
+            if factor == 0:
+                continue
+            first_command = len(load_str)
             load_obj = load_dict["load"]
             # if compound load, distribute each individual load types within the compound load
             if isinstance(load_obj, CompoundLoad):
@@ -2007,6 +2011,11 @@ class OspGrillage:
                         )
                 elif isinstance(load_obj, PatchLoading):
                     load_str += self._assign_patch_load(load_obj)
+
+            if factor != 1:
+                for index in range(first_command, len(load_str)):
+                    name, args, kwargs = load_str[index]
+                    load_str[index] = (name, (args[0], *(value * factor for value in args[1:])), kwargs)
 
         return load_str
 
