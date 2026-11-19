@@ -1144,7 +1144,7 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{\textbf{End Panel Stiffener Checks}}
 \hline
-\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\textbf{Girder} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
 """ + t59_content + r"""
 \end{longtable}
@@ -1154,7 +1154,7 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.5cm}|}
 \caption{\textbf{Serviceability -- Deflection Checks}}
 \hline
-\textbf{} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[6pt]
+\textbf{Girder} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[6pt]
 \hline
 """ + t510_content + r"""
 \end{longtable}
