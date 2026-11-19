@@ -1,3 +1,4 @@
+import numpy as np
 import ospgrillage as og
 import xarray as xr
 # from math import sqrt, pi
@@ -1922,9 +1923,14 @@ class BridgeGrillageModel:
         return self.moving_load_cases_list
 
 
+    @staticmethod
+    def _copy_factored_loads(target, source, factor):
+        for entry in source.load_groups:
+            target.add_load(entry["load"], load_factor=float(factor) * float(entry.get("factor", 1)))
+
     def create_governing_ll_load_case(self, dataset, model=None, partial_safety_factor: float = 1.0):
         """
-        Identify the governing static vehicle load case (max |Mz_i|), create a
+        Identify the governing static vehicle load case (max |Mz| at either girder end), create a
         single ``"{partial_safety_factor} LL"`` load case from it, register it with the
         given partial_safety_factor, and solve just that case.
 
@@ -1951,84 +1957,45 @@ class BridgeGrillageModel:
         static_lcs = [lc for lc in all_lcs if str(lc).lower().startswith("case")]
 
         if not static_lcs:
+            if getattr(self, "vehicle_load_cases_list", None):
+                raise ValueError("Registered vehicle load cases have no solved results.")
             warnings.warn("No vehicle static load cases found; skipping LL creation.")
             self.ll_load_case = None
             return dataset
 
-        # Collect longitudinal girder elements only (exclude transverse slabs and edge beams)
-        girder_elements = []
-        for member_type in ("interior_main_beam", "exterior_main_beam_1", "exterior_main_beam_2"):
-            try:
-                girder_elements.extend(model.get_element(member=member_type, options="elements"))
-            except Exception:
-                pass
-        girder_elements = list(set(girder_elements))
-
-        # Find governing LC via ospgrillage's create_envelope (replaces the
-        # manual per-load-case max loop). Restrict the dataset to the static
-        # vehicle cases (and girder elements), then envelope |Mz_i| across the
-        # Loadcase dimension:
-        #   value_mode -> max |Mz_i| per element,
-        #   query_mode -> the load-case label producing that max per element.
-        # The single governing case is the one at the element carrying the
-        # overall largest |Mz_i|.
-        sub = dataset.sel(Loadcase=static_lcs)
-        if girder_elements:
-            sub = sub.sel(Element=girder_elements)
-
-        # Envelope on absolute moment so hogging and sagging are compared on
-        # magnitude (create_envelope only does signed max/min).
-        abs_ds = sub.copy()
-        abs_ds["forces"] = abs(sub["forces"])
+        groups = model.common_grillage_element_z_group
+        girder_elements = [
+            element
+            for group in ("exterior_main_beam_1", "interior_main_beam", "exterior_main_beam_2")
+            for subgroup in range(len(groups.get(group, ())))
+            for element in model.get_element(member=group, z_group_num=subgroup, options="elements")
+        ]
+        if not girder_elements:
+            raise ValueError("No main girder elements are available to select the governing vehicle case.")
 
         try:
-            env_val = og.create_envelope(
-                ds=abs_ds, load_effect="Mz_i", array="forces",
-                extrema="max", value_mode=True,
-            ).get().sel(Component="Mz_i")
-            env_lc = og.create_envelope(
-                ds=abs_ds, load_effect="Mz_i", array="forces",
-                extrema="max", query_mode=True,
-            ).get().sel(Component="Mz_i")
+            moments = abs(dataset.forces.sel(
+                Loadcase=static_lcs, Element=girder_elements, Component=["Mz_i", "Mz_j"],
+            ).astype(float))
+            peaks = moments.where(np.isfinite(moments)).max(dim=("Element", "Component"))
+            governing_lc = str(peaks.idxmax("Loadcase").item())
+            governing_val = float(peaks.max().item())
+        except (KeyError, ValueError) as exc:
+            raise ValueError("Could not select a governing vehicle case from the solved girder moments.") from exc
+        if not np.isfinite(governing_val):
+            raise ValueError("No finite main girder moments are available for vehicle load cases.")
 
-            gov_element = env_val.idxmax("Element").item()
-            governing_lc = str(env_lc.sel(Element=gov_element).values)
-            governing_val = float(env_val.sel(Element=gov_element).values)
-        except Exception as exc:
-            warnings.warn(
-                f"Envelope-based governing LL detection failed ({exc}); "
-                "skipping LL creation."
-            )
-            self.ll_load_case = None
-            return dataset
+        target = next((case for case in self.vehicle_load_cases_list if case.name == governing_lc), None)
+        registered = next((case for case in model.load_case_list if case["name"] == governing_lc), None)
+        if target is None or registered is None:
+            raise ValueError(f"Governing vehicle case {governing_lc!r} could not be replayed.")
 
-        if not governing_lc or governing_val < 0:
-            warnings.warn("Could not determine governing LL case; skipping LL creation.")
-            self.ll_load_case = None
-            return dataset
-
-        print(f"Governing LL: {governing_lc}  (max |Mz_i| = {governing_val / 1000:.2f} kNm)")
-
-        # Find the matching load case object from vehicle_load_cases_list
-        target_lc_obj = next(
-            (lc for lc in getattr(self, "vehicle_load_cases_list", [])
-             if lc.name == str(governing_lc)),
-            None,
-        )
-
-        if target_lc_obj is None:
-            warnings.warn(f"Load case object '{governing_lc}' not found; skipping LL creation.")
-            self.ll_load_case = None
-            return dataset
-
-        # Build LL load case from the governing case's loads
+        print(f"Governing LL: {governing_lc}  (max |Mz| = {governing_val / 1000:.2f} kNm)")
         LL = og.create_load_case(name=f"{partial_safety_factor} LL")
-        for entry in target_lc_obj.load_groups:
-            LL.add_load(entry["load"])
-
-        model.add_load_case(LL, load_factor=partial_safety_factor)
+        self._copy_factored_loads(LL, target, registered["load_factor"] * partial_safety_factor)
+        model.add_load_case(LL)
         self.ll_load_case = LL
-        self.governing_ll_name = str(governing_lc)
+        self.governing_ll_name = governing_lc
 
         # Solve ONLY the new LL case. A bare analyze() re-solves every registered
         # case — including all ~50 increments of each moving load — and ospgrillage's
@@ -2084,8 +2051,7 @@ class BridgeGrillageModel:
         n = 0
 
         if dl_lc is not None:
-            for entry in dl_lc.load_groups:
-                combo.add_load(entry["load"], load_factor=float(dl_factor))
+            self._copy_factored_loads(combo, dl_lc, dl_factor)
             n += len(dl_lc.load_groups)
         else:
             warnings.warn(
@@ -2094,8 +2060,7 @@ class BridgeGrillageModel:
             )
 
         if ll_lc is not None:
-            for entry in ll_lc.load_groups:
-                combo.add_load(entry["load"], load_factor=float(ll_factor))
+            self._copy_factored_loads(combo, ll_lc, ll_factor)
             n += len(ll_lc.load_groups)
         else:
             warnings.warn(
@@ -2344,8 +2309,7 @@ class BridgeGrillageModel:
         def _copy_loads(target_lc, src_lc, factor):
             if src_lc is None or factor is None or factor == 0:
                 return 0
-            for entry in src_lc.load_groups:
-                target_lc.add_load(entry["load"], load_factor=float(factor))
+            self._copy_factored_loads(target_lc, src_lc, factor)
             return len(src_lc.load_groups)
 
         counters: dict = {}
@@ -2539,8 +2503,7 @@ class BridgeGrillageModel:
         def _copy_loads(target_lc, src_lc, factor):
             if src_lc is None or factor is None or factor == 0:
                 return 0
-            for entry in src_lc.load_groups:
-                target_lc.add_load(entry["load"], load_factor=float(factor))
+            self._copy_factored_loads(target_lc, src_lc, factor)
             return len(src_lc.load_groups)
 
         counters: dict = {}
