@@ -2803,9 +2803,29 @@ class ReportGenerator:
 # ======================================================================
 
 
+def _require_uls_forces(dataset, loadcase, girder, elements):
+    import numpy as np
+
+    message = (
+        f"ULS force results are missing or invalid for {girder}. "
+        "Enable ULS load combinations and rerun design."
+    )
+    if loadcase is None:
+        raise ValueError(message)
+    try:
+        values = dataset.forces.sel(
+            Loadcase=loadcase, Element=elements, Component=["Mz_i", "Mz_j", "Vy_i", "Vy_j"],
+        ).values.astype(float)
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        raise ValueError(message) from exc
+    if not values.size or not np.isfinite(values).all():
+        raise ValueError(message)
+
+
 def _extract_demands_from_analysis_results(
     analysis_results: PlateGirderAnalysisResults,
     config: BridgeConfig,
+    require_uls: bool = False,
 ) -> tuple:
     # Build per_girder_demands and per_girder_per_lc using the existing
     # pandas-based methods on PlateGirderAnalysisResults.
@@ -2919,6 +2939,9 @@ def _extract_demands_from_analysis_results(
         nodes    = list(g_info.get("path", []))
         if not elements:
             continue
+
+        if require_uls:
+            _require_uls_forces(analysis_results.ds, _uls_env_lc, g_name, elements)
 
         # Helper: max(|comp_i|, |comp_j|) across all girder elements for a single named LC.
         # Returns 0.0 if the LC is not available.
@@ -3247,7 +3270,7 @@ def run_design_check(
 
     if per_girder_demands is None and analysis_results is not None:
         per_girder_demands, per_girder_per_lc = _extract_demands_from_analysis_results(
-            analysis_results, config
+            analysis_results, config, require_uls=plate_girder_bridge is not None,
         )
 
     if not per_girder_demands:
