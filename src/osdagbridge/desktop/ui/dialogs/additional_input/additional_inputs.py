@@ -24,6 +24,163 @@ from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder._load_combinatio
 from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builder import AdaptiveWidget
 
 # =================================================================================
+#   CENTRAL CUSTOM PARAMETER MAPPINGS (Task II)
+# =================================================================================
+
+CUSTOM_PARAMETER_MAPPINGS = [
+    # ── Typical Section Details Tab ──────────────────────────────────────────
+    {
+        "key": KEY_CB_LOAD,
+        "control_key": KEY_CB_TYPE,
+        "value_key": KEY_CB_LOAD,
+        "name": "Crash Barrier Load",
+        "tab_key": None,
+    },
+    {
+        "key": KEY_CB_WIDTH,
+        "control_key": KEY_CB_TYPE,
+        "value_key": KEY_CB_WIDTH,
+        "name": "Crash Barrier Width",
+        "tab_key": None,
+    },
+    {
+        "key": KEY_CB_HEIGHT,
+        "control_key": KEY_CB_TYPE,
+        "value_key": KEY_CB_HEIGHT,
+        "name": "Crash Barrier Height",
+        "tab_key": None,
+    },
+    {
+        "key": KEY_MD_LOAD,
+        "control_key": KEY_MD_TYPE,
+        "value_key": KEY_MD_LOAD,
+        "name": "Median Load",
+        "tab_key": KEY_MD_TAB,
+    },
+    {
+        "key": KEY_MD_WIDTH,
+        "control_key": KEY_MD_TYPE,
+        "value_key": KEY_MD_WIDTH,
+        "name": "Median Width",
+        "tab_key": KEY_MD_TAB,
+    },
+    {
+        "key": KEY_MD_HEIGHT,
+        "control_key": KEY_MD_TYPE,
+        "value_key": KEY_MD_HEIGHT,
+        "name": "Median Height",
+        "tab_key": KEY_MD_TAB,
+    },
+    {
+        "key": KEY_RL_LOAD_VALUE,
+        "control_key": KEY_RL_LOAD_MODE,
+        "value_key": KEY_RL_LOAD_VALUE,
+        "name": "Railing Load",
+        "tab_key": KEY_RL_TAB,
+    },
+    {
+        "key": KEY_WC_DENSITY,
+        "control_key": KEY_WC_MATERIAL,
+        "value_key": KEY_WC_DENSITY,
+        "name": "Wearing Course Density",
+        "tab_key": KEY_WC_TAB,
+    },
+    # ── Loading Tab ─────────────────────────────────────────────────────────
+    {
+        "key": KEY_LL_FOOTPATH_PRESSURE,
+        "control_key": KEY_LL_FOOTPATH_PRESSURE_MODE,
+        "value_key": KEY_LL_FOOTPATH_PRESSURE_VALUE,
+        "name": "Footpath Pressure",
+        "tab_key": KEY_LL_TAB,
+    },
+    {
+        "key": KEY_SL_DEAD_LOAD,
+        "control_key": KEY_SL_DEAD_LOAD_MODE,
+        "value_key": KEY_SL_DEAD_LOAD_VALUE,
+        "name": "Dead Load for Seismic Force",
+        "tab_key": KEY_SL_TAB,
+    },
+    {
+        "key": KEY_SL_LIVE_LOAD,
+        "control_key": KEY_SL_LIVE_LOAD_MODE,
+        "value_key": KEY_SL_LIVE_LOAD_VALUE,
+        "name": "Live Load for Seismic Force",
+        "tab_key": KEY_SL_TAB,
+    },
+    {
+        "key": KEY_WL_GUST_FACTOR,
+        "control_key": KEY_WL_GUST_FACTOR_MODE,
+        "value_key": KEY_WL_GUST_FACTOR_VALUE,
+        "name": "Gust Factor",
+        "tab_key": KEY_WL_TAB,
+    },
+    {
+        "key": KEY_WL_DRAG_COEFF,
+        "control_key": KEY_WL_DRAG_COEFF_MODE,
+        "value_key": KEY_WL_DRAG_COEFF_VALUE,
+        "name": "Drag Coefficient",
+        "tab_key": KEY_WL_TAB,
+    },
+    {
+        "key": KEY_WL_DRAG_COEFF_LL,
+        "control_key": KEY_WL_DRAG_COEFF_LL_MODE,
+        "value_key": KEY_WL_DRAG_COEFF_LL_VALUE,
+        "name": "Drag Coefficient against Live Load",
+        "tab_key": KEY_WL_TAB,
+    },
+    {
+        "key": KEY_WL_LIFT_COEFF,
+        "control_key": KEY_WL_LIFT_COEFF_MODE,
+        "value_key": KEY_WL_LIFT_COEFF_VALUE,
+        "name": "Lift Coefficient",
+        "tab_key": KEY_WL_TAB,
+    },
+    {
+        "key": KEY_WL_SUPER_AREA_ELEV,
+        "control_key": KEY_WL_SUPER_AREA_ELEV_MODE,
+        "value_key": KEY_WL_SUPER_AREA_ELEV_VALUE,
+        "name": "Superstructure Area in Elevation",
+        "tab_key": KEY_WL_TAB,
+    },
+    {
+        "key": KEY_WL_SUPER_AREA_PLAIN,
+        "control_key": KEY_WL_SUPER_AREA_PLAIN_MODE,
+        "value_key": KEY_WL_SUPER_AREA_PLAIN_VALUE,
+        "name": "Superstructure Area in Plain",
+        "tab_key": KEY_WL_TAB,
+    },
+    {
+        "key": KEY_WL_EXPOSED_FRONTAL,
+        "control_key": KEY_WL_EXPOSED_FRONTAL_MODE,
+        "value_key": KEY_WL_EXPOSED_FRONTAL_VALUE,
+        "name": "Exposed Frontal Area of Live Load",
+        "tab_key": KEY_WL_TAB,
+    },
+    {
+        "key": KEY_WL_WIND_ECC_DECK,
+        "control_key": KEY_WL_WIND_ECC_DECK_MODE,
+        "value_key": KEY_WL_WIND_ECC_DECK_VALUE,
+        "name": "Wind Load Eccentricity from Top of Deck",
+        "tab_key": KEY_WL_TAB,
+    },
+    {
+        "key": KEY_WL_WIND_LL_ECC,
+        "control_key": KEY_WL_WIND_LL_ECC_MODE,
+        "value_key": KEY_WL_WIND_LL_ECC_VALUE,
+        "name": "Wind on Live Load Eccentricity from Top of Deck",
+        "tab_key": KEY_WL_TAB,
+    },
+    # ── Design Options (Cont.) Tab ──────────────────────────────────────────
+    {
+        "key": KEY_DO_CAMBER,
+        "control_key": KEY_DO_CAMBER_MODE,
+        "value_key": KEY_DO_CAMBER_VALUE,
+        "name": "Camber",
+        "tab_key": KEY_DO_TAB,
+    },
+]
+
+# =================================================================================
 #   MAIN IMPLEMENTATION
 # =================================================================================
 
@@ -57,6 +214,10 @@ class AdditionalInputs(QDialog):
  
         # Store all Compute functions to be called at Design
         self._compute_functions = []
+
+        # Unsaved changes tracking (Task II)
+        self.is_modified = False
+        self._is_populating = False
 
         self.setObjectName("AdditionalInputs")
         self.setMinimumSize(900, 520)
@@ -177,7 +338,31 @@ class AdditionalInputs(QDialog):
         # Normalize existing numeric text to 2 decimal places for consistent display
         self._normalize_numeric_texts(2)
 
+        # Wire change tracking for unsaved changes detection (Task II)
+        self._wire_modification_tracking()
+
         # self._print_widget_tree()
+
+    def _wire_modification_tracking(self):
+        """Connect user interaction signals across all input widgets to track modifications."""
+        for line_edit in self.findChildren(QLineEdit):
+            if not getattr(line_edit, "_tracked_for_modifications", False):
+                line_edit._tracked_for_modifications = True
+                line_edit.textEdited.connect(self._on_user_input_modified)
+
+        for combo in self.findChildren(QComboBox):
+            if not getattr(combo, "_tracked_for_modifications", False):
+                combo._tracked_for_modifications = True
+                combo.activated.connect(self._on_user_input_modified)
+
+        for check in self.findChildren(QCheckBox):
+            if not getattr(check, "_tracked_for_modifications", False):
+                check._tracked_for_modifications = True
+                check.clicked.connect(self._on_user_input_modified)
+
+    def _on_user_input_modified(self, *args):
+        if not getattr(self, "_is_populating", False):
+            self.is_modified = True
 
     # Print Additional Inputs Widget Tree--------------------------------------------
     def _print_widget_tree(self, root, indent=0):
@@ -229,22 +414,28 @@ class AdditionalInputs(QDialog):
         return super().eventFilter(obj, event)
 
     def set_input_dictionary(self, input_dict: dict):  # lifecycle: sets default/working dicts and wires END_CONNECTORS on first open
-        self.default_input_dict = input_dict
-        self.working_input_dict = deepcopy(input_dict)
+        self._is_populating = True
+        try:
+            self.default_input_dict = input_dict
+            self.working_input_dict = deepcopy(input_dict)
 
-        self.set_defaults()
+            self.set_defaults()
 
-        self.default_input_dict.update(self.working_input_dict)
+            self.default_input_dict.update(self.working_input_dict)
 
-        self._last_good_layout = {
-            KEY_TS_GIRDER_SPACING: self.working_input_dict.get(KEY_TS_GIRDER_SPACING),
-            KEY_TS_NO_OF_GIRDERS:  self.working_input_dict.get(KEY_TS_NO_OF_GIRDERS),
-        }
+            self._last_good_layout = {
+                KEY_TS_GIRDER_SPACING: self.working_input_dict.get(KEY_TS_GIRDER_SPACING),
+                KEY_TS_NO_OF_GIRDERS:  self.working_input_dict.get(KEY_TS_NO_OF_GIRDERS),
+            }
 
-        if self.interacted_first:
-            self.interacted_first = False
-            from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import END_CONNECTORS
-            UIBuilder.wire_end_connectors(END_CONNECTORS, ai=self)
+            if self.interacted_first:
+                self.interacted_first = False
+                from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import END_CONNECTORS
+                UIBuilder.wire_end_connectors(END_CONNECTORS, ai=self)
+                self._wire_modification_tracking()
+        finally:
+            self._is_populating = False
+            self.is_modified = False
 
     def set_defaults(self) -> None:  # lifecycle: populates all widgets from working_input_dict; called at init time only
         """
@@ -252,196 +443,206 @@ class AdditionalInputs(QDialog):
         Called at init time (from set_input_dictionary) when working_input_dict
         is a fresh copy of the defaults. NOT used by the Defaults button.
         """
-        for widget in self.findChildren(QWidget):
-            name = widget.objectName()
-            if not name or name not in self.working_input_dict:
-                continue
-            value = self.working_input_dict.get(name)
-            if value is None:
-                continue
-
-            if isinstance(widget, QLineEdit):
-                if isinstance(value, dict):
+        was_populating = getattr(self, "_is_populating", False)
+        self._is_populating = True
+        try:
+            for widget in self.findChildren(QWidget):
+                name = widget.objectName()
+                if not name or name not in self.working_input_dict:
                     continue
-                try:
-                    if "thermal_coeff" in name:
-                        text = f"{float(value):.2e}"
-                    elif str(value).strip().lstrip('-').isdigit():
-                        text = str(value).strip()
-                    else:
-                        text = f"{float(value):.2f}"
-                except (ValueError, TypeError):
-                    text = str(value)
-                widget.blockSignals(True)
-                widget.setText(text)
-                widget.blockSignals(False)
+                value = self.working_input_dict.get(name)
+                if value is None:
+                    continue
 
-            elif isinstance(widget, QComboBox):
-                widget.blockSignals(True)
-                widget.setCurrentText(str(value))
-                widget.blockSignals(False)
+                if isinstance(widget, QLineEdit):
+                    if isinstance(value, dict):
+                        continue
+                    try:
+                        if "thermal_coeff" in name:
+                            text = f"{float(value):.2e}"
+                        elif str(value).strip().lstrip('-').isdigit():
+                            text = str(value).strip()
+                        else:
+                            text = f"{float(value):.2f}"
+                    except (ValueError, TypeError):
+                        text = str(value)
+                    widget.blockSignals(True)
+                    widget.setText(text)
+                    widget.blockSignals(False)
 
-            elif isinstance(widget, QCheckBox):
-                widget.blockSignals(True)
-                widget.setChecked(bool(value))
-                widget.blockSignals(False)
+                elif isinstance(widget, QComboBox):
+                    widget.blockSignals(True)
+                    widget.setCurrentText(str(value))
+                    widget.blockSignals(False)
 
-            elif isinstance(widget, LoadCombinationWidget):
-                widget.blockSignals(True)
-                if isinstance(value, list):
-                    widget.update(value)
-                widget.blockSignals(False)
-        # ── Sync AdaptiveWidgets from working_input_dict ──────────────────────
-        from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builder import AdaptiveWidget
-        for adaptive in self.findChildren(AdaptiveWidget):
-            ctrl_id = getattr(adaptive, "_controller_id", "")
-            if not ctrl_id:
-                continue
-            mode = str(self.working_input_dict.get(ctrl_id) or "")
-            adaptive.switch_mode(mode)
+                elif isinstance(widget, QCheckBox):
+                    widget.blockSignals(True)
+                    widget.setChecked(bool(value))
+                    widget.blockSignals(False)
+
+                elif isinstance(widget, LoadCombinationWidget):
+                    widget.blockSignals(True)
+                    if isinstance(value, list):
+                        widget.update(value)
+                    widget.blockSignals(False)
+            # ── Sync AdaptiveWidgets from working_input_dict ──────────────────────
+            from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builder import AdaptiveWidget
+            for adaptive in self.findChildren(AdaptiveWidget):
+                ctrl_id = getattr(adaptive, "_controller_id", "")
+                if not ctrl_id:
+                    continue
+                mode = str(self.working_input_dict.get(ctrl_id) or "")
+                adaptive.switch_mode(mode)
+        finally:
+            self._is_populating = was_populating
 
     def design_mode_trigger(self, mode_str: str):  # lifecycle: syncs Optimized/Custom mode across all affected widgets and AdaptiveWidgets
-        # Ensures IS Section hidden and welded fields shown correctly on first open
-        gd_type_w = self.findChild(QComboBox, KEY_MP_GIRDER_TYPE)
-        if gd_type_w:
-            self._on_girder_type_changed(gd_type_w.currentText())
+        was_populating = getattr(self, "_is_populating", False)
+        self._is_populating = True
+        try:
+            # Ensures IS Section hidden and welded fields shown correctly on first open
+            gd_type_w = self.findChild(QComboBox, KEY_MP_GIRDER_TYPE)
+            if gd_type_w:
+                self._on_girder_type_changed(gd_type_w.currentText())
 
-        value = str(mode_str or "").strip().lower()
-        if value in {"custom", "customized"}:
-            normalized = "Custom"
-        else:
-            normalized = "Optimized"
+            value = str(mode_str or "").strip().lower()
+            if value in {"custom", "customized"}:
+                normalized = "Custom"
+            else:
+                normalized = "Optimized"
 
-        self.working_input_dict[KEY_DESIGN_MODE] = normalized
-        is_optimized = normalized == "Optimized"
+            self.working_input_dict[KEY_DESIGN_MODE] = normalized
+            is_optimized = normalized == "Optimized"
 
-        # Sync AdaptiveWidgets (depth, flange widths, thickness fields) ---------------------------------
-        from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builder import AdaptiveWidget
-        for adaptive in self.findChildren(AdaptiveWidget):
-            if getattr(adaptive, "_controller_id", "") == KEY_DESIGN_MODE:
-                adaptive.switch_mode(normalized)
+            # Sync AdaptiveWidgets (depth, flange widths, thickness fields) ---------------------------------
+            from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builder import AdaptiveWidget
+            for adaptive in self.findChildren(AdaptiveWidget):
+                if getattr(adaptive, "_controller_id", "") == KEY_DESIGN_MODE:
+                    adaptive.switch_mode(normalized)
 
-        # Type & Symmetry — disabled when Optimized -------------------------------
-        for key in [KEY_MP_GIRDER_TYPE, KEY_MP_GIRDER_SYMMETRY]:
-            w = self.findChild(QWidget, key)
-            if w:
-                self._set_enabled(w, not is_optimized)
+            # Type & Symmetry — disabled when Optimized -------------------------------
+            for key in [KEY_MP_GIRDER_TYPE, KEY_MP_GIRDER_SYMMETRY]:
+                w = self.findChild(QWidget, key)
+                if w:
+                    self._set_enabled(w, not is_optimized)
 
-        # Web Type — read-only and forced to "Thin Web with ITS" when Optimized ----------------
-        web_type_w = self.findChild(QComboBox, KEY_MP_GIRDER_WEB_TYPE)
-        if web_type_w:
-            self._set_enabled(web_type_w, not is_optimized)
-            if is_optimized:
-                web_type_w.blockSignals(True)
-                web_type_w.setCurrentText("Thin Web with ITS")
-                web_type_w.blockSignals(False)
+            # Web Type — read-only and forced to "Thin Web with ITS" when Optimized ----------------
+            web_type_w = self.findChild(QComboBox, KEY_MP_GIRDER_WEB_TYPE)
+            if web_type_w:
+                self._set_enabled(web_type_w, not is_optimized)
+                if is_optimized:
+                    web_type_w.blockSignals(True)
+                    web_type_w.setCurrentText("Thin Web with ITS")
+                    web_type_w.blockSignals(False)
 
-        # Section Properties card — hide entirely when Optimized -----------------------
-        wrapper = self.findChild(QWidget, KEY_MP_GD_SP)
-        if wrapper:
-            wrapper.setVisible(not is_optimized)
+            # Section Properties card — hide entirely when Optimized -----------------------
+            wrapper = self.findChild(QWidget, KEY_MP_GD_SP)
+            if wrapper:
+                wrapper.setVisible(not is_optimized)
 
-        # Hide section drawing when Optimized — only visible in Custom mode
-        wrapper = self.findChild(QWidget, KEY_MP_GD_SECTION_DRAWING)
-        if wrapper:
-            wrapper.setVisible(not is_optimized)
+            # Hide section drawing when Optimized — only visible in Custom mode
+            wrapper = self.findChild(QWidget, KEY_MP_GD_SECTION_DRAWING)
+            if wrapper:
+                wrapper.setVisible(not is_optimized)
 
-        # Stiffener fields — all greyed out when Optimized----------------------------
-        stiffener_keys = [
-            KEY_MP_STIFFENER_NO_BEARING_STIFFENERS, KEY_MP_STIFFENER_SPACING,
-            KEY_MP_STIFFENER_BEARING_THICKNESS, KEY_MP_STIFFENER_BEARING_OUTSTAND,
-            KEY_MP_STIFFENER_INTERMEDIATE, KEY_MP_STIFFENER_INTERMEDIATE_SPACING,
-            KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS, KEY_MP_STIFFENER_INTERMEDIATE_OUTSTAND,
-            KEY_MP_STIFFENER_LONGITUDINAL, KEY_MP_STIFFENER_LONGITUDINAL_THICKNESS,
-            KEY_MP_STIFFENER_DESIGN_METHOD, KEY_MP_STIFFENER_APPLY_ALL
-        ]
-        for key in stiffener_keys:
-            w = self.findChild(QWidget, key)
-            if w:
-                self._set_enabled(w, not is_optimized)
+            # Stiffener fields — all greyed out when Optimized----------------------------
+            stiffener_keys = [
+                KEY_MP_STIFFENER_NO_BEARING_STIFFENERS, KEY_MP_STIFFENER_SPACING,
+                KEY_MP_STIFFENER_BEARING_THICKNESS, KEY_MP_STIFFENER_BEARING_OUTSTAND,
+                KEY_MP_STIFFENER_INTERMEDIATE, KEY_MP_STIFFENER_INTERMEDIATE_SPACING,
+                KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS, KEY_MP_STIFFENER_INTERMEDIATE_OUTSTAND,
+                KEY_MP_STIFFENER_LONGITUDINAL, KEY_MP_STIFFENER_LONGITUDINAL_THICKNESS,
+                KEY_MP_STIFFENER_DESIGN_METHOD, KEY_MP_STIFFENER_APPLY_ALL
+            ]
+            for key in stiffener_keys:
+                w = self.findChild(QWidget, key)
+                if w:
+                    self._set_enabled(w, not is_optimized)
 
-        # Reload current member so widgets reflect dict values on every mode switch.
-        # set_defaults only wrote base-key defaults so without this the initially
-        # selected member (and the active member when switching back to Optimized)
-        # would show empty outstands / spacing.
-        _stiff_combo = self.findChild(QComboBox, KEY_MP_STIFFENER_SELECT_MEMBER_ID)
-        if _stiff_combo and _stiff_combo.currentText().strip():
-            self._load_stiffener_member_data(_stiff_combo.currentText().strip())
+            # Reload current member so widgets reflect dict values on every mode switch.
+            # set_defaults only wrote base-key defaults so without this the initially
+            # selected member (and the active member when switching back to Optimized)
+            # would show empty outstands / spacing.
+            _stiff_combo = self.findChild(QComboBox, KEY_MP_STIFFENER_SELECT_MEMBER_ID)
+            if _stiff_combo and _stiff_combo.currentText().strip():
+                self._load_stiffener_member_data(_stiff_combo.currentText().strip())
 
-        # In Custom mode re-apply conditional sub-field states------------------------
-        if not is_optimized:
-            w = self.findChild(QComboBox, KEY_MP_STIFFENER_INTERMEDIATE)
-            if w:
-                self._on_intermediate_stiffener_changed(w.currentText(), restore_default=False)
-            w = self.findChild(QComboBox, KEY_MP_STIFFENER_LONGITUDINAL)
-            if w:
-                self._on_longitudinal_stiffener_changed(w.currentText())
+            # In Custom mode re-apply conditional sub-field states------------------------
+            if not is_optimized:
+                w = self.findChild(QComboBox, KEY_MP_STIFFENER_INTERMEDIATE)
+                if w:
+                    self._on_intermediate_stiffener_changed(w.currentText(), restore_default=False)
+                w = self.findChild(QComboBox, KEY_MP_STIFFENER_LONGITUDINAL)
+                if w:
+                    self._on_longitudinal_stiffener_changed(w.currentText())
 
-        # TODO: Must move it to refresh functionality after section_properties.py is removed-----------------
-        widget = self.findChild(QLineEdit, KEY_MP_GD_TOTAL_SPAN)
-        if widget:
-            widget.setText(str(self.working_input_dict.get(KEY_SPAN)))
+            # TODO: Must move it to refresh functionality after section_properties.py is removed-----------------
+            widget = self.findChild(QLineEdit, KEY_MP_GD_TOTAL_SPAN)
+            if widget:
+                widget.setText(str(self.working_input_dict.get(KEY_SPAN)))
 
-        # Sync segment table total span from KEY_SPAN so reopening with a changed span----------------
-        # updates the last segment's end to match the new bridge span.
-        from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder._segment_table_widget import SegmentTableWidget
-        seg_table = self.findChild(SegmentTableWidget, KEY_MP_GD_SEGMENT_TABLE)
-        if seg_table is not None:
-            total_span = float(self.working_input_dict.get(KEY_SPAN))
-            seg_table.set_total_span(total_span)
+            # Sync segment table total span from KEY_SPAN so reopening with a changed span----------------
+            # updates the last segment's end to match the new bridge span.
+            from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder._segment_table_widget import SegmentTableWidget
+            seg_table = self.findChild(SegmentTableWidget, KEY_MP_GD_SEGMENT_TABLE)
+            if seg_table is not None:
+                total_span = float(self.working_input_dict.get(KEY_SPAN))
+                seg_table.set_total_span(total_span)
 
-        # End Diaphragm fields — disabled when Optimized----------------------
-        from osdagbridge.core.utils.common import (
-            KEY_MP_ED_BRACING_SECTION, KEY_MP_ED_BRACING_SECTION_DESIGNATION,
-            KEY_MP_ED_TOP_CHORD_SECTION_TYPE, KEY_MP_ED_TOP_CHORD_SECTION_DESIG,
-            KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE, KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG,
-            KEY_MP_ED_IS_SECTION,
-            KEY_MP_ED_TOTAL_DEPTH, KEY_MP_ED_WEB_THICKNESS,
-            KEY_MP_ED_TOP_FLANGE_WIDTH, KEY_MP_ED_TOP_FLANGE_THICKNESS,
-            KEY_MP_ED_BOTTOM_FLANGE_WIDTH, KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
-        )
-        ed_disable_keys = [
-            KEY_MP_ED_BRACING_SECTION,           KEY_MP_ED_BRACING_SECTION_DESIGNATION,
-            KEY_MP_ED_TOP_CHORD_SECTION_TYPE,    KEY_MP_ED_TOP_CHORD_SECTION_DESIG,
-            KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE, KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG,
-            KEY_MP_ED_IS_SECTION,
-            KEY_MP_ED_TOTAL_DEPTH,        KEY_MP_ED_WEB_THICKNESS,
-            KEY_MP_ED_TOP_FLANGE_WIDTH,   KEY_MP_ED_TOP_FLANGE_THICKNESS,
-            KEY_MP_ED_BOTTOM_FLANGE_WIDTH, KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
-        ]
-        for key in ed_disable_keys:
-            w = self.findChild(QWidget, key)
-            if w:
-                self._set_enabled(w, not is_optimized)
+            # End Diaphragm fields — disabled when Optimized----------------------
+            from osdagbridge.core.utils.common import (
+                KEY_MP_ED_BRACING_SECTION, KEY_MP_ED_BRACING_SECTION_DESIGNATION,
+                KEY_MP_ED_TOP_CHORD_SECTION_TYPE, KEY_MP_ED_TOP_CHORD_SECTION_DESIG,
+                KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE, KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG,
+                KEY_MP_ED_IS_SECTION,
+                KEY_MP_ED_TOTAL_DEPTH, KEY_MP_ED_WEB_THICKNESS,
+                KEY_MP_ED_TOP_FLANGE_WIDTH, KEY_MP_ED_TOP_FLANGE_THICKNESS,
+                KEY_MP_ED_BOTTOM_FLANGE_WIDTH, KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
+            )
+            ed_disable_keys = [
+                KEY_MP_ED_BRACING_SECTION,           KEY_MP_ED_BRACING_SECTION_DESIGNATION,
+                KEY_MP_ED_TOP_CHORD_SECTION_TYPE,    KEY_MP_ED_TOP_CHORD_SECTION_DESIG,
+                KEY_MP_ED_BOTTOM_CHORD_SECTION_TYPE, KEY_MP_ED_BOTTOM_CHORD_SECTION_DESIG,
+                KEY_MP_ED_IS_SECTION,
+                KEY_MP_ED_TOTAL_DEPTH,        KEY_MP_ED_WEB_THICKNESS,
+                KEY_MP_ED_TOP_FLANGE_WIDTH,   KEY_MP_ED_TOP_FLANGE_THICKNESS,
+                KEY_MP_ED_BOTTOM_FLANGE_WIDTH, KEY_MP_ED_BOTTOM_FLANGE_THICKNESS,
+            ]
+            for key in ed_disable_keys:
+                w = self.findChild(QWidget, key)
+                if w:
+                    self._set_enabled(w, not is_optimized)
 
-        # Re-apply End Diaphragm bracing layout state (K-Bracing disables bottom chord, CAD sync)
-        self._on_ed_bracing_layout_changed()
-        # Refresh the Girder Details cross-section preview with live bridge inputs.
-        # design_mode_trigger runs on every dialog open, so this also seeds it.
-        cad = self.findChild(QWidget, KEY_MP_GD_CAD_PREVIEW)
-        if cad:
-            cad.update_cad_state(self.working_input_dict)
+            # Re-apply End Diaphragm bracing layout state (K-Bracing disables bottom chord, CAD sync)
+            self._on_ed_bracing_layout_changed()
+            # Refresh the Girder Details cross-section preview with live bridge inputs.
+            # design_mode_trigger runs on every dialog open, so this also seeds it.
+            cad = self.findChild(QWidget, KEY_MP_GD_CAD_PREVIEW)
+            if cad:
+                cad.update_cad_state(self.working_input_dict)
 
-        # Cross Bracing section fields — disabled when Optimized
-        cb_disable_keys = [
-            KEY_MP_CB_BRACING_SECTION_TYPE,       KEY_MP_CB_BRACING_SECTION_DESIGNATION,
-            KEY_MP_CB_TOP_CHORD_SECTION_TYPE,      KEY_MP_CB_TOP_CHORD_SECTION_DESIG,
-            KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE,   KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG,
-        ]
-        for key in cb_disable_keys:
-            w = self.findChild(QWidget, key)
-            if w:
-                self._set_enabled(w, not is_optimized)
+            # Cross Bracing section fields — disabled when Optimized
+            cb_disable_keys = [
+                KEY_MP_CB_BRACING_SECTION_TYPE,       KEY_MP_CB_BRACING_SECTION_DESIGNATION,
+                KEY_MP_CB_TOP_CHORD_SECTION_TYPE,      KEY_MP_CB_TOP_CHORD_SECTION_DESIG,
+                KEY_MP_CB_BOTTOM_CHORD_SECTION_TYPE,   KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG,
+            ]
+            for key in cb_disable_keys:
+                w = self.findChild(QWidget, key)
+                if w:
+                    self._set_enabled(w, not is_optimized)
 
-        # Re-apply CB layout state so checkbox-gating is respected on top of mode
-        self._on_cb_bracing_layout_changed("", None)
+            # Re-apply CB layout state so checkbox-gating is respected on top of mode
+            self._on_cb_bracing_layout_changed("", None)
 
-        # Recompute CB spacing from current span and no. of cross bracings
-        spacing_w = self.findChild(QLineEdit, KEY_MP_CB_SPACING)
-        self._on_cb_spacing_computed("", spacing_w)
+            # Recompute CB spacing from current span and no. of cross bracings
+            spacing_w = self.findChild(QLineEdit, KEY_MP_CB_SPACING)
+            self._on_cb_spacing_computed("", spacing_w)
 
-        # Apply Tab Active/Deactive States-------------------------------------
-        self.refresh_typical_section()
+            # Apply Tab Active/Deactive States-------------------------------------
+            self.refresh_typical_section()
+        finally:
+            self._is_populating = was_populating
 
     def reset_active_tab_defaults(self) -> None:  # lifecycle: resets current tab's fields to default_input_dict values
         """
@@ -449,6 +650,7 @@ class AdditionalInputs(QDialog):
         sourced from default_input_dict (populated from defaults.py at startup).
         Does NOT affect fields on other tabs.
         """
+        self.is_modified = True
         active_tab = self.tabs.currentWidget()
         if active_tab is None:
             return
@@ -507,6 +709,9 @@ class AdditionalInputs(QDialog):
     # ── Dialog Persistence ───────────────────────────────────────────────────────
 
     def _save_inputs(self):  # on_change: validates all tabs then commits working_input_dict and emits CAD update signal
+        # Pre-save validation of all custom parameters across active tabs (Task II)
+        if not self.validate_custom_inputs():
+            return
 
         # Flush the currently-displayed stiffener member's widgets before committing.
         # _save_stiffener_member_data otherwise only runs when switching *away* from a
@@ -521,13 +726,110 @@ class AdditionalInputs(QDialog):
         cad = self.findChild(CrossSectionCADWidget, KEY_TS_CAD_PREVIEW)
         if cad:
             self.update_template_page_2d_cad.emit(cad.params)
-        
+
+        self.is_modified = False
+
         CustomMessageBox(
             title="Saved",
             text="Inputs saved successfully.",
             buttons=["OK"],
             dialogType=MessageBoxType.Success,
         ).exec()
+
+    def is_tab_active(self, tab_key: str | None) -> bool:
+        """Check whether the tab or sub-tab containing the parameter is currently active/enabled."""
+        if not tab_key:
+            return True
+        if tab_key == KEY_MD_TAB:
+            return self.working_input_dict.get(KEY_INCLUDE_MEDIAN) == "Yes"
+        if tab_key == KEY_RL_TAB:
+            fp = str(self.working_input_dict.get(KEY_FOOTPATH, "")).strip().lower()
+            return fp not in ("", "none")
+        if tab_key in (KEY_WC_TAB, KEY_LL_TAB, KEY_SL_TAB, KEY_WL_TAB, KEY_DO_TAB):
+            return True
+
+        w = self.findChild(QWidget, tab_key + ".main") or self.findChild(QWidget, tab_key)
+        if w is not None:
+            curr = w
+            while curr is not None and curr != self:
+                if isinstance(curr, QTabWidget):
+                    break
+                parent = curr.parentWidget()
+                if isinstance(parent, QTabWidget):
+                    idx = parent.indexOf(curr)
+                    if idx >= 0 and not parent.isTabEnabled(idx):
+                        return False
+                curr = parent
+        return True
+
+    def validate_custom_inputs(self) -> bool:
+        """
+        Validate all custom parameter inputs across active tabs before saving (Task II).
+        Stops immediately on the first empty or whitespace-only custom value,
+        displays the required error dialog, and returns False.
+        Returns True when all custom inputs are valid.
+        """
+        for spec in CUSTOM_PARAMETER_MAPPINGS:
+            tab_key = spec.get("tab_key")
+            if not self.is_tab_active(tab_key):
+                continue
+
+            ctrl_key = spec["control_key"]
+            ctrl_w = self.findChild(QComboBox, ctrl_key)
+            if ctrl_w is not None:
+                ctrl_val = ctrl_w.currentText().strip()
+            else:
+                ctrl_val = str(self.working_input_dict.get(ctrl_key, "")).strip()
+
+            if ctrl_val.lower() == "custom":
+                val_key = spec["value_key"]
+                val_w = self.findChild(QLineEdit, val_key)
+                if val_w is not None:
+                    val_text = val_w.text().strip()
+                else:
+                    raw_val = self.working_input_dict.get(val_key, "")
+                    val_text = str(raw_val).strip() if raw_val is not None else ""
+
+                if not val_text:
+                    param_name = spec["name"]
+                    CustomMessageBox(
+                        title="Error",
+                        text=f"Error: The custom value for '{param_name}' cannot be empty.",
+                        buttons=["OK"],
+                        dialogType=MessageBoxType.Critical,
+                    ).exec()
+                    return False
+
+        return True
+
+    def closeEvent(self, event):
+        """Prompt confirmation if closing with unsaved changes (Task II)."""
+        if not getattr(self, "is_modified", False):
+            event.accept()
+            return
+
+        box = CustomMessageBox(
+            title="Warning",
+            text="You have unsaved changes. Closing this window will discard them. Do you want to proceed?",
+            buttons=["Discard", "Cancel"],
+            dialogType=MessageBoxType.Warning,
+        )
+        result = box.exec()
+        if result == "Discard":
+            self.working_input_dict = deepcopy(self.default_input_dict)
+            self._is_populating = True
+            try:
+                self.set_defaults()
+            finally:
+                self._is_populating = False
+            self.is_modified = False
+            event.accept()
+        else:
+            event.ignore()
+
+    def reject(self):
+        """Route Escape key and rejection through closeEvent (Task II)."""
+        self.close()
 
     def _show_validation_errors(self, errors):  # utility: displays validation error list in a warning popup
         message = "\n\n".join(f"• {err}" for err in errors)
@@ -546,6 +848,9 @@ class AdditionalInputs(QDialog):
         - QComboBox: always valid, skip validation, update dict + CAD.
         - QLineEdit: hard validation — corrects widget + input_dict if invalid, shows popup.
         """
+        if not getattr(self, "_is_populating", False):
+            self.is_modified = True
+
         if isinstance(widget, str):
             self._update_input_dict(key, widget)
             self._update_additional_input_cad()
@@ -584,6 +889,9 @@ class AdditionalInputs(QDialog):
         self._update_additional_input_cad()
 
     def _on_field_editing(self, current_text: str, key: str):  # on_change: soft validation while typing — updates dict/CAD only when valid, no popups
+        if not getattr(self, "_is_populating", False):
+            self.is_modified = True
+
         if not current_text.strip():
             self._update_input_dict(key, "")
             self._update_additional_input_cad()
@@ -671,7 +979,22 @@ class AdditionalInputs(QDialog):
         from osdagbridge.desktop.ui.docks.cad_cross_section import CrossSectionCADWidget
         cad = self.findChild(CrossSectionCADWidget, KEY_TS_CAD_PREVIEW)
         if cad:
+            if not getattr(cad, "_parameter_edited_connected", False):
+                cad._parameter_edited_connected = True
+                cad.parameter_edited.connect(self._on_cad_parameter_edited)
             cad.update_from_bridge_inputs(self.working_input_dict)
+
+    def _on_cad_parameter_edited(self, key: str, value: float):
+        """Handle interactive parameter edits directly from the Typical Section CAD preview."""
+        self.working_input_dict[key] = value
+        self.is_modified = True
+        w = self.findChild(QLineEdit, key)
+        if w:
+            w.blockSignals(True)
+            w.setText(str(value))
+            w.blockSignals(False)
+        self.update_girder_layout()
+        self._update_additional_input_cad()
 
 
     def refresh_typical_section(self):  # refresh: enables/disables Typical Section subtabs and widgets per conditions
@@ -1294,6 +1617,9 @@ class AdditionalInputs(QDialog):
             cad.update_selected_member(member_id)
 
     def _on_segment_data_changed(self, segments) -> None:  # on_change: writes updated segment list to working_input_dict and refreshes CAD preview
+        if not getattr(self, "_is_populating", False):
+            self.is_modified = True
+
         if not isinstance(segments, list):
             return
 
@@ -1485,6 +1811,8 @@ class AdditionalInputs(QDialog):
             self.working_input_dict[new_key] = copy.deepcopy(self.working_input_dict[k])
 
     def _on_apply_exterior_clicked(self) -> None:  # on_change: applies current girder settings to first and last girders
+        if not getattr(self, "_is_populating", False):
+            self.is_modified = True
         gi, _ = self._get_current_girder_member_indices()
         count = int(float(str(self.working_input_dict.get(KEY_TS_NO_OF_GIRDERS, 1))))
         targets = {1, count} - {gi}
@@ -1493,6 +1821,8 @@ class AdditionalInputs(QDialog):
         print(f"@@: Applied Girder {gi} settings to exterior girders: {targets}")
 
     def _on_apply_interior_clicked(self) -> None:  # on_change: applies current girder settings to all interior girders
+        if not getattr(self, "_is_populating", False):
+            self.is_modified = True
         gi, _ = self._get_current_girder_member_indices()
         count = int(float(str(self.working_input_dict.get(KEY_TS_NO_OF_GIRDERS, 1))))
         targets = set(range(2, count)) - {gi}
@@ -1904,6 +2234,8 @@ class AdditionalInputs(QDialog):
         self._update_stiffener_cad()
 
     def _on_stiffener_apply_all_clicked(self) -> None:  # on_click: copies current stiffener config to all other girders/members
+        if not getattr(self, "_is_populating", False):
+            self.is_modified = True
         import re
         combo = self.findChild(QComboBox, KEY_MP_STIFFENER_SELECT_MEMBER_ID)
         if combo is None:
