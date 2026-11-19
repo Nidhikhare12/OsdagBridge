@@ -7,6 +7,9 @@ import math
 from typing import Any
 
 from osdagbridge.core.utils.common import (
+    KEY_MP_ED_TYPE,
+    KEY_MP_ED_TOP_CHORD,
+    KEY_MP_ED_BOTTOM_CHORD,
     KEY_SPAN,
     KEY_TS_NO_OF_GIRDERS,
     KEY_TS_DECK_THICKNESS,
@@ -29,6 +32,65 @@ def resolve_girder_value(source: dict, base_key: str, i: int = 0) -> Any:
         if key in source:
             return source[key]
     raise KeyError(base_key)
+
+
+def end_diaphragm_pairs(inputs, outputs, count):
+    for index in range(1, count):
+        pair_id = f"G{index}G{index + 1}"
+        prefix = KEY_MP_ED_TYPE.rsplit(".", 1)[0]
+        slots = [f".{pair_id}.E{index}M{end}" for end in (1, 2)]
+        slot = next((slot for slot in slots if inputs.get(KEY_MP_ED_TYPE + slot)), slots[0])
+
+        def setting(key):
+            suffix = key[len(prefix):]
+            return outputs.get(f"{prefix}.{pair_id}{suffix}", inputs.get(key + slot))
+
+        kind = setting(KEY_MP_ED_TYPE)
+        if kind in {"Rolled Beam", "Welded Beam", "Cross Bracing"}:
+            chords = [
+                member for member, key in (
+                    ("top_chord", KEY_MP_ED_TOP_CHORD),
+                    ("bottom_chord", KEY_MP_ED_BOTTOM_CHORD),
+                )
+                if str(setting(key)).strip().lower() not in {"no", "false", "0"}
+            ]
+            yield pair_id, kind, chords
+
+
+def _positive_number(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) and number > 0 else None
+
+
+def _end_diaphragm_quantities(inputs, outputs, count):
+    volume = weight = 0.0
+    quantity = 0
+    for pair, kind, chords in end_diaphragm_pairs(inputs, outputs, count):
+        members = [("end_diaphragm", 2)]
+        if kind == "Cross Bracing":
+            members = [("end_diaphragm", 4)] + [(chord, 2) for chord in chords]
+
+        for member, copies in members:
+            prefix = f"transverse_member_design.ed.section_properties.{member}.{pair}"
+            length_key = "design_length_m" if kind == "Cross Bracing" else "L"
+            length = _positive_number(outputs.get(f"{prefix}.{length_key}"))
+            area = _positive_number(outputs.get(f"{prefix}.A"))
+            mass = _positive_number(outputs.get(f"{prefix}.M"))
+            quantity += copies
+            # Section area is in cm² and linear mass is in kg/m.
+            if volume is not None:
+                volume = volume + copies * length * area / 10_000 if length and area else None
+            if weight is not None:
+                weight = weight + copies * length * mass / 1_000 if length and mass else None
+
+    return {
+        "end_diaphragm_qty": quantity or None,
+        "end_diaphragm_vol_total": volume if quantity else None,
+        "end_diaphragm_wt_total": weight if quantity else None,
+    }
 
 
 def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
@@ -105,6 +167,8 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         if span <= 0 or n_girders <= 0:
             return quantities
 
+        quantities.update(_end_diaphragm_quantities(inputs, outputs, n_girders))
+
         # 1. Concrete deck volume (Cu.m) and Weight (MT)
         overall_width_val = inputs.get("typical_section.overall_bridge_width")
         deck_thickness_val = inputs.get(KEY_TS_DECK_THICKNESS)
@@ -117,7 +181,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                     concrete_vol = span * overall_width * deck_thickness
                     quantities["concrete_deck_vol_formula"] = f"${overall_width:.2f}\\text{{ m}} \\times {deck_thickness:.2f}\\text{{ m}} \\times {span:.2f}\\text{{ m}} = {concrete_vol:.2f}\\text{{ m}}^3$"
                     quantities["concrete_deck_qty"] = "1"
-                    quantities["concrete_deck_vol_total"] = f"{concrete_vol:.2f}"
+                    quantities["concrete_deck_vol_total"] = concrete_vol
                     quantities["concrete_deck_wt_single"] = f"{(concrete_vol * 2.5):.2f}"
                     quantities["concrete_deck_wt_total"] = f"{(concrete_vol * 2.5):.2f}"
 
@@ -131,7 +195,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                     
                     rebar_wt_mt = rebar_wt_kg / 1000.0
                     quantities["rebar_deck_wt_single"] = f"{rebar_wt_mt:.2f}"
-                    quantities["rebar_deck_wt_total"] = f"{rebar_wt_mt:.2f}"
+                    quantities["rebar_deck_wt_total"] = rebar_wt_mt
             except Exception:
                 pass
 
@@ -189,7 +253,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             single_girder_wt = (total_girder_mass / n_girders) / 1000.0
             total_girder_wt = total_girder_mass / 1000.0
             quantities["steel_girders_wt_single"] = f"{single_girder_wt:.2f}"
-            quantities["steel_girders_wt_total"] = f"{total_girder_wt:.2f}"
+            quantities["steel_girders_wt_total"] = total_girder_wt
 
         # 4. Shear Stud Connectors (Cu.m) and Weight (MT)
         spacing_mm = 0.0
@@ -294,7 +358,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["bracing_top_qty"] = str(top_chord_qty)
             quantities["bracing_top_vol_total"] = f"{top_chord_vol_total:.2f}" if top_chord_enabled else "0.00"
             quantities["bracing_top_wt_single"] = f"{top_chord_wt_single:.4f}"
-            quantities["bracing_top_wt_total"] = f"{top_chord_wt_total:.2f}" if top_chord_enabled else "0.00"
+            quantities["bracing_top_wt_total"] = top_chord_wt_total if top_chord_enabled else 0.0
 
             # 5b. Bottom Chord
             bot_chord_qty = (n_girders - 1) * n_panels if bot_chord_enabled else 0
@@ -307,7 +371,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["bracing_bot_qty"] = str(bot_chord_qty)
             quantities["bracing_bot_vol_total"] = f"{bot_chord_vol_total:.2f}" if bot_chord_enabled else "0.00"
             quantities["bracing_bot_wt_single"] = f"{bot_chord_wt_single:.4f}"
-            quantities["bracing_bot_wt_total"] = f"{bot_chord_wt_total:.2f}" if bot_chord_enabled else "0.00"
+            quantities["bracing_bot_wt_total"] = bot_chord_wt_total if bot_chord_enabled else 0.0
 
             # 5c. Diagonal
             diags_qty = (n_girders - 1) * n_panels * 2
@@ -320,7 +384,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["bracing_diag_qty"] = str(diags_qty)
             quantities["bracing_diag_vol_total"] = f"{diag_vol_total:.2f}"
             quantities["bracing_diag_wt_single"] = f"{diag_wt_single:.4f}"
-            quantities["bracing_diag_wt_total"] = f"{diag_wt_total:.2f}"
+            quantities["bracing_diag_wt_total"] = diag_wt_total
         else:
             # Keep all bracing volumes, quantities, and weights as default placeholder "N.A."
             for prefix in ("bracing_top", "bracing_bot", "bracing_diag"):

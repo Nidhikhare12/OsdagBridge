@@ -13,130 +13,40 @@ from osdagbridge.core.utils.common import (
     KEY_TS_NO_OF_GIRDERS
 )
 
-
-def _max_float(values):
-    """Return the largest value coercible to float, or None if there are none."""
-    out = None
-    for v in values:
-        try:
-            f = float(v)
-        except (TypeError, ValueError):
-            continue
-        if out is None or f > out:
-            out = f
-    return out
+from .design_summary import design_summary, governing, verdict
 
 
-def _max_member_efficiency(pair_designs):
-    """Maximum Osdag 'efficiency' (utilization ratio) over a cross-bracing or
-    end-diaphragm result dump (nested pair -> member -> force_type -> raw).
-    Reads already-computed results only; nothing is recalculated here."""
-    from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
-    if not isinstance(pair_designs, dict):
-        return None
-    best = None
-    for members in pair_designs.values():
-        if not isinstance(members, dict):
-            continue
-        for force_types in members.values():
-            if not isinstance(force_types, dict):
-                continue
-            for raw in force_types.values():
-                try:
-                    val = _extract_osdag_summary(raw or {}).get("efficiency")
-                    if val is None:
-                        continue
-                    f = float(val)
-                except (TypeError, ValueError, AttributeError):
-                    continue
-                if best is None or f > best:
-                    best = f
-    return best
-
-
-def executive_summary(input_dict, output_dict, fig_paths) -> str:
+def executive_summary(input_dict, output_dict, fig_paths, summary=None) -> str:
     plan_fig = _fig_or_placeholder(fig_paths.get('girder_top'), 'Figure 1 -- Overall Bridge Plan')
     cs_fig = _fig_or_placeholder(fig_paths.get('cross_section'),
                                   'Figure 2 -- Typical Cross-Section (with girder, deck, barriers, footpath)')
     geom_fig = _fig_or_placeholder(fig_paths.get('final_geometry'),
                                     'Figure 3 -- 3D View of Bridge Superstructure')
 
-    # All girders share the same section, governing check, and UR.
-    # The section designation is produced by the designer pipeline, so it lives
-    # in output_dict (not input_dict).
     sec = _render_value(output_dict, KEY_SD_SECTION_DESIGNATION)
+    girders, groups = summary if summary is not None else design_summary(input_dict, output_dict)
+    component_status = {name: verdict(checks) for name, checks in groups.items()}
+    overall_design_status = "Pass"
+    if "Fail" in component_status.values():
+        overall_design_status = "Fail"
+    elif "Warning" in component_status.values():
+        overall_design_status = "Warning"
+    all_checks = [item for checks in groups.values() for item in checks]
+    if "Incomplete" in component_status.values() or any(item.status == "Incomplete" for item in all_checks):
+        overall_design_status = (
+            "Fail (evaluation incomplete)" if overall_design_status == "Fail" else "Incomplete"
+        )
+    maximum = governing(all_checks)
+    gov = _tex(maximum.name) if maximum else "N/A"
+    ur = f"{maximum.ur:.2f}" if maximum else "N/A"
+    outcomes = (r" \\" + "\n").join(
+        _tex(f"{component} design: {status}") for component, status in component_status.items()
+    )
 
-    # ── Pull the stored result dicts once, then work off these locals ─────────
-    # (no value is recomputed here — the pipeline already filled these in).
-    design_results = output_dict.get("design_results", {}) or {}
-    per_girder     = design_results.get("per_girder", {}) or {}
-    deck_results   = output_dict.get("deck_design_results", {}) or {}
-    cb_results     = output_dict.get("crossbracing_design_results", {}) or {}
-    ed_results     = output_dict.get("end_diaphragm_design_results", {}) or {}
-
-    # Overall Design Status — girder checks only: Pass if every check passes,
-    # otherwise Fail with the names of the failing checks. Each check carries a
-    # pre-computed {name, dcr, status}.
-    failing = []                        # failing check names (order-preserving, deduped)
-    gov_name, gov_dcr = "", None
-    girder_max_ur = None
-    for g, gd in per_girder.items():
-        if str(g).startswith("EB"):     # skip edge-beam pseudo girders
-            continue
-        for chk in (gd.get("checks") or []):
-            try:
-                _val = chk.get("dcr")
-                if _val is None:
-                    dcr = None
-                else:
-                    dcr = float(_val)
-            except (TypeError, ValueError):
-                dcr = None
-            name = str(chk.get("name", "")).strip()
-            is_fail = ("FAIL" in str(chk.get("status", "")).upper()) or (dcr is not None and dcr > 1.0)
-            if is_fail and name and name not in failing:
-                failing.append(name)
-            if dcr is not None:
-                if gov_dcr is None or dcr > gov_dcr:
-                    gov_dcr, gov_name = dcr, name
-                if girder_max_ur is None or dcr > girder_max_ur:
-                    girder_max_ur = dcr
-
-    if not per_girder:
-        overall_design_status = ""
-    elif failing:
-        overall_design_status = "Fail (" + ", ".join(failing) + ")"
-    else:
-        overall_design_status = "Pass"
-
-    # Overall Utilization Ratio — the maximum UR across all bridge components,
-    # tagged with the governing component (e.g. "1.05 (Deck slab)").
-    component_urs = []                  # (ur_value, component_label)
-    if girder_max_ur is not None:
-        component_urs.append((girder_max_ur, "Girder"))
-    deck_max = _max_float([v for k, v in deck_results.items() if str(k).startswith("ur_")])
-    if deck_max is not None:
-        component_urs.append((deck_max, "Deck slab"))
-    for results, label in ((cb_results, "Cross bracing"), (ed_results, "End diaphragm")):
-        m = _max_member_efficiency(results)
-        if m is not None:
-            component_urs.append((m, label))
-    if component_urs:
-        max_ur, max_label = max(component_urs, key=lambda t: t[0])
-        overall_utilization_ratio = f"{max_ur:.2f} ({max_label})"
-    else:
-        overall_utilization_ratio = ""
-
-    gov = _tex(gov_name) if gov_name not in (None, '', 'None') else ''
-    ur = _tex(overall_utilization_ratio) if overall_utilization_ratio else ''
-
-    # --- Dynamic Table 1: fetch backend-populated labels via exact suffix pattern ---
-    # defaults.py populates: KEY_MP_GD_SELECT_GIRDER + '.G{i}' = 'G{i}'
-    #                        KEY_MP_GD_MEMBER_ID     + '.G{i}.M1' = 'G{i}M1'
-    labels = get_girder_entries(input_dict)
-    if not labels:
-        labels = [("", "")]
+    labels = get_girder_entries(input_dict) or [(key, "") for key in girders] or [("", "")]
+    labels = [(label or f"G{i}", member) for i, (label, member) in enumerate(labels, 1)]
     n_cols = len(labels)
+    girder_checks = [governing(girders.get(label, [])) for label, _ in labels]
 
     # Column widths: row-label column fixed at 2.8cm; girder columns share remainder
     label_col_cm = 2.8
@@ -155,9 +65,9 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     # Section / Governing Check / UR rows
     sec_cells = ' & '.join([sec] * n_cols)
     sections = f"Section Designation & {sec_cells} \\\\"
-    gov_cells = ' & '.join([gov] * n_cols)
+    gov_cells = ' & '.join(_tex(item.name) if item else "N/A" for item in girder_checks)
     gov_checks = f"Governing Check & {gov_cells} \\\\"
-    ur_cells = ' & '.join([ur] * n_cols)
+    ur_cells = ' & '.join(f"{item.ur:.2f}" if item else "N/A" for item in girder_checks)
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
     table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
@@ -222,7 +132,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 """ + cs_fig + '\n\n' + geom_fig + '\n\n' + table1 + r"""
 
 \vspace{0.4em}
-\noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value $< 1.0$ indicates a passing check.}
+\noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value of $1.0$ marks demand equal to capacity. Verdicts follow the design checks.}
 
 \vspace{1em}
 
@@ -230,10 +140,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
 \label{sec:key-outcomes}
 
-\noindent Girder design pass \\
-Cross bracing design pass \\
-End Diaphragm design pass \\
-Deck design pass
+\noindent """ + outcomes + r"""
 
 \section*{Design Assumptions and Limitations}
 \addcontentsline{toc}{section}{Design Assumptions and Limitations}

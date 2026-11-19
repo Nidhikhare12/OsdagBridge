@@ -1035,6 +1035,26 @@ def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: f
             "ur_composite_rebar_stress" : ur_composite_rebar_stress,
         })
 
+    statuses = {
+        "ur_bot_uls": bot_ok, "ur_top_uls": top_ok,
+        "ur_bot_sls_c": sc_bot["sc_ok"], "ur_top_sls_c": sc_top["sc_ok"],
+        "ur_bot_sls_s": sc_bot["ss_ok"], "ur_top_sls_s": sc_top["ss_ok"],
+        "ur_bot_crack": cw_bot["ok"], "ur_top_crack": cw_top["ok"],
+        "ur_bot_shear": shear_bot_ok, "ur_bot_punch": punch_bot_ok,
+    }
+    if overhang_m > 0.01:
+        statuses.update({
+            "ur_oh_uls": oh_ok, "ur_oh_sls_c": sc_oh["sc_ok"],
+            "ur_oh_sls_s": sc_oh["ss_ok"], "ur_oh_crack": cw_oh["ok"],
+            "ur_oh_shear": shear_oh_ok, "ur_oh_punch": punch_oh_ok,
+        })
+    if has_composite:
+        statuses.update({
+            "ur_composite_trans_shear": ts["check_ok"],
+            "ur_composite_crack": crack["is_ok"],
+        })
+    result["check_statuses"] = statuses
+
     # ── 14. report values dict (keyed to common.KEY_DD_*) ──────────────
     # Raw numeric values consumed by the report generator (Tables 5.17(a)-(g)),
     # stored separately from the UI-facing `result` dict above. Existing

@@ -104,6 +104,7 @@
 #==============================================================================
 
 import os, shutil, logging, datetime, tempfile, subprocess
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
 
@@ -120,6 +121,8 @@ from osdagbridge.core.utils.common import (
 
 from osdagbridge.core.reports.report_utils import _tex
 from .executive_summary import executive_summary
+from .design_summary import design_summary
+from .report_charts import materials_charts, utilization_chart
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
 from .chap3 import ch3_loads
@@ -915,7 +918,8 @@ def generate_report(payload, request):
             # chapters are locked in the UI, so they are always present.
             secs = payload.options.sections
 
-            doc_parts.append(executive_summary(payload.inputs, payload.output_dict, fig_paths))
+            summary = design_summary(payload.inputs, payload.output_dict)
+            doc_parts.append(executive_summary(payload.inputs, payload.output_dict, fig_paths, summary))
             doc_parts.append(ch1_project_info(payload.metadata))
             doc_parts.append(ch2_input_parameters(payload.metadata, payload.inputs, payload.output_dict))
 
@@ -924,11 +928,12 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                chart = utilization_chart(Path(tmp_assets), summary[1])
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, chart))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, materials_charts(Path(tmp_assets), quantities)))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
