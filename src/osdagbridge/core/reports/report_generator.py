@@ -647,8 +647,12 @@ def _format_project_location(pl_data):
     else:
         return str(pl_data)
     
+    if not isinstance(pl_dict, dict):
+        return str(pl_data)
     method = pl_dict.get('method')
-    data = pl_dict.get('data', {})
+    data = pl_dict.get('data')
+    if not isinstance(data, dict):
+        data = {}
     
     if method == 'location_name':
         dist = data.get('district', '')
@@ -659,7 +663,7 @@ def _format_project_location(pl_data):
     elif method == 'map':
         lat = data.get('latitude', '')
         lon = data.get('longitude', '')
-        if lat and lon:
+        if lat not in (None, "") and lon not in (None, ""):
             try:
                 from osdagbridge.core.bridge_types.plate_girder.ui_fields_project_location import DB_PATH
                 from osdagbridge.core.data.project_location.database import Database
@@ -713,27 +717,27 @@ def build_report_payload(request, input_dict, output_dict):
             else:
                 pl_dict = {}
                 
-            if pl_dict and isinstance(pl_dict, dict):
-                data = pl_dict.get('data', {})
-                weather = pl_dict.get('weather_data', {})
-                
-                # We prioritize manual inputs if they exist, else we use the DB/map coordinates
-                lat_val = data.get('latitude') or weather.get('latitude')
-                lon_val = data.get('longitude') or weather.get('longitude')
-                
-                if 'latitude' not in input_dict and lat_val:
-                    input_dict['latitude'] = lat_val
-                if 'longitude' not in input_dict and lon_val:
-                    input_dict['longitude'] = lon_val
-                    
-                if 'seismic_zone' not in input_dict and weather.get('zone'):
-                    input_dict['seismic_zone'] = weather.get('zone')
-                if 'wind_speed' not in input_dict and weather.get('wind_speed'):
-                    input_dict['wind_speed'] = weather.get('wind_speed')
-                if 'shade_temp_max' not in input_dict and weather.get('max_temp'):
-                    input_dict['shade_temp_max'] = weather.get('max_temp')
-                if 'shade_temp_min' not in input_dict and weather.get('min_temp'):
-                    input_dict['shade_temp_min'] = weather.get('min_temp')
+            if isinstance(pl_dict, dict):
+                data = pl_dict.get("data")
+                weather = pl_dict.get("weather_data")
+                data = data if isinstance(data, dict) else {}
+                weather = weather if isinstance(weather, dict) else {}
+
+                for key in ("latitude", "longitude"):
+                    value = data.get(key)
+                    if value in (None, ""):
+                        value = weather.get(key)
+                    if input_dict.get(key) in (None, "") and value not in (None, ""):
+                        input_dict[key] = value
+                for key, weather_key in (
+                    ("seismic_zone", "zone"),
+                    ("wind_speed", "wind_speed"),
+                    ("shade_temp_max", "max_temp"),
+                    ("shade_temp_min", "min_temp"),
+                ):
+                    value = weather.get(weather_key)
+                    if input_dict.get(key) in (None, "") and value not in (None, ""):
+                        input_dict[key] = value
         except Exception as e:
             logger.warning(f"Failed to parse project location data: {e}")
 
@@ -742,15 +746,19 @@ def build_report_payload(request, input_dict, output_dict):
         # at design time). Merge them into input_dict if not already present.
         for _tkey in (KEY_TL_BRIDGE_TEMP_MIN, KEY_TL_BRIDGE_TEMP_MAX,
                       KEY_TL_TEMP_RISE, KEY_TL_TEMP_FALL):
-            if not input_dict.get(_tkey) and output_dict.get(_tkey):
+            if input_dict.get(_tkey) in (None, "") and output_dict.get(_tkey) not in (None, ""):
                 input_dict[_tkey] = output_dict[_tkey]
 
         # If still missing, compute from whatever temperature inputs are available.
-        if not input_dict.get(KEY_TL_BRIDGE_TEMP_MIN):
+        if input_dict.get(KEY_TL_BRIDGE_TEMP_MIN) in (None, ""):
             try:
-                max_str = input_dict.get(KEY_TL_HIGHEST_MAX_TEMP) or input_dict.get('shade_temp_max')
-                min_str = input_dict.get(KEY_TL_LOWEST_MIN_TEMP)  or input_dict.get('shade_temp_min')
-                if max_str and min_str:
+                max_str = input_dict.get(KEY_TL_HIGHEST_MAX_TEMP)
+                min_str = input_dict.get(KEY_TL_LOWEST_MIN_TEMP)
+                if max_str in (None, ""):
+                    max_str = input_dict.get("shade_temp_max")
+                if min_str in (None, ""):
+                    min_str = input_dict.get("shade_temp_min")
+                if max_str not in (None, "") and min_str not in (None, ""):
                     from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
                     res   = IRC6_2017.cl_215_2_effective_bridge_temperature(
                                 float(max_str), float(min_str), 'metallic', False)
