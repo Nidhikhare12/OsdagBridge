@@ -1457,33 +1457,34 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \begin{longtable}{|L{1.5cm}|L{1.9cm}|L{1.5cm}|L{1.6cm}|L{2.2cm}|C{1.2cm}|C{1.2cm}|C{0.8cm}|L{1.4cm}|}
 \caption{\textbf{End Diaphragm Design --- Capacity Summary}} \\
 \hline
-Pair & Type & Member & Check & Load Combination & Demand (kN) & Capacity (kN) & UR & Status \\
+Pair & Type & Member & Check & Load Combination & Demand (kN) & Member Capacity (kN) & Osdag Util. & Status \\
 \hline
 \endfirsthead
 \hline
-Pair & Type & Member & Check & Load Combination & Demand (kN) & Capacity (kN) & UR & Status \\
+Pair & Type & Member & Check & Load Combination & Demand (kN) & Member Capacity (kN) & Osdag Util. & Status \\
 \hline
 \endhead
 """ + diaphragm_content + r"""
 \end{longtable}
+\noindent\textit{Osdag utilization may use connection capacity. The capacity column shows member capacity.}
 
-% ===========================
 \section{Overall Design Check Summary}
 \label{sec:overall-summary}
+% ===========================
 
 \vspace{1em}
 \begin{longtable}{|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|}
 \caption{\textbf{Overall Design Check Summary --- All Members}} \\
 \hline
-\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{Ratio} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{Ratio} \\[6pt]
 \hline
 \endhead
 """ + t522_content + r"""
 \end{longtable}
-\noindent\textit{Note: UR = Demand / Capacity. A UR of $1.0$ marks demand equal to capacity. Verdicts follow the design checks. The governing check for each component is highlighted in the individual design check sections above.}
+\noindent\textit{Note: Transverse-member axial rows show member capacity and the stored Osdag utilization, which may use connection capacity. Verdicts follow the design checks. The governing check for each component is highlighted in the individual design check sections above.}
 
 """
