@@ -160,6 +160,8 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     ur_cells = ' & '.join([ur] * n_cols)
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
+    # Table 1 is a plain tabular with a hand-written title (no float), so LaTeX
+    # will not keep them together on its own. Needspace + nopagebreak below do.
     table1_title = r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}'
     table1 = (r'\Needspace{9\baselineskip}' + '\n'
               + table1_title + '\n\n'
