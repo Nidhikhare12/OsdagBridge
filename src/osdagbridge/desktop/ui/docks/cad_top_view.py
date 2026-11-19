@@ -5,8 +5,9 @@ Author: Arushi
 """
 from osdagbridge.core.utils.common import *
 import math
-from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
+from copy import deepcopy
+from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea, QLineEdit
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize, Signal, QEvent
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon
 from .cad_cross_section import CrossSectionCADWidget
 
@@ -27,6 +28,8 @@ LEADER_TEXT_OFFSET = 25    # leader label distance
 
 class TopViewCADWidget(QWidget):
     """Widget for drawing bridge top view"""
+    # Signal emitted when a CAD parameter is interactively edited (Task I)
+    parameter_edited = Signal(str, float)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -38,6 +41,12 @@ class TopViewCADWidget(QWidget):
         # top view hover tracking 
         self.top_view_hover_zones = []  # list of (QRectF, element_type)
         self.hovered_top_view_element = None
+
+        # Interactive CAD Parameter Editing (Task I)
+        self.registered_dimension_labels = []
+        self._editor = None
+        self._active_label_info = None
+        self._last_input_dict = {}
         
         # Zoom level for this widget
         self.zoom_level = 1.0
@@ -440,13 +449,188 @@ class TopViewCADWidget(QWidget):
 
 
     def eventFilter(self, obj, event):
-        """Filter events to catch viewport resize"""
+        """Filter events to catch viewport resize and in-place editor focus/keys"""
+        if hasattr(self, "_editor") and obj == self._editor:
+            if event.type() == QEvent.FocusOut:
+                self._commit_edit()
+                return True
+            elif event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
+                self._cancel_edit()
+                return True
+
         if obj == (self.scroll_area.viewport() if self.scroll_area else None):
             if event.type() == event.Type.Resize:
                 # Viewport resized - reposition buttons
                 self._position_zoom_buttons()
                 self.fit_to_screen()
         return super().eventFilter(obj, event)
+
+    # ── Interactive Parameter Editing (Task I) ──────────────────────────────────
+
+    def mouseDoubleClickEvent(self, event):
+        """Handle mouse double click to edit editable CAD dimension labels."""
+        pos = event.position() if hasattr(event, 'position') else event.pos()
+        for label_info in getattr(self, "registered_dimension_labels", []):
+            rect = label_info["rect"]
+            if rect.adjusted(-4, -4, 4, 4).contains(pos):
+                if not label_info.get("editable", False):
+                    # Locked parameter (Overhang, Overall Bridge Width, Bracing Spacing): remain read-only
+                    return
+                self._start_in_place_edit(label_info)
+                return
+            super().mouseDoubleClickEvent(event)
+
+    def mousePressEvent(self, event):
+        """Commit edit when clicking outside the editor widget."""
+        if hasattr(self, "_editor") and self._editor is not None and self._editor.isVisible():
+            pos = event.position() if hasattr(event, 'position') else event.pos()
+            if not self._editor.geometry().contains(pos.toPoint()):
+                self._commit_edit()
+                return
+        super().mousePressEvent(event)
+
+    def _start_in_place_edit(self, label_info):
+        """Spawn overlay QLineEdit directly over the dimension label."""
+        if hasattr(self, "_editor") and self._editor is not None:
+            self._commit_edit()
+
+        self._active_label_info = label_info
+        rect = label_info["rect"].toRect()
+
+        self._editor = QLineEdit(self)
+        self._editor.setObjectName("cad_in_place_editor")
+        width = max(rect.width() + 14, 85)
+        height = max(rect.height() + 8, 26)
+        center = rect.center()
+        self._editor.setGeometry(int(center.x() - width / 2), int(center.y() - height / 2), int(width), int(height))
+        
+        self._editor.setStyleSheet("""
+            QLineEdit {
+                background-color: #ffffff;
+                color: #111111;
+                border: 2px solid #90AF13;
+                border-radius: 3px;
+                padding: 1px 4px;
+                font-size: 11px;
+                font-weight: bold;
+                selection-background-color: #90AF13;
+                selection-color: #ffffff;
+            }
+        """)
+
+        cur_val = label_info.get("current_val")
+        if cur_val is None:
+            key = label_info["key"]
+            if key == KEY_CARRIAGEWAY_WIDTH:
+                cur_val = self.params.get("carriageway_width", 0) / 1000.0
+            elif key == KEY_TS_GIRDER_SPACING:
+                cur_val = self.params.get("girder_spacing", 0) / 1000.0
+            elif key == KEY_TS_DECK_THICKNESS:
+                cur_val = self.params.get("deck_thickness", 0)
+            elif key == KEY_SPAN:
+                cur_val = self.params.get("span_length", 0) / 1000.0
+            else:
+                cur_val = 0.0
+
+        if label_info.get("unit") == "mm":
+            self._editor.setText(f"{cur_val:.0f}")
+        else:
+            self._editor.setText(f"{cur_val:.2f}")
+
+        self._editor.selectAll()
+        self._editor.show()
+        self._editor.setFocus()
+
+        self._editor.returnPressed.connect(self._commit_edit)
+        self._editor.installEventFilter(self)
+
+    def _commit_edit(self):
+        """Validate input value and emit parameter_edited on success."""
+        if not hasattr(self, "_editor") or self._editor is None:
+            return
+
+        editor = self._editor
+        label_info = getattr(self, "_active_label_info", None)
+        self._editor = None
+        self._active_label_info = None
+
+        text = editor.text().strip()
+        editor.removeEventFilter(self)
+        editor.hide()
+        editor.deleteLater()
+
+        if label_info is None:
+            return
+
+        key = label_info["key"]
+
+        # Validate non-empty
+        if not text:
+            self._show_edit_error("Value cannot be empty.")
+            return
+
+        # Validate numeric
+        try:
+            val = float(text)
+        except ValueError:
+            self._show_edit_error("Value must be a valid number.")
+            return
+
+        # Validate non-zero positive
+        if val <= 0:
+            self._show_edit_error("Value must be greater than zero.")
+            return
+
+        # Engineering validation via BridgeInputValidator
+        from osdagbridge.core.bridge_types.plate_girder.validator import BridgeInputValidator
+        validator = BridgeInputValidator()
+        
+        test_dict = deepcopy(getattr(self, "_last_input_dict", {}))
+        if KEY_CARRIAGEWAY_WIDTH not in test_dict:
+            test_dict[KEY_CARRIAGEWAY_WIDTH] = self.params.get("carriageway_width", 0) / 1000.0
+        if KEY_SPAN not in test_dict:
+            test_dict[KEY_SPAN] = self.params.get("span_length", 0) / 1000.0
+        if KEY_TS_GIRDER_SPACING not in test_dict:
+            test_dict[KEY_TS_GIRDER_SPACING] = self.params.get("girder_spacing", 0) / 1000.0
+        if KEY_TS_DECK_THICKNESS not in test_dict:
+            test_dict[KEY_TS_DECK_THICKNESS] = self.params.get("deck_thickness", 0)
+        if KEY_TS_OVERALL_WIDTH not in test_dict:
+            test_dict[KEY_TS_OVERALL_WIDTH] = self.params.get("num_girders", 4) * (self.params.get("girder_spacing", 2000) / 1000.0)
+
+        test_dict[key] = val
+
+        if key in (KEY_SPAN, KEY_CARRIAGEWAY_WIDTH):
+            err = validator.validate_basic_inputs(key, test_dict)
+        else:
+            err = validator.validate_additional_inputs(key, test_dict)
+
+        if err is not None:
+            corrected, msg = err
+            self._show_edit_error(msg)
+            return
+
+        # Commit edit: emit signal
+        self.parameter_edited.emit(key, val)
+
+    def _cancel_edit(self):
+        """Cancel active in-place editing without committing."""
+        if hasattr(self, "_editor") and self._editor is not None:
+            editor = self._editor
+            self._editor = None
+            self._active_label_info = None
+            editor.removeEventFilter(self)
+            editor.hide()
+            editor.deleteLater()
+
+    def _show_edit_error(self, message: str):
+        """Display validation error message."""
+        from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
+        CustomMessageBox(
+            title="Input Error",
+            text=message,
+            buttons=["OK"],
+            dialogType=MessageBoxType.Warning,
+        ).exec()
 
     def update_params(self, params: dict):
         self.params.update(params)
@@ -478,8 +662,9 @@ class TopViewCADWidget(QWidget):
             self.update()
 
     def paintEvent(self, event):
-        # clear hover zones at start of each paint
+        # clear hover zones and registered labels at start of each paint
         self.top_view_hover_zones = []
+        self.registered_dimension_labels = []
         
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -489,7 +674,8 @@ class TopViewCADWidget(QWidget):
         
     def draw_text_with_background(self, painter, x, y, text,
                               bg_color=QColor(255, 255, 255, 230), 
-                              text_color=QColor(0, 0, 0), font_size=9, bold=False):
+                              text_color=QColor(0, 0, 0), font_size=9, bold=False,
+                              param_key=None, editable=False, unit="", current_val=None):
 
         # defensive check: font size must be > 0
         font_size = max(1, font_size)
@@ -519,12 +705,28 @@ class TopViewCADWidget(QWidget):
         painter.setBrush(QBrush(bg_color))
         painter.drawRect(bg_rect)
 
+        # Draw subtle border for editable parameters if specified
+        if param_key is not None:
+            self.registered_dimension_labels.append({
+                "key": param_key,
+                "rect": bg_rect,
+                "editable": editable,
+                "unit": unit,
+                "current_val": current_val,
+            })
+            if editable:
+                painter.setPen(QPen(QColor(144, 175, 19, 120), 1, Qt.DashLine))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawRect(bg_rect)
+
         # Draw each text line
         painter.setPen(QPen(text_color, 0.8))
         first_line_y = y - total_height + metrics.ascent()
 
         for i, line in enumerate(lines):
             painter.drawText(int(x), int(first_line_y + i * line_height), line)
+
+        return bg_rect
 
     
     def draw_dimension_arrow(self, painter, x1, y1, x2, y2, text, horizontal=True, offset=0, text_offset=0, draw_extensions=True, extension_direction='down', extension_end_y=None):
@@ -1282,7 +1484,8 @@ class TopViewCADWidget(QWidget):
             
             self.draw_dimension_arrow_with_extensions_up(
                 painter, x1_brace, dim_y1, x2_brace, dim_y1,
-                label_cb, last_girder_y
+                label_cb, last_girder_y,
+                param_key=KEY_MP_CB_SPACING, editable=False, unit="m", current_val=cb_spacing_m
             )
             dim_y_next = dim_y_base + DIM_STACK_GAP
         else:
@@ -1299,7 +1502,8 @@ class TopViewCADWidget(QWidget):
         
         self.draw_dimension_arrow_with_extensions_up(
             painter, x1_span, dim_y2, x2_span, dim_y2,
-            label_span, last_girder_y
+            label_span, last_girder_y,
+            param_key=KEY_SPAN, editable=True, unit="m", current_val=span_m
         )
 
         # GIRDER SPACING dimension (always visible)
@@ -1334,7 +1538,8 @@ class TopViewCADWidget(QWidget):
                 painter, label_x, label_y,
                 label_text,
                 QColor(255, 255, 255, 240),
-                QColor(0, 0, 0), 9, False
+                QColor(0, 0, 0), 9, False,
+                param_key=KEY_TS_GIRDER_SPACING, editable=True, unit="m", current_val=gs_m
             )
 
         # CL OF BEARING labels - ALWAYS VISIBLE (moved outside hover condition)
@@ -1410,7 +1615,8 @@ class TopViewCADWidget(QWidget):
             self.draw_clean_leader_line(painter, target_x, target_y, label_x, label_y,
                                     "End Diaphragm", CAD_DARK_GREY, QColor(139, 69, 19))
 
-    def draw_dimension_arrow_with_extensions_up(self, painter, x1, y1, x2, y2, text, girder_y):
+    def draw_dimension_arrow_with_extensions_up(self, painter, x1, y1, x2, y2, text, girder_y,
+                                                param_key=None, editable=False, unit="", current_val=None):
         """Dimension line with arrows and extension lines going UP to girder level (dimension below)"""
         painter.setPen(QPen(QColor(0, 0, 0), 1.0))
         
@@ -1461,8 +1667,9 @@ class TopViewCADWidget(QWidget):
         metrics = painter.fontMetrics()
         text_width = metrics.boundingRect(text).width()
         
-        self.draw_text_with_background(painter, text_x - text_width/2, text_y, text, 
-                                    QColor(255, 255, 255, 240), QColor(0, 0, 0), 9, False)
+        return self.draw_text_with_background(painter, text_x - text_width/2, text_y, text, 
+                                       QColor(255, 255, 255, 240), QColor(0, 0, 0), 9, False,
+                                       param_key=param_key, editable=editable, unit=unit, current_val=current_val)
 
 
     def draw_skewed_dimension_arrow(self, painter, x1, y1, x2, y2, text, skew_rad):

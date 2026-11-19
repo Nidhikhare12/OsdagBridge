@@ -350,6 +350,7 @@ class CustomWindow(QWidget):
         self.cad_comp_widget.setSizePolicy(
             QSizePolicy.Expanding, QSizePolicy.Expanding
         )
+        self.cad_comp_widget.parameter_edited.connect(self.on_cad_parameter_edited)
         self.cad_log_splitter.addWidget(self.cad_comp_widget)
 
         # from osdagbridge.desktop.ui.cad_3d import CAD3DWindow
@@ -900,6 +901,45 @@ class CustomWindow(QWidget):
                 pass
 
         # Apply state to CAD UI & Update Cad-State
+        self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
+
+    def on_cad_parameter_edited(self, key: str, value: float):
+        """
+        Handle interactive 2D CAD dimension parameter edit (Task I).
+        Synchronizes the updated value to input_dict, UI widgets, re-solves geometry,
+        and triggers CAD redraw.
+        """
+        # 1. Update the central input dictionary
+        self.input_dict[key] = value
+
+        # 2. Synchronize main UI widget if this parameter is present in InputDock
+        if hasattr(self, "input_dock") and self.input_dock is not None:
+            w = self.input_dock._w(key)
+            if w is not None:
+                w.blockSignals(True)
+                if isinstance(w, QLineEdit):
+                    text_val = f"{value:.2f}" if isinstance(value, float) and value % 1 != 0 else str(int(value) if isinstance(value, float) and value.is_integer() else value)
+                    w.setText(text_val)
+                    self.input_dock.reset_error_state(w)
+                elif isinstance(w, QComboBox):
+                    w.setCurrentText(str(value))
+                w.blockSignals(False)
+
+        # 3. Re-solve derived geometry (overall bridge width, girder spacing, etc.)
+        try:
+            solve_extend_basic_input_dict(self.input_dict)
+        except Exception:
+            pass
+
+        # 4. Sync additional inputs dialog if already constructed
+        if getattr(self, "_additional_inputs_dialog", None) is not None:
+            try:
+                self._additional_inputs_dialog.set_input_dictionary(self.input_dict)
+                self._additional_inputs_dialog._update_additional_input_cad()
+            except Exception:
+                pass
+
+        # 5. Redraw CAD
         self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
 
     #---------------------------------Docking-Icons-Functionality-START----------------------------------------------
