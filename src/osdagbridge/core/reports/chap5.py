@@ -383,7 +383,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{Intermediate Stiffener Checks}
 \hline
-\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\textbf{Girder} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
 """ + t58_content + r"""
 \end{longtable}
