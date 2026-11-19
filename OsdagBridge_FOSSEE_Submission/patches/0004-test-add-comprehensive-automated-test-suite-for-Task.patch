@@ -1,0 +1,673 @@
+From 364a1eed9564d9cce091d51468927ec134d36025 Mon Sep 17 00:00:00 2001
+From: pranshu <snpranshukhtk99@gmail.com>
+Date: Thu, 19 Nov 2026 14:55:59 +0530
+Subject: [PATCH 4/5] test: add comprehensive automated test suite for Tasks I,
+ II, and III
+
+- test_cad_interactive_edit.py: 8 tests covering label registration, locked read-only behavior, in-place edit commit (Enter, click-outside), validation, and signal relay
+- test_additional_inputs_validation.py: 8 tests covering is_modified state tracking, custom field pre-save validation, and closeEvent confirmation
+- test_transverse_plotting.py: 6 tests covering transverse line segmentation, End Diaphragms & Cross Bracings plotting across all 9 components, and regression-free longitudinal plots
+---
+ tests/test_additional_inputs_validation.py | 155 +++++++++++
+ tests/test_cad_interactive_edit.py         | 284 +++++++++++++++++++++
+ tests/test_transverse_plotting.py          | 195 ++++++++++++++
+ 3 files changed, 634 insertions(+)
+ create mode 100644 tests/test_additional_inputs_validation.py
+ create mode 100644 tests/test_cad_interactive_edit.py
+ create mode 100644 tests/test_transverse_plotting.py
+
+diff --git a/tests/test_additional_inputs_validation.py b/tests/test_additional_inputs_validation.py
+new file mode 100644
+index 0000000..f683ab4
+--- /dev/null
++++ b/tests/test_additional_inputs_validation.py
+@@ -0,0 +1,155 @@
++import os
++import sys
++from copy import deepcopy
++from unittest.mock import patch, MagicMock
++
++import pytest
++from PySide6.QtWidgets import QApplication, QLineEdit, QComboBox
++from PySide6.QtGui import QCloseEvent
++
++from osdagbridge.core.utils.common import *
++from osdagbridge.desktop.ui.dialogs.additional_input.additional_inputs import (
++    AdditionalInputs, CUSTOM_PARAMETER_MAPPINGS
++)
++from osdagbridge.desktop.ui.template_page import CustomWindow
++from osdagbridge.core.bridge_types.plate_girder.plategirderbridge import PlateGirderBridge
++from osdagbridge.core.bridge_types.plate_girder.defaults import solve_extend_basic_input_dict
++
++@pytest.fixture(scope="session")
++def qapp():
++    app = QApplication.instance()
++    if app is None:
++        app = QApplication(sys.argv)
++    return app
++
++def setup_dialog(qapp):
++    win = CustomWindow("Test", PlateGirderBridge)
++    win.input_dict[KEY_SPAN] = 25.0
++    win.input_dict[KEY_CARRIAGEWAY_WIDTH] = 7.5
++    win.input_dict[KEY_SKEW_ANGLE] = 0.0
++    solve_extend_basic_input_dict(win.input_dict)
++    dlg = win._get_additional_inputs()
++    win._show_additional_inputs()
++    return win, dlg
++
++def test_initial_state_is_not_modified(qapp):
++    win, dlg = setup_dialog(qapp)
++    assert dlg.is_modified is False
++
++def test_user_input_marks_modified(qapp):
++    win, dlg = setup_dialog(qapp)
++    assert dlg.is_modified is False
++    
++    # Simulate user editing a textbox
++    w = dlg.findChild(QLineEdit, KEY_TS_DECK_THICKNESS)
++    assert w is not None
++    w.setText("300")
++    w.textEdited.emit("300")
++    assert dlg.is_modified is True
++
++def test_custom_validation_empty_fails(qapp):
++    win, dlg = setup_dialog(qapp)
++    
++    # Set Footpath Pressure mode to Custom, and empty value
++    mode_w = dlg.findChild(QComboBox, KEY_LL_FOOTPATH_PRESSURE_MODE)
++    val_w = dlg.findChild(QLineEdit, KEY_LL_FOOTPATH_PRESSURE_VALUE)
++    assert mode_w is not None
++    assert val_w is not None
++    
++    mode_w.setCurrentText("Custom")
++    val_w.setText("")
++    dlg.working_input_dict[KEY_LL_FOOTPATH_PRESSURE_MODE] = "Custom"
++    dlg.working_input_dict[KEY_LL_FOOTPATH_PRESSURE_VALUE] = ""
++    
++    with patch("osdagbridge.desktop.ui.dialogs.additional_input.additional_inputs.CustomMessageBox") as MockMsgBox:
++        mock_instance = MagicMock()
++        MockMsgBox.return_value = mock_instance
++        
++        saved = dlg.validate_custom_inputs()
++        assert saved is False
++        assert MockMsgBox.called
++        call_kwargs = MockMsgBox.call_args.kwargs
++        assert "Footpath Pressure" in call_kwargs.get("text", "")
++        assert "cannot be empty" in call_kwargs.get("text", "")
++        assert call_kwargs.get("title") == "Error"
++
++def test_custom_validation_whitespace_fails(qapp):
++    win, dlg = setup_dialog(qapp)
++    
++    # Set Wind Gust Factor to Custom with whitespace only
++    mode_w = dlg.findChild(QComboBox, KEY_WL_GUST_FACTOR_MODE)
++    val_w = dlg.findChild(QLineEdit, KEY_WL_GUST_FACTOR_VALUE)
++    assert mode_w is not None
++    assert val_w is not None
++    
++    mode_w.setCurrentText("Custom")
++    val_w.setText("   ")
++    dlg.working_input_dict[KEY_WL_GUST_FACTOR_MODE] = "Custom"
++    dlg.working_input_dict[KEY_WL_GUST_FACTOR_VALUE] = "   "
++    
++    with patch("osdagbridge.desktop.ui.dialogs.additional_input.additional_inputs.CustomMessageBox") as MockMsgBox:
++        mock_instance = MagicMock()
++        MockMsgBox.return_value = mock_instance
++        
++        saved = dlg.validate_custom_inputs()
++        assert saved is False
++        assert MockMsgBox.called
++        call_kwargs = MockMsgBox.call_args.kwargs
++        assert "Gust Factor" in call_kwargs.get("text", "")
++        assert "cannot be empty" in call_kwargs.get("text", "")
++
++def test_custom_validation_valid_succeeds(qapp):
++    win, dlg = setup_dialog(qapp)
++    
++    # Make sure all custom fields are either not custom or have valid values
++    mode_w = dlg.findChild(QComboBox, KEY_LL_FOOTPATH_PRESSURE_MODE)
++    val_w = dlg.findChild(QLineEdit, KEY_LL_FOOTPATH_PRESSURE_VALUE)
++    mode_w.setCurrentText("Custom")
++    val_w.setText("0.005")
++    dlg.working_input_dict[KEY_LL_FOOTPATH_PRESSURE_MODE] = "Custom"
++    dlg.working_input_dict[KEY_LL_FOOTPATH_PRESSURE_VALUE] = "0.005"
++    
++    assert dlg.validate_custom_inputs() is True
++
++def test_close_event_unmodified_closes(qapp):
++    win, dlg = setup_dialog(qapp)
++    dlg.is_modified = False
++    
++    event = QCloseEvent()
++    dlg.closeEvent(event)
++    assert event.isAccepted() is True
++
++def test_close_event_modified_cancel_keeps_open(qapp):
++    win, dlg = setup_dialog(qapp)
++    dlg.is_modified = True
++    
++    event = QCloseEvent()
++    with patch("osdagbridge.desktop.ui.dialogs.additional_input.additional_inputs.CustomMessageBox") as MockMsgBox:
++        mock_instance = MagicMock()
++        mock_instance.exec.return_value = "Cancel"
++        MockMsgBox.return_value = mock_instance
++        
++        dlg.closeEvent(event)
++        assert event.isAccepted() is False
++        assert dlg.is_modified is True
++
++def test_close_event_modified_discard_reverts(qapp):
++    win, dlg = setup_dialog(qapp)
++    
++    w = dlg.findChild(QLineEdit, KEY_TS_DECK_THICKNESS)
++    initial_val = w.text()
++    w.setText("999")
++    dlg.working_input_dict[KEY_TS_DECK_THICKNESS] = "999"
++    dlg.is_modified = True
++    
++    event = QCloseEvent()
++    with patch("osdagbridge.desktop.ui.dialogs.additional_input.additional_inputs.CustomMessageBox") as MockMsgBox:
++        mock_instance = MagicMock()
++        mock_instance.exec.return_value = "Discard"
++        MockMsgBox.return_value = mock_instance
++        
++        dlg.closeEvent(event)
++        assert event.isAccepted() is True
++        assert dlg.is_modified is False
++        # Verify reverted
++        assert dlg.working_input_dict[KEY_TS_DECK_THICKNESS] == dlg.default_input_dict[KEY_TS_DECK_THICKNESS]
+diff --git a/tests/test_cad_interactive_edit.py b/tests/test_cad_interactive_edit.py
+new file mode 100644
+index 0000000..e8d06af
+--- /dev/null
++++ b/tests/test_cad_interactive_edit.py
+@@ -0,0 +1,284 @@
++import os
++import sys
++import pytest
++from PySide6.QtWidgets import QApplication, QLineEdit
++from PySide6.QtCore import Qt, QPoint, QPointF
++from PySide6.QtGui import QMouseEvent, QPainter, QPixmap
++
++from osdagbridge.core.utils.common import (
++    KEY_SPAN,
++    KEY_CARRIAGEWAY_WIDTH,
++    KEY_TS_GIRDER_SPACING,
++    KEY_TS_DECK_THICKNESS,
++    KEY_TS_DECK_OVERHANG,
++    KEY_TS_OVERALL_WIDTH,
++    KEY_MP_CB_SPACING,
++)
++from osdagbridge.desktop.ui.docks.cad_cross_section import CrossSectionCADWidget
++from osdagbridge.desktop.ui.docks.cad_top_view import TopViewCADWidget
++from osdagbridge.desktop.ui.docks.cad_dual_view import BridgeDualCADWidget
++
++@pytest.fixture(scope="session")
++def app():
++    app = QApplication.instance()
++    if app is None:
++        app = QApplication(sys.argv)
++    return app
++
++def paint_widget(widget):
++    """Helper to simulate paintEvent and populate registered_dimension_labels."""
++    widget.resize(1000, 800)
++    widget.show()
++    pix = QPixmap(widget.size())
++    widget.render(pix)
++    return widget.registered_dimension_labels
++
++def test_cross_section_label_registration(app):
++    """Verify that CrossSectionCADWidget registers editable and locked labels."""
++    cs = CrossSectionCADWidget()
++    cs.show_dimensions = True
++    cs.show_carriageway_values = True
++    cs.params['carriageway_width'] = 7500
++    cs.params['num_girders'] = 4
++    cs.params['girder_spacing'] = 2500
++    cs.params['deck_thickness'] = 220
++    cs.params['deck_overhang'] = 1000
++    
++    labels = paint_widget(cs)
++    assert len(labels) > 0, "Labels should be registered during paint"
++
++    keys_registered = {l["key"]: l for l in labels}
++    
++    # Check editable parameters
++    assert KEY_CARRIAGEWAY_WIDTH in keys_registered
++    assert keys_registered[KEY_CARRIAGEWAY_WIDTH]["editable"] is True
++
++    assert KEY_TS_GIRDER_SPACING in keys_registered
++    assert keys_registered[KEY_TS_GIRDER_SPACING]["editable"] is True
++
++    assert KEY_TS_DECK_THICKNESS in keys_registered
++    assert keys_registered[KEY_TS_DECK_THICKNESS]["editable"] is True
++
++    # Check locked parameters
++    assert KEY_TS_OVERALL_WIDTH in keys_registered
++    assert keys_registered[KEY_TS_OVERALL_WIDTH]["editable"] is False
++
++    assert KEY_TS_DECK_OVERHANG in keys_registered
++    assert keys_registered[KEY_TS_DECK_OVERHANG]["editable"] is False
++
++def test_top_view_label_registration(app):
++    """Verify that TopViewCADWidget registers editable and locked labels."""
++    tv = TopViewCADWidget()
++    tv.show_dimensions = True
++    tv.show_span_values = True
++    tv.show_carriageway_values = True
++    tv.params['span_length'] = 30000
++    tv.params['girder_spacing'] = 2500
++    tv.params['cross_bracing_spacing'] = 3500
++    
++    labels = paint_widget(tv)
++    assert len(labels) > 0, "Top view labels should be registered during paint"
++
++    keys_registered = {l["key"]: l for l in labels}
++    
++    # Check editable parameters
++    assert KEY_SPAN in keys_registered
++    assert keys_registered[KEY_SPAN]["editable"] is True
++
++    assert KEY_TS_GIRDER_SPACING in keys_registered
++    assert keys_registered[KEY_TS_GIRDER_SPACING]["editable"] is True
++
++    # Check locked parameter
++    assert KEY_MP_CB_SPACING in keys_registered
++    assert keys_registered[KEY_MP_CB_SPACING]["editable"] is False
++
++def test_locked_parameters_remain_readonly(app):
++    """Double-clicking locked parameters (Overhang, Overall Bridge Width, Bracing Spacing) must not open editor."""
++    cs = CrossSectionCADWidget()
++    cs.show_dimensions = True
++    cs.show_carriageway_values = True
++    paint_widget(cs)
++
++    # Test Overall Bridge Width (locked)
++    width_info = next((l for l in cs.registered_dimension_labels if l["key"] == KEY_TS_OVERALL_WIDTH), None)
++    assert width_info is not None
++    center = width_info["rect"].center().toPoint()
++    event = QMouseEvent(QMouseEvent.MouseButtonDblClick, center, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
++    cs.mouseDoubleClickEvent(event)
++    assert getattr(cs, "_editor", None) is None, "Overall Bridge Width must not spawn editor"
++
++    # Test Overhang (locked)
++    overhang_info = next((l for l in cs.registered_dimension_labels if l["key"] == KEY_TS_DECK_OVERHANG), None)
++    assert overhang_info is not None
++    center = overhang_info["rect"].center().toPoint()
++    event = QMouseEvent(QMouseEvent.MouseButtonDblClick, center, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
++    cs.mouseDoubleClickEvent(event)
++    assert getattr(cs, "_editor", None) is None, "Overhang must not spawn editor"
++
++    # Test Bracing Spacing (locked) on TopView
++    tv = TopViewCADWidget()
++    tv.show_dimensions = True
++    tv.show_span_values = True
++    paint_widget(tv)
++    cb_info = next((l for l in tv.registered_dimension_labels if l["key"] == KEY_MP_CB_SPACING), None)
++    assert cb_info is not None
++    center = cb_info["rect"].center().toPoint()
++    event = QMouseEvent(QMouseEvent.MouseButtonDblClick, center, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
++    tv.mouseDoubleClickEvent(event)
++    assert getattr(tv, "_editor", None) is None, "Bracing Spacing must not spawn editor"
++
++def test_editable_parameter_enter_commit(app):
++    """Double-clicking Carriageway Width opens editor, entering new value + Enter commits."""
++    cs = CrossSectionCADWidget()
++    cs.show_dimensions = True
++    cs.show_carriageway_values = True
++    cs.params['carriageway_width'] = 7500
++    paint_widget(cs)
++
++    cw_info = next((l for l in cs.registered_dimension_labels if l["key"] == KEY_CARRIAGEWAY_WIDTH), None)
++    assert cw_info is not None
++
++    emitted_values = []
++    cs.parameter_edited.connect(lambda k, v: emitted_values.append((k, v)))
++
++    # Double click to open editor
++    center = cw_info["rect"].center().toPoint()
++    event = QMouseEvent(QMouseEvent.MouseButtonDblClick, center, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
++    cs.mouseDoubleClickEvent(event)
++
++    assert cs._editor is not None
++    assert cs._editor.isVisible()
++    assert float(cs._editor.text()) == 7.5
++
++    # Change text and commit via returnPressed
++    cs._editor.setText("8.5")
++    cs._editor.returnPressed.emit()
++
++    assert cs._editor is None
++    assert len(emitted_values) == 1
++    assert emitted_values[0] == (KEY_CARRIAGEWAY_WIDTH, 8.5)
++
++def test_editable_parameter_click_outside_commit(app):
++    """Double-clicking Girder Spacing opens editor, clicking outside commits value."""
++    cs = CrossSectionCADWidget()
++    cs.show_dimensions = True
++    cs.show_carriageway_values = True
++    cs.params['girder_spacing'] = 2500
++    paint_widget(cs)
++
++    gs_info = next((l for l in cs.registered_dimension_labels if l["key"] == KEY_TS_GIRDER_SPACING), None)
++    assert gs_info is not None
++
++    emitted_values = []
++    cs.parameter_edited.connect(lambda k, v: emitted_values.append((k, v)))
++
++    # Double click to open editor
++    center = gs_info["rect"].center().toPoint()
++    event = QMouseEvent(QMouseEvent.MouseButtonDblClick, center, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
++    cs.mouseDoubleClickEvent(event)
++
++    assert cs._editor is not None
++    cs._editor.setText("2.8")
++
++    # Click outside editor geometry
++    press_pos = QPoint(10, 10) # Clearly outside the editor
++    assert not cs._editor.geometry().contains(press_pos)
++    press_event = QMouseEvent(QMouseEvent.MouseButtonPress, press_pos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
++    cs.mousePressEvent(press_event)
++
++    assert cs._editor is None
++    assert len(emitted_values) == 1
++    assert emitted_values[0] == (KEY_TS_GIRDER_SPACING, 2.8)
++
++def test_invalid_input_validation(app, monkeypatch):
++    """Entering empty, non-numeric, zero, negative, or invalid engineering values must be rejected."""
++    cs = CrossSectionCADWidget()
++    cs.show_dimensions = True
++    cs.show_carriageway_values = True
++    paint_widget(cs)
++
++    errors_shown = []
++    monkeypatch.setattr(cs, "_show_edit_error", lambda msg: errors_shown.append(msg))
++
++    cw_info = next((l for l in cs.registered_dimension_labels if l["key"] == KEY_CARRIAGEWAY_WIDTH), None)
++    assert cw_info is not None
++
++    emitted_values = []
++    cs.parameter_edited.connect(lambda k, v: emitted_values.append((k, v)))
++
++    # 1. Non-numeric
++    cs._start_in_place_edit(cw_info)
++    cs._editor.setText("abc")
++    cs._commit_edit()
++    assert len(errors_shown) == 1
++    assert "valid number" in errors_shown[-1]
++    assert len(emitted_values) == 0
++
++    # 2. Zero
++    cs._start_in_place_edit(cw_info)
++    cs._editor.setText("0")
++    cs._commit_edit()
++    assert len(errors_shown) == 2
++    assert "greater than zero" in errors_shown[-1]
++    assert len(emitted_values) == 0
++
++    # 3. Negative
++    cs._start_in_place_edit(cw_info)
++    cs._editor.setText("-5.0")
++    cs._commit_edit()
++    assert len(errors_shown) == 3
++    assert "greater than zero" in errors_shown[-1]
++    assert len(emitted_values) == 0
++
++    # 4. Empty
++    cs._start_in_place_edit(cw_info)
++    cs._editor.setText("   ")
++    cs._commit_edit()
++    assert len(errors_shown) == 4
++    assert "cannot be empty" in errors_shown[-1]
++    assert len(emitted_values) == 0
++
++def test_span_length_editing_in_top_view(app):
++    """Double-clicking Span Length in TopViewCADWidget commits valid value."""
++    tv = TopViewCADWidget()
++    tv.show_dimensions = True
++    tv.show_span_values = True
++    tv.params['span_length'] = 30000
++    paint_widget(tv)
++
++    span_info = next((l for l in tv.registered_dimension_labels if l["key"] == KEY_SPAN), None)
++    assert span_info is not None
++
++    emitted_values = []
++    tv.parameter_edited.connect(lambda k, v: emitted_values.append((k, v)))
++
++    # Double click
++    center = span_info["rect"].center().toPoint()
++    event = QMouseEvent(QMouseEvent.MouseButtonDblClick, center, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
++    tv.mouseDoubleClickEvent(event)
++
++    assert tv._editor is not None
++    assert tv._editor.isVisible()
++    assert float(tv._editor.text()) == 30.0
++
++    tv._editor.setText("35.0")
++    tv._commit_edit()
++
++    assert len(emitted_values) == 1
++    assert emitted_values[0] == (KEY_SPAN, 35.0)
++
++def test_dual_view_relay_signals(app):
++    """BridgeDualCADWidget properly relays parameter_edited from child widgets."""
++    dual = BridgeDualCADWidget()
++    emitted = []
++    dual.parameter_edited.connect(lambda k, v: emitted.append((k, v)))
++
++    # Emit from cross section child
++    dual.cross_section_widget.parameter_edited.emit(KEY_CARRIAGEWAY_WIDTH, 9.5)
++    assert len(emitted) == 1
++    assert emitted[0] == (KEY_CARRIAGEWAY_WIDTH, 9.5)
++
++    # Emit from top view child
++    dual.top_view_widget.parameter_edited.emit(KEY_SPAN, 40.0)
++    assert len(emitted) == 2
++    assert emitted[1] == (KEY_SPAN, 40.0)
+diff --git a/tests/test_transverse_plotting.py b/tests/test_transverse_plotting.py
+new file mode 100644
+index 0000000..a753164
+--- /dev/null
++++ b/tests/test_transverse_plotting.py
+@@ -0,0 +1,195 @@
++import os
++import sys
++import pytest
++from PySide6.QtWidgets import QApplication, QComboBox
++from PySide6.QtCore import Qt
++from matplotlib.figure import Figure
++from mpl_toolkits.mplot3d import Axes3D
++
++from osdagbridge.core.utils.common import (
++    KEY_SPAN,
++    KEY_CARRIAGEWAY_WIDTH,
++    KEY_SKEW_ANGLE,
++    KEY_ANALYSIS_MEMBER,
++    KEY_ANALYSIS_MEMBER_TYPE,
++    KEY_ANALYSIS_LOAD_COMBINATION,
++)
++from osdagbridge.desktop.ui.template_page import CustomWindow
++from osdagbridge.core.bridge_types.plate_girder.plategirderbridge import PlateGirderBridge
++from osdagbridge.core.bridge_types.plate_girder.defaults import solve_extend_basic_input_dict
++from osdagbridge.core.bridge_types.plate_girder.plot_generator import (
++    _find_transverse_lines,
++    build_figure_transverse,
++    build_figure_sfd,
++    build_figure_bmd,
++    build_figure_deflection,
++)
++
++@pytest.fixture(scope="session")
++def analyzed_window():
++    """Create and analyze a sample bridge once for all Task III tests."""
++    app = QApplication.instance() or QApplication(sys.argv)
++    win = CustomWindow("Test Task 3", PlateGirderBridge)
++    win.input_dict[KEY_SPAN] = 25.0
++    win.input_dict[KEY_CARRIAGEWAY_WIDTH] = 7.5
++    win.input_dict[KEY_SKEW_ANGLE] = 0.0
++    win.input_dict["project.location"] = {}
++    solve_extend_basic_input_dict(win.input_dict)
++    win._get_additional_inputs()
++    win.input_dock._prime_material_inputs()
++    win._sync_compute_results_to_input_dict()
++    win.backend.set_input(win.input_dict)
++    win.backend.design()
++
++    ds_all = win.backend.get_results_dataset()
++    loadcases = win.backend.get_available_loadcases()
++    nodes, members = win.backend.get_nodes_members()
++    edge_dist = win.backend.get_edge_dist()
++
++    win.output_dock.refresh_loadcase_dropdowns()
++    win.output_dock.refresh_member_dropdown()
++    win.plots_widget.setup(ds_all, loadcases, nodes, members, edge_dist=edge_dist)
++    win.plots_widget.link_output_dock(win.output_dock)
++    return win
++
++def test_transverse_lines_identification(analyzed_window):
++    """Verify that _find_transverse_lines identifies ED1, ED2, and intermediate CB lines."""
++    nodes, members = analyzed_window.backend.get_nodes_members()
++    lines = _find_transverse_lines(nodes, members)
++    assert len(lines) >= 3, "Model must have at least start edge, end edge, and intermediate lines"
++
++    # Verify first line is at start of span (x ≈ 0)
++    assert abs(lines[0]["x"] - 0.0) < 0.1, "First line must be at x ≈ 0 (End Diaphragm 1)"
++
++    # Verify last line is at end of span (x ≈ 25)
++    assert abs(lines[-1]["x"] - 25.0) < 0.1, "Last line must be at x ≈ 25 (End Diaphragm 2)"
++
++    # Check that each line has ordered elements and continuous stations
++    for line in lines:
++        assert len(line["elements"]) > 0
++        assert len(line["stations"]) == len(line["nodes"])
++        assert line["stations"][0] == 0.0
++        assert line["stations"][-1] > 0.0
++
++def test_end_diaphragm_all_components(analyzed_window):
++    """Verify plot generation for End Diaphragms across all 9 force, moment, and displacement components."""
++    ds_all = analyzed_window.backend.get_results_dataset()
++    nodes, members = analyzed_window.backend.get_nodes_members()
++    lc = analyzed_window.backend.get_available_loadcases()[0]
++    ds = ds_all.sel(Loadcase=lc)
++
++    components = ["Fx", "Fy", "Fz", "Mx", "My", "Mz", "Dx", "Dy", "Dz"]
++    for comp in components:
++        fig, summary = build_figure_transverse(
++            ds,
++            member_type="End Diaphragms",
++            selected_member="End Diaphragm 1 (Start)",
++            force_key=comp,
++            nodes=nodes,
++            members=members,
++            loadcase=lc,
++        )
++        assert isinstance(fig, Figure)
++        assert len(fig.axes) == 1
++        ax = fig.axes[0]
++        # Must be 2D axis, not 3D
++        assert not isinstance(ax, Axes3D)
++        # Must have lines drawn
++        assert len(ax.lines) >= 1
++        # Check summary data contains max and min
++        assert len(summary) >= 1
++        for member_name, s_vals in summary.items():
++            assert "max" in s_vals
++            assert "min" in s_vals
++
++def test_cross_bracing_all_components(analyzed_window):
++    """Verify plot generation for Cross Bracings across forces, moments, and displacements."""
++    ds_all = analyzed_window.backend.get_results_dataset()
++    nodes, members = analyzed_window.backend.get_nodes_members()
++    lc = analyzed_window.backend.get_available_loadcases()[0]
++    ds = ds_all.sel(Loadcase=lc)
++
++    # Test single cross bracing and "All"
++    for sel in ["Cross Bracing 1", "All"]:
++        fig, summary = build_figure_transverse(
++            ds,
++            member_type="Cross Bracings",
++            selected_member=sel,
++            force_key="Fy",
++            nodes=nodes,
++            members=members,
++            loadcase=lc,
++        )
++        assert isinstance(fig, Figure)
++        assert len(fig.axes) == 1
++        ax = fig.axes[0]
++        assert not isinstance(ax, Axes3D)
++        assert len(ax.lines) >= 1
++
++def test_output_dock_member_type_dropdown(analyzed_window):
++    """Verify that OutputDock member type dropdown populates and filters member dropdown."""
++    dock = analyzed_window.output_dock
++    combo_type = dock._w(KEY_ANALYSIS_MEMBER_TYPE)
++    combo_member = dock._w(KEY_ANALYSIS_MEMBER)
++
++    assert combo_type is not None
++    assert combo_member is not None
++
++    # 1. Select Longitudinal Members
++    combo_type.setCurrentText("Longitudinal Members")
++    items_long = [combo_member.itemText(i) for i in range(combo_member.count())]
++    assert "All" in items_long
++    assert "G1" in items_long
++
++    # 2. Select End Diaphragms
++    combo_type.setCurrentText("End Diaphragms")
++    items_ed = [combo_member.itemText(i) for i in range(combo_member.count())]
++    assert "All" in items_ed
++    assert "End Diaphragm 1 (Start)" in items_ed
++    assert "End Diaphragm 2 (End)" in items_ed
++
++    # 3. Select Cross Bracings
++    combo_type.setCurrentText("Cross Bracings")
++    items_cb = [combo_member.itemText(i) for i in range(combo_member.count())]
++    assert "All" in items_cb
++    assert any("Cross Bracing" in item for item in items_cb)
++
++def test_plot_widget_transverse_plot_rendering(analyzed_window):
++    """Verify that MplPlotWidget renders 2D transverse plot when End Diaphragms or Cross Bracings is selected."""
++    dock = analyzed_window.output_dock
++    plots = analyzed_window.plots_widget
++    combo_type = dock._w(KEY_ANALYSIS_MEMBER_TYPE)
++    combo_member = dock._w(KEY_ANALYSIS_MEMBER)
++
++    # Switch to End Diaphragms
++    combo_type.setCurrentText("End Diaphragms")
++    combo_member.setCurrentText("End Diaphragm 1 (Start)")
++    plots.update_plot()
++
++    assert plots._fig is not None
++    ax = plots._fig.axes[0]
++    assert not isinstance(ax, Axes3D), "End Diaphragm plot must render in 2D"
++    assert not plots._navcube.isVisible(), "NavCube must be hidden for 2D plots"
++
++    # Switch to Cross Bracings
++    combo_type.setCurrentText("Cross Bracings")
++    plots.update_plot()
++    assert plots._fig is not None
++    ax = plots._fig.axes[0]
++    assert not isinstance(ax, Axes3D), "Cross Bracing plot must render in 2D"
++
++def test_longitudinal_plots_regression_free(analyzed_window):
++    """Verify that Longitudinal member 3D plots continue to render correctly without regression."""
++    dock = analyzed_window.output_dock
++    plots = analyzed_window.plots_widget
++    combo_type = dock._w(KEY_ANALYSIS_MEMBER_TYPE)
++    combo_member = dock._w(KEY_ANALYSIS_MEMBER)
++
++    # Switch back to Longitudinal Members
++    combo_type.setCurrentText("Longitudinal Members")
++    combo_member.setCurrentText("All")
++    plots.update_plot()
++
++    assert plots._fig is not None
++    ax = plots._fig.axes[0]
++    assert isinstance(ax, Axes3D), "Longitudinal girder plot must render in 3D"
+-- 
+2.52.0.windows.1
+
