@@ -2704,6 +2704,12 @@ class PlateGirderBridge:
                 L_d = math.sqrt(horiz_proj ** 2 + h ** 2)
                 cos_alpha = math.cos(math.atan2(h, horiz_proj))
 
+                for member, length in (
+                    ("end_diaphragm", L_d), ("top_chord", s), ("bottom_chord", s),
+                ):
+                    key = f"transverse_member_design.ed.section_properties.{member}.design_length_m"
+                    self.output_dict[make_pair_key(key, pair_id)] = length
+
                 # Collect envelope forces over both ends and all load cases
                 elements = pair_to_elements.get(pair, [])
                 diag_tens_max = 0.0
