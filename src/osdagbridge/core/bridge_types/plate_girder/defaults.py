@@ -261,7 +261,8 @@ def _update_loading_tab_defaults(input_dict: dict) -> None:
     """Fill Loading tab keys that are None with schema defaults."""
 
     def _update(key, value):
-        input_dict[key] = value
+        if input_dict.get(key) is None:
+            input_dict[key] = value
 
     # ── Permanent Load ─────────────────────────────────────────────────────
     _update(KEY_PL_SELF_WEIGHT_FACTOR,      "1.00")
@@ -328,7 +329,8 @@ def _update_support_conditions_defaults(input_dict: dict) -> None:
     """Fill Support Conditions tab keys that are None with schema defaults."""
     
     def _update(key, value):
-        input_dict.update({key: value})
+        if input_dict.get(key) is None:
+            input_dict[key] = value
 
     _update(KEY_SC_LEFT_SUPPORT,   "Pinned")
     _update(KEY_SC_RIGHT_SUPPORT,  "Roller")
@@ -338,7 +340,8 @@ def _update_design_options_defaults(input_dict: dict) -> None:
     """Fill Design Options tab keys that are None with schema defaults."""
     
     def _update(key, value):
-        input_dict.update({key: value})
+        if input_dict.get(key) is None:
+            input_dict[key] = value
 
     _update(KEY_DS_CONSTRUCTION_STAGE,      "Yes")
     _update(KEY_DS_REINF_BOUNDS,            {
@@ -360,8 +363,8 @@ def _update_design_options_cont_defaults(input_dict: dict) -> None:
     """Fill Design Options (Cont.) tab keys that are None with schema defaults."""
 
     def _update(key, value):
-        # Update dict (solves some osi values not being loaded)
-        input_dict[key] = value
+        if input_dict.get(key) is None:
+            input_dict[key] = value
 
     _update(KEY_DO_GAMMA_C_BASIC,      "1.50")
     _update(KEY_DO_GAMMA_C_ACCIDENTAL, "1.20")
