@@ -2803,6 +2803,13 @@ class ReportGenerator:
 # ======================================================================
 
 
+def _absolute_force_maximum(forces, *components):
+    import numpy as np
+
+    values = np.asarray(forces.sel(Component=list(components)).values, dtype=float)
+    return float(np.max(np.abs(values), where=np.isfinite(values), initial=0.0))
+
+
 def _extract_demands_from_analysis_results(
     analysis_results: PlateGirderAnalysisResults,
     config: BridgeConfig,
@@ -2927,9 +2934,7 @@ def _extract_demands_from_analysis_results(
                 return 0.0
             try:
                 f = analysis_results.ds.forces.sel(Loadcase=lc_name, Element=elements)
-                vi = float(np.nan_to_num(np.asarray(f.sel(Component=comp_i).values, dtype=float), nan=0.0).max())
-                vj = float(np.nan_to_num(np.asarray(f.sel(Component=comp_j).values, dtype=float), nan=0.0).max())
-                return max(abs(vi), abs(vj))
+                return _absolute_force_maximum(f, comp_i, comp_j)
             except Exception:
                 return 0.0
 
@@ -3034,9 +3039,7 @@ def _extract_demands_from_analysis_results(
             try:
                 lc_forces = analysis_results.ds.forces.sel(Loadcase=lc_str, Element=elements)
                 def _fmax(comp_i, comp_j):
-                    vi = float(np.nan_to_num(np.asarray(lc_forces.sel(Component=comp_i).values, dtype=float), nan=0.0).max())
-                    vj = float(np.nan_to_num(np.asarray(lc_forces.sel(Component=comp_j).values, dtype=float), nan=0.0).max())
-                    return max(abs(vi), abs(vj))
+                    return _absolute_force_maximum(lc_forces, comp_i, comp_j)
                 Mz = _fmax("Mz_i", "Mz_j") / 1e3   # N·m → kN·m
                 Vy = _fmax("Vy_i", "Vy_j") / 1e3   # N → kN
                 Vz = _fmax("Vz_i", "Vz_j") / 1e3
