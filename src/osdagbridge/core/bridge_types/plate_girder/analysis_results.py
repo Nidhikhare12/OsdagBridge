@@ -419,6 +419,47 @@ class PlateGirderAnalysisResults:
     # ========================================================
     # BUILD LOGICAL GIRDERS (g1, g2, g3...)
     # ========================================================
+    def design_girder_groups(self, expected_count):
+        """Map physical main girder groups to the IDs used by design inputs."""
+        model = self.model
+        groups = model.common_grillage_element_z_group
+        interior = groups.get("interior_main_beam", [])
+        membership = (
+            [("exterior_main_beam_1", 0)]
+            + [("interior_main_beam", index) for index in range(len(interior))]
+            + [("exterior_main_beam_2", 0)]
+        )
+        if len(membership) != expected_count:
+            raise ValueError(
+                f"Expected {expected_count} main girders, found {len(membership)} in the grillage."
+            )
+
+        result_elements = set(self.ds.coords["Element"].values)
+        result_nodes = set(self.ds.coords["Node"].values)
+        seen_elements = set()
+        seen_groups = set()
+        girders = {}
+        for index, (group, subgroup) in enumerate(membership, 1):
+            girder = f"G{index}"
+            try:
+                group_id = groups[group][subgroup]
+                elements = model.get_element(member=group, z_group_num=subgroup, options="elements")
+                node_groups = model.get_element(member=group, z_group_num=subgroup, options="nodes")
+                nodes = node_groups[0] if node_groups else []
+            except (KeyError, IndexError) as exc:
+                raise ValueError(f"Missing grillage group for {girder}: {group}.") from exc
+            unique_elements = set(elements)
+            if (group_id in seen_groups or not elements or not nodes
+                or len(unique_elements) != len(elements) or seen_elements & unique_elements
+                or not unique_elements <= result_elements or not set(nodes) <= result_nodes):
+                raise ValueError(
+                    f"Invalid grillage group for {girder}: {group} has duplicate or missing results."
+                )
+            seen_groups.add(group_id)
+            seen_elements.update(unique_elements)
+            girders[girder] = {"elements": elements, "path": nodes}
+        return girders
+
     def build_girders(self, verbose=True):
 
         nodes, elements, adj = self.build_grillage_connectivity()
