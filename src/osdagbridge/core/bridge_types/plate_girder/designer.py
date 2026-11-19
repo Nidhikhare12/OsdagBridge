@@ -2806,18 +2806,21 @@ class ReportGenerator:
 def _extract_demands_from_analysis_results(
     analysis_results: PlateGirderAnalysisResults,
     config: BridgeConfig,
+    expected_girders: int | None = None,
 ) -> tuple:
     # Build per_girder_demands and per_girder_per_lc using the existing
     # pandas-based methods on PlateGirderAnalysisResults.
     # Returns (Dict[girder_name, DemandEnvelope], Dict[girder_name, Dict[lc, DemandEnvelope]])
     import numpy as np
 
-    girders, _   = analysis_results.build_girders(verbose=False)
-    girders      = {k: v for k, v in girders.items() if k not in ("EB1", "EB2")}
-    lc_groups    = analysis_results.classify_loadcases()
-    live_static  = lc_groups["vehicle_static"]
-    all_live_lcs = live_static
-    live_set     = set(str(lc) for lc in all_live_lcs)
+    if expected_girders is None:
+        girders, _ = analysis_results.build_girders(verbose=False)
+        girders = {key: value for key, value in girders.items() if key not in ("EB1", "EB2")}
+    else:
+        girders = analysis_results.design_girder_groups(expected_girders)
+    lc_groups = analysis_results.classify_loadcases()
+    all_live_lcs = lc_groups["vehicle_static"]
+    live_set = set(str(lc) for lc in all_live_lcs)
 
     # Typed combination LCs from the analyser's classifier (empty list if key not present).
     # ULS: basic + seismic + accidental.  SLS: frequent + rare + quasi-permanent.
@@ -3247,7 +3250,8 @@ def run_design_check(
 
     if per_girder_demands is None and analysis_results is not None:
         per_girder_demands, per_girder_per_lc = _extract_demands_from_analysis_results(
-            analysis_results, config
+            analysis_results, config,
+            plate_girder_bridge._girder_count() if plate_girder_bridge is not None else None,
         )
 
     if not per_girder_demands:
@@ -3277,15 +3281,12 @@ def run_design_check(
 
     for idx, (g_name, g_demand) in enumerate(per_girder_demands.items()):
         if plate_girder_bridge is not None:
-            try:
-                g_config = BridgeConfig.from_plate_girder_bridge(
-                    plate_girder_bridge, girder_index=idx
-                )
-                if g_config.stiffener is None:
-                    g_config.stiffener = StiffenerConfig()
-                g_config.stiffener.bs_R_kN = config.stiffener.bs_R_kN
-            except Exception:
-                g_config = config
+            g_config = BridgeConfig.from_plate_girder_bridge(
+                plate_girder_bridge, girder_index=idx
+            )
+            if g_config.stiffener is None:
+                g_config.stiffener = StiffenerConfig()
+            g_config.stiffener.bs_R_kN = config.stiffener.bs_R_kN
         else:
             g_config = config
         per_girder_configs[g_name] = g_config

@@ -3,6 +3,7 @@
 # Extracted from report_generator.py — DO NOT add business logic here.
 # =============================================================================
 from __future__ import annotations
+from math import isfinite
 from typing import TYPE_CHECKING
 
 from osdagbridge.core.utils.common import (
@@ -88,11 +89,9 @@ from osdagbridge.core.utils.common import (
     KEY_SD_LTB_MB,
     KEY_SD_LTB_MCR,
     KEY_SD_MDV,
-    KEY_SD_MD_CAPACITY,
     KEY_SD_MN_AXIAL,
     KEY_SD_MN_MOMENT,
     KEY_SD_MN_RATIO,
-    KEY_SD_MU_APPLIED,
     KEY_SD_PANEL_CD,
     KEY_SD_PNA_DEPTH,
     KEY_SD_SC_D_LIMIT,
@@ -113,7 +112,6 @@ from osdagbridge.core.utils.common import (
     KEY_SD_SHEAR_LAMBDA_W,
     KEY_SD_SHEAR_TAU_B,
     KEY_SD_SHEAR_VCR,
-    KEY_SD_SHEAR_VU,
     KEY_SD_STIFF_END_COUNT,
     KEY_SD_STIFF_END_THICK,
     KEY_SD_STIFF_INT_SPACING,
@@ -135,7 +133,6 @@ from osdagbridge.core.utils.common import (
     KEY_TS_DECK_OVERHANG,
     KEY_TS_DECK_THICKNESS,
     KEY_TS_NO_OF_GIRDERS,
-    KEY_UTIL_FLEXURE,
     KEY_UTIL_INTERACTION,
     KEY_UTIL_LTB,
     KEY_UTIL_SHEAR
@@ -212,42 +209,37 @@ def ch5_design_checks(checks_data, bridge) -> str:
         )
     t52_content = "\n".join(t52_rows)
 
-    # Generate Table 5.3 rows
-    # Flexure UR is stored as a percent (cat_urs × 100); show as a ratio (÷100,
-    # 2 dp) and PASS when ≤ 1.0.
-    try:
-        _flex_ur = float(bridge.output_dict.get(KEY_UTIL_FLEXURE)) / 100.0
-        _flex_ur_str = f"{_flex_ur:.2f}"
-        _flex_status = "PASS" if _flex_ur <= 1.0 else r"\textcolor{red}{FAIL}"
-    except (TypeError, ValueError):
-        _flex_ur_str = ""
-        _flex_status = "---"
+    per_girder = (bridge.output_dict.get("design_results") or {}).get("per_girder") or {}
+
+    def girder_check(label, check_id):
+        checks = (per_girder.get(label) or {}).get("checks") or []
+        return next((check for check in checks if check.get("check_id") == check_id), {})
+
+    def girder_check_value(check, key, unit=""):
+        try:
+            value = float(check.get(key))
+        except (TypeError, ValueError):
+            return "Unavailable"
+        return f"{value:.2f}{unit}" if isfinite(value) else "Unavailable"
+
     t53_rows = []
-    for lbl, _ in girder_entries:
+    for index, (lbl, _) in enumerate(girder_entries, 1):
+        check = girder_check(f"G{index}", 1)
         t53_rows.append(
-            r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Applied Moment, $M_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_MU_APPLIED, " kN-m") + r""" & --- \\[6pt]
+            r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Applied Moment, $M_u$ & Governing LC (ULS) & """ + girder_check_value(check, "demand", " kN-m") + r""" & --- \\[6pt]
 \cline{2-5}
- & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & """ + _render_value(bridge.output_dict, KEY_SD_MD_CAPACITY, " kN-m") + r""" & --- \\[6pt]
+ & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & """ + girder_check_value(check, "capacity", " kN-m") + r""" & --- \\[6pt]
 \cline{2-5}
- & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ & """ + _flex_ur_str + r""" & """ + _flex_status + r""" \\[6pt]
+ & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ & """ + girder_check_value(check, "dcr") + r""" & """ + _tex(check.get("status") or "Unavailable") + r""" \\[6pt]
 \hline"""
         )
     t53_content = "\n".join(t53_rows)
 
-    # Generate Table 5.4 rows
-    # Shear UR is stored as a percent (cat_urs × 100); show as a ratio (÷100,
-    # 2 dp) and PASS when ≤ 1.0.
-    try:
-        _shear_ur = float(bridge.output_dict.get(KEY_UTIL_SHEAR)) / 100.0
-        _shear_ur_str = f"{_shear_ur:.2f}"
-        _shear_status = "PASS" if _shear_ur <= 1.0 else r"\textcolor{red}{FAIL}"
-    except (TypeError, ValueError):
-        _shear_ur_str = ""
-        _shear_status = "---"
     t54_rows = []
-    for lbl, _ in girder_entries:
+    for index, (lbl, _) in enumerate(girder_entries, 1):
+        check = girder_check(f"G{index}", 2)
         t54_rows.append(
-            r"\multirow{8}{*}{\makecell{" + lbl + r"""}} & Applied Shear, $V_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_VU, " kN") + r""" & --- \\[6pt]
+            r"\multirow{9}{*}{\makecell{" + lbl + r"""}} & Applied Shear, $V_u$ & Governing LC (ULS) & """ + girder_check_value(check, "demand", " kN") + r""" & --- \\[6pt]
 \cline{2-5}
  & Shear Area, $A_v$ & $d_w \times t_w$ & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_AV, " mm$^2$") + r""" & --- \\[6pt]
 \cline{2-5}
@@ -261,7 +253,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
 \cline{2-5}
  & Shear Buckling Resistance, $V_{cr}$ & $A_v \times \tau_b$ & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_VCR, " kN") + r""" & --- \\[6pt]
 \cline{2-5}
- & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ & """ + _shear_ur_str + r""" & """ + _shear_status + r""" \\[6pt]
+ & Design Shear Capacity, $V_d$ & --- & """ + girder_check_value(check, "capacity", " kN") + r""" & --- \\[6pt]
+\cline{2-5}
+ & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ & """ + girder_check_value(check, "dcr") + r""" & """ + _tex(check.get("status") or "Unavailable") + r""" \\[6pt]
 \hline"""
         )
     t54_content = "\n".join(t54_rows)
