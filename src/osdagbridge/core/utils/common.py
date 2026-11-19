@@ -131,6 +131,7 @@ KEY_SECTION_OUTPUT_SUBSTRUCTURE   = "section.output.substructure"
 KEY_SECTION_OUTPUT_STEELDESIGN = "section.output.superstructure.steeldesign"
 
 # ── Output field keys ─────────────────────────────────────────────────────────
+KEY_ANALYSIS_MEMBER_TYPE      = "analysis.member_type"
 KEY_ANALYSIS_MEMBER           = "analysis.member"
 KEY_ANALYSIS_LOAD_COMBINATION = "analysis.load_combination"
 KEY_ANALYSIS_FORCES           = "analysis.forces"

@@ -244,9 +244,12 @@ class FrontendData:
     def output_values(self, flag=None):
         return [
             # ── Analysis Results ──────────────────────────────────────────────
-            (KEY_SECTION_OUTPUT_ANALYSIS, "Girder Analysis Results",
+            (KEY_SECTION_OUTPUT_ANALYSIS, "Analysis Results",
                 TYPE_TITLE, None, True, "No Validator",
                 {"kind": "analysis"}),
+
+            (KEY_ANALYSIS_MEMBER_TYPE, "Member Type",
+                TYPE_COMBOBOX, ["Longitudinal Members", "End Diaphragms", "Cross Bracings"], True, "No Validator", {}),
 
             (KEY_ANALYSIS_MEMBER, "Member",
                 TYPE_COMBOBOX, ["All"], True, "No Validator", {}),
