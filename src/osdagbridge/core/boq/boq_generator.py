@@ -376,24 +376,35 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 continue
             member = k[len(ed_prefix):-2].split(".")[0]
             try:
-                area = float(v)
+                area = float(v) / 10000.0  # cm^2 -> m^2
             except Exception:
                 continue
             if area > 0:
                 ed_members[member] = max(ed_members.get(member, 0.0), area)
         try:
-            ed_len = float(inputs.get(KEY_TS_GIRDER_SPACING) or 0)
+            spacing_m = float(inputs.get(KEY_TS_GIRDER_SPACING) or 0)
         except Exception:
-            ed_len = 0.0
-        if ed_members and ed_len > 0:
+            spacing_m = 0.0
+        try:
+            girder_depth_m = float(inputs.get("member_properties.girder_details.section_input.depth") or 0) / 1000.0
+        except Exception:
+            girder_depth_m = 0.0
+        if ed_members and spacing_m > 0:
             n_bays = max(int(n_girders) - 1, 1)
             ed_qty = 2 * n_bays
-            ed_area_total = sum(ed_members.values())
-            ed_vol_each = ed_area_total * ed_len
-            ed_vol_total = ed_qty * ed_vol_each
-            ed_wt_each = ed_vol_each * 7.85
+            brace_h = 0.85 * girder_depth_m if girder_depth_m > 0 else spacing_m
+            diag_len = math.hypot(spacing_m, brace_h)
+            total_vol_each = 0.0
+            parts = []
+            for member, area in ed_members.items():
+                mlen = spacing_m if "chord" in member else diag_len
+                vol = area * mlen
+                total_vol_each += vol
+                parts.append(f"{member}: {area:.5f} m^2 x {mlen:.2f} m")
+            ed_vol_total = ed_qty * total_vol_each
+            ed_wt_each = total_vol_each * 7.85
             ed_wt_total = ed_qty * ed_wt_each
-            quantities["end_diaphragm_vol_formula"] = f"${ed_area_total:.5f}\\text{{ m}}^2 \\times {ed_len:.2f}\\text{{ m}} = {ed_vol_each:.5f}\\text{{ m}}^3$"
+            quantities["end_diaphragm_vol_formula"] = "$" + " + ".join(parts) + "$"
             quantities["end_diaphragm_qty"] = str(ed_qty)
             quantities["end_diaphragm_vol_total"] = f"{ed_vol_total:.4f}"
             quantities["end_diaphragm_wt_single"] = f"{ed_wt_each:.4f}"

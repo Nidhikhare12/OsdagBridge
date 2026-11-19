@@ -500,7 +500,7 @@ def _collect_utilization_ratios(output_dict: dict, bridge) -> dict:
         if isinstance(obj, dict):
             for k, v in obj.items():
                 kl = str(k).lower()
-                if kl in ("ur", "dcr", "utilization", "utilization_ratio"):
+                if kl in ("ur", "dcr", "utilization", "utilization_ratio") or "dcr" in kl or kl.endswith("_ur"):
                     try:
                         f = float(v)
                         if 0 < f < 100 and (best is None or f > best):

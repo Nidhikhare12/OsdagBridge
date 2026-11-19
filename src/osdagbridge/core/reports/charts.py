@@ -45,7 +45,6 @@ def material_quantity_figures(inputs: dict) -> dict:
         ("Cross Bracing (Diagonal)", wt("bracing_diag_wt_total")),
         ("End Diaphragms", wt("end_diaphragm_wt_total")),
         ("Shear Studs", wt("shear_studs_wt_total")),
-        ("Crash Barrier", wt("crash_barrier_wt_total")),
     ]
     steel_parts = [(n, v) for n, v in steel_parts if v > 0]
     if steel_parts:
