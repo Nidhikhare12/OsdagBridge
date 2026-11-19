@@ -1,0 +1,37 @@
+name: Report generator check
+
+on:
+  pull_request:
+    paths:
+      - "src/osdagbridge/core/reports/**"
+      - "tools/**"
+      - "tests/**"
+      - ".github/workflows/report-check.yml"
+
+jobs:
+  report-modules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Byte-compile report modules
+        run: python -m compileall -q src/osdagbridge/core/reports tools
+      - name: Parse all report chapters
+        run: python -c "import ast,glob; [ast.parse(open(f).read()) for f in glob.glob('src/osdagbridge/core/reports/*.py')]"
+      - name: Import styles module
+        run: python -c "import sys; sys.path.insert(0,'src'); from osdagbridge.core.reports import styles; assert styles.OSDAG_GREEN_HTML and styles.SPACING_MACROS"
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package and test deps
+        run: |
+          pip install -e . pytest pytest-asyncio
+      - name: Run unit tests
+        run: python -m pytest tests/unit -q

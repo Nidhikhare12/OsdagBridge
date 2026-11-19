@@ -3,7 +3,6 @@ def references():
 \chapter*{References}
 \addcontentsline{toc}{chapter}{References}
 
-
 \begin{enumerate}
 
 \item IRC 5 (2024) --- \textit{Standard Specifications and Code of Practice for Road Bridges, Section I: General Features of Design.}

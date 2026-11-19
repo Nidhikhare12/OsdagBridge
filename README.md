@@ -77,11 +77,19 @@ OsdagBridge/
 
 ## Installation
 
-Clone the repository:
+Clone the repository (canonical upstream is `Nidhikhare12/OsdagBridge`):
 
 ```bash
-git clone https://github.com/osdag-admin/OsdagBridge.git
+git clone https://github.com/Nidhikhare12/OsdagBridge.git
 cd OsdagBridge
+```
+
+To try the report-generator refactor from this fork, check out the PR branch:
+
+```bash
+git remote add fork https://github.com/darshilnikam01-lgtm/OsdagBridge.git
+git fetch fork
+git checkout report-generator-refactor
 ```
 
 Install in editable mode:
@@ -140,7 +148,7 @@ Run the complete test suite:
 pytest -q
 ```
 
-Continuous integration runs automatically through GitHub Actions (`.github/workflows/ci.yml`).
+Continuous integration runs automatically through GitHub Actions (`.github/workflows/report-check.yml`).
 
 ---
 
