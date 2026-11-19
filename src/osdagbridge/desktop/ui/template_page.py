@@ -1,4 +1,5 @@
 import os, yaml
+from copy import deepcopy
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QMenuBar, QSplitter, QSizePolicy, QPushButton, QLineEdit, QComboBox, QFileDialog,
@@ -791,13 +792,6 @@ class CustomWindow(QWidget):
             
     # Function for saving input dictionary into an OSI file
     def saveOSI_inputs(self):
-        # Populate additional input defaults so they appear in the saved file
-        # even if the user never opened the Additional Inputs dialog.
-        try:
-            solve_extend_basic_input_dict(self.input_dict)
-        except Exception:
-            pass
-
         default_dir = os.path.join(get_documents_folder(), "inputs.osi")
         filePath, _ = QFileDialog.getSaveFileName(self,
                 "Save Design Inputs",
@@ -808,8 +802,14 @@ class CustomWindow(QWidget):
             return
 
         try:
+            saved_inputs = deepcopy(self.input_dict)
+            try:
+                solve_extend_basic_input_dict(saved_inputs)
+            except Exception:
+                # Incomplete projects can still be saved with their entered values.
+                saved_inputs = self.input_dict
             with open(filePath, 'w') as input_file:
-                yaml.dump(self.input_dict, input_file)
+                yaml.safe_dump(saved_inputs, input_file)
 
             CustomMessageBox(
                 title="Success",
