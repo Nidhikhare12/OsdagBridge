@@ -160,7 +160,8 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     ur_cells = ' & '.join([ur] * n_cols)
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
-    table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
+    table1_title = r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}'
+    table1 = (table1_title + '\n\n'
               r'\vspace{0.4em}' + '\n'
               r'\noindent' + '\n'
               r'\begin{tabular}{' + col_spec + '}\n'
