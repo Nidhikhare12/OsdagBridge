@@ -37,8 +37,14 @@ submission/
 ├── logs/
 │   └── input_dict_comparison.json     ← Key input_dict values extracted from all 3 .osi files
 ├── issues/
-│   ├── issue_1_segment_table_bug.md   ← GitHub Issue #1: stale segment tables (reported)
-│   └── issue_2_crossbracing_db_bug.md ← GitHub Issue #2: cross-bracing DB table name mismatch (reported)
+│   ├── issue_1_segment_table_bug.md   ← Issue #1: stale segment tables (reported on upstream)
+│   ├── issue_2_crossbracing_db_bug.md ← Issue #2: cross-bracing DB table name mismatch (reported)
+│   ├── issue_3_shear_modulus_bug.md   ← Issue #3: missing shear modulus fallback in headless reloads
+│   └── issue_4_carriageway_typeerror_bug.md ← Issue #4: unhandled TypeError when carriageway is None
+├── resume/
+│   ├── Pujari_Abhiram_Resume.pdf      ← Candidate 1-page professional resume
+│   ├── Pujari_Abhiram_Resume.tex      ← LaTeX source
+│   └── generate_resume_pdf.py         ← Script used to compile the PDF
 └── README.md                          ← This file
 ```
 
