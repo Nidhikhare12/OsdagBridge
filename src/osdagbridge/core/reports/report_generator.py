@@ -212,6 +212,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 % \color{osdagGreen} leaks into the text. Each rule colour is grouped in braces.
 % Footer text shared by all page styles
 \newcommand{\osdagFootL}{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+% Total comes from LastPage, so it only matches the PDF page count while the
+% page counter runs unbroken from the cover (see the setcounter after titlepage).
 \newcommand{\osdagFootR}{Page \thepage\ of \pageref{LastPage}}
 
 \fancypagestyle{main}{
