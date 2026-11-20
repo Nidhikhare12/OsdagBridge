@@ -119,6 +119,17 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import (
+    COLORS,
+    GEOMETRY,
+    TABLE_STYLE,
+    get_latex_geometry_options,
+    get_table_spacing_latex,
+)
+from osdagbridge.core.reports.charts import (
+    generate_ur_summary_chart,
+    generate_material_takeoff_charts,
+)
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -152,11 +163,14 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     jn = _tex(job_number)
     rd = _tex(report_date)
     rv = _tex(report_version)
+    geom_opts = get_latex_geometry_options()
+    table_spacing = get_table_spacing_latex()
+    brand_color = COLORS['osdag_green'].replace('#', '')
     return r"""
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[""" + geom_opts + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -192,21 +206,10 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+""" + table_spacing + r"""
 
-\definecolor{osdagGreen}{HTML}{91B014}
+\definecolor{osdagGreen}{HTML}{""" + brand_color + r"""}
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -901,6 +904,17 @@ def generate_report(payload, request):
 
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
+
+            # ── Programmatic Charts Generation (Section 5.5 UR & Chapter 7 Material Take-off) ──
+            try:
+                ur_chart_path = os.path.join(tmp_images, 'chart_ur_summary.png')
+                generate_ur_summary_chart(payload.design_checks, bridge, ur_chart_path)
+
+                steel_chart_path = os.path.join(tmp_images, 'chart_steel.png')
+                conc_chart_path = os.path.join(tmp_images, 'chart_concrete_rebar.png')
+                generate_material_takeoff_charts(payload.inputs, steel_chart_path, conc_chart_path)
+            except Exception as chart_exc:
+                logger.warning("Dynamic chart generation failed: %s", chart_exc)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
             doc_parts = []

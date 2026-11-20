@@ -1,0 +1,31 @@
+# Notes: OsdagBridge Report Refactor
+- Report Dir: src/osdagbridge/core/reports/
+- Entry Func: generate_report(payload, request) in report_generator.py (called via PlateGirderBridge.generate_design_report)
+- Chapter Files:
+  - preamble/title_page/toc in report_generator.py
+  - executive_summary.py
+  - chap1.py (Project Info)
+  - chap2.py (Input Parameters)
+  - chap3.py (Loads & Combinations, §3.3 Live Loads, §3.4 Wind, §3.5 Temp, §3.6 Seismic)
+  - chap4.py (Analysis Summary, Tables 4.1-4.3)
+  - chap5.py (Design Checks, §5.1-5.4 Members, §5.5 Overall Summary Table 5.22)
+  - chap6.py (Drawings & Visualizations)
+  - chap7.py (Material Take-off Table 7.1)
+  - chap8.py (Design Standards / Log)
+  - chap9.py (References)
+- Section Builders:
+  - §5.5: ch5_design_checks() -> Table 5.22, t522_content from design_results['per_girder'], deck_design_results, crossbracing_design_results
+  - Ch.3: ch3_loads() -> Table 3.3 Live Loads, vehicles_str, impact_factor_str, braking_force_str, KEY_LL_FOOTPATH_PRESSURE_VALUE
+  - Ch.7: ch7_quantities() -> Table 7.1, calculate_material_quantities()
+- Data Keys:
+  - (a) Demand/Capacity:
+    - Girder: design_results['per_girder'][G]['checks']: check_id, dcr, demand, capacity, demand_unit, capacity_unit
+    - Deck: deck_design_results (bending, shear, crack width)
+    - Cross Bracing: crossbracing_design_results[pair][member][force_type] (Optimum.Designation, Design.Strength, Optimum.UR)
+    - End Diaphragm: enddiaphragm_design_results[pair][member][force_type]
+  - (b) Material Take-off:
+    - steel_girders_wt_total, bracing_top_wt_total, bracing_bot_wt_total, bracing_diag_wt_total
+    - concrete_deck_vol_total (m³), rebar_deck_wt_total (MT), shear_studs_qty, crash_barrier_vol_total
+  - (c) Selected Vehicles & Loads:
+    - KEY_LL_SELECTED_VEHICLES, impact_factor_str, braking_force_str, KEY_LL_FOOTPATH_PRESSURE_VALUE, KEY_LL_FOOTPATH_PRESSURE_MODE
+
