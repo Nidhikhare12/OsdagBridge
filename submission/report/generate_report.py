@@ -1,24 +1,31 @@
 """
-OsdagBridge Software Testing & Issue Reporting — Technical Report
+OsdagBridge Software Testing & Issue Reporting — Technical Report Generator
 Author: Pujari Abhiram (B.Tech CSE - Data Science, 3rd Year, Anurag University)
 Screening Task: FOSSEE / Osdag Bridge Module Testing (IIT Bombay)
 Supervisor: Nidhikhare12
 
-Generates: testing_report.pdf with authentic academic formatting
+Generates: testing_report.pdf with:
+  - Paragraph-wrapped table cells to prevent any text overlapping
+  - Preformatted code blocks preserving line breaks and indentation
+  - Proportional image aspect ratios
+  - Clickable hyperlinks on cover page and tables
+  - Full documentation of all 4 defects found
+  - Explanatory note on TC01_Baseline_18m.osi filename
 """
 
 import os, sys, yaml
 from datetime import date
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.lib.units import cm, inch
+from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY, TA_RIGHT
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    PageBreak, HRFlowable, Image, KeepTogether
+    PageBreak, HRFlowable, Image, Preformatted
 )
 from reportlab.pdfgen import canvas
+from PIL import Image as PILImage
 
 # ── Paths ──────────────────────────────────────────────────────────────────
 BASE = r"C:\Users\PUJARI ABHIRAM\Projects"
@@ -38,13 +45,15 @@ FIGS = {
     "plots":  os.path.join(FIG_DIR, "fig_plots.png"),
 }
 
+VIDEO_URL = "https://drive.google.com/file/d/1h2V6FlFB_WoZQWbumkVg31w7dMjUDIqx/view?usp=drive_link"
+
 def load_osi(path):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 osi = {k: load_osi(v) for k, v in OSI_FILES.items()}
 
-# ── Numbered Canvas for Academic Headers / Footers ──────────────────────────
+# ── Numbered Canvas for Running Headers & Footers ───────────────────────────
 class NumberedCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -64,25 +73,25 @@ class NumberedCanvas(canvas.Canvas):
 
     def draw_page_number(self, page_count):
         if self._pageNumber == 1:
-            return  # Suppress header and footer on cover page
+            return  # Suppress running header/footer on cover page
         self.saveState()
         self.setFont("Helvetica", 8)
         self.setFillColor(colors.HexColor("#718096"))
         
-        # Running header
+        # Top Running Header
         self.drawString(2.0*cm, 28.2*cm, "OsdagBridge Software Testing & Issue Reporting | Technical Evaluation Report")
         self.setStrokeColor(colors.HexColor("#E2E8F0"))
         self.setLineWidth(0.5)
         self.line(2.0*cm, 28.0*cm, 19.0*cm, 28.0*cm)
         
-        # Running footer
+        # Bottom Running Footer
         page_str = f"Page {self._pageNumber} of {page_count}"
         self.drawRightString(19.0*cm, 1.2*cm, page_str)
         self.drawString(2.0*cm, 1.2*cm, "Pujari Abhiram (Anurag University) — FOSSEE / Osdag Screening Task")
         self.line(2.0*cm, 1.5*cm, 19.0*cm, 1.5*cm)
         self.restoreState()
 
-# ── Professional Styles ────────────────────────────────────────────────────
+# ── Typography & Styles ────────────────────────────────────────────────────
 styles = getSampleStyleSheet()
 
 NAVY_PRIMARY = colors.HexColor("#1A365D")
@@ -91,37 +100,27 @@ CHARCOAL     = colors.HexColor("#2D3748")
 MUTED_GREY   = colors.HexColor("#718096")
 LIGHT_BG     = colors.HexColor("#F7FAFC")
 BORDER_COLOR = colors.HexColor("#CBD5E0")
-FAIL_COLOR   = colors.HexColor("#C53030")
-PASS_COLOR   = colors.HexColor("#276749")
 
 H1 = ParagraphStyle(
     "H1", parent=styles["Heading1"],
-    fontSize=14, leading=18,
-    spaceBefore=14, spaceAfter=6,
+    fontSize=13, leading=17,
+    spaceBefore=12, spaceAfter=5,
     textColor=NAVY_PRIMARY, fontName="Helvetica-Bold",
     keepWithNext=True
 )
 
 H2 = ParagraphStyle(
     "H2", parent=styles["Heading2"],
-    fontSize=11, leading=15,
-    spaceBefore=10, spaceAfter=4,
+    fontSize=10.5, leading=14,
+    spaceBefore=9, spaceAfter=4,
     textColor=SLATE_BLUE, fontName="Helvetica-Bold",
-    keepWithNext=True
-)
-
-H3 = ParagraphStyle(
-    "H3", parent=styles["Heading3"],
-    fontSize=9.5, leading=13,
-    spaceBefore=6, spaceAfter=2,
-    textColor=CHARCOAL, fontName="Helvetica-Bold",
     keepWithNext=True
 )
 
 BODY = ParagraphStyle(
     "Body", parent=styles["Normal"],
-    fontSize=9, leading=13.5,
-    spaceAfter=5, alignment=TA_JUSTIFY,
+    fontSize=8.5, leading=12.5,
+    spaceAfter=4, alignment=TA_JUSTIFY,
     textColor=CHARCOAL, fontName="Helvetica"
 )
 
@@ -129,41 +128,58 @@ BODY_BOLD = ParagraphStyle("BodyBold", parent=BODY, fontName="Helvetica-Bold")
 
 CODE = ParagraphStyle(
     "CodeBlock", parent=styles["Code"],
-    fontSize=7.8, leading=10.5,
+    fontSize=7.2, leading=9.5,
     fontName="Courier",
     textColor=colors.HexColor("#1A202C"),
     backColor=colors.HexColor("#EDF2F7"),
-    borderPadding=6, spaceBefore=4, spaceAfter=5,
-    leftIndent=8, rightIndent=8
+    borderPadding=6, spaceBefore=3, spaceAfter=5,
+    leftIndent=4, rightIndent=4
 )
 
 CAPTION = ParagraphStyle(
     "Caption", parent=BODY,
-    fontSize=8, leading=11,
+    fontSize=7.8, leading=10.5,
     alignment=TA_CENTER, textColor=MUTED_GREY,
-    spaceBefore=3, spaceAfter=8
+    spaceBefore=2, spaceAfter=6
 )
 
-BULLET = ParagraphStyle(
-    "Bullet", parent=BODY,
-    leftIndent=12, firstLineIndent=-8,
-    spaceAfter=2
+# Table cell styles ensuring text wrapping
+CELL_STYLE = ParagraphStyle(
+    "TableCell", parent=BODY,
+    fontSize=7.8, leading=10,
+    textColor=CHARCOAL, alignment=TA_LEFT,
+    spaceAfter=0
+)
+
+HDR_STYLE = ParagraphStyle(
+    "TableHdr", parent=CELL_STYLE,
+    fontName="Helvetica-Bold",
+    textColor=colors.white,
+    alignment=TA_LEFT
 )
 
 def make_table(data, col_widths=None):
-    t = Table(data, colWidths=col_widths, hAlign="LEFT")
+    """Wraps every cell in a Paragraph to enforce word-wrapping and prevent text overlap."""
+    wrapped_data = []
+    for r_idx, row in enumerate(data):
+        wrapped_row = []
+        for c in row:
+            if isinstance(c, Paragraph):
+                wrapped_row.append(c)
+            else:
+                st = HDR_STYLE if r_idx == 0 else CELL_STYLE
+                wrapped_row.append(Paragraph(str(c), st))
+        wrapped_data.append(wrapped_row)
+    
+    t = Table(wrapped_data, colWidths=col_widths, hAlign="LEFT")
     s = [
         ("BACKGROUND", (0,0), (-1,0), NAVY_PRIMARY),
-        ("TEXTCOLOR",  (0,0), (-1,0), colors.white),
-        ("FONTNAME",   (0,0), (-1,0), "Helvetica-Bold"),
-        ("FONTSIZE",   (0,0), (-1,-1), 8),
-        ("ALIGN",      (0,0), (-1,-1), "LEFT"),
-        ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
         ("GRID",       (0,0), (-1,-1), 0.4, BORDER_COLOR),
-        ("LEFTPADDING",(0,0), (-1,-1), 5),
-        ("RIGHTPADDING",(0,0), (-1,-1), 5),
-        ("TOPPADDING", (0,0), (-1,-1), 3.5),
-        ("BOTTOMPADDING",(0,0), (-1,-1), 3.5),
+        ("LEFTPADDING",(0,0), (-1,-1), 4.5),
+        ("RIGHTPADDING",(0,0), (-1,-1), 4.5),
+        ("TOPPADDING", (0,0), (-1,-1), 3),
+        ("BOTTOMPADDING",(0,0), (-1,-1), 3),
+        ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
     ]
     for i in range(1, len(data)):
         bg = LIGHT_BG if i % 2 == 1 else colors.white
@@ -171,10 +187,10 @@ def make_table(data, col_widths=None):
     t.setStyle(TableStyle(s))
     return t
 
-# ── Document Setup ─────────────────────────────────────────────────────────
+# ── Document Construction ──────────────────────────────────────────────────
 doc = SimpleDocTemplate(
     OUT_PDF, pagesize=A4,
-    topMargin=2.2*cm, bottomMargin=2.0*cm,
+    topMargin=2.0*cm, bottomMargin=2.0*cm,
     leftMargin=2.0*cm, rightMargin=2.0*cm,
     title="OsdagBridge Software Testing & Issue Reporting - Technical Report",
     author="Pujari Abhiram"
@@ -183,46 +199,48 @@ doc = SimpleDocTemplate(
 story = []
 
 # ══════════════════════════════════════════════════════════════════════════
-# COVER PAGE / HEADER
+# COVER PAGE
 # ══════════════════════════════════════════════════════════════════════════
-story.append(Spacer(1, 1.5*cm))
-story.append(Paragraph("FOSSEE / Osdag — IIT Bombay", ParagraphStyle("Inst", parent=BODY, alignment=TA_CENTER, fontSize=11, fontName="Helvetica-Bold", textColor=MUTED_GREY)))
+story.append(Spacer(1, 1.2*cm))
+story.append(Paragraph("FOSSEE / Osdag &mdash; IIT Bombay", ParagraphStyle("Inst", parent=BODY, alignment=TA_CENTER, fontSize=11, fontName="Helvetica-Bold", textColor=MUTED_GREY)))
+story.append(Spacer(1, 0.3*cm))
+story.append(Paragraph("OsdagBridge Module Testing &amp; Bug Reporting", ParagraphStyle("Title", parent=H1, fontSize=20, leading=24, alignment=TA_CENTER, textColor=NAVY_PRIMARY)))
+story.append(Paragraph("Technical Evaluation Report &mdash; Short-Span Steel Girder Bridge Module", ParagraphStyle("Sub", parent=BODY, fontSize=10.5, leading=14, alignment=TA_CENTER, textColor=SLATE_BLUE)))
 story.append(Spacer(1, 0.4*cm))
-story.append(Paragraph("OsdagBridge Module Testing &amp; Bug Reporting", ParagraphStyle("Title", parent=H1, fontSize=22, leading=26, alignment=TA_CENTER, textColor=NAVY_PRIMARY)))
-story.append(Paragraph("Technical Evaluation &amp; Verification Report — Short-Span Steel Girder Bridge Module", ParagraphStyle("Sub", parent=BODY, fontSize=11, leading=15, alignment=TA_CENTER, textColor=SLATE_BLUE)))
-story.append(Spacer(1, 0.6*cm))
-story.append(HRFlowable(width="90%", thickness=1.5, color=SLATE_BLUE, hAlign="CENTER", spaceAfter=14))
+story.append(HRFlowable(width="90%", thickness=1.5, color=SLATE_BLUE, hAlign="CENTER", spaceAfter=12))
+
+video_link_html = f'<a href="{VIDEO_URL}"><font color="#2B6CB0"><u>Watch Screencast (Google Drive)</u></font></a>'
+fork_link_html  = '<a href="https://github.com/pujariabhi/OsdagBridge"><font color="#2B6CB0"><u>github.com/pujariabhi/OsdagBridge</u></font></a>'
 
 meta_data = [
-    ["Candidate Name",       "Pujari Abhiram"],
-    ["Degree & Specialization","B.Tech in Computer Science & Engineering (Data Science) — 3rd Year"],
-    ["Institution",          "Anurag University, Hyderabad, Telangana"],
-    ["Supervisor / Mentor",  "Nidhikhare12 (OsdagBridge Developer)"],
-    ["Upstream Repository",  "https://github.com/Nidhikhare12/OsdagBridge  (branch: dev)"],
-    ["Candidate Fork",       "https://github.com/pujariabhi/OsdagBridge  (collaborator added)"],
-    ["Task Assigned",        "OsdagBridge Software Testing & Issue Reporting"],
-    ["Report Date",          date.today().strftime("%d %B %Y")],
-    ["Screencast Video",     "Google Drive (Public View Link)"],
+    ["Candidate Name",        "Pujari Abhiram"],
+    ["Degree & Specialization", "B.Tech in Computer Science & Engineering (Data Science) — 3rd Year"],
+    ["Institution",           "Anurag University, Hyderabad, Telangana"],
+    ["Supervisor / Mentor",   "Nidhikhare12 (OsdagBridge Developer)"],
+    ["Upstream Repository",   "https://github.com/Nidhikhare12/OsdagBridge  (branch: dev)"],
+    ["Candidate Fork",        fork_link_html],
+    ["Task Assigned",         "OsdagBridge Software Testing & Issue Reporting"],
+    ["Report Date",           date.today().strftime("%d %B %Y")],
+    ["Screencast Video",      video_link_html],
 ]
-story.append(make_table(meta_data, col_widths=[5.0*cm, 12.0*cm]))
-story.append(Spacer(1, 1.2*cm))
+story.append(make_table(meta_data, col_widths=[4.8*cm, 12.2*cm]))
+story.append(Spacer(1, 0.8*cm))
 
 story.append(Paragraph("<b>Task Overview &amp; Scope:</b>", BODY_BOLD))
 story.append(Paragraph(
-    "This report documents functional testing, multi-run state persistence audits, "
-    "and input/output dictionary verification conducted on the OsdagBridge short-span steel "
-    "plate girder module. Testing was carried out on an editable installation of the <b>dev</b> "
-    "branch (commit <code>d74f56d</code>) in a dedicated Python 3.12 Conda environment on Windows 11. "
-    "All test scenarios were evaluated against IRC:6 (loads) and IRC:24 (steel bridge design) rules, "
-    "inspecting internal serialization (<code>.osi</code> YAML data), OpenSeesPy finite element grillage analysis, "
-    "and Qt-based interactive visual docks.", BODY))
-story.append(Spacer(1, 0.5*cm))
+    "This technical report documents the functional verification, multi-run state persistence audits, "
+    "and dictionary serialization checks conducted on the OsdagBridge short-span steel plate girder module. "
+    "Testing was executed on an editable installation of the <b>dev</b> branch (commit <code>d74f56d</code>) "
+    "inside an isolated Python 3.12 environment on Windows 11. "
+    "All test scenarios evaluated input-to-output consistency across geometric parameters, custom material "
+    "definitions, 3D CAD rendering, and IRC:6 / IRC:24 design checks.", BODY))
+story.append(Spacer(1, 0.3*cm))
 story.append(Paragraph(
-    "<b>Key Outcomes:</b> Custom material properties were verified to pass through without being overwritten by defaults. "
-    "However, two critical bugs were uncovered: a state persistence fault where girder segment tables for interior girders "
-    "(G2–G8) retain stale span lengths after an in-app modification, and a database table naming mismatch that silently skips "
-    "cross-bracing design. Both issues have been formally reported on the upstream repository with complete reproduction steps "
-    "and suggested code fixes.", BODY))
+    "<b>Executive Findings:</b> Custom steel and concrete grades were successfully retained in <code>input_dict</code> "
+    "without falling back to defaults. However, testing uncovered two critical bugs (a state persistence failure where interior "
+    "girders G2–G8 retain stale span lengths after an in-app modification, and a database table naming mismatch that silently "
+    "skips cross-bracing design), alongside two high-severity issues (unhandled shear modulus ValueError during headless reload, "
+    "and a missing-value TypeError in defaults.py). All issues are documented with reproduction steps and suggested code patches.", BODY))
 
 story.append(PageBreak())
 
@@ -231,37 +249,36 @@ story.append(PageBreak())
 # ══════════════════════════════════════════════════════════════════════════
 story.append(Paragraph("1. Test Environment &amp; Reproduction Setup", H1))
 story.append(Paragraph(
-    "To ensure realistic testing, the module was cloned from the official fork and built from source inside "
-    "an isolated Conda environment. The software versions and configuration used are summarized below:", BODY))
+    "To ensure reliable reproduction, the module was cloned from the candidate fork and built in editable mode "
+    "within a fresh Conda environment. The software configuration is detailed below:", BODY))
 
 env_rows = [
     ["Component", "Version / Description"],
     ["Operating System", "Windows 11 Home (64-bit)"],
-    ["Python Runtime", "Python 3.12 (via Miniconda environment: osdagbridge-env)"],
-    ["OsdagBridge Core", "dev branch, commit d74f56d (installed via pip install -e .)"],
-    ["OpenSeesPy", "v3.8.0.0 (finite element grillage solver)"],
-    ["GUI Framework", "PySide6 v6.11.3 (Qt6 desktop interface)"],
+    ["Python Runtime", "Python 3.12 (via Miniconda: osdagbridge-env)"],
+    ["OsdagBridge Core", "dev branch, commit d74f56d (pip install -e .)"],
+    ["OpenSeesPy", "v3.8.0.0 (finite element grillage analysis engine)"],
+    ["GUI Framework", "PySide6 v6.11.3 (Qt6 desktop user interface)"],
     ["Post-Processing", "opsvis v1.3.8, Matplotlib v3.11.2, xarray v2026.9.0"],
     ["Document Engine", "ReportLab v5.1.0, PyYAML v6.0.3"],
 ]
-story.append(make_table(env_rows, col_widths=[5.0*cm, 12.0*cm]))
-story.append(Spacer(1, 0.4*cm))
+story.append(make_table(env_rows, col_widths=[4.8*cm, 12.2*cm]))
+story.append(Spacer(1, 0.3*cm))
 
 story.append(Paragraph("<b>Environment Configuration Note (Windows Smart App Control):</b>", BODY_BOLD))
 story.append(Paragraph(
     "During initial setup, Windows 11 Smart App Control blocked conda-forge C-extension DLLs (PySide6 QtCore, "
-    "numpy C-API, and openseespy native binaries) with the error <i>'An Application Control policy has blocked this file'</i>. "
-    "Disabling Smart App Control in Windows Security allowed all dependencies to import cleanly (exit code 0). "
-    "This was documented as an operating system policy check and did not require any modification to OsdagBridge source code.", BODY))
+    "numpy C-API, and openseespy binaries) with the error <i>'An Application Control policy has blocked this file'</i>. "
+    "Disabling Smart App Control in Windows Security allowed all libraries to load cleanly (exit code 0). "
+    "This was verified as an OS-level signature policy check and did not require any modification to OsdagBridge source code.", BODY))
 
 # ══════════════════════════════════════════════════════════════════════════
 # SECTION 2 — TEST MATRIX & PARAMETERS
 # ══════════════════════════════════════════════════════════════════════════
 story.append(Paragraph("2. Executed Test Cases (TC01 to TC03)", H1))
 story.append(Paragraph(
-    "Three distinct test scenarios were designed to evaluate input validation, sequential redesign stability, "
-    "and custom material registration. All cases were executed directly through the desktop user interface and "
-    "saved to project <code>.osi</code> files for dictionary inspection.", BODY))
+    "Three distinct test scenarios were executed to evaluate basic input processing, multi-run state persistence, "
+    "and custom material registration. All cases were saved to <code>.osi</code> project files for verification.", BODY))
 
 tc_table = [
     ["Parameter", "TC01 — Baseline", "TC02 — Consecutive Redesign", "TC03 — Custom Materials"],
@@ -273,10 +290,16 @@ tc_table = [
     ["Deck Slab Thickness", "250 mm", "250 mm", "250 mm"],
     ["Steel Grade (Girder)", "E 350A (fy=350, fu=490)", "E 350A (fy=350, fu=490)", "custom_steel_450_570 (fy=450, fu=570)"],
     ["Concrete Grade (Deck)", "M40 (fck=40 MPa)", "M40 (fck=40 MPa)", "custom_concrete_45_1.6 (fck=45 MPa)"],
-    ["Execution Sequence", "Fresh run from scratch", "Run immediately after TC01 (Unlocked)", "Run with custom material definitions"],
-    ["Saved Project File", "TC01_Baseline_18m.osi", "TC02_Consecutive_24m.osi", "TC03_Custom_Material.osi"],
+    ["Execution Sequence", "Fresh run from scratch", "Run immediately after TC01 (Unlocked)", "Run with custom user materials"],
+    ["Saved Project File", "TC01_Baseline_18m.osi*", "TC02_Consecutive_24m.osi", "TC03_Custom_Material.osi"],
 ]
-story.append(make_table(tc_table, col_widths=[4.0*cm, 4.3*cm, 4.3*cm, 4.4*cm]))
+story.append(make_table(tc_table, col_widths=[3.8*cm, 4.4*cm, 4.4*cm, 4.4*cm]))
+story.append(Spacer(1, 0.15*cm))
+story.append(Paragraph(
+    "<i>*Note on TC01 Filename:</i> Project file <code>TC01_Baseline_18m.osi</code> was originally initialized from the software's "
+    "default 18.0 m template name and configured to a 20.0 m span during baseline execution, as verified by <code>geometry.span: 20.0</code> in the file.",
+    CAPTION
+))
 
 story.append(PageBreak())
 
@@ -287,12 +310,12 @@ story.append(Paragraph("3. Functional Verification Results", H1))
 
 story.append(Paragraph("3.1  Requirement 1: Custom Material Input Verification (TC03) — [PASS]", H2))
 story.append(Paragraph(
-    "A key requirement was ensuring that custom steel and concrete material properties entered in the GUI do not revert "
-    "back to default standard grades (such as E 350A or M40) during analysis. In TC03, custom steel "
+    "A primary requirement was ensuring that user-defined steel and concrete material properties entered in the GUI do not revert "
+    "back to default standard grades during calculation. In TC03, custom steel "
     "(<code>custom_steel_450_570</code>: fy = 450 MPa, fu = 570 MPa, E = 205 GPa) and custom concrete "
     "(<code>custom_concrete_45_1.6</code>: fck = 45 MPa, density = 25.0 kN/m³) were entered.", BODY))
 story.append(Paragraph(
-    "By parsing the saved <code>TC03_Custom_Material.osi</code> file with PyYAML, every custom material property was verified "
+    "By parsing the saved <code>TC03_Custom_Material.osi</code> file with PyYAML, every custom property was verified "
     "against the internal input dictionary:", BODY))
 
 mat_check_rows = [
@@ -305,13 +328,13 @@ mat_check_rows = [
     ["material.deck.fck", "45.0 MPa", str(osi["TC03"].get("material.deck.fck")), "PASS (Retained)"],
     ["material.deck.density", "25.0 kN/m³", str(osi["TC03"].get("material.deck.density")), "PASS (Retained)"],
 ]
-story.append(make_table(mat_check_rows, col_widths=[5.5*cm, 4.0*cm, 4.0*cm, 3.5*cm]))
-story.append(Spacer(1, 0.3*cm))
+story.append(make_table(mat_check_rows, col_widths=[5.2*cm, 3.8*cm, 4.2*cm, 3.8*cm]))
+story.append(Spacer(1, 0.2*cm))
 story.append(Paragraph(
     "<b>Conclusion:</b> Custom material definitions are successfully serialized, preserved in <code>input_dict</code>, "
     "and transferred to the analysis solver without reverting to hardcoded defaults.", BODY))
 
-story.append(Spacer(1, 0.3*cm))
+story.append(Spacer(1, 0.2*cm))
 story.append(Paragraph("3.2  Requirement 2: Consecutive Multi-Run State Persistence (TC01 ➔ TC02) — [FAIL / CRITICAL]", H2))
 story.append(Paragraph(
     "In TC02, after running a 20.0 m bridge (TC01), the GUI lock was toggled off, Span was changed to 24.0 m and Skew to 15°, "
@@ -329,14 +352,14 @@ seg_comp_rows = [
     ["G7 (Interior Girder)", "20.0 m", "20.0 m", "24.0 m", "FAIL (Stale Data)"],
     ["G8 (Interior Girder)", "20.0 m", "20.0 m", "24.0 m", "FAIL (Stale Data)"],
 ]
-story.append(make_table(seg_comp_rows, col_widths=[3.5*cm, 4.2*cm, 4.2*cm, 2.8*cm, 2.3*cm]))
-story.append(Spacer(1, 0.3*cm))
+story.append(make_table(seg_comp_rows, col_widths=[3.4*cm, 3.8*cm, 3.8*cm, 3.0*cm, 3.0*cm]))
+story.append(Spacer(1, 0.2*cm))
 story.append(Paragraph(
     "<b>Impact:</b> While G1 properly reflected the new 24.0 m span, girders G2 through G8 retained the stale 20.0 m length "
     "from the previous run. Because girder segment tables dictate member force extraction coordinates and stiffener layout, "
     "interior girder design checks in consecutive runs evaluate forces at wrong positions along the span.", BODY))
 
-story.append(Spacer(1, 0.3*cm))
+story.append(Spacer(1, 0.2*cm))
 story.append(Paragraph("3.3  Requirement 3: Graphical Outputs &amp; 3D CAD Verification — [PASS]", H2))
 story.append(Paragraph(
     "3D model generation, dynamic camera manipulation (pan, tilt, zoom), and component toggling functioned smoothly. "
@@ -346,15 +369,15 @@ story.append(Paragraph(
 story.append(PageBreak())
 
 # ══════════════════════════════════════════════════════════════════════════
-# SECTION 4 — VISUAL EVIDENCE & SCREENSHOTS
+# SECTION 4 — VISUAL EVIDENCE & SCREENSHOTS (PROPORTIONAL ASPECT RATIO)
 # ══════════════════════════════════════════════════════════════════════════
 story.append(Paragraph("4. Visual Evidence &amp; Output Dock Verification", H1))
 story.append(Paragraph(
     "The screenshots below capture key stages of the test sequence, demonstrating the user interface, 3D CAD generation, "
-    "and structural utilization checks during TC03 execution.", BODY))
-story.append(Spacer(1, 0.2*cm))
+    "and structural utilization checks during TC03 execution. Images are scaled preserving their native aspect ratios.", BODY))
+story.append(Spacer(1, 0.15*cm))
 
-# Embedded figures
+# Embedded figures with proportional scaling
 figures_to_show = [
     ("bridge", "Figure 1: 3D CAD bridge model (TC03: 24.0 m span, 15° skew). Concrete deck is hidden to reveal interior plate girders, transverse stiffeners, and cross-bracing framing."),
     ("dock",   "Figure 2: Complete OsdagBridge window showing Basic Inputs, interactive 3D model, and Output Dock with Girder Design Demand-Capacity Ratios (DCR) for G1 under Self-Weight (SW)."),
@@ -365,7 +388,15 @@ for fig_key, caption in figures_to_show:
     img_path = FIGS[fig_key]
     if os.path.exists(img_path):
         try:
-            img = Image(img_path, width=15.5*cm, height=7.8*cm)
+            with PILImage.open(img_path) as im:
+                orig_w, orig_h = im.size
+            aspect = orig_h / float(orig_w)
+            target_w = 16.0 * cm
+            target_h = target_w * aspect
+            if target_h > 8.5 * cm:
+                target_h = 8.5 * cm
+                target_w = target_h / aspect
+            img = Image(img_path, width=target_w, height=target_h)
             img.hAlign = "CENTER"
             story.append(img)
             story.append(Paragraph(caption, CAPTION))
@@ -373,7 +404,7 @@ for fig_key, caption in figures_to_show:
         except Exception as e:
             story.append(Paragraph(f"[Image Error: {e}]", CAPTION))
 
-story.append(Spacer(1, 0.2*cm))
+story.append(Spacer(1, 0.15*cm))
 story.append(Paragraph("<b>Output Dock DCR Values (Girder G1 under Self-Weight SW):</b>", BODY_BOLD))
 dcr_summary = [
     ["Limit State Check", "Design Standard Reference", "Demand-Capacity Ratio (DCR)"],
@@ -381,8 +412,8 @@ dcr_summary = [
     ["Strength Limit State (Shear)", "IRC:24 Clause 504 / Web Shear Resistance", "3% (Satisfactory)"],
     ["Interaction (Bending & Shear)", "IRC:24 Combined Stress Limitation", "1% (Satisfactory)"],
 ]
-story.append(make_table(dcr_summary, col_widths=[6.0*cm, 7.0*cm, 4.0*cm]))
-story.append(Spacer(1, 0.2*cm))
+story.append(make_table(dcr_summary, col_widths=[6.0*cm, 6.5*cm, 4.5*cm]))
+story.append(Spacer(1, 0.15*cm))
 story.append(Paragraph(
     "<i>Note on Low DCR Values:</i> Under self-weight (SW) alone, moments and shears are small compared to the ultimate "
     "governing combinations (such as BASIC_1 with heavy IRC Class 70R vehicle loads), leading to low single-digit utilization.", BODY))
@@ -390,7 +421,7 @@ story.append(Paragraph(
 story.append(PageBreak())
 
 # ══════════════════════════════════════════════════════════════════════════
-# SECTION 5 — DETAILED BUG REPORTS (SUBMITTED TO GITHUB)
+# SECTION 5 — DETAILED BUG REPORTS (FOUR DEFECTS DOCUMENTED)
 # ══════════════════════════════════════════════════════════════════════════
 story.append(Paragraph("5. Code-Level Bug Reports &amp; Root Cause Analysis", H1))
 story.append(Paragraph(
@@ -410,16 +441,16 @@ story.append(Paragraph(
 story.append(Paragraph(
     "<b>Root Cause:</b> In <code>defaults.py</code>, the loop populating segment dictionaries for girders G2..Gn reads whatever segment "
     "list is already present in <code>input_dict</code> and re-assigns it back without updating the <code>end</code> coordinate with the new span.", BODY))
-story.append(Paragraph(
-    "# Suggested Fix in defaults.py:\n"
+
+code_fix_1 = (
+    "# Suggested Fix in defaults.py (~line 555):\n"
     "new_span = float(input_dict.get(KEY_SPAN, 20.0))\n"
     "for girder in all_girders:  # Iterate over all girders G1 through Gn\n"
     "    key = f'member_properties.girder_details.segment_table.{girder}'\n"
-    "    input_dict[key] = [{'id': f'{girder}M1', 'start': 0.0, 'end': new_span}]",
-    CODE
-))
-
-story.append(Spacer(1, 0.3*cm))
+    "    input_dict[key] = [{'id': f'{girder}M1', 'start': 0.0, 'end': new_span}]"
+)
+story.append(Preformatted(code_fix_1, CODE))
+story.append(Spacer(1, 0.2*cm))
 
 # --- Bug 2 ---
 story.append(Paragraph("Issue #2: Cross-bracing capacity skipped with 'no such table: Material'", H2))
@@ -435,16 +466,15 @@ story.append(Paragraph(
     "(<code>SELECT ... FROM Material WHERE ...</code>). However, in <code>Intg_osdag.sqlite</code>, the table is named "
     "<code>Steel_Grade_Properties</code>. The resulting <code>sqlite3.OperationalError</code> is caught by a broad except block "
     "around line 658 of <code>crossbracingforces.py</code>, silently skipping member design.", BODY))
-story.append(Paragraph(
-    "# Suggested Fix (Option A — Code Query Correction):\n"
-    "# In osdag_core/utils/common/material.py, update the table query:\n"
-    "cursor.execute('SELECT ... FROM Steel_Grade_Properties WHERE grade = ?', (grade,))\n\n"
-    "# Suggested Fix (Option B — Backward-Compatible SQL View):\n"
-    "CREATE VIEW IF NOT EXISTS Material AS SELECT * FROM Steel_Grade_Properties;",
-    CODE
-))
 
-story.append(Spacer(1, 0.3*cm))
+code_fix_2 = (
+    "# Option A: Code Query Correction in osdag_core/utils/common/material.py:\n"
+    "cursor.execute('SELECT ... FROM Steel_Grade_Properties WHERE grade = ?', (grade,))\n\n"
+    "# Option B: Zero-Code Database Compatibility View in Intg_osdag.sqlite:\n"
+    "CREATE VIEW IF NOT EXISTS Material AS SELECT * FROM Steel_Grade_Properties;"
+)
+story.append(Preformatted(code_fix_2, CODE))
+story.append(Spacer(1, 0.2*cm))
 
 # --- Bug 3 ---
 story.append(Paragraph("Issue #3: Headless crash on missing shear modulus in legacy project files", H2))
@@ -453,9 +483,36 @@ story.append(Paragraph(
     "<b>Trigger Conditions:</b> Loading or re-running an <code>.osi</code> file programmatically that lacks the explicit <code>KEY_MATERIAL_GIRDER_G</code> key.", BODY))
 story.append(Paragraph(
     "<b>Observed Behavior:</b> <code>BridgeConfig.from_plate_girder_bridge</code> raises <code>ValueError: Gs (shear modulus) is not set for grade 'E 350A'</code>.", BODY))
+
+code_fix_3 = (
+    "# Suggested Fix in designer.py (lines 309-315):\n"
+    "G_val = input_dict.get(KEY_MATERIAL_GIRDER_G)\n"
+    "if G_val is None or G_val == '':\n"
+    "    E = float(input_dict.get(KEY_MATERIAL_GIRDER_E, 200.0))\n"
+    "    nu = float(input_dict.get(KEY_MATERIAL_GIRDER_POISSON, 0.30))\n"
+    "    G_val = round(E / (2 * (1 + nu)), 1)  # standard isotropic elasticity fallback\n"
+    "    input_dict[KEY_MATERIAL_GIRDER_G] = G_val"
+)
+story.append(Preformatted(code_fix_3, CODE))
+story.append(Spacer(1, 0.2*cm))
+
+# --- Bug 4 ---
+story.append(Paragraph("Issue #4: Unhandled TypeError in layout solver when carriageway width is not yet set", H2))
+story.append(Paragraph("<b>Severity:</b> High &nbsp;|&nbsp; <b>Component:</b> UI Validation / Defaults &nbsp;|&nbsp; <b>File:</b> <code>defaults.py</code> (~line 908)", BODY_BOLD))
 story.append(Paragraph(
-    "<b>Suggested Fix:</b> Add an isotropic elasticity fallback: "
-    "<code>Gs = E / (2 * (1 + nu))</code> (e.g. 76.9 GPa for steel) when Gs is missing or empty, avoiding unhandled crashes.", BODY))
+    "<b>Trigger Conditions:</b> Opening a project file with missing geometry fields or triggering layout calculation before carriageway width is populated.", BODY))
+story.append(Paragraph(
+    "<b>Observed Behavior:</b> <code>float(basic_input_dict.get(KEY_CARRIAGEWAY_WIDTH))</code> raises unhandled "
+    "<code>TypeError: float() argument must be a string or a real number, not 'NoneType'</code>.", BODY))
+
+code_fix_4 = (
+    "# Suggested Fix in defaults.py (~line 908):\n"
+    "raw_cw = basic_input_dict.get(KEY_CARRIAGEWAY_WIDTH)\n"
+    "if raw_cw is None or str(raw_cw).strip() == '':\n"
+    "    raise ValueError('Carriageway width is required before layout can be computed.')\n"
+    "cw = float(raw_cw)"
+)
+story.append(Preformatted(code_fix_4, CODE))
 
 story.append(PageBreak())
 
@@ -464,25 +521,26 @@ story.append(PageBreak())
 # ══════════════════════════════════════════════════════════════════════════
 story.append(Paragraph("6. Conclusions &amp; Submission Artifacts", H1))
 story.append(Paragraph(
-    "The OsdagBridge short-span steel plate girder module demonstrates strong computational capabilities in OpenSeesPy grillage "
+    "The OsdagBridge short-span steel plate girder module demonstrates robust capabilities in OpenSeesPy grillage "
     "modeling, 3D visualization, and compliance with IRC structural checks. Custom material registration works reliably. "
     "Addressing the state desynchronization in <code>defaults.py</code> and the database alias mismatch will resolve the primary "
     "points of failure identified during this audit.", BODY))
 story.append(Spacer(1, 0.3*cm))
 
 story.append(Paragraph("<b>Summary of Submission Deliverables:</b>", BODY_BOLD))
+
 deliv_rows = [
     ["Deliverable", "Location / Access Link", "Status"],
-    ["GitHub Fork", "https://github.com/pujariabhi/OsdagBridge (dev branch)", "Public, collaborator added"],
+    ["GitHub Fork", '<a href="https://github.com/pujariabhi/OsdagBridge"><font color="#2B6CB0"><u>github.com/pujariabhi/OsdagBridge</u></font></a>', "Public, collaborator added"],
     ["GitHub Issue #1", "Logged on Nidhikhare12/OsdagBridge (stale segment tables)", "Submitted with reproduction log"],
     ["GitHub Issue #2", "Logged on Nidhikhare12/OsdagBridge (cross-bracing DB error)", "Submitted with SQL root cause"],
-    ["Video Screencast", "https://drive.google.com/file/d/1h2V6FlFB_WoZQWbumkVg31w7dMjUDIqx/view?usp=drive_link", "Uploaded (1080p, 2m 09s)"],
+    ["Video Screencast", f'<a href="{VIDEO_URL}"><font color="#2B6CB0"><u>Google Drive Video Screencast</u></font></a>', "Uploaded (1080p, 2m 09s)"],
     ["Project Files (.osi)", "TC01_Baseline_18m.osi, TC02_Consecutive_24m.osi, TC03_Custom_Material.osi", "Verified & bundled in ZIP"],
     ["Candidate Resume", "Pujari_Abhiram_Resume.pdf (B.Tech CSE - Data Science, Anurag University)", "Compiled & ready for upload"],
 ]
-story.append(make_table(deliv_rows, col_widths=[3.8*cm, 10.2*cm, 3.0*cm]))
+story.append(make_table(deliv_rows, col_widths=[3.5*cm, 10.5*cm, 3.0*cm]))
 
-story.append(Spacer(1, 0.8*cm))
+story.append(Spacer(1, 0.6*cm))
 story.append(HRFlowable(width="100%", thickness=1, color=SLATE_BLUE, spaceAfter=8))
 story.append(Paragraph(
     "<b>Report Prepared By:</b> Pujari Abhiram &nbsp;|&nbsp; 3rd Year B.Tech CSE (Data Science), Anurag University, Hyderabad<br/>"
