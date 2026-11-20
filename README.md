@@ -1,5 +1,19 @@
 # OsdagBridge
 
+> ### 📢 Screening Task Submission: Software Testing & Issue Reporting
+> - **Author:** Pujari Abhiram (B.Tech CSE - Data Science, 3rd Year, Anurag University)
+> - **Supervisor:** Nidhikhare12 | **Organization:** FOSSEE / Osdag (IIT Bombay)
+> - **Task:** OsdagBridge Software Testing & Issue Reporting
+> - **Submission Package:** [`submission/`](submission/)
+> - **Evaluation Report (PDF):** [`submission/report/testing_report.pdf`](submission/report/testing_report.pdf)
+> - **Video Demonstration (1080p Screencast):** [Google Drive Link](https://drive.google.com/file/d/1h2V6FlFB_WoZQWbumkVg31w7dMjUDIqx/view?usp=drive_link)
+> - **Reported Upstream Issues:** [Issue #1](https://github.com/Nidhikhare12/OsdagBridge/issues) & [Issue #2](https://github.com/Nidhikhare12/OsdagBridge/issues)
+> - **Candidate Resume:** [`submission/resume/Pujari_Abhiram_Resume.pdf`](submission/resume/Pujari_Abhiram_Resume.pdf)
+>
+> All test cases (`.osi`), 3D CAD figures, console logs, issue documentation, and reproduction steps are available in the [`submission/`](submission/) directory.
+
+---
+
 OsdagBridge is a modular, shared-core software plugin for the analysis and design of steel bridges within the Osdag ecosystem.  
 It supports desktop (PySide6), web (Django + React), and CLI interfaces through a unified Python core.
 
