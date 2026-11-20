@@ -1,9 +1,21 @@
 # OsdagBridge Testing Submission
 **Author:** Pujari Abhiram  
-**Programme:** B.Tech Civil Engineering, 3rd Year  
-**Task:** FOSSEE/Osdag Bridge Module Screening Test  
+**Programme:** B.Tech CSE (Data Science), 3rd Year – Anurag University  
+**Task:** FOSSEE / Osdag Bridge Module Screening Test  
 **Supervisor:** Nidhikhare12  
-**Repository:** https://github.com/Nidhikhare12/OsdagBridge (branch: dev)
+**Fork Repository:** https://github.com/pujariabhi/OsdagBridge (branch: `dev`)  
+**Upstream Repository:** https://github.com/Nidhikhare12/OsdagBridge (branch: `dev`)  
+**Video Demonstration (Screencast):** [Watch on Google Drive](https://drive.google.com/file/d/1h2V6FlFB_WoZQWbumkVg31w7dMjUDIqx/view?usp=drive_link)
+
+---
+
+## Video Demonstration
+- **Direct Link:** https://drive.google.com/file/d/1h2V6FlFB_WoZQWbumkVg31w7dMjUDIqx/view?usp=drive_link
+- **Contents:**
+  - Setting up Project Location & IRC 6 (2017) design parameters (Telangana, Hyderabad).
+  - Executing background design run and tracking stage progress.
+  - Interactive 3D CAD visualization (rotation, zoom, inspection of deck, girders, and bracings).
+  - Consecutive multi-run workflow: unlocking design, updating span from 20 m to 24 m and carriageway to 8.0 m with live 2D section/plan dimension recalculation.
 
 ---
 
@@ -25,8 +37,8 @@ submission/
 ├── logs/
 │   └── input_dict_comparison.json     ← Key input_dict values extracted from all 3 .osi files
 ├── issues/
-│   ├── issue_1_segment_table_bug.md   ← GitHub Issue #1: stale segment tables (ready to post)
-│   └── issue_2_crossbracing_db_bug.md ← GitHub Issue #2: cross-bracing DB table name mismatch
+│   ├── issue_1_segment_table_bug.md   ← GitHub Issue #1: stale segment tables (reported)
+│   └── issue_2_crossbracing_db_bug.md ← GitHub Issue #2: cross-bracing DB table name mismatch (reported)
 └── README.md                          ← This file
 ```
 
@@ -44,12 +56,12 @@ pip install openseespy==3.8.0.0 opsvis==1.3.8 PySide6==6.11.3 reportlab
 > **Note:** On Windows 11 with Smart App Control enabled, conda-forge DLLs (PySide6, numpy C extensions) will be blocked. Disable Smart App Control in Windows Security → App & Browser Control before running.
 
 ### Running the Tests
-1. Launch the application: `python -m osdagbridge` (or via the installed entry point)
+1. Launch the application: `python -m osdagbridge.desktop`
 2. Enter inputs as specified in `report/testing_report.pdf`, Section 3 (Test Case Matrix)
 3. Click **Design**, then **Save Input** after each run
 
 ### Opening .osi Files
-`.osi` files are YAML. Open in any text editor or parse with:
+`.osi` files are structured YAML. Open in any text editor or parse with:
 ```python
 import yaml
 with open("TC01_Baseline_18m.osi") as f:
@@ -59,17 +71,17 @@ print(d["geometry.span"])  # 20.0
 
 ---
 
-## Bugs Found
+## Bugs Found & Reported
 
 | # | File | Severity | Summary |
 |---|------|----------|---------|
-| A | defaults.py ~L555 | Critical | Girder segment tables G2–G8 retain old span after consecutive run |
-| B | crossbracingforces.py ~L658 / Intg_osdag.sqlite | Critical | Cross-bracing skipped: `no such table: Material` |
-| C | designer.py ~L309-315 | High | ValueError on missing shear modulus in headless/OSI reload |
-| D | defaults.py ~L908 | High | TypeError when carriageway width is None |
+| A | `defaults.py` ~L555 | Critical | Girder segment tables G2–G8 retain old span after consecutive run |
+| B | `crossbracingforces.py` ~L658 / `Intg_osdag.sqlite` | Critical | Cross-bracing capacity skipped: `no such table: Material` |
+| C | `designer.py` ~L309-315 | High | ValueError on missing shear modulus in headless/OSI reload |
+| D | `defaults.py` ~L908 | High | TypeError when carriageway width is None |
 
 Full details with code snippets and suggested fixes: see `report/testing_report.pdf`, Section 7.  
-GitHub-ready markdown for the two critical issues: see `issues/` folder.
+GitHub issue reports: see `issues/` folder and upstream repository issues.
 
 ---
 
