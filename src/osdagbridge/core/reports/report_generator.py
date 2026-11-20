@@ -208,6 +208,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \definecolor{osdagGreen}{HTML}{91B014}
 
+% Footer rule: fancyhdr sets \footrule above the footer text, so an unscoped
+% \color{osdagGreen} leaks into the text. Each rule colour is grouped in braces.
 % Footer text shared by all page styles
 \newcommand{\osdagFootL}{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
 \newcommand{\osdagFootR}{Page \thepage\ of \pageref{LastPage}}
