@@ -85,19 +85,24 @@ def girder_utilization_chart(outputs, directory, inputs=None):
     fig = Figure(figsize=CHART_SIZE, constrained_layout=True)
     FigureCanvasAgg(fig)
     ax = fig.subplots()
-    rows = [(label, governing(checks), outcome(checks)) for label, checks in components.items()]
-    limits = [check.ratio for _, check, _ in rows if check]
-    scale = max(1.0, *limits)
+    rows = [(label, governing(checks), outcome(checks), any(c.ratio is None for c in checks))
+            for label, checks in components.items()]
+    scale = max([1.0] + [check.ratio for _, check, _, _ in rows if check])
     ax.set_xlim(-0.6, len(rows) - 0.4)
     ax.set_ylim(0, scale * 1.28)
     ax.axhline(1.0, color="red", linestyle="--", label="UR = 1.0")
     ax.set_ylabel("Utilization Ratio")
     ax.set_xlabel("Structural Component")
     labels = []
-    for i, (component, check, status) in enumerate(rows):
-        labels.append(fill(component, 18))
+    for i, (component, check, status, capacity_unavailable) in enumerate(rows):
+        label = fill(component, 18)
+        if capacity_unavailable and check is not None:
+            label += "\nSome capacities unavailable"
+            status = check.status
+        labels.append(label)
         if check is None:
-            ax.text(i, 0.03 * scale, "Not available", ha="center", va="bottom",
+            message = "Capacity unavailable" if capacity_unavailable else "Not available"
+            ax.text(i, 0.03 * scale, message, ha="center", va="bottom",
                     rotation=90, fontsize=9)
             continue
         detail = " ".join(part for part in (check.member, check.label) if part)

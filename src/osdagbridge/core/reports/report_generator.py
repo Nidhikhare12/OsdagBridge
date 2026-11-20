@@ -105,6 +105,7 @@
 
 import os, shutil, logging, datetime, tempfile, subprocess, re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional, List, Literal
 
 from osdagbridge.core.utils.common import (
@@ -854,10 +855,59 @@ _FIGURE_MAP = [
     ('defl_ll',               'defl_ll.png'),
 ]
 
+def _publish_report_bundle(bundle, destination, stem):
+    """Move a verified bundle into place, rolling back failed filesystem moves."""
+    # Acquire a per-basename lock across application processes. Keep these
+    # moves on the destination filesystem and avoid replacing nonempty
+    # directories in place, which Windows does not support.
+    backup = destination / f".{stem}.publish"
+    backup.mkdir()
+    names = (f"{stem}.tex", f"{stem}_assets", f"{stem}.log", f"{stem}.pdf")
+    saved = []
+    published = []
+    clean_up = False
+    try:
+        # Move the old PDF out first and publish the new PDF last.
+        for name in reversed(names):
+            current = destination / name
+            if current.exists():
+                current.replace(backup / name)
+                saved.append(name)
+        for name in names:
+            source = bundle / name
+            if source.exists():
+                source.replace(destination / name)
+                published.append(name)
+        clean_up = True
+    except OSError:
+        try:
+            for name in reversed(published):
+                (destination / name).replace(bundle / name)
+            for name in reversed(saved):
+                (backup / name).replace(destination / name)
+            clean_up = True
+        except OSError:
+            logger.exception("Could not restore the previous report bundle. Recovery files: %s", backup)
+        raise
+    finally:
+        if clean_up:
+            shutil.rmtree(backup, ignore_errors=True)
+
+
+def _complete_pdf(path):
+    """Sanity-check compiler output before publishing it."""
+    if not path.is_file():
+        return False
+    with path.open("rb") as stream:
+        if stream.read(5) != b"%PDF-":
+            return False
+        stream.seek(max(0, path.stat().st_size - 1024))
+        return stream.read().rstrip().endswith(b"%%EOF")
+
+
 def generate_report(payload, request):
     # type: (ReportPayload, ReportRequest) -> ReportResult
     """Compile the full OsdagBridge Design Report to PDF (+ .tex source)."""
-    tex_path = None
     try:
         # Use OsdagLatexEnv to discover the bundled pdflatex path
         compiler = 'pdflatex'
@@ -875,15 +925,16 @@ def generate_report(payload, request):
             
         logger.info("Compiler: %s", compiler)
 
-        os.makedirs(request.output_dir, exist_ok=True)
-
-        # fig_paths is built inside TemporaryDirectory (see below) after bytes are written
-
-        pdf_path = os.path.join(request.output_dir, request.file_stem + '.pdf')
-        tex_path = os.path.join(request.output_dir, request.file_stem + '.tex')
+        destination = Path(request.output_dir)
+        destination.mkdir(parents=True, exist_ok=True)
+        stem = request.file_stem
+        pdf_name, tex_name, log_name = f"{stem}.pdf", f"{stem}.tex", f"{stem}.log"
 
         # Write to temp dir first, compile there, then copy back
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        with tempfile.TemporaryDirectory() as tmp_dir, tempfile.TemporaryDirectory(
+            dir=destination, prefix=".report-"
+        ) as staging:
+            bundle = Path(staging)
 
             # Keep the payload reusable across report generations.
             tmp_images = os.path.join(tmp_dir, 'images')
@@ -972,14 +1023,14 @@ def generate_report(payload, request):
 
             full_tex = fit_table_columns(_finish_longtable_captions("\n".join(doc_parts)))
 
-            tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
-            tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
+            tmp_tex = Path(tmp_dir) / tex_name
+            tmp_pdf = Path(tmp_dir) / pdf_name
 
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
             # Compile twice for TOC and references
-            compilation_ok = True
+            failure = None
             for pass_number in (1, 2):
                 try:
                     kwargs = {
@@ -993,53 +1044,54 @@ def generate_report(payload, request):
                         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
                     
                     res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
+                        [compiler, '-interaction=nonstopmode', tex_name],
                         **kwargs
                     )
                     logger.info("pdfTeX pass %s returned %s", pass_number, res.returncode)
                     if res.returncode != 0:
-                        compilation_ok = False
-                        logger.error("pdflatex failed with exit code %s:\n%s", res.returncode,
-                                     res.stdout.decode('utf-8', 'ignore'))
+                        failure = (f"pdfTeX pass {pass_number} returned {res.returncode}\n"
+                                   f"{res.stdout.decode('utf-8', 'replace')}\n"
+                                   f"{res.stderr.decode('utf-8', 'replace')}")
                         break
                 except Exception as exc:
-                    logger.warning(f"pdflatex run failed: {exc}")
-                    compilation_ok = False
+                    failure = f"pdfTeX pass {pass_number} could not run: {exc}"
                     break
+                if not _complete_pdf(tmp_pdf):
+                    failure = f"pdfTeX pass {pass_number} did not produce a complete PDF"
+                    break
+                if pass_number == 1:
+                    tmp_pdf.unlink()  # Verify that the second pass writes its own PDF.
 
-            if os.path.exists(tmp_tex):
-                # The compiled document uses temporary paths. Preserve its assets
-                # alongside the exported source and rewrite those paths so the
-                # exported TeX can find them after the temporary directory closes.
-                asset_name = request.file_stem + '_assets'
-                exported_assets = os.path.join(request.output_dir, asset_name)
-                shutil.copytree(tmp_images, os.path.join(exported_assets, 'images'), dirs_exist_ok=True)
-                shutil.copytree(tmp_assets, os.path.join(exported_assets, 'logos'), dirs_exist_ok=True)
-                exported_tex = re.sub(r"(?<=\{)images/", lambda _: asset_name + "/images/", full_tex)
-                exported_tex = exported_tex.replace('assets/osdag_logo.png', asset_name.replace('\\', '/') + '/logos/osdag_logo.png')
-                exported_tex = exported_tex.replace('assets/org_logo.png', asset_name.replace('\\', '/') + '/logos/org_logo.png')
-                with open(tex_path, 'w', encoding='utf-8') as f:
-                    f.write(exported_tex)
-                log_name = request.file_stem + '.log'
-                compiler_log = os.path.join(tmp_dir, log_name)
-                if os.path.isfile(compiler_log):
-                    shutil.copy2(compiler_log, os.path.join(request.output_dir, log_name))
-            pdf_written = compilation_ok and os.path.exists(tmp_pdf)
-            if pdf_written:
-                shutil.copy2(tmp_pdf, pdf_path)
+            # Rewrite references for the exported source and stage its companion files.
+            asset_name = stem + '_assets'
+            shutil.copytree(tmp_images, bundle / asset_name / 'images')
+            shutil.copytree(tmp_assets, bundle / asset_name / 'logos')
+            exported_tex = re.sub(r"(?<=\{)images/", lambda _: asset_name + "/images/", full_tex)
+            for logo in ("osdag_logo.png", "org_logo.png"):
+                exported_tex = exported_tex.replace(f'assets/{logo}', f'{asset_name}/logos/{logo}')
+            (bundle / tex_name).write_text(exported_tex, encoding='utf-8')
+            compiler_log = Path(tmp_dir) / log_name
+            if compiler_log.is_file():
+                shutil.copy2(compiler_log, bundle / log_name)
+            if failure is None:
+                try:
+                    shutil.copy2(tmp_pdf, bundle / pdf_name)
+                    _publish_report_bundle(bundle, destination, stem)
+                except OSError as exc:
+                    failure = f"Could not publish the report bundle: {exc}"
+            if failure is not None:
+                logger.error("%s", failure)
+                diagnostics = Path(tempfile.mkdtemp(dir=destination, prefix=f"{stem}-failed-"))
+                for path in bundle.iterdir():
+                    if path.name != pdf_name:
+                        path.replace(diagnostics / path.name)
+                (diagnostics / 'compiler-output.txt').write_text(failure, encoding='utf-8')
+                diagnostic_tex = diagnostics / tex_name
+                return ReportResult(pdf_path=None, tex_path=str(diagnostic_tex) if diagnostic_tex.is_file() else None)
 
-        if pdf_written and os.path.exists(pdf_path):
-            logger.info("Report generated: %s", pdf_path)
-            return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
-
-        logger.error("pdflatex ran but no PDF was produced.")
-        if 'res' in locals():
-            logger.error("pdflatex STDOUT:\n%s", res.stdout.decode('utf-8', 'ignore'))
-            logger.error("pdflatex STDERR:\n%s", res.stderr.decode('utf-8', 'ignore'))
-        return ReportResult(pdf_path=None, tex_path=tex_path)
+        logger.info("Report generated: %s", destination / pdf_name)
+        return ReportResult(pdf_path=str(destination / pdf_name), tex_path=str(destination / tex_name))
 
     except Exception as exc:
         logger.error("generate_report failed: %s", exc, exc_info=True)
-        if tex_path and os.path.exists(tex_path):
-            return ReportResult(pdf_path=None, tex_path=tex_path)
         return ReportResult(pdf_path=None, tex_path=None)

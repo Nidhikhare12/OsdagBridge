@@ -80,3 +80,30 @@ def test_crash_barrier_ambiguous_area_is_not_converted_to_zero():
         quantities = calculate_material_quantities({"typical_section.crash_barrier.area": area}, {})
         assert quantities["crash_barrier_vol_total"] == "N.A."
         assert quantities["crash_barrier_wt_total"] == "N.A."
+
+
+def test_deck_chart_labels_unavailable_capacity_without_plotting_fallback(monkeypatch, tmp_path):
+    from matplotlib.figure import Figure
+
+    rendered = []
+
+    def save(fig, path, **kwargs):
+        ax = fig.axes[0]
+        rendered.append(([bar.get_height() for bar in ax.patches],
+                         [item.get_text() for item in ax.texts],
+                         [item.get_text() for item in ax.get_xticklabels()]))
+
+    monkeypatch.setattr(Figure, "savefig", save)
+    result = {"ur_bot_shear": 9.999, "ur_unavailable_capacity": ["ur_bot_shear"]}
+    outputs = {"deck_design_results": result}
+    girder_utilization_chart(outputs, tmp_path)
+    bars, notes, _ = rendered[-1]
+    assert not bars
+    assert "Capacity unavailable" in notes
+
+    result["ur_composite_crack"] = 0.9914
+    girder_utilization_chart(outputs, tmp_path)
+    bars, notes, labels = rendered[-1]
+    assert bars == [0.9914]
+    assert any(text.startswith("0.991 PASS") for text in notes)
+    assert any("Some capacities unavailable" in label for label in labels)

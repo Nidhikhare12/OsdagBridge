@@ -1,11 +1,58 @@
+import pytest
+
+from osdagbridge.core.bridge_types.plate_girder import deckdesign
 from osdagbridge.core.reports.chap2 import _girder_tables
 from osdagbridge.core.reports.executive_summary import executive_summary
-from osdagbridge.core.reports.utilization import component_checks, governing, outcome, transverse_checks
+from osdagbridge.core.reports.utilization import component_checks, deck_checks, governing, outcome, transverse_checks
 from osdagbridge.core.utils.common import (
+    KEY_CARRIAGEWAY_WIDTH, KEY_DD_SHEAR_VRDC, KEY_DECK_CONCRETE_GRADE_BASIC,
+    KEY_DS_BOTTOM_CLEAR_COVER, KEY_DS_REINF_BOUNDS, KEY_DS_REINF_MATERIAL, KEY_DS_TOP_CLEAR_COVER,
+    KEY_SPAN, KEY_TS_DECK_OVERHANG, KEY_TS_DECK_THICKNESS, KEY_TS_GIRDER_SPACING, KEY_WC_THICKNESS,
     KEY_MP_GIRDER_DEPTH, KEY_MP_GIRDER_WEB_THICKNESS, KEY_MP_GIRDER_TOP_FLANGE_WIDTH,
     KEY_MP_GIRDER_TOP_FLANGE_THICKNESS, KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH,
     KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS, KEY_TS_NO_OF_GIRDERS,
 )
+
+
+def test_deck_designer_flags_nonpositive_shear_capacity(monkeypatch):
+    inputs = {
+        KEY_SPAN: 30.0,
+        KEY_CARRIAGEWAY_WIDTH: 7.5,
+        KEY_DECK_CONCRETE_GRADE_BASIC: "M40",
+        KEY_TS_GIRDER_SPACING: 2.4,
+        KEY_TS_DECK_OVERHANG: 1.05,
+        KEY_TS_DECK_THICKNESS: 250.0,
+        KEY_WC_THICKNESS: 80.0,
+        KEY_DS_REINF_MATERIAL: "Fe 500",
+        KEY_DS_TOP_CLEAR_COVER: 50.0,
+        KEY_DS_BOTTOM_CLEAR_COVER: 50.0,
+        KEY_DS_REINF_BOUNDS: {"lower": 12, "upper": 32},
+    }
+    monkeypatch.setattr(deckdesign, "_v_Rd_c_MPa", lambda *args: 0.0)
+    ratios, capacities = deckdesign.design_deck_slab(inputs, fck=40, fctm=3.5, fy=500, Es=200000, Ecm=32000)
+
+    assert set(ratios["ur_unavailable_capacity"]) == {"ur_bot_shear", "ur_bot_punch", "ur_oh_shear", "ur_oh_punch"}
+    assert ratios["ur_bot_shear"] == 9.999  # Compatibility with the deck results dialog.
+    checks = list(deck_checks({"deck_design_results": ratios, "deck_report_values": capacities}))
+    shear = next(check for check in checks if check.label == "Sagging one-way shear")
+    assert shear.ratio is None and shear.status == "Not available"
+    assert governing(checks).ratio != 9.999
+
+
+@pytest.mark.parametrize(("ratios", "capacities", "expected_ratio", "expected_status"), [
+    ({"ur_bot_shear": 9.999, "ur_unavailable_capacity": []}, {}, 9.999, "FAIL"),
+    ({"ur_bot_shear": 9.999}, {KEY_DD_SHEAR_VRDC: 1.0}, 9.999, "FAIL"),
+    ({"ur_bot_shear": 9.999}, {KEY_DD_SHEAR_VRDC: 0.0}, None, "Not available"),
+    ({"ur_oh_shear": 9.999}, {}, None, "Not available"),
+    ({"ur_bot_shear": 1.25}, {}, 1.25, "FAIL"),
+    ({"ur_composite_crack": 0.9914}, {}, 0.9914, "PASS"),
+    ({}, {}, None, "Not available"),
+])
+def test_deck_utilization_uses_provenance(ratios, capacities, expected_ratio, expected_status):
+    checks = list(deck_checks({"deck_design_results": ratios, "deck_report_values": capacities}))
+    check = governing(checks)
+    assert (check.ratio if check is not None else None) == expected_ratio
+    assert outcome(checks) == expected_status
 
 
 def test_girder_dimensions_use_normalized_metres():

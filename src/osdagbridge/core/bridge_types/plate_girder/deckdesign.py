@@ -1035,6 +1035,20 @@ def design_deck_slab(input_dict: dict, fck: float, fctm: float, fy: float, Es: f
             "ur_composite_rebar_stress" : ur_composite_rebar_stress,
         })
 
+    # Retain the numeric fallbacks used by existing consumers, but record
+    # which ratios came from the fallback branches for the report reader.
+    fallback_capacities = {
+        "ur_bot_uls": Mu_bot,
+        "ur_top_uls": Mu_top,
+        "ur_bot_shear": VRd_c_bot,
+        "ur_bot_punch": v_Rd_c_bot,
+    }
+    if overhang_m > 0.01:
+        fallback_capacities.update(ur_oh_uls=Mu_oh, ur_oh_shear=VRd_c_oh, ur_oh_punch=v_Rd_c_oh)
+    result["ur_unavailable_capacity"] = [
+        key for key, capacity in fallback_capacities.items() if not capacity > 0
+    ]
+
     # ── 14. report values dict (keyed to common.KEY_DD_*) ──────────────
     # Raw numeric values consumed by the report generator (Tables 5.17(a)-(g)),
     # stored separately from the UI-facing `result` dict above. Existing

@@ -3,13 +3,29 @@ from dataclasses import dataclass
 from math import isfinite
 import re
 
-from osdagbridge.core.utils.common import KEY_TS_NO_OF_GIRDERS
+from osdagbridge.core.utils.common import (
+    KEY_DD_MU_BOT, KEY_DD_MU_OH, KEY_DD_MU_TOP, KEY_DD_SHEAR_VRDC,
+    KEY_DD_VRD_C_MPA, KEY_TS_NO_OF_GIRDERS,
+)
+
+
+# Earlier exports did not label the fallback. Use their recorded denominator
+# where available. The overhang shear denominators were not exported.
+_LEGACY_DECK_CAPACITIES = {
+    "ur_bot_uls": KEY_DD_MU_BOT,
+    "ur_top_uls": KEY_DD_MU_TOP,
+    "ur_oh_uls": KEY_DD_MU_OH,
+    "ur_bot_shear": KEY_DD_SHEAR_VRDC,
+    "ur_bot_punch": KEY_DD_VRD_C_MPA,
+    "ur_oh_shear": None,
+    "ur_oh_punch": None,
+}
 
 
 @dataclass(frozen=True)
 class Check:
     label: str
-    ratio: float
+    ratio: float | None
     member: str = ""
     load_case: str = ""
     demand: float | None = None
@@ -19,7 +35,11 @@ class Check:
 
     @property
     def status(self):
-        return "FAIL" if self.failed or self.ratio > 1 else "PASS"
+        if self.failed:
+            return "FAIL"
+        if self.ratio is None:
+            return "Not available"
+        return "FAIL" if self.ratio > 1 else "PASS"
 
 
 def nonnegative(value):
@@ -63,10 +83,19 @@ def deck_checks(outputs):
     kinds = {"uls": "flexure", "sls_c": "concrete stress", "sls_s": "steel stress",
              "crack": "crack width", "shear": "one-way shear", "punch": "punching shear"}
     results = outputs.get("deck_design_results") or {}
+    unavailable = results.get("ur_unavailable_capacity")
+    capacities = outputs.get("deck_report_values") or {}
     for location, label in locations.items():
         for kind, name in kinds.items():
-            ratio = nonnegative(results.get(f"ur_{location}_{kind}"))
-            if ratio is not None:
+            key = f"ur_{location}_{kind}"
+            ratio = nonnegative(results.get(key))
+            legacy_ambiguous = (
+                unavailable is None and key in _LEGACY_DECK_CAPACITIES and ratio == 9.999
+                and not nonnegative(capacities.get(_LEGACY_DECK_CAPACITIES[key]))
+            )
+            if key in (unavailable or ()) or legacy_ambiguous:
+                yield Check(f"{label} {name}", None)
+            elif ratio is not None:
                 yield Check(f"{label} {name}", ratio)
     for key, name in (("trans_shear", "Interface shear"), ("crack", "Crack control reinforcement"),
                       ("conc_stress", "Composite concrete stress"),
@@ -112,10 +141,12 @@ def component_checks(outputs, inputs):
 
 
 def governing(checks):
-    return max(checks, key=lambda check: check.ratio, default=None)
+    return max((check for check in checks if check.ratio is not None),
+               key=lambda check: check.ratio, default=None)
 
 
 def outcome(checks):
-    if not checks:
-        return "Not available"
-    return "FAIL" if any(check.status == "FAIL" for check in checks) else "PASS"
+    statuses = {check.status for check in checks}
+    if "FAIL" in statuses:
+        return "FAIL"
+    return "PASS" if statuses == {"PASS"} else "Not available"
