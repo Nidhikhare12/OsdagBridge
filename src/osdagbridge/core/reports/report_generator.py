@@ -253,7 +253,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\headrulewidth}{0pt}
   \fancyfoot[L]{\osdagFootL}
   \fancyfoot[R]{\osdagFootR}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
+  \renewcommand{\footrule}{\vspace{-8pt}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}}
 }
 \pagestyle{main}
 \setstretch{1.15}
