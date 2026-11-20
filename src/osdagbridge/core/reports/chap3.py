@@ -4,8 +4,10 @@
 # =============================================================================
 
 from osdagbridge.core.utils.common import (
+    KEY_BL_IRC_CLASS_SV,
     KEY_CB_LOAD,
     KEY_LL_CUSTOM_VEHICLES,
+    KEY_LL_ECCENTRICITY,
     KEY_FOOTPATH,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
@@ -55,6 +57,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value, make_longtable
+from osdagbridge.core.reports import styles
 def ch3_loads(input_dict):
     # Live load vehicle names mapping
     vehicles = []
@@ -168,6 +171,47 @@ def ch3_loads(input_dict):
     if not vehicle_rows:
         vehicle_rows.append(r"None selected & N/A \\[6pt]" + "\n" + r"\hline")
     vehicle_rows_str = "\n".join(vehicle_rows)
+
+    # --- Table 3.3: Vehicle | Total Load | Impact Factor | Braking (Considered?, Value, Eccentricity) ---
+    # Gross vehicle mass (t) per IRC 6:2017 Cl. 204; converted with g = 9.81 kN/t,
+    # the same factor used for the braking-force note below.
+    _VEHICLE_MASS_T = {
+        "Class A": 55.4,
+        "Class 70R (Wheeled)": 100.0,
+        "Class 70R (Tracked)": 70.0,
+        "Class AA (Wheeled)": 40.0,
+        "Class AA (Tracked)": 70.0,
+        "Class 70R (Bogie)": 40.0,
+        "Class SV": 385.0,
+        "Class Fatigue": 40.0,
+    }
+    _ecc = input_dict.get(KEY_LL_ECCENTRICITY)
+    _ecc_str = (_tex(_ecc) + " m") if _ecc not in (None, "") else "1.2 m (IRC 6 Cl. 211.3)"
+    _sv_braking = bool(input_dict.get(KEY_BL_IRC_CLASS_SV))
+    ll_rows = []
+    for _row, _name in zip(vehicle_rows, vehicles):
+        _imp = _row.split(" & ", 1)[1].split(r" \\", 1)[0]
+        _mass = _VEHICLE_MASS_T.get(_name)
+        _total = f"{_mass * 9.81:.2f}" if _mass is not None else "N/A"
+        # IRC 6 Cl. 211.2: braking = 20% of the first train in the lane.
+        # Class SV braking only when opted in; the fatigue truck is not a braking case.
+        if _name == "Class Fatigue":
+            _considered = False
+        elif _name == "Class SV":
+            _considered = _sv_braking
+        else:
+            _considered = _mass is not None
+        if _considered:
+            _brk_val, _brk_ecc = f"{0.20 * _mass * 9.81:.2f} kN", _ecc_str
+        else:
+            _brk_val = _brk_ecc = "---"
+        ll_rows.append(
+            " & ".join([_tex(_name), _total, _imp, "Yes" if _considered else "No", _brk_val, _brk_ecc])
+            + r" \\[6pt]" + "\n" + r"\hline"
+        )
+    if not ll_rows:
+        ll_rows.append(r"None selected & N/A & N/A & --- & --- & --- \\[6pt]" + "\n" + r"\hline")
+    ll_rows_str = "\n".join(ll_rows)
 
     if str(input_dict.get(KEY_FOOTPATH, "")).strip().lower() in ("none", "no footpath"):
         fp_tex = r"No footpath provided"
@@ -329,21 +373,26 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-(_render_value(input_dict, KEY_WC_THICKNESS, ' mm'))
+\textnormal{Wearing Course Load} & """ + _render_value(input_dict, KEY_WC_MATERIAL) + r""" $\times$ """ + _render_value(input_dict, KEY_WC_THICKNESS, " mm") + r""" \\[6pt]
 \hline
-\textnormal{Additional SIDL (Crash Barrier)} & """ + (_render_value(input_dict, KEY_CB_LOAD)) + r""" kN/m per barrier \\[6pt]
+\textnormal{Additional SIDL (Crash Barrier)} & """ + (_render_value(input_dict, KEY_CB_LOAD, " kN/m per barrier")) + r""" \\[6pt]
 \hline
-\textnormal{Railing Load} & """ + (_render_value(input_dict, KEY_RL_LOAD_VALUE)) + r""" kN/m\sdstar{} \\[6pt]
+\textnormal{Railing Load} & """ + (_render_value(input_dict, KEY_RL_LOAD_VALUE, " kN/m")) + r"""\sdstar{} \\[6pt]
 \hline
 \end{longtable}
 
 \vspace{1em}
+\begingroup
+\small
+\setlength{\tabcolsep}{""" + styles.COMPACT_TABCOLSEP + r"""}
 """ + make_longtable(
-    r"|L{9.0cm}|C{6.5cm}|",
-    "Live Loads (LL) --- Vehicles and Impact Factors (IRC 6 Cl. 208)",
-    r"\textbf{Vehicle} & \textbf{Impact Factor (1 + I)}",
-    vehicle_rows_str,
-) + r"""
+    r"|L{3.0cm}|C{1.9cm}|C{1.7cm}|C{2.3cm}|C{2.1cm}|C{3.0cm}|",
+    "Live Loads (LL) --- Vehicles, Impact Factors and Braking (IRC 6 Cl. 208, 211.2)",
+    r"\multirow{2}{*}{\textbf{Vehicle}} & \multirow{2}{*}{\makecell{\textbf{Total Load}\\\textbf{(kN)}}} & \multirow{2}{*}{\makecell{\textbf{Impact}\\\textbf{Factor}}} & \multicolumn{3}{c|}{\textbf{Braking Load}} \\ \cline{4-6}"
+    "\n" r" & & & \textbf{Considered?} & \textbf{Value} & \textbf{Eccentricity}",
+    ll_rows_str,
+) + r"""\endgroup
+
 \noindent\textit{Note: Braking force (IRC 6 Cl. 211.2): """ + _tex(braking_force_str) + r""".}
 
 \vspace{1em}

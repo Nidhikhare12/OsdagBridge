@@ -2,7 +2,7 @@
 # Document and page geometry
 # ---------------------------------------------------------------------------
 DOCUMENT_CLASS = r"\documentclass[12pt,a4paper]{report}"
-PAGE_GEOMETRY = r"\usepackage[a4paper, margin=1in]{geometry}"
+PAGE_GEOMETRY = r"\usepackage[a4paper, margin=1in, bottom=1.35in]{geometry}"
 LINE_STRETCH = "1.15"
 
 # ---------------------------------------------------------------------------
@@ -203,3 +203,13 @@ def build_preamble(project: str, job: str, date: str, version: str) -> str:
         + _first_page_style()
         + _custom_commands_block()
     )
+
+# ---------------------------------------------------------------------------
+# Charts and compact tables
+# ---------------------------------------------------------------------------
+CHART_PASS_HEX = "#" + OSDAG_GREEN_HEX
+CHART_FAIL_HEX = "#D62728"
+CHART_LIMIT_HEX = "red"
+CHART_REBAR_HEX = "#4F6B0A"
+CHART_CONCRETE_HEX = "#B8B8B8"
+COMPACT_TABCOLSEP = "3.5pt"

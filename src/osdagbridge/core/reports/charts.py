@@ -4,15 +4,28 @@ Charts are drawn with matplotlib's object API (Figure + Agg canvas), not pyplot,
 so they never touch the GUI's matplotlib backend and are safe to call from the
 report thread. Each helper writes a PNG and returns the LaTeX to embed it, or an
 empty string if there is nothing to draw (the report then simply has no chart).
+
+Colours come from styles.py (single source of truth). Each lookup has a default,
+so a missing constant in styles.py can never break report generation.
 """
 import os
 import re
 import logging
 
+from . import styles
+
 logger = logging.getLogger(__name__)
 
-PASS_COLOR_HEX = "#91B014"   # Osdag green
-FAIL_COLOR_HEX = "#D62728"
+
+def _style(name, default):
+    return getattr(styles, name, default)
+
+
+PASS_COLOR_HEX = _style("CHART_PASS_HEX", "#91B014")      # Osdag green
+FAIL_COLOR_HEX = _style("CHART_FAIL_HEX", "#D62728")
+LIMIT_COLOR = _style("CHART_LIMIT_HEX", "red")            # UR = 1.0 reference line
+REBAR_COLOR_HEX = _style("CHART_REBAR_HEX", "#4F6B0A")
+CONCRETE_COLOR_HEX = _style("CHART_CONCRETE_HEX", "#B8B8B8")
 
 _SPLIT_CELLS = re.compile(r"(?<!\\)&")
 _RED_WRAP = re.compile(r"^\\textcolor\{red\}\{(.*)\}$")
@@ -41,38 +54,42 @@ def parse_ur_rows(rows):
 
 
 def _draw_ur_chart(pairs, out_path):
+    """Vertical bars: Y-axis = Utilization Ratio, red dashed line at UR = 1.0."""
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_agg import FigureCanvasAgg
     from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
 
     n = len(pairs)
-    fig = Figure(figsize=(7.0, 0.30 * n + 1.5), dpi=200)
+    fig = Figure(figsize=(7.0, 5.0), dpi=200)
     FigureCanvasAgg(fig)
     ax = fig.add_subplot(111)
 
-    labels = [p[0] for p in pairs][::-1]            # first row at the top
-    vals = [p[1] for p in pairs][::-1]
+    labels = [p[0] for p in pairs]
+    vals = [p[1] for p in pairs]
     colors = [FAIL_COLOR_HEX if v > 1.0 else PASS_COLOR_HEX for v in vals]
-    ys = range(n)
+    xs = list(range(n))
 
-    ax.barh(ys, vals, color=colors, height=0.65)
-    ax.axvline(1.0, color="black", linestyle="--", linewidth=1.0)
+    ax.bar(xs, vals, color=colors, width=0.65)
+    ax.axhline(1.0, color=LIMIT_COLOR, linestyle="--", linewidth=1.3)
 
-    xmax = max(1.15, max(vals) * 1.15)
-    ax.set_xlim(0, xmax)
-    ax.set_yticks(list(ys))
-    ax.set_yticklabels(labels, fontsize=8)
-    ax.set_xlabel("Utilization Ratio, UR = demand / capacity", fontsize=9)
-    ax.tick_params(axis="x", labelsize=8)
-    for y, v in zip(ys, vals):
-        ax.text(v + xmax * 0.008, y, f"{v:.2f}", va="center", fontsize=7.5,
-                bbox=dict(facecolor="white", edgecolor="none", pad=0.6))
+    ymax = max(1.15, max(vals) * 1.15)
+    ax.set_ylim(0, ymax)
+    ax.set_xticks(xs)
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+    ax.set_ylabel("Utilization Ratio, UR = demand / capacity", fontsize=9)
+    ax.tick_params(axis="y", labelsize=8)
+    for x, v in zip(xs, vals):
+        ax.text(x, v + ymax * 0.01, f"{v:.2f}", ha="center", va="bottom", fontsize=7,
+                bbox=dict(facecolor="white", edgecolor="none", pad=0.6), zorder=5)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
     ax.legend(
         handles=[Patch(color=PASS_COLOR_HEX, label="Pass (UR \u2264 1.0)"),
-                 Patch(color=FAIL_COLOR_HEX, label="Fail (UR > 1.0)")],
-        loc="lower right", fontsize=8, frameon=False,
+                 Patch(color=FAIL_COLOR_HEX, label="Fail (UR > 1.0)"),
+                 Line2D([0], [0], color=LIMIT_COLOR, linestyle="--", linewidth=1.3,
+                        label="UR = 1.0 limit")],
+        loc="upper right", fontsize=8, frameon=False,
     )
     fig.tight_layout()
     fig.savefig(out_path, format="png")
@@ -95,7 +112,8 @@ def ur_chart_tex(rows, chart_dir):
             "\n\\begin{figure}[H]\n"
             "\\centering\n"
             "\\includegraphics[width=0.95\\textwidth]{" + p + "}\n"
-            "\\caption{Utilization ratio of every design check (bars beyond the dashed line, UR $>$ 1.0, fail).}\n"
+            "\\caption{Utilization ratio of every design check (girders, deck slab, cross bracing, "
+            "end diaphragms). Bars above the red dashed line, UR $>$ 1.0, fail.}\n"
             "\\end{figure}\n"
         )
     except Exception:
@@ -119,10 +137,16 @@ _BOM_ITEMS = [
     ("Crash barrier",          "crash_barrier",  "Concrete"),
 ]
 _GROUP_COLORS = {
-    "Structural steel": "#91B014",
-    "Reinforcement":    "#4F6B0A",
-    "Concrete":         "#B8B8B8",
+    "Structural steel": PASS_COLOR_HEX,
+    "Reinforcement":    REBAR_COLOR_HEX,
+    "Concrete":         CONCRETE_COLOR_HEX,
 }
+
+
+def _first_num(input_dict, key):
+    """First number found in input_dict[key], or None."""
+    m = _NUM.search(str(input_dict.get(key, "")).replace(",", ""))
+    return float(m.group()) if m else None
 
 
 def parse_bom_weights(input_dict):
@@ -132,9 +156,9 @@ def parse_bom_weights(input_dict):
     """
     out = []
     for label, prefix, group in _BOM_ITEMS:
-        m = _NUM.search(str(input_dict.get(prefix + "_wt_total", "")).replace(",", ""))
-        if m:
-            out.append((label, group, float(m.group())))
+        w = _first_num(input_dict, prefix + "_wt_total")
+        if w is not None:
+            out.append((label, group, w))
     return out
 
 
@@ -188,10 +212,54 @@ def _draw_material_chart(items, out_path):
     fig.savefig(out_path, format="png")
 
 
+def _concrete_rebar_tex(input_dict, chart_dir):
+    """Deck concrete volume (m3) vs reinforcement weight (MT). '' if either value is missing."""
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+    vol = _first_num(input_dict, "concrete_deck_vol_total")   # m3
+    reb = _first_num(input_dict, "rebar_deck_wt_total")       # MT
+    if vol is None or reb is None or not chart_dir:
+        logger.warning("Concrete/rebar chart skipped: concrete_deck_vol_total or "
+                       "rebar_deck_wt_total not found in report inputs")
+        return ""
+    fig = Figure(figsize=(7.0, 3.0), dpi=200)
+    FigureCanvasAgg(fig)
+    specs = (
+        (vol, "Deck concrete volume",          "Volume (m$^3$)", _GROUP_COLORS["Concrete"]),
+        (reb, "Reinforcement steel (Fe 500)",  "Weight (MT)",    _GROUP_COLORS["Reinforcement"]),
+    )
+    for i, (val, label, ylabel, color) in enumerate(specs, start=1):
+        ax = fig.add_subplot(1, 2, i)
+        ax.bar([0], [val], color=color, width=0.5)
+        ax.set_ylim(0, val * 1.2 if val > 0 else 1)
+        ax.set_xlim(-0.8, 0.8)
+        ax.set_xticks([0])
+        ax.set_xticklabels([label], fontsize=8)
+        ax.set_ylabel(ylabel, fontsize=8)
+        ax.tick_params(axis="y", labelsize=7.5)
+        ax.text(0, val * 1.02, f"{val:.2f}", ha="center", va="bottom", fontsize=8)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+    fig.tight_layout()
+    out_path = os.path.join(chart_dir, "concrete_rebar_chart.png")
+    fig.savefig(out_path, format="png")
+    p = out_path.replace("\\", "/")
+    return (
+        "\n\\begin{figure}[H]\n"
+        "\\centering\n"
+        "\\includegraphics[width=0.9\\textwidth]{" + p + "}\n"
+        "\\caption{Deck concrete volume (m$^3$) compared with reinforcement steel weight (MT), "
+        "from Table 7.1.}\n"
+        "\\end{figure}\n"
+    )
+
+
 def material_chart_tex(input_dict, chart_dir):
     """Draw the Chapter 7 material charts and return the LaTeX figure block ('' if no data)."""
     try:
-        items = parse_bom_weights(input_dict or {})
+        input_dict = input_dict or {}
+        items = parse_bom_weights(input_dict)
         if len(items) < 2 or sum(w for _, _, w in items) <= 0 or not chart_dir:
             return ""
         if not any(g != "Concrete" and w > 0 for _, g, w in items):
@@ -199,7 +267,7 @@ def material_chart_tex(input_dict, chart_dir):
         out_path = os.path.join(chart_dir, "material_chart.png")
         _draw_material_chart(items, out_path)
         p = out_path.replace("\\", "/")
-        return (
+        main_tex = (
             "\n\\begin{figure}[H]\n"
             "\\centering\n"
             "\\includegraphics[width=\\textwidth]{" + p + "}\n"
@@ -207,6 +275,7 @@ def material_chart_tex(input_dict, chart_dir):
             "and individual steel and reinforcement items (right).}\n"
             "\\end{figure}\n"
         )
+        return main_tex + _concrete_rebar_tex(input_dict, chart_dir)
     except Exception:
         logger.exception("Material chart could not be drawn; continuing without it")
         return ""

@@ -36,7 +36,20 @@ def _render_value(source_dict, key, unit="", nd=None):
         except (TypeError, ValueError):
             pass
     return _tex(val) + unit
+_render_value_raw = _render_value  # keep the original function under this name
 
+_EMPTY_VALUES = {"", "none", "nan", "n.a.", "n/a"}
+
+
+def _render_value(*args, **kwargs):
+    """Same as before, but an empty result prints 'N/A' instead of a blank cell."""
+    out = _render_value_raw(*args, **kwargs)
+    if str(out).strip().lower() in _EMPTY_VALUES:
+        return "N/A"
+    return out
+
+# Marks tables built by make_longtable() so _pin_closing_rule() leaves them alone.
+_NO_PIN = "% make_longtable: closing rule stays in body"
 
 def get_girder_entries(input_dict):
     """
@@ -134,21 +147,18 @@ def make_longtable(colspec, caption, header, body, header_gap="6pt"):
         + header + " \\\\[" + header_gap + "]\n"
         + "\\hline\n"
     )
-    # The table's closing rule goes into \endlastfoot so LaTeX can never
-    # push it alone onto a new page (the "lone header bar").
+    # The closing \hline stays at the end of the body. It is NOT moved into
+    # \endlastfoot (nor the last row ended with \\*): with either, longtable
+    # drops the repeated header when only the last row spills onto a new page.
     body = body.rstrip()
-    closing = ""
-    if body.endswith("\\hline"):
-        body = body[: -len("\\hline")].rstrip()
-        closing = "\\hline\n\\endlastfoot\n\n"
     return (
         "\\begin{longtable}{" + colspec + "}\n"
+        + _NO_PIN + "\n"
         + "\\caption{\\textbf{" + caption + "}}\\\\\n"
         + head
         + "\\endfirsthead\n\n"
         + head
         + "\\endhead\n\n"
-        + closing
         + body + "\n"
         + "\\end{longtable}\n"
     )
@@ -228,7 +238,7 @@ def _add_header(block):
 def _pin_closing_rule(block):
     r"""Move a table's final \hline into \endlastfoot so LaTeX cannot push
     it alone onto a new page (the lone header bar)."""
-    if "\\endlastfoot" in block or "\\endhead" not in block:
+    if "\\endlastfoot" in block or "\\endhead" not in block or _NO_PIN in block:
         return block
     lines = block.rstrip().split("\n")
     if lines[-1].strip() != "\\end{longtable}":
