@@ -12,16 +12,23 @@ dependencies:
   - osdag::osdag
 
   # bridge-specific
+  - numpy>=1.21.0
   - matplotlib
+  - pandas
+  - scikit-learn
   - fiona
   - shapely
   - scipy>=1.10.1
   - pydantic
   - xarray
+  - openpyxl
+  - pyyaml
 
   # development install
   - pip
   - pip:
     - openseespy>=3.2.2.6
     - opsvis
+    - plotly
+    - mplcursors
     - -e .

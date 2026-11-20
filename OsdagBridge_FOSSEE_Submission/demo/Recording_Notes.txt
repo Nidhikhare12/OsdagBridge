@@ -1,0 +1,76 @@
+================================================================================
+FOSSEE WINTER INTERNSHIP 2026: VIDEO RECORDING & VERIFICATION NOTES
+================================================================================
+Generated on: 2026-11-19 22:43:26
+Operating System: Windows 11 / Windows 10 (x86_64)
+Environment: miniconda3 / env: osdagbridge-env
+Python Version: 3.11.11
+FFmpeg Version: FFmpeg 9.0.2 (libx264, yuv420p)
+PySide6 Version: 6.8.0.2
+
+--------------------------------------------------------------------------------
+1. PRIMARY VIDEO DELIVERABLE VERIFICATION (FOSSEE_Project_Demonstration.mp4)
+--------------------------------------------------------------------------------
+File Path: C:\Users\sonsp\OneDrive\Desktop\general_project\FOSSEE\OsdagBridge\FOSSEE_Demo\FOSSEE_Project_Demonstration.mp4
+File Size: 4.49 MB
+Target Duration: 3:45 (225 seconds)
+Target Frame Rate: 30 FPS
+Total Frames Encoded: 6750
+Encoding Profile: H.264 High Profile (yuv420p), CRF 18, preset veryfast
+Audio Stream: None (Silent technical screencast with lower-third subtitle cards)
+
+FFprobe Stream & Format Verification:
+codec_name=h264
+width=1920
+height=1080
+pix_fmt=yuv420p
+r_frame_rate=30/1
+duration=225.000000
+duration=225.000000
+size=4707788
+bit_rate=167388
+
+--------------------------------------------------------------------------------
+2. PREVIEW VIDEO DELIVERABLE VERIFICATION (Recording_Preview.mp4)
+--------------------------------------------------------------------------------
+File Path: C:\Users\sonsp\OneDrive\Desktop\general_project\FOSSEE\OsdagBridge\FOSSEE_Demo\Recording_Preview.mp4
+File Size: 0.64 MB
+Target Duration: 0:30 (30 seconds)
+Target Frame Rate: 30 FPS
+Total Frames Encoded: 900
+
+FFprobe Stream & Format Verification:
+codec_name=h264
+width=1920
+height=1080
+pix_fmt=yuv420p
+r_frame_rate=30/1
+duration=30.000000
+duration=30.000000
+size=675140
+bit_rate=180037
+
+--------------------------------------------------------------------------------
+3. EXECUTION & AUTOMATION PIPELINE SUMMARY
+--------------------------------------------------------------------------------
+• Capture Architecture: High-resolution PySide6 GUI state extraction combined
+  with authentic OpenSeesPy FEA structural analysis data.
+• Motion Interpolation: Cubic smoothstep ease_in_out mouse cursor motion
+  simulation with animated click ripples and locked-parameter HUD cards.
+• Subtitle Integration: Clean, semi-transparent lower-third banner across
+  y = 985-1065 displaying real-time stage badges, technical descriptions,
+  timestamp indicators, and a dynamic progress bar.
+• Zero Mock Data: All bridge geometries (25m plate girder bridge), cross sections,
+  finite element grillage analyses, and transverse SFD/BMD/deflection plots
+  were generated directly by the live OsdagBridge codebase.
+
+--------------------------------------------------------------------------------
+4. AUTOMATED TEST SUITE STATUS
+--------------------------------------------------------------------------------
+Command: python -m pytest -q
+Results: 27 passed, 37 warnings in 42.54s [100% Pass Rate]
+- test_cad_interactive_edit.py: 12 passed
+- test_additional_inputs_validation.py: 4 passed
+- test_transverse_plotting.py: 11 passed
+Zero regressions observed.
+================================================================================

@@ -43,14 +43,22 @@ classifiers = [
 # Runtime dependencies
 
 dependencies = [
+  "numpy>=1.21.0",
   "scipy>=1.10.1",
+  "matplotlib>=3.5",
+  "pandas",
+  "scikit-learn>=1.0.0",
+  "PySide6>=6.5.0,<=6.9.3",
   "fiona",
   "shapely",
   "pydantic>=2.0",
-  "matplotlib>=3.5",
   "openseespy>=3.2.2.6",
   "opsvis>=1.0",
   "xarray",
+  "openpyxl",
+  "pyyaml",
+  "plotly",
+  "mplcursors",
 ]
 
 [project.optional-dependencies]

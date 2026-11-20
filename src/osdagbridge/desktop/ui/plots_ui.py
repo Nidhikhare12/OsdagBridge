@@ -19,18 +19,29 @@ from PySide6.QtWidgets import (
     QLabel, QComboBox, QCheckBox, QTableWidget, QTableWidgetItem, 
     QHeaderView, QPushButton, QDialog
 )
-from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebEngineCore import QWebEngineSettings
+try:
+    from PySide6.QtWebEngineWidgets import QWebEngineView
+    from PySide6.QtWebEngineCore import QWebEngineSettings
+    from PySide6.QtWebChannel import QWebChannel
+except (ImportError, Exception):
+    QWebEngineView = None
+    QWebEngineSettings = None
+    QWebChannel = None
+
 from PySide6.QtCore import QUrl, Qt, QPoint, QObject, Slot, Signal
-from PySide6.QtWebChannel import QWebChannel
 
 # --- IMPORT THE BACKEND LOGIC ---
-from osdagbridge.core.bridge_types.plate_girder.plots_widget import (
-    build_figure_sfd,
-    build_figure_bmd,
-    # build_figure_bmd_contour,  # commented out
-    FORCE_MAP,
-)
+try:
+    from osdagbridge.core.bridge_types.plate_girder.plot_generator import (
+        build_figure_sfd,
+        build_figure_bmd,
+        # build_figure_bmd_contour,  # commented out
+        FORCE_MAP,
+    )
+except (ImportError, Exception):
+    build_figure_sfd = None
+    build_figure_bmd = None
+    FORCE_MAP = {}
 
 # =========================================================
 # THE RAM-ONLY FRONTEND

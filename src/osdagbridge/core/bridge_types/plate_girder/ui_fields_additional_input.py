@@ -1125,6 +1125,8 @@ _LOAD_COMBINATION_TAB_SCHEMA = {
     ],
 }
 
+CUSTOM_LOAD_TAB_SCHEMA = _CUSTOM_LOAD_TAB_SCHEMA
+
 LOADING_TAB_SCHEMA = {
     "id":     KEY_LOADING_TAB,
     "layout": {"type": "tabs"},
