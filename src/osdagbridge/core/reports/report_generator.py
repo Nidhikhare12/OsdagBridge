@@ -928,7 +928,6 @@ def generate_report(payload, request):
 
             doc_parts.append(references())
             doc_parts.append(r"\end{document}")
-
             full_tex = "\n".join(doc_parts)
             from .table_utils import add_repeating_headers
             full_tex = add_repeating_headers(full_tex)
@@ -944,25 +943,26 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            # Compile twice for TOC and references
+            # Compile twice for TOC, longtable and references
+            kwargs = {
+                'cwd': tmp_dir,
+                'stdout': subprocess.PIPE,
+                'stderr': subprocess.PIPE,
+                'check': False,
+                'env': os.environ.copy()
+            }
+            if os.name == 'nt':
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+
             for _ in range(2):
                 try:
-                    kwargs = {
-                        'cwd': tmp_dir,
-                        'stdout': subprocess.PIPE,
-                        'stderr': subprocess.PIPE,
-                        'check': False,
-                        'env': os.environ.copy()
-                    }
-                    if os.name == 'nt':
-                        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
                     res = subprocess.run(
                         [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
                         **kwargs
                     )
                 except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
+                    break
 
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)

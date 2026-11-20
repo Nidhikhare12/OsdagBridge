@@ -334,10 +334,10 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         KEY_CB_AREA = "typical_section.crash_barrier.area"
         cb_area = 0.0
         cb_area_val = inputs.get(KEY_CB_AREA)
-        
+       
         if cb_area_val is not None:
             try:
-                cb_area = float(cb_area_val) / 1e6
+                cb_area = float(cb_area_val) 
             except Exception:
                 pass
         

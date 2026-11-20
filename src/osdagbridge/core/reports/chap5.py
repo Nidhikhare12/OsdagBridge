@@ -305,6 +305,16 @@ def ch5_design_checks(checks_data, bridge) -> str:
 \hline"""
         )
     t55_content = "\n".join(t55_rows)
+    from osdagbridge.core.reports import charts
+    try:
+        _mv_plot = float(_mv_ur_str)
+    except ValueError:
+        _mv_plot = None
+    _ur_png = charts.ur_chart(
+        ["M-V interaction", "M-N interaction"], [_mv_plot, _mn_r])
+    ur_chart_tex = (charts.include_tex(
+        _ur_png, "Figure 5.1: Utilization ratios (red dashed line: UR = 1.0)")
+        if _ur_png else "")
 
     # Generate Table 5.6 rows
     # LTB UR stored as percent → show ratio (2 dp); engine bands via _interaction_status.
@@ -1120,6 +1130,7 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 """ + t55_content + r"""
 \end{longtable}
+""" + ur_chart_tex + r"""
 \noindent\textit{Note: IRC 22 Cl. 603.3.3.3}
 
 \vspace{1em}

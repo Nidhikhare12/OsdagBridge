@@ -1,10 +1,9 @@
 def ch7_quantities(input_dict):
-    return r"""
+    tex = r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
 
 \noindent\textbf{Table 7.1  Bill of Materials (Steel, Concrete, and Reinforcement Quantities)}
-
 \begingroup
 \setlength{\tabcolsep}{3.5pt}
 \begin{longtable}{|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
@@ -29,5 +28,21 @@ def ch7_quantities(input_dict):
 \hline
 \end{longtable}
 """
+    from osdagbridge.core.reports import charts
+    rows = [
+        ("Girders", "steel_girders_wt_total"),
+        ("Bracing (top)", "bracing_top_wt_total"),
+        ("Bracing (bottom)", "bracing_bot_wt_total"),
+        ("Bracing (diagonal)", "bracing_diag_wt_total"),
+        ("Deck concrete", "concrete_deck_wt_total"),
+        ("Reinforcement", "rebar_deck_wt_total"),
+        ("Shear studs", "shear_studs_wt_total"),
+        ("Crash barrier", "crash_barrier_wt_total"),
+    ]
+    png = charts.material_chart([(n, input_dict.get(k)) for n, k in rows])
+    if png:
+        tex += charts.include_tex(
+            png, "Figure 7.1: Total weight of each material item (MT)")
+    return tex
 
 
