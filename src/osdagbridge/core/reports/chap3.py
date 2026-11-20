@@ -4,7 +4,9 @@
 # =============================================================================
 
 from osdagbridge.core.utils.common import (
+    KEY_BL_IRC_CLASS_SV,
     KEY_CB_LOAD,
+    KEY_FOOTPATH,
     KEY_LL_CUSTOM_VEHICLES,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
@@ -40,6 +42,8 @@ from osdagbridge.core.utils.common import (
     KEY_TL_LOWEST_MIN_TEMP,
     KEY_TL_TEMP_FALL,
     KEY_TL_TEMP_RISE,
+    KEY_TS_FOOTPATH_WIDTH,
+    KEY_TS_NO_OF_FOOTPATHS,
     KEY_WC_LD_LANE_TABLE_COUNT,
     KEY_WC_MATERIAL,
     KEY_WC_THICKNESS,
@@ -54,93 +58,291 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value
+from osdagbridge.core.reports.table_builder import TableBuilder
+from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
 
-def ch3_loads(input_dict):
-    # Live load vehicle names mapping
-    vehicles = []
-    if input_dict.get(KEY_LL_IRC_CLASS_A):
-        vehicles.append("Class A")
-    if input_dict.get(KEY_LL_IRC_70R_WHEELED):
-        vehicles.append("Class 70R (Wheeled)")
-    if input_dict.get(KEY_LL_IRC_70R_TRACKED):
-        vehicles.append("Class 70R (Tracked)")
-    if input_dict.get(KEY_LL_IRC_AA_WHEELED):
-        vehicles.append("Class AA (Wheeled)")
-    if input_dict.get(KEY_LL_IRC_AA_TRACKED):
-        vehicles.append("Class AA (Tracked)")
-    if input_dict.get(KEY_LL_IRC_CLASS_SV):
-        vehicles.append("Class SV")
-    if input_dict.get(KEY_LL_IRC_70R_BOGIE):
-        vehicles.append("Class 70R (Bogie)")
-    if input_dict.get(KEY_LL_IRC_CLASS_FATIGUE):
-        vehicles.append("Class Fatigue")
-    
-    custom = input_dict.get(KEY_LL_CUSTOM_VEHICLES)
+def build_vehicle_live_load_table(input_dict: dict) -> str:
+    """Build dedicated LaTeX table for Vehicle Live Loads per IRC 6:2017."""
+    span = input_dict.get(KEY_SPAN)
+    try:
+        span_m = float(span) if span not in (None, "") else 0.0
+    except Exception:
+        span_m = 0.0
+
+    builder = TableBuilder(
+        col_spec=r"|L{3.2cm}|C{2.6cm}|C{2.0cm}|C{3.2cm}|C{2.0cm}|",
+        caption=r"\textbf{Vehicle Live Loads (LL) --- per IRC 6:2017}",
+        label="tab:vehicle-live-loads",
+        num_cols=5,
+    )
+    builder.set_headers([
+        r"\textbf{Vehicle Class}",
+        r"\textbf{Load / Weight}",
+        r"\textbf{Impact Factor}",
+        r"\textbf{Braking Force (1\textsuperscript{st} Train)}",
+        r"\textbf{Centrifugal Force}",
+    ])
+
+    VEHICLE_SPECS = [
+        # (key, display_name, load_str, weight_kN, v_type, brake_str)
+        (KEY_LL_IRC_CLASS_A,       "Class A",             "543.5 kN (55.4 t)",   543.5,   "class_a",       "108.69 kN (11.08 t)"),
+        (KEY_LL_IRC_70R_WHEELED,   "Class 70R (Wheeled)", "981.0 kN (100.0 t)",  981.0,   "70r_wheeled",   "196.20 kN (20.00 t)"),
+        (KEY_LL_IRC_70R_TRACKED,   "Class 70R (Tracked)", "686.7 kN (70.0 t)",   686.7,   "70r_tracked",   "N/A (Tracked)"),
+        (KEY_LL_IRC_70R_BOGIE,     "Class 70R (Bogie)",   "392.4 kN (40.0 t)",   392.4,   "70r_bogie",     "78.48 kN (8.00 t)"),
+        (KEY_LL_IRC_AA_WHEELED,    "Class AA (Wheeled)",  "392.4 kN (40.0 t)",   392.4,   "aa_wheeled",    "78.48 kN (8.00 t)"),
+        (KEY_LL_IRC_AA_TRACKED,    "Class AA (Tracked)",  "686.7 kN (70.0 t)",   686.7,   "aa_tracked",    "N/A (Tracked)"),
+        (KEY_LL_IRC_CLASS_SV,      "Class SV",            "3776.9 kN (385.0 t)", 3776.85, "class_sv",      None),
+        (KEY_LL_IRC_CLASS_FATIGUE, "Class Fatigue",       "392.4 kN (40.0 t)",   392.4,   "class_fatigue", "N/A (Fatigue check)"),
+    ]
+
+    # Centrifugal force parameters per IRC 6:2017 Cl. 212
+    # Cl. 212.2: C = (W * V^2) / (127 * R), acting horizontally at 1.2 m height per Cl. 212.3
+    radius_val = (
+        input_dict.get("geometry.radius")
+        or input_dict.get("radius")
+        or input_dict.get("horizontal_curve_radius")
+    )
+    radius_m = None
+    if radius_val not in (None, ""):
+        try:
+            r_flt = float(radius_val)
+            if r_flt > 0:
+                radius_m = r_flt
+        except (ValueError, TypeError):
+            pass
+
+    speed_val = input_dict.get("design_speed") or input_dict.get("speed")
+    try:
+        speed_kmh = float(speed_val) if speed_val not in (None, "") else 80.0
+    except (ValueError, TypeError):
+        speed_kmh = 80.0
+
+    def _im(v_type: str) -> str:
+        if span_m <= 0:
+            return "N/A"
+        if v_type == "class_a":
+            return f"{1.0 + IRC6_2017.cl_208_2_impact_factor(span_m):.3f}"
+        elif v_type in ("70r_tracked", "aa_tracked"):
+            im = 0.25 if span_m < 5.0 else 0.10
+            return f"{1.0 + im:.3f}"
+        elif v_type in ("70r_wheeled", "70r_bogie", "aa_wheeled"):
+            im = 0.25 if span_m < 23.0 else 9.0 / (13.5 + min(span_m, 45.0))
+            return f"{1.0 + im:.3f}"
+        elif v_type in ("class_sv", "class_fatigue"):
+            return "1.000"
+        return "1.000"
+
+    def _cf(weight_kN: float, v_type: str) -> str:
+        if radius_m is None:
+            return "N/A"
+        if v_type == "class_fatigue":
+            return "N/A (Fatigue check)"
+        # SV operates at restricted speed (5 km/h per IRC 6 Cl. 204.5.3 note)
+        v = 5.0 if v_type == "class_sv" else speed_kmh
+        c = (weight_kN * (v ** 2)) / (127.0 * radius_m)
+        return f"{c:.2f} kN"
+
+    rows_added = 0
+    for key, name, load_str, weight_kN, v_type, brake_str in VEHICLE_SPECS:
+        if input_dict.get(key):
+            im_str = _im(v_type)
+            if key == KEY_LL_IRC_CLASS_SV:
+                brake_val = "755.37 kN (77.00 t)" if input_dict.get(KEY_BL_IRC_CLASS_SV) else "Not applied"
+            else:
+                brake_val = brake_str
+            cf_val = _cf(weight_kN, v_type)
+            builder.add_row(_tex(name), load_str, im_str, brake_val, cf_val)
+            rows_added += 1
+
+    custom = (
+        input_dict.get(KEY_LL_CUSTOM_VEHICLES)
+        or input_dict.get("custom_vehicles")
+        or input_dict.get("live_load.custom_vehicles")
+    )
     if custom and isinstance(custom, list):
         for c in custom:
-            if isinstance(c, dict) and c.get('name'):
-                vehicles.append(c['name'])
-            elif isinstance(c, str):
-                vehicles.append(c)
-                
-    vehicles_str = ", ".join(vehicles) if vehicles else "None"
-
-    from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
-    span = input_dict.get(KEY_SPAN)
-    impact_factor_str = ""
-    if span not in (None, ""):
-        try:
-            span_m = float(span)
-            factors = []
-            if input_dict.get(KEY_LL_IRC_CLASS_A):
-                im_a = IRC6_2017.cl_208_2_impact_factor(span_m)
-                factors.append(f"Class A: {1.0 + im_a:.3f}")
-            is_wheeled_heavy = (
-                input_dict.get(KEY_LL_IRC_70R_WHEELED) or 
-                input_dict.get(KEY_LL_IRC_AA_WHEELED) or 
-                input_dict.get(KEY_LL_IRC_70R_BOGIE)
-            )
-            is_tracked_heavy = (
-                input_dict.get(KEY_LL_IRC_70R_TRACKED) or 
-                input_dict.get(KEY_LL_IRC_AA_TRACKED)
-            )
-            if is_wheeled_heavy or is_tracked_heavy:
-                im_aa = IRC6_2017.cl_208_3_impact_factor(span_m)
-                factors.append(f"Class AA/70R: {1.0 + im_aa:.3f}")
-            
-            if factors:
-                impact_factor_str = ", ".join(factors)
+            c_name = c.get("name", "Custom") if isinstance(c, dict) else str(c)
+            c_weight = 0.0
+            if isinstance(c, dict) and "total_load" in c:
+                try:
+                    c_weight = float(c['total_load'])
+                    c_load = f"{c_weight:.1f} kN"
+                    c_brake = f"{0.20 * c_weight:.2f} kN"
+                except Exception:
+                    c_load = "Custom"
+                    c_brake = "N/A"
             else:
-                impact_factor_str = "N/A"
-        except Exception:
-            impact_factor_str = "N/A"
-    else:
-        impact_factor_str = "N/A"
+                c_load = "Custom"
+                c_brake = "N/A"
+            if isinstance(c, dict) and "impact_factor" in c:
+                try:
+                    c_im = f"{float(c['impact_factor']):.3f}"
+                except Exception:
+                    c_im = "1.000"
+            else:
+                c_im = "1.000"
+            if radius_m is None:
+                c_cf = "N/A"
+            elif c_weight > 0:
+                c_cf = f"{(c_weight * (speed_kmh ** 2)) / (127.0 * radius_m):.2f} kN"
+            else:
+                c_cf = "N/A"
+            builder.add_row(_tex(c_name), c_load, c_im, c_brake, c_cf)
+            rows_added += 1
 
-    lanes = input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT)
-    braking_force_str = ""
-    if lanes not in (None, ""):
-        try:
-            lanes_int = int(lanes)
-            braking_force_t = IRC6_2017.cl_211_2_braking_force(lanes_int)
-            braking_force_kN = braking_force_t * 9.81
-            braking_force_str = f"{braking_force_kN:.2f} kN ({braking_force_t:.2f} tonnes)"
-        except Exception:
-            braking_force_str = "N/A"
-    else:
-        braking_force_str = "N/A"
+    if rows_added == 0:
+        builder.add_row(r"\multicolumn{5}{|c|}{\textit{No live load vehicle classes selected}}")
 
-    fp_mode  = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "")
-    fp_value = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE, "")
-    if str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
-        try:
-            fp_str = f"{IRC6_2017.cl_206_1_footway_load():.3f} kN/m² (IRC 6 Cl. 206.1)"
-        except Exception:
-            fp_str = "N/A"
-    elif fp_value not in (None, ""):
-        fp_str = f"{fp_value} kN/m²"
+    if radius_m is not None:
+        cf_note = (
+            f"Centrifugal force computed per IRC:6-2017 Cl. 212.2 ($C = W V^2 / (127 R)$), "
+            f"acting horizontally at 1.2 m above the roadway per Cl. 212.3, "
+            f"for horizontal curve radius $R = {radius_m:.1f}\\text{{ m}}$ and design speed $V = {speed_kmh:.0f}\\text{{ km/h}}$."
+        )
     else:
-        fp_str = "N/A"
+        cf_note = (
+            "Centrifugal force per IRC:6-2017 Cl. 212.2 is not applicable for straight bridge alignments "
+            r"($R = \infty$, $C = 0$)."
+        )
+
+    note_text = (
+        f"Impact factor computed per IRC:6-2017 Cl. 208 for span $L = {span_m:.1f}\\text{{ m}}$. "
+        f"Tabulated braking forces represent the 20\\% first-train component per Cl. 211.2 (applied at 1.2 m above the deck per Cl. 211.3); "
+        r"tracked vehicles are designated N/A due to an implementation limitation in the solver "
+        r"(longitudinal train braking calculation for tracked vehicles is not supported in the current module, rather than an express code exemption). "
+        f"{cf_note} "
+        r"Vehicle characteristic loads represent physical force equivalents using $g = 9.81\text{ m/s}^2$ ($1\text{ t} = 9.81\text{ kN}$); "
+        r"nominal designations: 70R Tracked / AA Tracked = 700 kN, 70R Bogie / AA Wheeled = 400 kN."
+    )
+    builder.set_note(note_text)
+    return builder.build()
+
+
+def build_footpath_live_load_table(input_dict: dict) -> str:
+    """Build dedicated LaTeX table for Footpath Live Load per IRC 6 Cl. 206."""
+    footpath_cfg = str(input_dict.get(KEY_FOOTPATH, "")).strip()
+    has_footpath = footpath_cfg.lower() not in ("", "none", "no")
+
+    span = input_dict.get(KEY_SPAN)
+    try:
+        span_m = float(span) if span not in (None, "") else 30.0
+    except Exception:
+        span_m = 30.0
+
+    builder = TableBuilder(
+        col_spec=r"|L{5.8cm}|p{9.7cm}|",
+        caption=r"\textbf{Footpath Live Load --- per IRC 6 Cl. 206}",
+        label="tab:footpath-live-load",
+        num_cols=2,
+    )
+    builder.set_headers([
+        r"\textbf{parameter}",
+        r"\textbf{value / specification}",
+    ])
+
+    # Clause 206.3 reduction for main supporting members:
+    # Reduction = (40*L - 300) / 9 kg/m2 for 7.5 <= L <= 30 m
+    # For L > 30 m, reduction = 100 kg/m2 (or (40*30-300)/9 = 100 kg/m2)
+    # For L < 7.5 m, reduction = 0 kg/m2
+    # Note: Cl. 206.3 reduction applies ONLY to ordinary footway loading.
+    # Per IRC 6:2017 Cl. 206.3 Note, when crowd loading is considered, the reduction shall NOT apply.
+    if 7.5 <= span_m <= 30.0:
+        reduction_kg = (40.0 * span_m - 300.0) / 9.0
+    elif span_m < 7.5:
+        reduction_kg = 0.0
+    else:
+        reduction_kg = 100.0
+
+    ord_girder_kg = max(160.0, 400.0 - reduction_kg)
+    crowd_girder_kg = 500.0  # Cl. 206.3 reduction does NOT apply to crowd loading per code note
+    ord_girder_kn = (ord_girder_kg * 9.81) / 1000.0
+    crowd_girder_kn = (crowd_girder_kg * 9.81) / 1000.0
+
+    if has_footpath:
+        fp_provision = _tex(footpath_cfg)
+        n_fp = input_dict.get(KEY_TS_NO_OF_FOOTPATHS)
+        if n_fp in (None, ""):
+            n_fp_str = "2" if "both" in footpath_cfg.lower() else "1"
+        else:
+            n_fp_str = str(n_fp)
+
+        fp_w = input_dict.get(KEY_TS_FOOTPATH_WIDTH)
+        fp_width_str = f"{float(fp_w):.2f} m" if fp_w not in (None, "") else "1.50 m"
+
+        fp_mode = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "As per IRC 6")
+        mode_str = _tex(str(fp_mode))
+
+        mode_lower = str(fp_mode).strip().lower()
+        fp_val = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE)
+
+        # Footway Surface Loading (Cl. 206.1)
+        if mode_lower in ("as per irc 6", "as per irc6", "automatic"):
+            try:
+                intensity = IRC6_2017.cl_206_1_footway_load()
+                surface_str = (
+                    f"{intensity:.3f} kN/m\\textsuperscript{{2}} (500 kg/m\\textsuperscript{{2}}, application default) / "
+                    r"3.924 kN/m\textsuperscript{2} (400 kg/m\textsuperscript{2}, ordinary)"
+                )
+            except Exception:
+                surface_str = (
+                    r"4.905 kN/m\textsuperscript{2} (500 kg/m\textsuperscript{2}, application default) / "
+                    r"3.924 kN/m\textsuperscript{2} (400 kg/m\textsuperscript{2}, ordinary)"
+                )
+
+            girder_load_str = (
+                f"{ord_girder_kn:.3f} kN/m\\textsuperscript{{2}} ({ord_girder_kg:.0f} kg/m\\textsuperscript{{2}}, ordinary reduced) / "
+                f"{crowd_girder_kn:.3f} kN/m\\textsuperscript{{2}} ({crowd_girder_kg:.0f} kg/m\\textsuperscript{{2}}, crowd unreduced)"
+            )
+        elif fp_val not in (None, ""):
+            surface_str = f"{fp_val} kN/m\\textsuperscript{{2}} (Custom)"
+            girder_load_str = f"{fp_val} kN/m\\textsuperscript{{2}} (Custom)"
+        else:
+            surface_str = (
+                r"4.905 kN/m\textsuperscript{2} (500 kg/m\textsuperscript{2}, application default) / "
+                r"3.924 kN/m\textsuperscript{2} (400 kg/m\textsuperscript{2}, ordinary)"
+            )
+            girder_load_str = (
+                f"{ord_girder_kn:.3f} kN/m\\textsuperscript{{2}} ({ord_girder_kg:.0f} kg/m\\textsuperscript{{2}}, ordinary reduced) / "
+                f"{crowd_girder_kn:.3f} kN/m\\textsuperscript{{2}} ({crowd_girder_kg:.0f} kg/m\\textsuperscript{{2}}, crowd unreduced)"
+            )
+
+        builder.add_row(r"\textnormal{Footpath Configuration}", fp_provision)
+        builder.add_row(r"\textnormal{Number of Footpaths}", n_fp_str)
+        builder.add_row(r"\textnormal{Footpath Width}", fp_width_str)
+        builder.add_row(r"\textnormal{Footpath Loading Mode}", mode_str)
+        builder.add_row(r"\textnormal{Footway Surface Live Load (Deck Slab)}", surface_str)
+        builder.add_row(r"\textnormal{Main Girder Live Load (Cl. 206.3)}", girder_load_str)
+        builder.set_note(
+            r"Per IRC 6 Cl. 206.1, footway surface live load on the deck slab is $400\text{ kg/m}^2$ ($3.924\text{ kN/m}^2$) for ordinary road bridges, "
+            r"and $500\text{ kg/m}^2$ ($4.905\text{ kN/m}^2$) for foot overbridges or crowd loading. "
+            r"The current application defaults to $500\text{ kg/m}^2$ ($4.905\text{ kN/m}^2$) via \texttt{IRC6\_2017.cl\_206\_1\_footway\_load()}; "
+            r"ordinary footway classification is not selectable through the current GUI. "
+            rf"For main supporting girders of span $L = {span_m:.1f}\text{{ m}}$, Cl. 206.3 specifies a reduction "
+            rf"($(40L-300)/9 = {reduction_kg:.1f}\text{{ kg/m}}^2$) yielding ${ord_girder_kn:.3f}\text{{ kN/m}}^2$ (${ord_girder_kg:.0f}\text{{ kg/m}}^2$) "
+            r"for ordinary footways. Per Cl. 206.3 Note, this reduction does not apply to crowd loading, which remains unreduced at "
+            rf"${crowd_girder_kn:.3f}\text{{ kN/m}}^2$ (${crowd_girder_kg:.0f}\text{{ kg/m}}^2$). "
+            r"Per Cl. 206.1, bridges with crowd loading should also be designed for the entire carriageway occupied by crowd load; "
+            r"this load case is not supported by the current solver (known software limitation)."
+        )
+    else:
+        builder.add_row(r"\textnormal{Footpath Configuration}", r"\textnormal{None (Not provided)}")
+        builder.add_row(r"\textnormal{Number of Footpaths}", r"\textnormal{0}")
+        builder.add_row(r"\textnormal{Footpath Width}", r"\textnormal{N/A}")
+        fp_mode = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "As per IRC 6")
+        builder.add_row(r"\textnormal{Footpath Loading Mode}", _tex(f"{fp_mode} (Disabled)"))
+        builder.add_row(r"\textnormal{Footway Surface Live Load (Deck Slab)}", r"\textnormal{N/A (Footpath disabled)}")
+        builder.add_row(r"\textnormal{Main Girder Live Load (Cl. 206.3)}", r"\textnormal{N/A (Footpath disabled)}")
+        builder.set_note(
+            "No footpath is provided in the typical bridge cross-section (geometry.footpath = None). "
+            "Footpath live load is not applied in structural analysis."
+        )
+
+    return builder.build()
+
+
+def ch3_loads(input_dict):
+    vehicle_table_tex = build_vehicle_live_load_table(input_dict)
+    footpath_table_tex = build_footpath_live_load_table(input_dict)
 
     # Vz / Pz — prefer stored computed values; fall back to IRC6 Table 12
     vz_val = input_dict.get(KEY_WL_HOURLY_MEAN_WIND)
@@ -273,7 +475,7 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Dead Load -- Self Weight}}
+\caption{\textbf{Dead Load -- Self Weight}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -287,7 +489,7 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Dead Load for Surfacing (DW)}}
+\caption{\textbf{Dead Load for Surfacing (DW)}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -300,24 +502,14 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
-\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
-\hline
-\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
-\hline
-\textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
-\hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
-\hline
-\end{longtable}
+""" + vehicle_table_tex + r"""
+
+\vspace{1em}
+""" + footpath_table_tex + r"""
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Wind Load (WL) --- per IRC 6}}
+\caption{\textbf{Wind Load (WL) --- per IRC 6}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -341,7 +533,7 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Earthquake Load (EL) --- per IRC 6}}
+\caption{\textbf{Earthquake Load (EL) --- per IRC 6}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -367,7 +559,7 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Temperature Load (TL) --- per IRC 6}}
+\caption{\textbf{Temperature Load (TL) --- per IRC 6}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -383,7 +575,7 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}
-\caption{\textbf{Load Combinations}}
+\caption{\textbf{Load Combinations}}\\
 \hline
 \textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
 \hline

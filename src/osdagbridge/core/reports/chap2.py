@@ -168,7 +168,7 @@ Where the user has modified additional inputs, those values are reported here. W
 \vspace{0.8cm}
 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Typical Section Details}}
+\caption{\textbf{Typical Section Details}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -191,7 +191,7 @@ Where the user has modified additional inputs, those values are reported here. W
 \vspace{0.8em}
 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Components Details}}
+\caption{\textbf{Components Details}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -228,7 +228,7 @@ def _girder_tables(input_dict, n_girders):
     girder_entries = get_girder_entries(input_dict)
     if not girder_entries:
         girder_entries = [(f"Girder {i}", f"M1") for i in range(1, n + 1)]
-    
+
     entries_for_table = [
         (lbl, mid, i)
         for i, (lbl, mid) in enumerate(
@@ -302,10 +302,10 @@ def _girder_tables(input_dict, n_girders):
 
 \vspace{0.4em}
 \noindent
-            
+
 \vspace{4pt}
 \begin{longtable}{|L{2.2cm}|L{1.8cm}|p{3.8cm}|p{3.8cm}|p{3.8cm}|}
-\caption{\textbf{Girder General Information}}
+\caption{\textbf{Girder General Information}}\\
 \hline
 \textbf{Girder} & \textbf{Member ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
 \hline
@@ -317,7 +317,7 @@ def _girder_tables(input_dict, n_girders):
 
 \vspace{4pt}
 \begin{longtable}{|L{1.8cm}|L{2.3cm}|L{1.8cm}|p{4.8cm}|p{4.8cm}|}
-\caption{\textbf{Girder Section Dimensions}}
+\caption{\textbf{Girder Section Dimensions}}\\
 \hline
 \textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]
 \hline
@@ -389,7 +389,7 @@ def _bracing_tables(input_dict, n_girders):
 \setlength\LTright{\fill}
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
-\caption{\textbf{Member Properties: Cross Bracing Details}}
+\caption{\textbf{Member Properties: Cross Bracing Details}}\\
 \hline
 \textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
 \hline
@@ -404,7 +404,7 @@ def _bracing_tables(input_dict, n_girders):
 \setlength\LTright{\fill}
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
-\caption{\textbf{Member Properties: End Diaphragm Details}}
+\caption{\textbf{Member Properties: End Diaphragm Details}}\\
 \hline
 \textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
 \hline
@@ -424,7 +424,7 @@ def _shear_connector_table(input_dict, output_dict=None):
 
 \vspace{0.4em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Shear Connector Details}}
+\caption{\textbf{Shear Connector Details}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
@@ -452,7 +452,7 @@ def _safety_factors_table(input_dict):
 
 \vspace{0.4em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Partial Safety Factors}}
+\caption{\textbf{Partial Safety Factors}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
