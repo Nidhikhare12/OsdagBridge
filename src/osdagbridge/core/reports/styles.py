@@ -65,3 +65,7 @@ def table_settings():
         r"{\noalign{\nobreak\vskip-\arrayrulewidth}}{}{\FAIL}",
         r"\makeatother",
     ])
+# ---- Live load tables ----
+LL_VEHICLE_COLSPEC = r"|L{2.9cm}|C{1.9cm}|C{1.8cm}|C{2.6cm}|C{2.0cm}|C{2.6cm}|"
+LL_FOOTPATH_COLSPEC = r"|L{5.5cm}|C{3.0cm}|p{6.5cm}|"
+BRAKING_ECCENTRICITY_M = "1.20"

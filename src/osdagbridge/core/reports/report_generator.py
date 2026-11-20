@@ -209,7 +209,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     \ifbool{hasSDonPage}{%
       \vspace{-20pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
+      \vspace{8pt}%
     }{%
       \vspace{-8pt}%
     }%
@@ -227,7 +227,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     \ifbool{hasSDonPage}{%
       \vspace{-20pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
+      \vspace{8pt}%
     }{%
       \vspace{-8pt}%
     }%
