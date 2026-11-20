@@ -1,0 +1,251 @@
+{
+  "TC01_Baseline_18m.osi": {
+    "geometry.carriageway_width": "7.5",
+    "geometry.skew_angle": null,
+    "geometry.span": "20.0",
+    "material.cross_bracing": "E 350A",
+    "material.cross_bracing.density": "76.4",
+    "material.cross_bracing.e": "200.0",
+    "material.cross_bracing.fu": "490.0",
+    "material.cross_bracing.fy": "350.0",
+    "material.cross_bracing.g": "76.9",
+    "material.cross_bracing.poisson": "0.30",
+    "material.cross_bracing.thermal": "11.7",
+    "material.deck": "M40",
+    "material.deck.density": "24.5",
+    "material.deck.ecm": "33.0",
+    "material.deck.fck": "40.0",
+    "material.deck.fctm": "3.0",
+    "material.deck.thermal": "11.7",
+    "material.girder": "E 350A",
+    "material.girder.density": "76.4",
+    "material.girder.e": "200.0",
+    "material.girder.fu": "490.0",
+    "material.girder.fy": "350.0",
+    "material.girder.g": "76.9",
+    "material.girder.poisson": "0.30",
+    "material.girder.thermal": "11.7",
+    "member_properties.girder_details.segment_table.G1": [
+      {
+        "end": 20.0,
+        "id": "G1M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G2": [
+      {
+        "end": 20.0,
+        "id": "G2M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G3": [
+      {
+        "end": 20.0,
+        "id": "G3M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G4": [
+      {
+        "end": 20.0,
+        "id": "G4M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G5": [
+      {
+        "end": 20.0,
+        "id": "G5M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G6": [
+      {
+        "end": 20.0,
+        "id": "G6M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G7": [
+      {
+        "end": 20.0,
+        "id": "G7M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G8": [
+      {
+        "end": 20.0,
+        "id": "G8M1",
+        "start": 0.0
+      }
+    ]
+  },
+  "TC02_Consecutive_24m.osi": {
+    "geometry.carriageway_width": "7.5",
+    "geometry.skew_angle": "15",
+    "geometry.span": "24",
+    "material.cross_bracing": "E 350A",
+    "material.cross_bracing.density": "76.4",
+    "material.cross_bracing.e": "200.0",
+    "material.cross_bracing.fu": "490.0",
+    "material.cross_bracing.fy": "350.0",
+    "material.cross_bracing.g": "76.9",
+    "material.cross_bracing.poisson": "0.30",
+    "material.cross_bracing.thermal": "11.7",
+    "material.deck": "M40",
+    "material.deck.density": "24.5",
+    "material.deck.ecm": "33.0",
+    "material.deck.fck": "40.0",
+    "material.deck.fctm": "3.0",
+    "material.deck.thermal": "11.7",
+    "material.girder": "E 350A",
+    "material.girder.density": "76.4",
+    "material.girder.e": "200.0",
+    "material.girder.fu": "490.0",
+    "material.girder.fy": "350.0",
+    "material.girder.g": "76.9",
+    "material.girder.poisson": "0.30",
+    "material.girder.thermal": "11.7",
+    "member_properties.girder_details.segment_table.G1": [
+      {
+        "end": 20.0,
+        "id": "G1M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G2": [
+      {
+        "end": 20.0,
+        "id": "G2M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G3": [
+      {
+        "end": 20.0,
+        "id": "G3M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G4": [
+      {
+        "end": 20.0,
+        "id": "G4M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G5": [
+      {
+        "end": 20.0,
+        "id": "G5M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G6": [
+      {
+        "end": 20.0,
+        "id": "G6M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G7": [
+      {
+        "end": 20.0,
+        "id": "G7M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G8": [
+      {
+        "end": 20.0,
+        "id": "G8M1",
+        "start": 0.0
+      }
+    ]
+  },
+  "TC03_Custom_Material.osi": {
+    "geometry.carriageway_width": "7.5",
+    "geometry.skew_angle": "15",
+    "geometry.span": "24",
+    "material.cross_bracing": "E 350A",
+    "material.cross_bracing.density": "76.4",
+    "material.cross_bracing.e": "200.0",
+    "material.cross_bracing.fu": "490.0",
+    "material.cross_bracing.fy": "350.0",
+    "material.cross_bracing.g": "76.9",
+    "material.cross_bracing.poisson": "0.30",
+    "material.cross_bracing.thermal": "11.7",
+    "material.deck": "custom_concrete_45_1.6",
+    "material.deck.density": "25.0",
+    "material.deck.ecm": "27.0",
+    "material.deck.fck": "45.0",
+    "material.deck.fctm": "1.6",
+    "material.deck.thermal": "11.7",
+    "material.girder": "custom_steel_450_570",
+    "material.girder.density": "76.4",
+    "material.girder.e": "205.0",
+    "material.girder.fu": "570.0",
+    "material.girder.fy": "450.0",
+    "material.girder.g": "78.8",
+    "material.girder.poisson": "0.3",
+    "material.girder.thermal": "11.7",
+    "member_properties.girder_details.segment_table.G1": [
+      {
+        "end": 24.0,
+        "id": "G1M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G2": [
+      {
+        "end": 20.0,
+        "id": "G2M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G3": [
+      {
+        "end": 20.0,
+        "id": "G3M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G4": [
+      {
+        "end": 20.0,
+        "id": "G4M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G5": [
+      {
+        "end": 20.0,
+        "id": "G5M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G6": [
+      {
+        "end": 20.0,
+        "id": "G6M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G7": [
+      {
+        "end": 20.0,
+        "id": "G7M1",
+        "start": 0.0
+      }
+    ],
+    "member_properties.girder_details.segment_table.G8": [
+      {
+        "end": 20.0,
+        "id": "G8M1",
+        "start": 0.0
+      }
+    ]
+  }
+}

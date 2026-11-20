@@ -556,6 +556,13 @@ def _on_no_of_girders_changed(working_input_dict: dict) -> None:
             working_input_dict[seg_table_key] = [
                 {"id": f"G{girder_idx}M1", "start": 0.0, "end": span}
             ]
+        else:
+            # If the segment table contains the default single segment, update its end coordinate
+            # to match the current span during consecutive redesigns.
+            current_segs = working_input_dict[seg_table_key]
+            if isinstance(current_segs, list) and len(current_segs) == 1:
+                if current_segs[0].get("start", 0.0) == 0.0:
+                    current_segs[0]["end"] = span
 
     # --- Per-girder/member section-input defaults: <base_key>.G{n}.M{m} ---
     # KEY_MP_GD_MEMBER_ID lives under "member_properties.member_id" (not

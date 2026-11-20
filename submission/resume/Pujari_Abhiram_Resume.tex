@@ -1,0 +1,178 @@
+%-------------------------
+% Resume in LaTeX
+% Author : Pujari Abhiram
+% License : MIT
+%-------------------------
+
+\documentclass[letterpaper,10pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1.0in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-5pt}\scshape\raggedright\large
+}{}{0em}{}[\color{MidnightBlue}\titlerule \vspace{-4pt}]
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[2]{
+  \item\small{
+    \textbf{#1}{: #2 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt}\item
+    \begin{tabular*}{0.98\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-5pt}
+}
+
+\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-3pt}}
+
+\renewcommand{\labelitemii}{$\circ$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*,label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=12pt]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-4pt}}
+
+%-------------------------------------------
+%%%%%%  CV STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+%----------HEADING-----------------
+\begin{center}
+    \textbf{\Large \color{MidnightBlue} PUJARI ABHIRAM} \\ \vspace{3pt}
+    \small +91 9390217454 $\mid$ 
+    \href{mailto:pujariabhiram06@gmail.com}{\color{NavyBlue}\underline{pujariabhiram06@gmail.com}} $\mid$ 
+    \href{https://github.com/pujariabhi}{\color{NavyBlue}\underline{github.com/pujariabhi}} $\mid$ 
+    \href{https://www.linkedin.com/in/pujari-abhiram-92a658372/}{\color{NavyBlue}\underline{linkedin.com/in/pujari-abhiram}} $\mid$ 
+    Hyderabad, India
+\end{center}
+
+%-----------EDUCATION-----------------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Anurag University}{Hyderabad, India}
+      {B.Tech in Computer Science and Engineering (Data Science) --- Semester 3-1}{2024 -- 2028}
+      \resumeItemListStart
+        \item Coursework: Data Structures, Machine Learning, Database Management, Applied Statistics, Discrete Math.
+      \resumeItemListEnd
+    \resumeSubheading
+      {Narayana Junior College}{Hyderabad, India}
+      {Intermediate (Class XII, MPC) --- Aggregate: \textbf{93.9\%}}{2022 -- 2024}
+    \resumeSubheading
+      {Narayana School}{Nandigama, India}
+      {Secondary School Certificate (Class X) --- Academic GPA: \textbf{9.7 / 10.0}}{2022}
+  \resumeSubHeadingListEnd
+
+%-----------EXPERIENCE-----------------
+\section{Experience \& Open Source Contributions}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {FOSSEE / Osdag, IIT Bombay}{\href{https://github.com/pujariabhi/OsdagBridge}{\color{NavyBlue}\underline{github.com/pujariabhi/OsdagBridge}}}
+      {Open Source Contributor \& Module Tester}{Nov 2026}
+      \resumeItemListStart
+        \item Executed comprehensive functional testing and finite element validation of the \textbf{OsdagBridge} short-span steel plate girder module, validating grillage analysis via OpenSeesPy against IRC:6 and IRC:24 design codes.
+        \item Identified and logged 4 code-level defects on upstream repository (\texttt{Nidhikhare12/OsdagBridge}), including a critical state-persistence fault in girder segment tables (\texttt{defaults.py}) and SQLite table alias bugs in cross-bracing design.
+        \item Authored a 9-section technical verification report with dictionary diff audits (\texttt{input\_dict} vs \texttt{output\_dict}) and assembled an open reproduction test suite with 3D CAD visualization benchmarks.
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {EduSkills \& AICTE (Supported by Google Cloud)}{Virtual}
+      {Data Analytics Virtual Intern}{Apr 2026 -- Jun 2026}
+      \resumeItemListStart
+        \item Completed an intensive 8-week virtual internship curriculum on data analytics, cloud data tooling, and exploratory data analysis (Certificate ID: \texttt{4d43b5aafe37dcf5dce7}).
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {iHub-Data, IIIT Hyderabad}{Hyderabad, India}
+      {Artificial Intelligence \& Machine Learning Trainee}{May 2025 -- Sep 2025}
+      \resumeItemListStart
+        \item Completed a rigorous 5-month residential training program at IIIT Hyderabad covering foundational supervised and unsupervised learning, deep neural network architectures, and applied statistical modeling.
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------------
+\section{Technical Projects}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Delivery Optimizer: Dynamic Routing \& Predictive ETA}{\href{https://github.com/pujariabhi/delivery-optimizer}{\color{NavyBlue}\underline{github.com/pujariabhi/delivery-optimizer}}}
+      {Java 17, Spring Boot 3, React 18, TypeScript, Docker, Docker Compose}{}
+      \resumeItemListStart
+        \item Developed a full-stack real-time last-mile delivery optimization platform using Spring Boot and React; containerized deployment with Docker and Docker Compose.
+        \item Implemented dynamic vehicle routing algorithms and predictive ETA calculations factoring in simulated traffic conditions and dispatch constraints.
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Hugging Face NLP \& Vision Pipelines}{Applied Machine Learning}
+      {Transformers, Diffusers, PyTorch}{}
+      \resumeItemListStart
+        \item \textbf{NLP Pipeline:} Implemented abstractive text summarization and context-aware extractive question answering pipelines using pretrained Hugging Face transformer models; optimized tokenization and inference latency.
+        \item \textbf{Vision \& Multimodal:} Built text-to-image synthesis workflows using Hugging Face Diffusers alongside Vision-Language models for automated image captioning (image-to-text).
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Interactive Business Intelligence Dashboard}{Analytics \& BI}
+      {Qlik Sense, Associative Data Modeling, SQL}{}
+      \resumeItemListStart
+        \item Designed and deployed multi-dimensional analytical dashboards in Qlik Sense, structuring relational data schemas and calculating custom KPI metrics to track operational performance.
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------------
+\section{Certifications \& Verified Credentials}
+  \resumeSubHeadingListStart
+    \item \small \textbf{Qlik Data Analytics Certification} --- Qlik (Score: 88\%, Exam ID: 434437571) \href{https://www.credly.com/go/wVkshYIr}{\color{NavyBlue}\underline{[Verify Credly]}}
+    \item \small \textbf{Qlik Data Literacy Certification} --- Qlik \href{https://www.credly.com/go/YIUtHApx}{\color{NavyBlue}\underline{[Verify Credly]}}
+    \item \small \textbf{Probability and Statistics using Python} --- Infosys Springboard \href{https://verify.onwingspan.com}{\color{NavyBlue}\underline{[Verify Wingspan]}}
+    \item \small \textbf{Introduction to MongoDB} --- MongoDB, Inc. (Credential ID: MDBfmm28lobcu)
+    \item \small \textbf{Data Science 101} --- IBM SkillsBuild \href{https://courses.skillsbuild.skillsnetwork.site/certificates/e74221c8e09c42d09bbd9e515aa4cf78}{\color{NavyBlue}\underline{[Verify IBM]}}
+    \item \small \textbf{Data Fundamentals} --- IBM SkillsBuild (Credential: PLAN-BC0FAEE8E439)
+    \item \small \textbf{Learn Programming with Java (15 Hours)} --- IBM SkillsBuild \& OpenClassrooms
+    \item \small \textbf{Introduction to Data Science \& Networking Basics} --- Cisco Networking Academy
+  \resumeSubHeadingListEnd
+
+%-----------SKILLS-----------------
+\section{Technical Skills}
+  \resumeSubHeadingListStart
+    \item \small \textbf{Languages:} Python (NumPy, Pandas, Scikit-learn), Java, TypeScript, C, SQL
+    \item \small \textbf{Data Science \& ML:} Hugging Face (Transformers, Diffusers), PyTorch, Spring Boot, React, OpenSeesPy
+    \item \small \textbf{Databases \& BI:} MySQL, MongoDB, SQLite, Qlik Sense (Associative Modeling \& KPI Design)
+    \item \small \textbf{Developer Tools:} Git, GitHub, Docker, Docker Compose, Linux/Windows CLI, ReportLab, LaTeX
+  \resumeSubHeadingListEnd
+
+\end{document}
