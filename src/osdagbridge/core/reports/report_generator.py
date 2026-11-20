@@ -245,7 +245,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     }{%
       \vspace{-8pt}%
     }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+    {\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}%
   }
 }
 \fancypagestyle{firstpage}{
