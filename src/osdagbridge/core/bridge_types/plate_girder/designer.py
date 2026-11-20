@@ -308,11 +308,10 @@ class BridgeConfig:
         # Gs (shear modulus) is a required user/DB input (KEY_MATERIAL_GIRDER_G, stored GPa).
         raw_g = bridge.input_dict.get(KEY_MATERIAL_GIRDER_G)
         if raw_g in (None, ""):
-            raise ValueError(
-                f"Gs (shear modulus) is not set for grade "
-                f"{bridge.basic_inputs.get(KEY_GIRDER)!r}. Populate it in the material "
-                "database before running the design check."
-            )
+            # Fallback to isotropic elasticity: G = E / (2 * (1 + nu))
+            # Note: The SQLite database (Steel_Grade_Properties) does not store a separate Gs column.
+            raw_g = round((Es_MPa / 1000.0) / (2.0 * (1.0 + nu)), 1)
+            bridge.input_dict[KEY_MATERIAL_GIRDER_G] = raw_g
         Gs_MPa = float(raw_g) * 1000.0                  # GPa → MPa
 
         # Reinforcement grade comes from the Design Options dialog (required). Its yield
