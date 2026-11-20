@@ -340,6 +340,9 @@ def title_page(m, osdag_logo, org_logo):
 \hline
 \end{tabular}
 \end{titlepage}
+% report.cls resets the page counter to 1 at the end of titlepage, which made
+% the contents page read "Page 1" and left LastPage one short. Restore it.
+\setcounter{page}{2}
 """
 
 
