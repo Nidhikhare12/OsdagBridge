@@ -405,53 +405,65 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
         except (ValueError, TypeError):
             return 0.0
 
-    # 1. Structural Steel Breakdown
+    # 1. Structural Steel Breakdown (Plate Girders, Cross Bracing, End Diaphragms)
     girders_wt = _fval("steel_girders_wt_total")
     bracing_top_wt = _fval("bracing_top_wt_total")
     bracing_bot_wt = _fval("bracing_bot_wt_total")
     bracing_diag_wt = _fval("bracing_diag_wt_total")
     cross_bracing_wt = bracing_top_wt + bracing_bot_wt + bracing_diag_wt
-    shear_studs_wt = _fval("shear_studs_wt_total")
+    ed_wt = _fval("steel_ed_wt_total")
 
-    steel_items = []
-    if girders_wt > 0:
-        steel_items.append(("Plate Girders", girders_wt))
-    if cross_bracing_wt > 0:
-        steel_items.append(("Cross Bracing", cross_bracing_wt))
-    if shear_studs_wt > 0:
-        steel_items.append(("Shear Connectors", shear_studs_wt))
+    steel_items = [
+        ("Plate Girders", girders_wt),
+        ("Cross Bracing", cross_bracing_wt),
+        ("End Diaphragms", ed_wt),
+    ]
 
     steel_chart_path = None
-    if steel_items:
-        fig, ax = plt.subplots(figsize=CHART_FIGSIZE_BAR)
+    if any(wt > 0 for _, wt in steel_items):
+        fig, ax = plt.subplots(figsize=(6.2, 3.6))
         categories = [item[0] for item in steel_items]
         tonnages = [item[1] for item in steel_items]
-        palette = [CHART_COLOR_PRIMARY, CHART_COLOR_SECONDARY, CHART_COLOR_ACCENT]
-        colors = [palette[i % len(palette)] for i in range(len(steel_items))]
+        colors = [CHART_COLOR_PRIMARY, CHART_COLOR_SECONDARY, "#E67E22"]
 
-        bars = ax.bar(categories, tonnages, color=colors, width=0.45, edgecolor="none")
+        bars = ax.bar(categories, tonnages, color=colors, width=0.48, edgecolor="none", zorder=3)
 
         total_steel = sum(tonnages)
+        max_tonnage = max(tonnages) if tonnages else 1.0
         for bar, wt in zip(bars, tonnages):
-            pct = (wt / total_steel * 100.0) if total_steel > 0 else 0.0
-            ax.text(
-                bar.get_x() + bar.get_width() / 2.0,
-                bar.get_height() + (max(tonnages) * 0.02),
-                f"{wt:.2f} MT\n({pct:.1f}%)",
-                ha="center",
-                va="bottom",
-                fontsize=8.5,
-                fontweight="bold",
-            )
+            if wt > 0:
+                pct = (wt / total_steel * 100.0) if total_steel > 0 else 0.0
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    bar.get_height() + (max_tonnage * 0.02),
+                    f"{wt:.2f} MT\n({pct:.1f}%)",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8.0,
+                    fontweight="bold",
+                    zorder=5,
+                )
+            else:
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    max_tonnage * 0.02,
+                    "N.A.",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8.0,
+                    fontweight="bold",
+                    color="#888888",
+                    zorder=5,
+                )
 
-        ax.set_ylim(0, max(tonnages) * 1.25)
-        ax.set_ylabel("Weight (Metric Tonnes, MT)", fontsize=9.5, fontweight="bold")
-        ax.set_title("Structural Steel Weight Breakdown", fontsize=11, fontweight="bold", pad=12)
-        ax.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID)
+        ax.set_ylim(0, max_tonnage * 1.25)
+        ax.set_ylabel("Weight (MT)", fontsize=9.0, fontweight="bold")
+        ax.set_title("Structural Steel Weight Breakdown", fontsize=10.5, fontweight="bold", pad=10)
+        ax.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID, zorder=1)
         ax.set_axisbelow(True)
 
         plt.tight_layout()
-        steel_chart_path = _save_figure(fig, output_dirs, "chart_steel_breakdown.png")
+        steel_chart_path = _save_figure(fig, output_dirs, "chart_steel_breakdown.pdf")
 
     # 2. Concrete Volume vs Rebar Weight
     concrete_vol = _fval("concrete_deck_vol_total")
@@ -459,36 +471,38 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
 
     concrete_rebar_chart_path = None
     if concrete_vol > 0 or rebar_wt > 0:
-        fig, ax1 = plt.subplots(figsize=(6.5, 3.5))
+        fig, ax1 = plt.subplots(figsize=(6.2, 3.6))
 
         x_indices = [0, 1]
         labels = [r"Deck Concrete ($m^3$)", "Deck Rebar Steel (MT)"]
         values = [concrete_vol, rebar_wt]
         colors = [CHART_COLOR_SECONDARY, CHART_COLOR_PRIMARY]
 
-        bars = ax1.bar(x_indices, values, color=colors, width=0.45, edgecolor="none")
+        bars = ax1.bar(x_indices, values, color=colors, width=0.45, edgecolor="none", zorder=3)
 
+        max_val = max(values) if values else 1.0
         for bar, val, unit in zip(bars, values, [r"$m^3$", "MT"]):
             ax1.text(
                 bar.get_x() + bar.get_width() / 2.0,
-                bar.get_height() + (max(values) * 0.02),
+                bar.get_height() + (max_val * 0.02),
                 f"{val:.2f} {unit}",
                 ha="center",
                 va="bottom",
-                fontsize=8.5,
+                fontsize=8.0,
                 fontweight="bold",
+                zorder=5,
             )
 
         ax1.set_xticks(x_indices)
-        ax1.set_xticklabels(labels, fontsize=9.5, fontweight="bold")
-        ax1.set_ylim(0, max(values) * 1.25)
-        ax1.set_ylabel("Quantity", fontsize=9.5, fontweight="bold")
-        ax1.set_title("Deck Slab Materials: Concrete Volume vs Rebar Steel", fontsize=11, fontweight="bold", pad=12)
-        ax1.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID)
+        ax1.set_xticklabels(labels, fontsize=9.0, fontweight="bold")
+        ax1.set_ylim(0, max_val * 1.25)
+        ax1.set_ylabel("Quantity", fontsize=9.0, fontweight="bold")
+        ax1.set_title("Deck Slab Materials", fontsize=10.5, fontweight="bold", pad=10)
+        ax1.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID, zorder=1)
         ax1.set_axisbelow(True)
 
         plt.tight_layout()
-        concrete_rebar_chart_path = _save_figure(fig, output_dirs, "chart_concrete_rebar.png")
+        concrete_rebar_chart_path = _save_figure(fig, output_dirs, "chart_concrete_rebar.pdf")
 
     return (steel_chart_path, concrete_rebar_chart_path)
 

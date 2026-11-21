@@ -84,6 +84,10 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         "shear_studs_wt_single": "N.A.",
         "shear_studs_wt_total": "N.A.",
 
+        "steel_ed_qty": "N.A.",
+        "steel_ed_wt_single": "N.A.",
+        "steel_ed_wt_total": "N.A.",
+
         "crash_barrier_vol_formula": r"\placeholder{Area $\times$ Length}",
         "crash_barrier_qty": "N.A.",
         "crash_barrier_vol_total": "N.A.",
@@ -329,6 +333,32 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 quantities[f"{prefix}_vol_total"] = "N.A."
                 quantities[f"{prefix}_wt_single"] = "N.A."
                 quantities[f"{prefix}_wt_total"] = "N.A."
+
+        # 5d. End Diaphragms (Cu.m) and Weight (MT)
+        ed_results = outputs.get("end_diaphragm_design_results", {}) or {}
+        if ed_results and spacing > 0.0:
+            n_ed_panels = 2 * (n_girders - 1)
+            dw_val = None
+            try:
+                dw_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.web_depth", 0)
+            except Exception:
+                pass
+            dw_m = (float(dw_val) / 1000.0) if dw_val else 2.0
+            ed_diag_len = (spacing**2 + dw_m**2)**0.5
+
+            chord_mass_pm = 8.95   # ISA 75x75x8
+            diag_mass_pm = 14.90   # ISA 100x100x10
+            panel_mass_kg = (2 * spacing * chord_mass_pm) + (2 * ed_diag_len * diag_mass_pm)
+            total_ed_mass_kg = n_ed_panels * panel_mass_kg
+            ed_wt_mt = total_ed_mass_kg / 1000.0
+
+            quantities["steel_ed_qty"] = str(n_ed_panels)
+            quantities["steel_ed_wt_single"] = f"{(panel_mass_kg / 1000.0):.4f}"
+            quantities["steel_ed_wt_total"] = f"{ed_wt_mt:.2f}"
+        else:
+            quantities["steel_ed_qty"] = "N.A."
+            quantities["steel_ed_wt_single"] = "N.A."
+            quantities["steel_ed_wt_total"] = "N.A."
 
         # 6. Crash Barrier (Cu.m) and Weight (MT)
         KEY_CB_AREA = "typical_section.crash_barrier.area"

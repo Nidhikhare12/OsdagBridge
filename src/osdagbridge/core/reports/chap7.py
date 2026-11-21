@@ -40,22 +40,21 @@ def ch7_quantities(input_dict: dict, steel_chart: Optional[str] = None, concrete
 
     chart_block = ""
     if steel_chart and concrete_chart:
+        steel_base = steel_chart.replace(".pdf", "").replace(".png", "").replace("\\", "/")
+        conc_base = concrete_chart.replace(".pdf", "").replace(".png", "").replace("\\", "/")
         chart_block = r"""
-\vspace{1.5em}
-\section{Material Breakdown Visualizations}
-\label{sec:material-charts}
-
+\vspace{0.6em}
 \begin{figure}[H]
 \centering
-\begin{subfigure}[b]{0.48\textwidth}
+\begin{subfigure}[b]{0.49\textwidth}
   \centering
-  \includegraphics[width=\linewidth]{""" + steel_chart.replace("\\", "/") + r"""}
+  \IfFileExists{""" + steel_base + r""".pdf}{\includegraphics[width=\linewidth]{""" + steel_base + r""".pdf}}{\includegraphics[width=\linewidth]{""" + steel_base + r""".png}}
   \caption{Structural Steel Weight (MT)}
   \label{fig:steel-breakdown}
 \end{subfigure}\hfill
-\begin{subfigure}[b]{0.48\textwidth}
+\begin{subfigure}[b]{0.49\textwidth}
   \centering
-  \includegraphics[width=\linewidth]{""" + concrete_chart.replace("\\", "/") + r"""}
+  \IfFileExists{""" + conc_base + r""".pdf}{\includegraphics[width=\linewidth]{""" + conc_base + r""".pdf}}{\includegraphics[width=\linewidth]{""" + conc_base + r""".png}}
   \caption{Concrete ($m^3$) vs Rebar (MT)}
   \label{fig:concrete-rebar}
 \end{subfigure}
@@ -64,14 +63,12 @@ def ch7_quantities(input_dict: dict, steel_chart: Optional[str] = None, concrete
 \end{figure}
 """
     elif steel_chart:
+        steel_base = steel_chart.replace(".pdf", "").replace(".png", "").replace("\\", "/")
         chart_block = r"""
-\vspace{1.5em}
-\section{Material Breakdown Visualizations}
-\label{sec:material-charts}
-
+\vspace{0.6em}
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.7\textwidth]{""" + steel_chart.replace("\\", "/") + r"""}
+\IfFileExists{""" + steel_base + r""".pdf}{\includegraphics[width=0.7\textwidth]{""" + steel_base + r""".pdf}}{\includegraphics[width=0.7\textwidth]{""" + steel_base + r""".png}}
 \caption{Structural Steel Weight Breakdown (MT)}
 \label{fig:steel-breakdown}
 \end{figure}
@@ -79,6 +76,7 @@ def ch7_quantities(input_dict: dict, steel_chart: Optional[str] = None, concrete
 
     return (
         r"""
+\clearpage
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
 
