@@ -491,6 +491,48 @@ class ReportDataBridge:
         val = self._cb_osdag(pair, member, force_type).get("connection")
         return str(val) if val else ""
 
+    # =====================================================================
+    # CHAPTER 5: END DIAPHRAGM
+    # =====================================================================
+
+    def _ed_pair_designs(self) -> dict:
+        """Internal: return end_diaphragm_design_results from output_dict."""
+        return self.output_dict.get("end_diaphragm_design_results", {})
+
+    def _ed_osdag(self, pair: str, member: str, force_type: str) -> dict:
+        """Extract the _extract_osdag_summary dict for one end diaphragm member."""
+        from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+        try:
+            raw = self._ed_pair_designs()[pair][member][force_type]
+            return _extract_osdag_summary(raw or {})
+        except (KeyError, TypeError):
+            return {}
+
+    def get_ed_pairs(self) -> list:
+        """Return sorted list of girder pair keys for end diaphragms."""
+        try:
+            return sorted(self._ed_pair_designs().keys())
+        except Exception:
+            return []
+
+    def get_ed_capacity(self, pair: str, member: str, force_type: str) -> str:
+        """Capacity in kN."""
+        val = self._ed_osdag(pair, member, force_type).get("capacity_kN")
+        return f"{float(val):.3f}" if val is not None else ""
+
+    def get_ed_efficiency(self, pair: str, member: str, force_type: str) -> str:
+        """Utilization ratio (efficiency)."""
+        val = self._ed_osdag(pair, member, force_type).get("efficiency")
+        return f"{float(val):.3f}" if val is not None else ""
+
+    def get_ed_slenderness(self, pair: str, member: str) -> str:
+        """KL/r — same for tension and compression (geometry-based)."""
+        for ft in ("compression", "tension"):
+            val = self._ed_osdag(pair, member, ft).get("slenderness")
+            if val is not None:
+                return f"{float(val):.1f}"
+        return ""
+
     def get_cb_effective_length(self, member: str) -> str:
         """Effective length KL in mm from geometry."""
         try:

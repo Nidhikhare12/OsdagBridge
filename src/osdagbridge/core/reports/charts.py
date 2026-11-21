@@ -49,21 +49,27 @@ from osdagbridge.core.utils.common import (
 
 
 def _save_figure(fig: plt.Figure, output_dirs: Union[str, List[str]], filename: str) -> str:
-    """Save a Matplotlib figure to one or more directories and close it."""
+    """Save a Matplotlib figure to one or more directories as both vector PDF and raster PNG."""
     if isinstance(output_dirs, str):
         output_dirs = [output_dirs]
+
+    base_name = os.path.splitext(filename)[0]
 
     for d in output_dirs:
         if d:
             os.makedirs(d, exist_ok=True)
-            target = os.path.join(d, filename)
-            fig.savefig(target, dpi=CHART_DPI, bbox_inches="tight")
+            # 1. Vector PDF (sharp at all zoom levels)
+            pdf_target = os.path.join(d, f"{base_name}.pdf")
+            fig.savefig(pdf_target, bbox_inches="tight")
+            # 2. Raster PNG fallback
+            png_target = os.path.join(d, f"{base_name}.png")
+            fig.savefig(png_target, dpi=CHART_DPI, bbox_inches="tight")
 
     plt.close(fig)
-    return os.path.join("images", filename).replace("\\", "/")
+    return os.path.join("images", f"{base_name}.pdf").replace("\\", "/")
 
 
-def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Optional[str]:
+def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Tuple[Optional[str], str]:
     """
     Generate the Section 5.5 Overall Component Utilization Ratio summary bar chart.
 
@@ -76,18 +82,16 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Opt
 
     Returns
     -------
-    Optional[str]
-        Relative LaTeX path to the generated chart image, or None if no numeric UR data.
+    Tuple[Optional[str], str]
+        (Relative LaTeX path to chart PDF, missing_data_note).
     """
     if bridge is None or not getattr(bridge, "output_dict", None):
-        return None
+        return (None, "")
 
     output_dict = bridge.output_dict
     design_results = output_dict.get("design_results", {}) or {}
     pg_522 = design_results.get("per_girder", {}) or {}
     deck_rpt = output_dict.get("deck_report_values", {}) or {}
-
-    checks = []  # List of tuples: (label, ur_float)
 
     # 1. Girder DCR-engine checks
     def get_dcr(check_ids):
@@ -125,6 +129,7 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Opt
                                 pass
         return best
 
+    grp_girders = []
     girder_checks = [
         ("Girder Moment", {1}),
         ("Girder Shear", {2}),
@@ -134,13 +139,13 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Opt
         ("Girder Fatigue", {8, 9}),
         ("Transverse Shear (slab)", {16}),
     ]
-
     for label, ids in girder_checks:
         ur = get_dcr(ids)
         if ur is not None:
-            checks.append((label, float(ur)))
+            grp_girders.append((label, float(ur)))
 
-    # 2. Deck slab crack width check
+    # 2. Deck slab checks
+    grp_deck = []
     def dkv(key, default=0.0):
         v = deck_rpt.get(key)
         try:
@@ -155,13 +160,12 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Opt
         wk_max = max(wks) if wks else 0.0
         wk_lim = dkv(KEY_DD_WK_LIMIT, 0.3)
         if wk_lim > 0:
-            checks.append(("Crack Width (slab)", wk_max / wk_lim))
+            grp_deck.append(("Crack Width (slab)", wk_max / wk_lim))
 
-        # 3. Deck slab ULS flexure & shear checks
         deck_pairs = [
-            ("Deck Flexure (sagging)", KEY_DD_M_ULS_SAG, KEY_DD_MU_BOT),
-            ("Deck Flexure (hogging)", KEY_DD_M_ULS_HOG, KEY_DD_MU_TOP),
-            ("Deck Overhang", KEY_DD_M_ULS_OH, KEY_DD_MU_OH),
+            ("Deck Sagging Flexure", KEY_DD_M_ULS_SAG, KEY_DD_MU_BOT),
+            ("Deck Hogging Flexure", KEY_DD_M_ULS_HOG, KEY_DD_MU_TOP),
+            ("Deck Cantilever OH", KEY_DD_M_ULS_OH, KEY_DD_MU_OH),
             ("Deck Punching Shear", KEY_DD_PUNCH_VED, KEY_DD_VRD_C_MPA),
             ("Deck One-Way Shear", KEY_DD_SHEAR_VED, KEY_DD_SHEAR_VRDC),
         ]
@@ -169,14 +173,15 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Opt
             dem = dkv(dem_k)
             cap = dkv(cap_k)
             if cap > 0:
-                checks.append((label, dem / cap))
+                grp_deck.append((label, dem / cap))
 
-    # 4. Cross bracing checks
+    # 3. Cross bracing checks
+    grp_cb = []
     try:
-        pairs = bridge.get_cb_pairs()
+        cb_pairs = bridge.get_cb_pairs()
         for ftype, lbl in [("compression", "Cross Bracing Comp."), ("tension", "Cross Bracing Tens.")]:
             best_ur = None
-            for p in pairs:
+            for p in cb_pairs:
                 for m in ("diagonal", "chord"):
                     eff = bridge.get_cb_efficiency(p, m, ftype)
                     try:
@@ -186,11 +191,10 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Opt
                     except (ValueError, TypeError):
                         pass
             if best_ur is not None:
-                checks.append((lbl, best_ur))
+                grp_cb.append((lbl, best_ur))
 
-        # Slenderness
         best_sl = None
-        for p in pairs:
+        for p in cb_pairs:
             for m in ("diagonal", "chord"):
                 s = bridge.get_cb_slenderness(p, m)
                 try:
@@ -202,59 +206,175 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Opt
                 except (ValueError, TypeError):
                     pass
         if best_sl is not None:
-            checks.append(("Cross Bracing Slenderness", best_sl))
+            grp_cb.append(("Cross Bracing Slender.", best_sl))
     except Exception:
         pass
 
-    if not checks:
-        return None
+    # 4. End Diaphragm checks
+    grp_ed = []
+    try:
+        ed_pairs = bridge.get_ed_pairs()
+        for ftype, lbl in [("compression", "End Diaphragm Comp."), ("tension", "End Diaphragm Tens.")]:
+            best_ur = None
+            for p in ed_pairs:
+                for m in ("diagonal", "chord"):
+                    eff = bridge.get_ed_efficiency(p, m, ftype)
+                    try:
+                        val = float(eff)
+                        if best_ur is None or val > best_ur:
+                            best_ur = val
+                    except (ValueError, TypeError):
+                        pass
+            if best_ur is not None:
+                grp_ed.append((lbl, best_ur))
 
-    # Sort checks from lowest to highest for neat horizontal bar display
-    labels = [c[0] for c in checks]
-    values = [c[1] for c in checks]
+        best_sl = None
+        for p in ed_pairs:
+            for m in ("diagonal", "chord"):
+                s = bridge.get_ed_slenderness(p, m)
+                try:
+                    sf = float(s)
+                    lim = 400.0 if m == "chord" else 250.0
+                    r = sf / lim
+                    if best_sl is None or r > best_sl:
+                        best_sl = r
+                except (ValueError, TypeError):
+                    pass
+        if best_sl is not None:
+            grp_ed.append(("End Diaphragm Slender.", best_sl))
+    except Exception:
+        pass
 
-    # Build plot
-    fig, ax = plt.subplots(figsize=(7.5, max(4.0, len(checks) * 0.32)))
+    # Track missing groups
+    missing_groups = []
+    if not grp_girders:
+        missing_groups.append("Plate Girders")
+    if not grp_deck:
+        missing_groups.append("Deck Slab")
+    if not grp_cb:
+        missing_groups.append("Cross Bracing")
+    if not grp_ed:
+        missing_groups.append("End Diaphragms")
 
-    y_pos = range(len(labels))
-    colors = [CHART_COLOR_DANGER if v > 1.0 else CHART_COLOR_PRIMARY for v in values]
+    missing_note = ""
+    if missing_groups:
+        missing_note = f"Data not available for: {', '.join(missing_groups)}"
 
-    bars = ax.barh(y_pos, values, color=colors, height=0.6, align="center", edgecolor="none")
+    # If no checks at all
+    all_groups = [
+        ("Plate Girders", grp_girders, CHART_COLOR_PRIMARY),
+        ("Concrete Deck Slab", grp_deck, CHART_COLOR_SECONDARY),
+        ("Cross Bracing", grp_cb, CHART_COLOR_ACCENT),
+        ("End Diaphragms", grp_ed, "#E67E22"),
+    ]
+    total_checks = sum(len(g[1]) for g in all_groups)
+    if total_checks == 0:
+        return (None, missing_note)
 
-    # Code limit line at UR = 1.0
-    ax.axvline(1.0, color=CHART_COLOR_DANGER, linestyle="--", linewidth=1.5, label="Code Limit (UR = 1.0)")
+    # Build vertical grouped bar plot
+    fig, ax = plt.subplots(figsize=(10.0, 4.6))
 
-    # Value labels on bars
-    for bar, val in zip(bars, values):
-        width = bar.get_width()
-        x_text = width + 0.02
-        txt_col = CHART_COLOR_DANGER if val > 1.0 else "#222222"
-        ax.text(
-            x_text,
-            bar.get_y() + bar.get_height() / 2.0,
-            f"{val:.2f}",
-            va="center",
-            ha="left",
-            fontsize=8.5,
-            fontweight="bold",
-            color=txt_col,
-        )
+    all_x = []
+    all_labels = []
+    all_vals = []
+    all_colors = []
 
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(labels, fontsize=8.5)
-    ax.invert_yaxis()  # Top-down reading order
+    current_x = 0.0
+    group_centers = []
+    divider_xs = []
 
-    max_val = max(values) if values else 1.0
-    ax.set_xlim(0, max(1.20, max_val * 1.15))
-    ax.set_xlabel("Utilization Ratio (Demand / Capacity)", fontsize=9.5, fontweight="bold")
+    for idx, (grp_name, grp_items, grp_color) in enumerate(all_groups):
+        if not grp_items:
+            continue
+        start_x = current_x
+        for label, val in grp_items:
+            all_x.append(current_x)
+            all_labels.append(label)
+            all_vals.append(val)
+            col = CHART_COLOR_DANGER if val > 1.0 else grp_color
+            all_colors.append(col)
+            current_x += 1.0
+        end_x = current_x - 1.0
+        group_centers.append(((start_x + end_x) / 2.0, grp_name, grp_color))
+
+        # Divider after group
+        if idx < len(all_groups) - 1:
+            divider_x = current_x - 0.5 + 0.2
+            divider_xs.append(divider_x)
+            current_x += 0.6  # Gap between groups
+
+    bars = ax.bar(all_x, all_vals, color=all_colors, width=0.62, edgecolor="none", zorder=3)
+
+    # Red dashed code limit line at UR = 1.0
+    ax.axhline(1.0, color=CHART_COLOR_DANGER, linestyle="--", linewidth=1.5, zorder=4, label="Code Limit (UR = 1.0)")
+
+    # Vertical group divider lines
+    for dx in divider_xs:
+        ax.axvline(dx, color="#CCCCCC", linestyle=":", linewidth=1.2, zorder=2)
+
+    # Top group headers
+    max_val = max(all_vals) if all_vals else 1.0
+    top_limit = max(1.28, max_val * 1.15)
+    header_y = top_limit * 0.94
+    for cx, gname, gcol in group_centers:
+        ax.text(cx, header_y, gname, ha="center", va="center", fontsize=8.5, fontweight="bold", color=gcol, zorder=5)
+
+    # Value labels with collision prevention
+    for x, val, bar in zip(all_x, all_vals, bars):
+        if 0.88 <= val <= 1.02:
+            # Place inside the bar to prevent collision with UR = 1.0 line
+            ax.text(
+                x,
+                val - 0.08,
+                f"{val:.2f}",
+                ha="center",
+                va="top",
+                fontsize=7.5,
+                fontweight="bold",
+                color="white",
+                zorder=6,
+            )
+        else:
+            txt_col = CHART_COLOR_DANGER if val > 1.0 else "#222222"
+            ax.text(
+                x,
+                val + 0.02,
+                f"{val:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=7.5,
+                fontweight="bold",
+                color=txt_col,
+                zorder=6,
+            )
+
+    ax.set_xticks(all_x)
+    ax.set_xticklabels(all_labels, rotation=45, ha="right", fontsize=8)
+    ax.set_ylim(0, top_limit)
+    ax.set_ylabel("Utilization Ratio (Demand / Capacity)", fontsize=9.5, fontweight="bold")
     ax.set_title("Overall Component Utilization Ratios", fontsize=11, fontweight="bold", pad=12)
 
-    ax.grid(axis="x", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID)
+    ax.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID, zorder=1)
     ax.set_axisbelow(True)
-    ax.legend(loc="lower right", fontsize=8.5, framealpha=0.9)
+
+    # Custom legend with group colors and code limit
+    from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Patch(facecolor=CHART_COLOR_PRIMARY, label="Plate Girders"),
+        Patch(facecolor=CHART_COLOR_SECONDARY, label="Deck Slab"),
+        Patch(facecolor=CHART_COLOR_ACCENT, label="Cross Bracing"),
+        Patch(facecolor="#E67E22", label="End Diaphragms"),
+        Line2D([0], [0], color=CHART_COLOR_DANGER, linestyle="--", linewidth=1.5, label="Code Limit (UR = 1.0)"),
+    ]
+    if any(v > 1.0 for v in all_vals):
+        legend_elements.append(Patch(facecolor=CHART_COLOR_DANGER, label="UR > 1.0 (Fail)"))
+
+    ax.legend(handles=legend_elements, loc="upper left", fontsize=7.5, framealpha=0.9, ncol=3)
 
     plt.tight_layout()
-    return _save_figure(fig, output_dirs, "chart_ur_summary.png")
+    chart_path = _save_figure(fig, output_dirs, "chart_ur_summary.pdf")
+    return (chart_path, missing_note)
 
 
 def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List[str]]) -> Tuple[Optional[str], Optional[str]]:
@@ -371,3 +491,4 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
         concrete_rebar_chart_path = _save_figure(fig, output_dirs, "chart_concrete_rebar.png")
 
     return (steel_chart_path, concrete_rebar_chart_path)
+

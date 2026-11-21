@@ -3,6 +3,7 @@
 # Extracted from report_generator.py — DO NOT add business logic here.
 # =============================================================================
 from __future__ import annotations
+import os
 from typing import TYPE_CHECKING
 
 from osdagbridge.core.utils.common import (
@@ -1391,12 +1392,24 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     )
 
     if ur_chart:
-        ur_chart_block = r"""\begin{figure}[H]
+        if isinstance(ur_chart, (tuple, list)):
+            chart_file = ur_chart[0]
+            missing_note = ur_chart[1] if len(ur_chart) > 1 else ""
+        else:
+            chart_file = ur_chart
+            missing_note = ""
+
+        if chart_file:
+            caption_extra = f" (Note: {missing_note})" if missing_note else ""
+            base = os.path.splitext(str(chart_file))[0].replace("\\", "/")
+            ur_chart_block = r"""\begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{""" + ur_chart.replace("\\", "/") + r"""}
-\caption{Overall Component Utilization Ratios (Demand / Capacity)}
+\IfFileExists{""" + base + r""".pdf}{\includegraphics[width=0.96\textwidth]{""" + base + r""".pdf}}{\includegraphics[width=0.96\textwidth]{""" + base + r""".png}}
+\caption{Overall Component Utilization Ratios (Demand / Capacity)""" + caption_extra + r"""}
 \label{fig:ur-summary}
 \end{figure}"""
+        else:
+            ur_chart_block = r"""\noindent\textit{\footnotesize Note: Component utilization ratio chart is not available because analysis results were not computed.}\par\vspace{0.8em}"""
     else:
         ur_chart_block = r"""\noindent\textit{\footnotesize Note: Component utilization ratio chart is not available because analysis results were not computed.}\par\vspace{0.8em}"""
 
