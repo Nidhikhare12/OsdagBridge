@@ -86,6 +86,9 @@ headers on the continuation page in the enhanced report.
   the selected `KEY_LL_IRC_*` / custom-vehicle keys, so the report reflects the
   Loading tab exactly.  Impact factors are computed per class from
   `IRC6_2017.cl_208_2/3_impact_factor()`.
+* The braking-force helper `cl_211_2_braking_force()` had an unbound local for
+  ≤ 2 lanes and returned newtons; it is now totals correctly and the report
+  converts N → kN (e.g. 217.39 kN for two lanes).
 * **Table 3.4 Footway Live Load** — columns: *Parameter, Value, Unit,
   Reference*, with automatic IRC 6 Cl. 206.1 pressure or the user-defined
   value kept in its own numeric column.

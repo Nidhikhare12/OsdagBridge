@@ -129,9 +129,10 @@ def ch3_loads(input_dict):
     if lanes not in (None, ""):
         try:
             lanes_int = int(lanes)
-            braking_force_t = IRC6_2017.cl_211_2_braking_force(lanes_int)
-            braking_force_kN = braking_force_t * 9.81
-            braking_force_str = f"{braking_force_kN:.2f} kN ({braking_force_t:.2f} tonnes)"
+            # IRC6 helper returns newtons; convert to kN.
+            braking_force_n = IRC6_2017.cl_211_2_braking_force(lanes_int)
+            braking_force_kN = braking_force_n / 1000.0
+            braking_force_str = f"{braking_force_kN:.2f} kN"
         except Exception:
             braking_force_str = "N/A"
     else:
@@ -156,7 +157,7 @@ def ch3_loads(input_dict):
     braking_kn = "N/A"
     if lanes not in (None, ""):
         try:
-            braking_kn = f"{IRC6_2017.cl_211_2_braking_force(int(lanes)) * 9.81:.2f}"
+            braking_kn = f"{IRC6_2017.cl_211_2_braking_force(int(lanes)) / 1000.0:.2f}"
         except Exception:
             pass
 
