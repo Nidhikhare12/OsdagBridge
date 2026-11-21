@@ -64,7 +64,7 @@ CAPTION_BELOW_SKIP = "2pt"
 # ---------------------------------------------------------------------------
 # Minimum baseline skips required before opening a table or longtable
 NEEDSPACE_TABLE = r"5\baselineskip"
-NEEDSPACE_LONGTABLE = r"10\baselineskip"
+NEEDSPACE_LONGTABLE = r"5\baselineskip"
 NEEDSPACE_SECTION = r"4\baselineskip"
 
 # ---------------------------------------------------------------------------

@@ -430,7 +430,7 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
 
     steel_chart_path = None
     if any(wt > 0 for _, wt in steel_items):
-        fig, ax = plt.subplots(figsize=(4.0, 3.2))
+        fig, ax = plt.subplots(figsize=(4.0, 2.2))
         categories = [item[0] for item in steel_items]
         tonnages = [item[1] for item in steel_items]
         colors = [CHART_COLOR_PRIMARY, CHART_COLOR_SECONDARY, "#E67E22"]
@@ -482,7 +482,7 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
 
     concrete_rebar_chart_path = None
     if concrete_vol > 0 or rebar_wt > 0:
-        fig, ax1 = plt.subplots(figsize=(4.0, 3.2))
+        fig, ax1 = plt.subplots(figsize=(4.0, 2.2))
 
         x_indices = [0, 1]
         labels = [r"Deck Concrete" + "\n" + r"($m^3$)", "Deck Rebar\n(MT)"]
