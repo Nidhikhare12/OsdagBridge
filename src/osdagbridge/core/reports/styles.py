@@ -106,6 +106,11 @@ TABLE_SPEC_BOQ = r"|C{0.9cm}|L{3.2cm}|C{2.7cm}|C{1.8cm}|C{1.7cm}|C{1.7cm}|C{1.7c
 TABLE_SPEC_DEMANDS = r"|>{\centering\arraybackslash}p{2.8cm}|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.4cm}|>{\centering\arraybackslash}p{1.4cm}|"
 TABLE_SPEC_REACTIONS = r"|C{4.6cm}|C{4.6cm}|C{4.6cm}|"
 TABLE_SPEC_DEFLECTION = r"|L{5.8cm}|L{8.4cm}|"
+TABLE_SPEC_GIRDER_GEN = r"|L{1.8cm}|L{1.8cm}|p{3.2cm}|p{3.5cm}|p{3.5cm}|"
+TABLE_SPEC_GIRDER_DIM = r"|L{1.6cm}|L{2.0cm}|L{1.6cm}|p{4.0cm}|p{4.0cm}|"
+TABLE_SPEC_GIRDER_REST = r"|L{1.3cm}|p{2.2cm}|p{2.0cm}|p{2.8cm}|p{2.4cm}|p{2.2cm}|"
+TABLE_SPEC_CB = r"|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{3.5cm}|C{2.0cm}|"
+TABLE_SPEC_ED = r"|L{2.5cm}|L{2.5cm}|L{3.5cm}|L{4.5cm}|"
 
 # ---------------------------------------------------------------------------
 # 7. Document Spacing Constants
