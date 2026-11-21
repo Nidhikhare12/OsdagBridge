@@ -168,7 +168,7 @@ from osdagbridge.core.reports.styles import (
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, ur_chart: Optional[str] = None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -1386,6 +1386,16 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         note=r"UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.",
     )
 
+    if ur_chart:
+        ur_chart_block = r"""\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{""" + ur_chart.replace("\\", "/") + r"""}
+\caption{Overall Component Utilization Ratios (Demand / Capacity)}
+\label{fig:ur-summary}
+\end{figure}"""
+    else:
+        ur_chart_block = r"""\noindent\textit{\footnotesize Note: Component utilization ratio chart is not available because analysis results were not computed.}\par\vspace{0.8em}"""
+
     return r"""
 \chapter{Design Checks}
 
@@ -1506,6 +1516,9 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \section{Overall Design Check Summary}
 \label{sec:overall-summary}
 % ===========================
+
+\vspace{1em}
+""" + ur_chart_block + r"""
 
 \vspace{1em}
 """ + t_overall_summary_table + r"""

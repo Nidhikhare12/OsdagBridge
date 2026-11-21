@@ -130,6 +130,7 @@ from .chap7 import ch7_quantities
 from .chap8 import ch8_design_log
 from .chap9 import references
 from .styles import generate_preamble
+from .charts import generate_ur_summary_chart
 
 logger = logging.getLogger(__name__)
 
@@ -794,12 +795,19 @@ def generate_report(payload, request):
             doc_parts.append(ch1_project_info(payload.metadata))
             doc_parts.append(ch2_input_parameters(payload.metadata, payload.inputs, payload.output_dict))
 
+            # ── Generate Section 5.5 UR Summary Chart (Phase 5) ──
+            chart_output_dirs = [
+                tmp_images,
+                os.path.join(request.output_dir, 'images'),
+            ]
+            ur_chart_path = generate_ur_summary_chart(bridge, chart_output_dirs)
+
             if 'loads' in secs:
                 doc_parts.append(ch3_loads(payload.inputs))
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, ur_chart=ur_chart_path))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
