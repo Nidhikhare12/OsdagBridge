@@ -60,10 +60,10 @@ def _save_figure(fig: plt.Figure, output_dirs: Union[str, List[str]], filename: 
             os.makedirs(d, exist_ok=True)
             # 1. Vector PDF (sharp at all zoom levels)
             pdf_target = os.path.join(d, f"{base_name}.pdf")
-            fig.savefig(pdf_target, bbox_inches="tight")
+            fig.savefig(pdf_target, bbox_inches="tight", pad_inches=0.15)
             # 2. Raster PNG fallback
             png_target = os.path.join(d, f"{base_name}.png")
-            fig.savefig(png_target, dpi=CHART_DPI, bbox_inches="tight")
+            fig.savefig(png_target, dpi=CHART_DPI, bbox_inches="tight", pad_inches=0.15)
 
     plt.close(fig)
     return os.path.join("images", f"{base_name}.pdf").replace("\\", "/")
@@ -350,6 +350,7 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Tup
 
     ax.set_xticks(all_x)
     ax.set_xticklabels(all_labels, rotation=45, ha="right", fontsize=8)
+    ax.set_xlim(-0.8, all_x[-1] + 1.2)
     ax.set_ylim(0, top_limit)
     ax.set_ylabel("Utilization Ratio (Demand / Capacity)", fontsize=9.5, fontweight="bold")
     ax.set_title("Overall Component Utilization Ratios", fontsize=11, fontweight="bold", pad=12)
