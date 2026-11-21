@@ -83,26 +83,25 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \vspace{1em}
 \begingroup
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
+\ReportCompactColumns
 
 \begin{longtable}{|
 >{\centering\arraybackslash}p{3.1cm}|
 >{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
+>{\centering\arraybackslash}p{1.35cm}|
 >{\centering\arraybackslash}p{1.3cm}|
 >{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
+>{\centering\arraybackslash}p{1.35cm}|
 >{\centering\arraybackslash}p{1.3cm}|
 >{\centering\arraybackslash}p{1.6cm}|
 >{\centering\arraybackslash}p{1.6cm}|}
 
 \caption{\textbf{Summary of Maximum Demands}}\\
 \hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
+\textbf{Load case / combination}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
 & \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
+& \multicolumn{2}{c|}{\makecell{\textbf{Reaction}\\\textbf{at Supports}}}\\
 \cline{2-9}
 
 & \makecell{\textbf{Max}\\\textbf{(kNm)}}
@@ -117,10 +116,10 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \endfirsthead
 
 \hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
+\textbf{Load case / combination}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
 & \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
+& \multicolumn{2}{c|}{\makecell{\textbf{Reaction}\\\textbf{at Supports}}}\\
 \cline{2-9}
 
 & \makecell{\textbf{Max}\\\textbf{(kNm)}}
@@ -141,25 +140,9 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \endgroup
 
 \vspace{1em}
-\begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
-\hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
-\end{longtable}
-
-\vspace{1em}
 \begin{longtable}{|L{7cm}|p{8.5cm}|}
 \caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
+\ReportTableHeader{\textbf{parameter} & \textbf{value} \\}
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]

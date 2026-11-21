@@ -785,7 +785,8 @@ def build_figure_sfd(ds, force_key, nodes, members, edge_dist=0.0, eng_scale=1.0
             # CLEAN: Removed "Max:" prefix.
             ax.text(xs[idx_max], z_base, Vy_geom[idx_max], f" {Vy[idx_max]:.3f} kN",
                     color=extreme_align_color, fontsize=7, fontweight="bold", ha="left", va="bottom", zorder=11,
-                    gid="max_line", bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8, edgecolor="none"))
+                    gid="max_line", label=girder_name,
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8, edgecolor="none"))
 
             # Min Node Highlight and Text (Lowest Negative)
             ax.plot([xs[idx_min]], [z_base], [Vy_geom[idx_min]],
@@ -795,7 +796,8 @@ def build_figure_sfd(ds, force_key, nodes, members, edge_dist=0.0, eng_scale=1.0
             # CLEAN: Removed "Min:" prefix.
             ax.text(xs[idx_min], z_base, Vy_geom[idx_min], f" {Vy[idx_min]:.3f} kN",
                     color=extreme_align_color, fontsize=7, fontweight="bold", ha="right", va="top", zorder=11,
-                    gid="min_line", bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8, edgecolor="none"))
+                    gid="min_line", label=girder_name,
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8, edgecolor="none"))
 
             # "All" Values Staggered Labels (Muted Gray)
             for j in range(len(xs)):
@@ -1018,7 +1020,7 @@ def build_figure_bmd(ds, force_key, nodes, members, edge_dist=0.0, eng_scale=1.0
                 color="#FF4136", linewidth=1.5, linestyle="--", zorder=3, gid="max_line")
         # Bold Dark Grey Text
         ax.text(xs[idx_max], z_base, y_plot[idx_max],
-                f" {Mz[idx_max]:.2f} kNm", color="#333333", fontsize=8, fontweight="bold", zorder=6, gid="max_line",
+                f" {Mz[idx_max]:.2f} kNm", color="#333333", fontsize=8, fontweight="bold", zorder=6, gid="max_line", label=girder_name,
                 bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=1.0))
 
         # Min line (Dashed, Tagged for toggling)
@@ -1026,7 +1028,7 @@ def build_figure_bmd(ds, force_key, nodes, members, edge_dist=0.0, eng_scale=1.0
         ax.plot([xs[idx_min], xs[idx_min]], [z_base, z_base], [0, y_plot[idx_min]],
                 color="#0074D9", linewidth=1.5, linestyle="--", zorder=3, gid="min_line")
         ax.text(xs[idx_min], z_base, y_plot[idx_min],
-                f" {Mz[idx_min]:.2f} kNm", color="#333333", fontsize=8, fontweight="bold", zorder=6, gid="min_line",
+                f" {Mz[idx_min]:.2f} kNm", color="#333333", fontsize=8, fontweight="bold", zorder=6, gid="min_line", label=girder_name,
                 bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=1.0))
 
         # 'All' values annotations (Slightly lighter grey, Tagged for toggling)
@@ -1459,12 +1461,12 @@ def build_figure_deflection(ds, disp_key, nodes, members, edge_dist=0.0, eng_sca
             
             # 2. Add gid="max_line" to the text label
             ax.text(xs[idx_max], z_base, y_plot[idx_max],
-                    f" {vals[idx_max]:.3f} mm", color="#4A4A4A", fontsize=7, fontweight="bold", zorder=6, gid="max_line")
+                    f" {vals[idx_max]:.3f} mm", color="#4A4A4A", fontsize=7, fontweight="bold", zorder=6, gid="max_line", label=girder_name)
             # 3. Add gid="min_line" to the dotted line
             ax.plot([xs[idx_min], xs[idx_min]], [z_base, z_base], [0, y_plot[idx_min]],
                     color=defl_color, linewidth=1.5, linestyle="--", zorder=3, gid="min_line")
             ax.text(xs[idx_min], z_base, y_plot[idx_min],
-                    f" {vals[idx_min]:.3f} mm", color="#4A4A4A", fontsize=7, fontweight="bold", zorder=6, gid="min_line")
+                    f" {vals[idx_min]:.3f} mm", color="#4A4A4A", fontsize=7, fontweight="bold", zorder=6, gid="min_line", label=girder_name)
         
         
 
@@ -1568,15 +1570,34 @@ def _render_report_figure(fig, show_max: bool, show_min: bool):
     import logging
     _log = logging.getLogger(__name__)
     try:
+        from textwrap import fill
+
+        # Keep the point markers on the plot. Move extrema text below the
+        # static image so adjacent girders do not overprint each other's values.
+        extrema = {"max_line": [], "min_line": []}
         for ax in fig.axes:
-            for artist in list(ax.lines) + list(ax.texts):
-                gid = artist.get_gid()
-                if gid == "max_line":
-                    artist.set_visible(show_max)
-                elif gid == "min_line":
-                    artist.set_visible(show_min)
+            for line in ax.lines:
+                if line.get_gid() == "max_line":
+                    line.set_visible(show_max)
+                elif line.get_gid() == "min_line":
+                    line.set_visible(show_min)
+                elif line.get_gid() == "all_vals":
+                    line.set_visible(False)
+            for label in ax.texts:
+                gid = label.get_gid()
+                if gid in extrema:
+                    label.set_visible(False)
+                    extrema[gid].append(f"{label.get_label()} {label.get_text().strip()}")
                 elif gid == "all_vals":
-                    artist.set_visible(False)
+                    label.set_visible(False)
+        lines = [fill(f"{title}: " + "  |  ".join(extrema[gid]), 90)
+                 for gid, title, show in (("max_line", "Maximum", show_max),
+                                          ("min_line", "Minimum", show_min))
+                 if show and extrema[gid]]
+        if lines:
+            caption = "\n".join(lines)
+            fig.subplots_adjust(bottom=.07 + .025 * caption.count("\n"))
+            fig.text(.5, .02, caption, ha="center", va="bottom", fontsize=8)
 
         if fig.axes:
             ax = fig.axes[0]
