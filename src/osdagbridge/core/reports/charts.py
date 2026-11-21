@@ -272,7 +272,7 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Tup
         return (None, missing_note)
 
     # Build vertical grouped bar plot
-    fig, ax = plt.subplots(figsize=(10.0, 4.6))
+    fig, ax = plt.subplots(figsize=(10.0, 5.2))
 
     all_x = []
     all_labels = []
@@ -312,10 +312,10 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Tup
     for dx in divider_xs:
         ax.axvline(dx, color="#CCCCCC", linestyle=":", linewidth=1.2, zorder=2)
 
-    # Top group headers
+    # Top group headers (placed cleanly at top with ample clearance)
     max_val = max(all_vals) if all_vals else 1.0
-    top_limit = max(1.28, max_val * 1.15)
-    header_y = top_limit * 0.94
+    top_limit = max(1.22, max_val * 1.15)
+    header_y = top_limit * 0.93
     for cx, gname, gcol in group_centers:
         ax.text(cx, header_y, gname, ha="center", va="center", fontsize=8.5, fontweight="bold", color=gcol, zorder=5)
 
@@ -357,7 +357,7 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Tup
     ax.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID, zorder=1)
     ax.set_axisbelow(True)
 
-    # Custom legend with group colors and code limit
+    # Custom legend moved below plot so no title or bar is covered
     from matplotlib.patches import Patch
     from matplotlib.lines import Line2D
     legend_elements = [
@@ -370,7 +370,16 @@ def generate_ur_summary_chart(bridge, output_dirs: Union[str, List[str]]) -> Tup
     if any(v > 1.0 for v in all_vals):
         legend_elements.append(Patch(facecolor=CHART_COLOR_DANGER, label="UR > 1.0 (Fail)"))
 
-    ax.legend(handles=legend_elements, loc="upper left", fontsize=7.5, framealpha=0.9, ncol=3)
+    ax.legend(
+        handles=legend_elements,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.32),
+        ncol=5 if len(legend_elements) <= 5 else 3,
+        fontsize=8.0,
+        frameon=True,
+        framealpha=0.95,
+        edgecolor="#CCCCCC",
+    )
 
     plt.tight_layout()
     chart_path = _save_figure(fig, output_dirs, "chart_ur_summary.pdf")
