@@ -37,6 +37,7 @@ def ch7_quantities(input_dict: dict, steel_chart: Optional[str] = None, concrete
         headers=headers,
         rows=rows,
         label="tab:bom",
+        tabcolsep="3.5pt",
     )
 
     chart_block = ""

@@ -431,7 +431,7 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
 
     steel_chart_path = None
     if any(wt > 0 for _, wt in steel_items):
-        fig, ax = plt.subplots(figsize=(4.0, 3.0))
+        fig, ax = plt.subplots(figsize=(4.2, 5.2))
         categories = [item[0] for item in steel_items]
         tonnages = [item[1] for item in steel_items]
         colors = [CHART_COLOR_PRIMARY, CHART_COLOR_SECONDARY, "#E67E22"]
@@ -449,7 +449,7 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
                     f"{wt:.2f} MT\n({pct:.1f}%)",
                     ha="center",
                     va="bottom",
-                    fontsize=10.5,
+                    fontsize=11.0,
                     fontweight="bold",
                     zorder=5,
                 )
@@ -460,17 +460,17 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
                     "N.A.",
                     ha="center",
                     va="bottom",
-                    fontsize=10.5,
+                    fontsize=11.0,
                     fontweight="bold",
                     color="#888888",
                     zorder=5,
                 )
 
         ax.set_ylim(0, max_tonnage * 1.45)
-        ax.set_ylabel("Weight (MT)", fontsize=11.5, fontweight="bold")
-        ax.set_title("Structural Steel Breakdown", fontsize=12.5, fontweight="bold", pad=12)
-        ax.tick_params(axis="x", labelsize=10.5)
-        ax.tick_params(axis="y", labelsize=10.0)
+        ax.set_ylabel("Weight (MT)", fontsize=12.5, fontweight="bold")
+        ax.set_title("Structural Steel Breakdown", fontsize=13.5, fontweight="bold", pad=14)
+        ax.tick_params(axis="x", labelsize=11.0)
+        ax.tick_params(axis="y", labelsize=10.5)
         ax.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID, zorder=1)
         ax.set_axisbelow(True)
 
@@ -483,7 +483,7 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
 
     concrete_rebar_chart_path = None
     if concrete_vol > 0 or rebar_wt > 0:
-        fig, ax1 = plt.subplots(figsize=(4.0, 3.0))
+        fig, ax1 = plt.subplots(figsize=(4.2, 5.2))
 
         x_indices = [0, 1]
         labels = [r"Deck Concrete" + "\n" + r"($m^3$)", "Deck Rebar\n(MT)"]
@@ -500,17 +500,17 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
                 f"{val:.2f} {unit}",
                 ha="center",
                 va="bottom",
-                fontsize=11.0,
+                fontsize=11.5,
                 fontweight="bold",
                 zorder=5,
             )
 
         ax1.set_xticks(x_indices)
-        ax1.set_xticklabels(labels, fontsize=10.5, fontweight="bold")
+        ax1.set_xticklabels(labels, fontsize=11.0, fontweight="bold")
         ax1.set_ylim(0, max_val * 1.35)
-        ax1.set_ylabel("Quantity", fontsize=11.5, fontweight="bold")
-        ax1.set_title("Deck Slab Materials", fontsize=12.5, fontweight="bold", pad=12)
-        ax1.tick_params(axis="y", labelsize=10.0)
+        ax1.set_ylabel("Quantity", fontsize=12.5, fontweight="bold")
+        ax1.set_title("Deck Slab Materials", fontsize=13.5, fontweight="bold", pad=14)
+        ax1.tick_params(axis="y", labelsize=10.5)
         ax1.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID, zorder=1)
         ax1.set_axisbelow(True)
 

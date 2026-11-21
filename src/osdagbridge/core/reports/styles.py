@@ -102,7 +102,7 @@ TABLE_SPEC_TITLE = r"|L{4cm}|L{10cm}|"
 TABLE_SPEC_TWO_COL = r"|L{5.2cm}|L{8.4cm}|"
 TABLE_SPEC_GIRDER_SUMMARY = r"|C{2.0cm}|L{7.5cm}|>{\centering\arraybackslash}p{4.5cm}|"
 TABLE_SPEC_OVERALL_SUMMARY = r"|C{3.0cm}|L{4.0cm}|C{2.1cm}|C{2.1cm}|>{\centering\arraybackslash}p{1.6cm}|"
-TABLE_SPEC_BOQ = r"|C{0.9cm}|L{3.2cm}|C{2.7cm}|C{1.8cm}|C{1.7cm}|C{1.7cm}|C{1.7cm}|"
+TABLE_SPEC_BOQ = r"|C{0.9cm}|L{3.1cm}|C{2.7cm}|C{1.8cm}|C{1.7cm}|C{1.7cm}|C{1.7cm}|"
 TABLE_SPEC_DEMANDS = r"|>{\centering\arraybackslash}p{2.5cm}|>{\centering\arraybackslash}p{1.4cm}|>{\centering\arraybackslash}p{1.25cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.4cm}|>{\centering\arraybackslash}p{1.25cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.3cm}|>{\centering\arraybackslash}p{1.3cm}|"
 TABLE_SPEC_REACTIONS = r"|C{4.4cm}|C{4.4cm}|C{4.4cm}|"
 TABLE_SPEC_DEFLECTION = r"|L{5.5cm}|L{8.2cm}|"
@@ -172,10 +172,22 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
     rd = _tex(report_date)
     rv = _tex(report_version)
 
+    # Clean up report_version for header: drop "Final Design Report - " since title page states it
+    clean_rv = rv
+    for prefix in ["Final Design Report - ", "Final Design Report: ", "Final Design Report "]:
+        if clean_rv.startswith(prefix):
+            clean_rv = clean_rv[len(prefix):].strip()
+    if clean_rv == "Final Design Report":
+        clean_rv = ""
+    clean_rv = clean_rv.strip("() ")
+
     # Constrain header string lengths: truncate excessively long strings to preserve clean layout
-    pn_hdr = (pn[:45] + "...") if len(pn) > 48 else pn
-    rv_hdr = (rv[:32] + "...") if len(rv) > 35 else rv
-    right_hdr_text = jn + r""" \quad$\vert$\quad """ + rd + (r""" \quad$\vert$\quad """ + rv_hdr if rv_hdr else "")
+    pn_hdr = (pn[:42] + "...") if len(pn) > 45 else pn
+    if clean_rv:
+        rv_hdr = (clean_rv[:28] + "...") if len(clean_rv) > 30 else clean_rv
+        right_hdr_text = jn + r""" \quad$\vert$\quad """ + rd + r""" \quad$\vert$\quad """ + rv_hdr
+    else:
+        right_hdr_text = jn + r""" \quad$\vert$\quad """ + rd
 
     return (
         r"""
@@ -236,8 +248,8 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
 
 \fancypagestyle{main}{
   \fancyhf{}
-  \fancyhead[L]{\parbox[b]{0.36\headwidth}{\raggedright\small\textsf{""" + pn_hdr + r"""}}}
-  \fancyhead[R]{\parbox[b]{0.62\headwidth}{\raggedleft\footnotesize\textsf{""" + right_hdr_text + r"""}}}
+  \fancyhead[L]{\parbox[b]{0.32\headwidth}{\raggedright\small\textsf{""" + pn_hdr + r"""}}}
+  \fancyhead[R]{\parbox[b]{0.66\headwidth}{\raggedleft\footnotesize\textsf{""" + right_hdr_text + r"""}}}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
   \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
   \renewcommand{\headrulewidth}{""" + HEADER_RULE_WIDTH + r"""}
@@ -256,8 +268,8 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
 }
 \fancypagestyle{plain}{
   \fancyhf{}
-  \fancyhead[L]{\parbox[b]{0.36\headwidth}{\raggedright\small\textsf{""" + pn_hdr + r"""}}}
-  \fancyhead[R]{\parbox[b]{0.62\headwidth}{\raggedleft\footnotesize\textsf{""" + right_hdr_text + r"""}}}
+  \fancyhead[L]{\parbox[b]{0.32\headwidth}{\raggedright\small\textsf{""" + pn_hdr + r"""}}}
+  \fancyhead[R]{\parbox[b]{0.66\headwidth}{\raggedleft\footnotesize\textsf{""" + right_hdr_text + r"""}}}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
   \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
   \renewcommand{\headrulewidth}{""" + HEADER_RULE_WIDTH + r"""}
