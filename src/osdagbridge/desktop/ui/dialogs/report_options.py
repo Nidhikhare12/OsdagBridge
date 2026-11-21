@@ -518,11 +518,12 @@ class ReportOptionsDialog(QDialog):
             client=self.client.text(),
             company=self.group_name.text(),
             group_name=self.group_name.text(),
-            subtitle=self.report_version.text(),
+            subtitle="Detailed Structural Design & Verification Report",
             job_number=self.job_number.text(),
             additional_comments=self.comments.toPlainText(),
             logo_path=self.org_logo.text() or None,
-            report_date=datetime.date.today().isoformat()
+            report_date=datetime.date.today().isoformat(),
+            report_version=self.report_version.text() or 'Rev 1.0'
         )
 
         checked_sections = self.get_checked_leaf_sections()

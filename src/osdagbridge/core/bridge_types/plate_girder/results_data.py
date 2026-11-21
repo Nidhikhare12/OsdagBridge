@@ -883,8 +883,8 @@ def build_forces_summary(result_handler, load_effects_cache: dict) -> dict:
 
     for lc in all_lcs:
         # ── 1. Derive max_bm / bm_girder and max_sf / sf_girder from cache ──
-        global_bm, bm_girder = 0.0, "—"
-        global_sf, sf_girder = 0.0, "—"
+        global_bm, bm_girder = 0.0, "-"
+        global_sf, sf_girder = 0.0, "-"
 
         for girder_label, lc_data in load_effects_cache.items():
             entry = lc_data.get(lc)
