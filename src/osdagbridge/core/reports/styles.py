@@ -128,6 +128,9 @@ TABLE_SPEC_DECK_DETAILING = r"|L{4.8cm}|>{\centering\arraybackslash}p{3.5cm}|>{\
 TABLE_SPEC_CB_PROPS = r"|C{1.6cm}|L{1.8cm}|L{2.0cm}|C{2.2cm}|C{1.8cm}|C{1.8cm}|"
 TABLE_SPEC_CB_SLENDER = r"|C{1.8cm}|L{1.8cm}|L{2.0cm}|C{2.2cm}|C{2.0cm}|>{\centering\arraybackslash}p{3.0cm}|"
 TABLE_SPEC_CB_CAPACITY = r"|C{1.5cm}|L{1.5cm}|C{1.8cm}|C{2.5cm}|C{1.5cm}|C{1.5cm}|C{1.0cm}|C{1.5cm}|"
+TABLE_SPEC_VEHICLE_LL = r"|L{4.2cm}|C{2.8cm}|C{3.2cm}|C{3.2cm}|"
+TABLE_SPEC_FOOTPATH_LL = r"|L{4.5cm}|C{2.0cm}|C{1.8cm}|C{2.8cm}|C{2.8cm}|"
+TABLE_SPEC_LOAD_COMBOS = r"|C{3.5cm}|p{10.5cm}|"
 
 # ---------------------------------------------------------------------------
 # 7. Document Spacing Constants

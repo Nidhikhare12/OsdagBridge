@@ -196,7 +196,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
 
     table_deflection = make_longtable(
         col_spec=TABLE_SPEC_DEFLECTION,
-        caption="Deflection Summary (Live Load & Total Load)",
+        caption=r"Deflection Summary (Live Load \& Total Load)",
         headers=["Parameter", "Value"],
         rows=defl_rows,
         label="tab:deflection",
