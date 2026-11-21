@@ -49,6 +49,15 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         for lc in all_lcs
     ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \\[6pt]"
 
+    rxn_rows = []
+    for lc, rd in rxn_summary.items():
+        rxn_rows.append(
+            _tex(lc) + r" & " + _fmt(rd.get('left_kN')) + r" & " + _fmt(rd.get('right_kN')) + r" \\[6pt]"
+        )
+    if not rxn_rows:
+        rxn_rows.append(r"Governing ULS & \textit{Not Available} & \textit{Not Available} \\[6pt]")
+    rxn_body = ("\n\\hline\n").join(rxn_rows)
+
     _span_m         = float(bridge.input_dict.get(KEY_SPAN, 0) or 0)
     _allow_live_mm  = _span_m * 1000.0 / 800.0
     _allow_total_mm = _span_m * 1000.0 / 600.0
@@ -83,19 +92,19 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \vspace{1em}
 \begingroup
 \footnotesize
-\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{2.5pt}
 \renewcommand{\arraystretch}{1.25}
 
 \begin{longtable}{|
->{\centering\arraybackslash}p{3.1cm}|
->{\centering\arraybackslash}p{1.7cm}|
+>{\centering\arraybackslash}p{2.6cm}|
+>{\centering\arraybackslash}p{1.4cm}|
 >{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.7cm}|
+>{\centering\arraybackslash}p{1.0cm}|
+>{\centering\arraybackslash}p{1.4cm}|
 >{\centering\arraybackslash}p{1.2cm}|
+>{\centering\arraybackslash}p{1.0cm}|
 >{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.6cm}|
->{\centering\arraybackslash}p{1.6cm}|}
+>{\centering\arraybackslash}p{1.3cm}|}
 
 \caption{\textbf{Summary of Maximum Demands}}\\
 \hline
@@ -115,7 +124,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 & \makecell{\textbf{Right }}\\
 \hline
 \endfirsthead
-
+\caption[]{\textbf{Summary of Maximum Demands (Continued)}}\\
 \hline
 \multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
@@ -141,25 +150,33 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \endgroup
 
 \vspace{1em}
-\begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
+\begin{longtable}{|>{\centering\arraybackslash}p{4.6cm}|>{\centering\arraybackslash}p{4.6cm}|>{\centering\arraybackslash}p{4.6cm}|}
+\caption{\textbf{Reactions at Supports}}\\
 \hline
 \textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endfirsthead
+\caption[]{\textbf{Reactions at Supports (Continued)}}\\
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endhead
+""" + rxn_body + r"""
 \hline
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{7cm}|p{8.5cm}|}
-\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
+\begin{longtable}{|L{6.2cm}|p{8.3cm}|}
+\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
+\endfirsthead
+\caption[]{\textbf{Deflection Summary (Live Load \& Total Load) (Continued)}}\\
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]
@@ -177,7 +194,11 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \vspace{1em}
 \noindent
 """ + _fig_embed(fig_paths.get('bm_envelope'), 'Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).', width=r'0.75\textwidth') + r"""
+
+\vspace{1.5em}\noindent
 """ + _fig_embed(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=r'0.75\textwidth') + r"""
+
+\vspace{1.5em}\noindent
 """ + _fig_embed(fig_paths.get('defl_ll'), 'Vertical Deflection D$_y$ (1.0 LL): Maximum deflection along span. Load Case: 1.0 LL, Combination: $D_y$. Nodes shown. Isometric view.', width=r'0.75\textwidth') + r"""
 """
 

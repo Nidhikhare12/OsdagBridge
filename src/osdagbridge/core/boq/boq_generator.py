@@ -137,13 +137,24 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
 
         # 3. Steel Girders (Cu.m) and Weight (MT)
         girder_area = 0.0
+        # Priority 1: actual designed girder steel area from output_dict
         try:
-            # Resolve representative girder sectional area
-            girder_area = float(resolve_girder_value(inputs, "member_properties.girder_details.section_properties.area", 0))
+            dr = outputs.get("design_results", {}) or {}
+            if dr.get("A_steel_mm2"):
+                girder_area = float(dr["A_steel_mm2"]) / 1e6  # mm² to m²
+            elif outputs.get("steeldesign.details.section_properties.area"):
+                girder_area = float(outputs["steeldesign.details.section_properties.area"]) / 1e4  # cm² to m²
         except Exception:
             pass
 
-        # Calculate from inputs if not in properties
+        # Priority 2: representative girder sectional area from inputs
+        if girder_area <= 0:
+            try:
+                girder_area = float(resolve_girder_value(inputs, "member_properties.girder_details.section_properties.area", 0))
+            except Exception:
+                pass
+
+        # Priority 3: calculate from inputs if not in properties
         if girder_area <= 0:
             try:
                 dw_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.web_depth", 0)
@@ -164,8 +175,10 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                     bfb = float(bfb_val)
                     tfb = float(tfb_val)
                     
-                    # All dimensions in mm, compute in m²
-                    girder_area = ((dw * tw) + (bft * tft) + (bfb * tfb)) / 1e6
+                    if dw > 10.0:  # in mm
+                        girder_area = ((dw * tw) + (bft * tft) + (bfb * tfb)) / 1e6
+                    else:  # in m
+                        girder_area = (dw * tw) + (bft * tft) + (bfb * tfb)
             except Exception:
                 pass
 
@@ -175,13 +188,9 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["steel_girders_vol_formula"] = f"${girder_area:.5f}\\text{{ m}}^2 \\times {span:.2f}\\text{{ m}} = {girder_vol:.5f}\\text{{ m}}^3$"
             quantities["steel_girders_qty"] = str(n_girders)
             
-            # calculate tonnage / volume
-            for gi in range(n_girders):
-                try:
-                    mass_per_m = float(resolve_girder_value(inputs, "member_properties.girder_details.section_properties.mass", gi))
-                    total_girder_mass += mass_per_m * span
-                except Exception:
-                    total_girder_mass += girder_area * span * 7850.0
+            # calculate tonnage / volume from actual designed area and steel density (7850 kg/m³)
+            mass_per_m = girder_area * 7850.0  # kg/m
+            total_girder_mass = mass_per_m * span * n_girders
             
             girder_total_vol = n_girders * girder_vol
             quantities["steel_girders_vol_total"] = f"{girder_total_vol:.2f}"
@@ -333,7 +342,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         # 6. Crash Barrier (Cu.m) and Weight (MT)
         KEY_CB_AREA = "typical_section.crash_barrier.area"
         cb_area = 0.0
-        cb_area_val = inputs.get(KEY_CB_AREA)
+        cb_area_val = inputs.get(KEY_CB_AREA) or inputs.get("crash_barrier_area")
         
         if cb_area_val is not None:
             try:
@@ -341,6 +350,18 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             except Exception:
                 pass
         
+        if cb_area <= 0.0:
+            # Fallback to standard IRC 5 rigid barrier area from geometry module
+            try:
+                from osdagbridge.core.bridge_components.super_structure.crash_barrier.geometry import (
+                    rigid_barrier_no_footpath_area
+                )
+                cb_geom = rigid_barrier_no_footpath_area()
+                if cb_geom and "barrier_area" in cb_geom:
+                    cb_area = float(cb_geom["barrier_area"]) / 1e6  # mm² to m²
+            except Exception:
+                pass
+
         if cb_area > 0.0:
             cb_vol = cb_area * span
             quantities["crash_barrier_vol_formula"] = f"${cb_area:.5f}\\text{{ m}}^2 \\times {span:.2f}\\text{{ m}} = {cb_vol:.5f}\\text{{ m}}^3$"
