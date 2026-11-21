@@ -59,7 +59,7 @@ form the basis of all design calculations in this software.
 \setlength{\tabcolsep}{3.5pt}
 \begin{table}[H]
 \caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabular}{|C{2.0cm}|C{1.5cm}|L{11.0cm}|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
@@ -77,12 +77,13 @@ IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \hline
 \end{tabular}
 \end{table}
+\endgroup
 
 \begingroup
 \setlength{\tabcolsep}{3.5pt}
 \begin{table}[H]
 \caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabular}{|C{2.0cm}|C{1.5cm}|L{11.0cm}|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
@@ -98,6 +99,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
 \end{tabular}
 \end{table}
+\endgroup
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}

@@ -237,7 +237,7 @@ Deck design pass
 
 \section*{Design Assumptions and Limitations}
 \addcontentsline{toc}{section}{Design Assumptions and Limitations}
-\label{sec:assumptions}
+\label{sec:exec-assumptions}
 
 \begin{itemize}
 \item Additional inputs not provided by the user were assumed by software per IRC/IS code defaults or practical consideration.
