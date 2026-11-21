@@ -1333,9 +1333,10 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     t_cb_props_table = make_longtable(
         col_spec=TABLE_SPEC_CB_PROPS,
         caption="Cross Bracing --- Connection and Section Properties",
-        headers=["Panel", "Member", "Connection", "Section", r"$A_g$ (mm²)", r"$r_{min}$ (mm)"],
+        headers=["Panel", "Member", "Connection", "Section", r"\makecell{\textbf{$A_g$}\\\textbf{(mm$^2$)}}", r"\makecell{\textbf{$r_{min}$}\\\textbf{(mm)}}"],
         rows=cb_forces_content,
         note=r"$A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.",
+        tabcolsep="3pt",
     )
 
     t_cb_slender_table = make_longtable(
@@ -1349,17 +1350,19 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     t_cb_cap_table = make_longtable(
         col_spec=TABLE_SPEC_CB_CAPACITY,
         caption="Cross Bracing Design --- Capacity Summary",
-        headers=["Panel", "Member", "Section", "Governing LC", "Demand (kN)", "Capacity (kN)", "UR", "Status"],
+        headers=["Panel", "Member", "Section", "Governing LC", r"\makecell{\textbf{Demand}\\\textbf{(kN)}}", r"\makecell{\textbf{Capacity}\\\textbf{(kN)}}", "UR", "Status"],
         rows=cb_capacity_content,
         note=r"Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.",
+        tabcolsep="3pt",
     )
 
     t_ed_props_table = make_longtable(
         col_spec=TABLE_SPEC_CB_PROPS,
         caption="End Diaphragm --- Connection and Section Properties",
-        headers=["Panel", "Member", "Connection", "Section", r"$A_g$ (mm²)", r"$r_{min}$ (mm)"],
+        headers=["Panel", "Member", "Connection", "Section", r"\makecell{\textbf{$A_g$}\\\textbf{(mm$^2$)}}", r"\makecell{\textbf{$r_{min}$}\\\textbf{(mm)}}"],
         rows=cb_forces_content,
         note=r"$A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.",
+        tabcolsep="3pt",
     )
 
     t_ed_slender_table = make_longtable(
@@ -1373,9 +1376,10 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     t_ed_cap_table = make_longtable(
         col_spec=TABLE_SPEC_CB_CAPACITY,
         caption="End Diaphragm Design --- Capacity Summary",
-        headers=["Panel", "Member", "Section", "Governing LC", "Demand (kN)", "Capacity (kN)", "UR", "Status"],
+        headers=["Panel", "Member", "Section", "Governing LC", r"\makecell{\textbf{Demand}\\\textbf{(kN)}}", r"\makecell{\textbf{Capacity}\\\textbf{(kN)}}", "UR", "Status"],
         rows=cb_capacity_content,
         note=r"Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.",
+        tabcolsep="3pt",
     )
 
     t_overall_summary_table = make_longtable(

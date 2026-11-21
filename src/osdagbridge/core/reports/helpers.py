@@ -19,6 +19,8 @@ def make_longtable(
     label: Optional[str] = None,
     continuation_note: str = "Continued on next page",
     note: Optional[str] = None,
+    tabcolsep: Optional[str] = None,
+    fontsize: Optional[str] = None,
 ) -> str:
     """
     Construct a professional, multi-page LaTeX longtable with repeated headers.
@@ -57,6 +59,10 @@ def make_longtable(
         Text shown in bottom right on pages before the last.
     note : Optional[str]
         Optional footer text or note below table.
+    tabcolsep : Optional[str]
+        Optional local tabcolsep, e.g. "3pt" or "4pt".
+    fontsize : Optional[str]
+        Optional local font size command, e.g. r"\\small" or r"\\footnotesize".
 
     Returns
     -------
@@ -79,7 +85,11 @@ def make_longtable(
 
     # Format header row
     if isinstance(headers, (list, tuple)):
-        header_tex = " & ".join(f"\\textbf{{{h}}}" if not h.strip().startswith("\\textbf") else h for h in headers) + r" \\[6pt]"
+        header_tex = " & ".join(
+            h if h.strip().startswith(("\\textbf", "\\makecell", "\\multicolumn"))
+            else f"\\textbf{{{h}}}"
+            for h in headers
+        ) + r" \\[6pt]"
     else:
         header_tex = headers.strip()
         if not header_tex.endswith(r"\\") and not header_tex.endswith("}"):
@@ -96,7 +106,18 @@ def make_longtable(
     cont_head = r"\multicolumn{" + str(ncols) + r"}{c}{\textbf{\tablename\ \thetable{} -- continued from previous page}} \\[6pt]"
     cont_foot = r"\multicolumn{" + str(ncols) + r"}{r}{\textit{" + continuation_note + r"}} \\"
 
-    parts = [r"\begin{longtable}{" + col_spec + r"}"]
+    prefix = []
+    suffix = []
+    if tabcolsep or fontsize:
+        prefix.append(r"\begingroup")
+        if tabcolsep:
+            prefix.append(r"\setlength{\tabcolsep}{" + tabcolsep + r"}")
+        if fontsize:
+            prefix.append(fontsize)
+        suffix.append(r"\endgroup")
+
+    parts = list(prefix)
+    parts.append(r"\begin{longtable}{" + col_spec + r"}")
     if caption_line:
         parts.append(caption_line)
     parts.extend([
@@ -121,6 +142,7 @@ def make_longtable(
         body_tex,
         r"\end{longtable}"
     ])
+    parts.extend(suffix)
 
     if note:
         parts.append(r"\vspace{-4pt}" + "\n" + r"\noindent\textit{" + note + r"}" + "\n")

@@ -404,6 +404,7 @@ def _girder_tables(input_dict, n_girders):
         ],
         rows=rst_rows,
         label="tab:girder-restraints",
+        tabcolsep="3pt",
     )
 
     return (
