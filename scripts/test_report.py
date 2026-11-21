@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test Harness for OsdagBridge PDF Design Report Generation (Phase 2A).
+Test Harness for OsdagBridge PDF Design Report Generation (Phase 2 & 3).
 
 Builds a realistic mock ReportPayload (input_dict + output_dict) covering all
 subsystems:
@@ -15,8 +15,9 @@ subsystems:
   - References (Chapter 9)
 
 Outputs:
-  - output/before/Report_Before.tex
-  - output/before/Report_Before.pdf (if pdflatex is installed)
+  - <output_dir>/<stem>.tex
+  - <output_dir>/<stem>.pdf
+  - <output_dir>/<stem>.log (analyzed for error & warning metrics)
 """
 
 import sys
@@ -24,10 +25,25 @@ import os
 import argparse
 import logging
 import types
+import shutil
+import subprocess
+import re
 
 # ---------------------------------------------------------------------------
 # 1. Environment & Path Setup
 # ---------------------------------------------------------------------------
+
+# Discover and prepend standard LaTeX paths on macOS / Linux
+EXTRA_PATHS = [
+    "/usr/local/texlive/2026basic/bin/universal-darwin",
+    "/usr/local/texlive/2025basic/bin/universal-darwin",
+    "/Library/TeX/texbin",
+    "/usr/local/bin",
+    "/opt/homebrew/bin",
+]
+for p in EXTRA_PATHS:
+    if os.path.exists(p) and p not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
 
 # Mock openseespy if not installed so results_data.py can be imported cleanly
 try:
@@ -638,7 +654,7 @@ def create_mock_payload_data():
 
 
 # ---------------------------------------------------------------------------
-# 3. Main Runner
+# 3. Main Runner & Quality Gate Analysis
 # ---------------------------------------------------------------------------
 
 def run_test(output_dir="output/before", file_stem="Report_Before"):
@@ -646,12 +662,23 @@ def run_test(output_dir="output/before", file_stem="Report_Before"):
     os.makedirs(abs_out_dir, exist_ok=True)
 
     print("=" * 70)
-    print("OsdagBridge Report Generation Test Harness (Phase 2A)")
+    print("OsdagBridge Report Generation Test Harness")
     print("=" * 70)
     print(f"Target Output Directory: {abs_out_dir}")
     print(f"File Stem:               {file_stem}")
 
-    # Build Metadata & Options
+    # 1. Assets preparation: copy logos to output_dir/assets so LaTeX finds them
+    assets_dest = os.path.join(abs_out_dir, "assets")
+    os.makedirs(assets_dest, exist_ok=True)
+    osdag_logo_src = os.path.join(SRC_DIR, "osdagbridge", "core", "data", "ResourceFiles", "vectors", "Osdag Logo.png")
+    if os.path.exists(osdag_logo_src):
+        shutil.copy2(osdag_logo_src, os.path.join(assets_dest, "osdag_logo.png"))
+
+    iit_logo_src = os.path.join(SRC_DIR, "osdagbridge", "core", "reports", "assets", "IIT Bombay Logo.png")
+    if os.path.exists(iit_logo_src):
+        shutil.copy2(iit_logo_src, os.path.join(assets_dest, "org_logo.png"))
+
+    # 2. Build Metadata & Options
     metadata = ReportMetadata(
         project_name="Bridge on NH-48 (KM 142/2)",
         project_location="Mumbai Suburban, Maharashtra",
@@ -661,7 +688,7 @@ def run_test(output_dir="output/before", file_stem="Report_Before"):
         group_name="Bridge Engineering Division",
         subtitle="Final Design Report - Rev 0",
         job_number="OSDAG-2026-BR-01",
-        additional_comments="Screening Task Evaluation Baseline Report for FOSSEE Internship.",
+        additional_comments="Screening Task Evaluation Report for FOSSEE Internship.",
         report_date="2026-11-21",
         reviewer="Dr. Structural Reviewer",
     )
@@ -680,16 +707,15 @@ def run_test(output_dir="output/before", file_stem="Report_Before"):
         file_stem=file_stem,
     )
 
-    # Build Mock Payload Data
+    # 3. Build Mock Payload Data and Assemble LaTeX
     input_dict, output_dict = create_mock_payload_data()
     payload = build_report_payload(request, input_dict, output_dict)
 
-    print("\n[1/3] Assembling LaTeX document from payload...")
+    print("\n[1/4] Assembling LaTeX document from payload...")
     result = generate_report(payload, request)
 
-    print("\n[2/3] Verification of Generated Files:")
+    print("\n[2/4] Verification of Generated .tex File:")
     tex_path = result.tex_path
-    pdf_path = result.pdf_path
 
     if tex_path and os.path.exists(tex_path):
         size_kb = os.path.getsize(tex_path) / 1024.0
@@ -720,20 +746,62 @@ def run_test(output_dir="output/before", file_stem="Report_Before"):
         print(f"  [ERROR] LaTeX source file was not generated: {tex_path}")
         return False
 
-    print("\n[3/3] PDF Compilation Status:")
-    if pdf_path and os.path.exists(pdf_path):
-        size_kb = os.path.getsize(pdf_path) / 1024.0
-        print(f"  [SUCCESS] PDF Output: {pdf_path}")
-        print(f"            Size: {size_kb:.2f} KB")
+    # 4. Compile PDF in output_dir (2 passes for TOC and LastPage)
+    compiler = shutil.which("pdflatex")
+    pdf_path = os.path.join(abs_out_dir, f"{file_stem}.pdf")
+    log_path = os.path.join(abs_out_dir, f"{file_stem}.log")
+
+    if compiler:
+        print(f"\n[3/4] Compiling PDF with {compiler} (2 passes)...")
+        for pass_num in (1, 2):
+            subprocess.run(
+                [compiler, "-interaction=nonstopmode", f"{file_stem}.tex"],
+                cwd=abs_out_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        if os.path.exists(pdf_path):
+            size_kb = os.path.getsize(pdf_path) / 1024.0
+            print(f"  [SUCCESS] PDF Output: {pdf_path}")
+            print(f"            Size: {size_kb:.2f} KB")
+        else:
+            print(f"  [WARNING] pdflatex executed but {pdf_path} was not created.")
     else:
-        print("  [NOTE] PDF was not produced by pdflatex (pdflatex binary not found on this system).")
-        print(f"         The generated LaTeX source file '{tex_path}' is complete and valid.")
-        print("         To compile it to PDF on a system with LaTeX installed, run:")
-        print(f"           cd {abs_out_dir} && pdflatex -interaction=nonstopmode {file_stem}.tex")
-        print(f"           cd {abs_out_dir} && pdflatex -interaction=nonstopmode {file_stem}.tex")
+        print("\n[3/4] PDF Compilation Status:")
+        print("  [NOTE] pdflatex not found in environment PATH.")
+
+    # 5. Parse .log file for Quality Gate metrics
+    if os.path.exists(log_path):
+        with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+            log_text = f.read()
+
+        latex_errors = re.findall(r"^! (.*)", log_text, re.MULTILINE)
+        misplaced_noalign = log_text.count("Misplaced \\noalign")
+        misplaced_omit = log_text.count("Misplaced \\omit")
+        extra_alignment_tab = log_text.count("Extra alignment tab has been changed to \\cr")
+        overfull_hbox = log_text.count("Overfull \\hbox")
+        overfull_vbox = log_text.count("Overfull \\vbox")
+        headheight_warnings = log_text.count("headheight is too small")
+        mult_labels = len(re.findall(r"multiply-defined|multiply defined", log_text, re.I))
+        unclosed_groups = log_text.count("occurred inside a group")
+
+        print("\n[4/4] LaTeX Quality Gate Summary (.log analysis):")
+        print(f"  Total LaTeX Errors (! ...):     {len(latex_errors)}")
+        print(f"    - Misplaced \\noalign:         {misplaced_noalign}")
+        print(f"    - Misplaced \\omit:            {misplaced_omit}")
+        print(f"    - Extra alignment tab:        {extra_alignment_tab}")
+        print(f"  Overfull \\hbox count:          {overfull_hbox}")
+        print(f"  Overfull \\vbox count:          {overfull_vbox}")
+        print(f"  Headheight warnings:            {headheight_warnings}")
+        print(f"  Multiply-defined labels:        {mult_labels}")
+        print(f"  Unclosed groups (level > 0):    {unclosed_groups}")
+    else:
+        print("\n[4/4] LaTeX Quality Gate Summary:")
+        print("  [NOTE] No .log file available for analysis.")
 
     print("\n" + "=" * 70)
-    print("Phase 2A Test Completed Successfully!")
+    print("Test Harness Execution Completed!")
     print("=" * 70)
     return True
 
