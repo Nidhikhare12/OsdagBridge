@@ -46,6 +46,7 @@ COLOR_WARN_NAME = "blue"
 # ---------------------------------------------------------------------------
 # Cell padding & row stretching
 TABLE_COL_SEP = "6pt"
+TABLE_COL_SEP_COMPACT = "3pt"
 TABLE_ARRAY_STRETCH = "1.12"
 TABLE_RULE_WIDTH = "0.5pt"
 TABLE_EXTRA_ROW_HEIGHT = "0.6pt"
@@ -101,7 +102,7 @@ TABLE_SPEC_TITLE = r"|L{4cm}|L{10cm}|"
 TABLE_SPEC_TWO_COL = r"|L{5.5cm}|L{8.5cm}|"
 TABLE_SPEC_GIRDER_SUMMARY = r"|C{2.5cm}|L{8.0cm}|>{\centering\arraybackslash}p{5.0cm}|"
 TABLE_SPEC_OVERALL_SUMMARY = r"|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|"
-TABLE_SPEC_BOQ = r"|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|"
+TABLE_SPEC_BOQ = r"|C{0.9cm}|L{3.2cm}|C{2.7cm}|C{1.8cm}|C{1.7cm}|C{1.7cm}|C{1.7cm}|"
 
 # ---------------------------------------------------------------------------
 # 7. Document Spacing Constants

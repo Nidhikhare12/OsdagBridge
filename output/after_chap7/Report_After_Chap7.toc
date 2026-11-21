@@ -1,0 +1,36 @@
+\ttl@change@i {\@ne }{chapter}{1.5em}{\normalfont \vspace {2pt}}{\contentslabel {1.5em}}{\hspace *{-1.5em}}{\hfill \contentspage }\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\ttl@change@i {\@ne }{section}{3.8em}{\normalfont }{\contentslabel {2.3em}}{\hspace *{-2.3em}}{\hfill \contentspage }\relax 
+\ttl@change@v {section}{}{}{}\relax 
+\ttl@change@i {\@ne }{subsection}{7.0em}{\normalfont }{\contentslabel {3.2em}}{\hspace *{-3.2em}}{\hfill \contentspage }\relax 
+\ttl@change@v {subsection}{}{}{}\relax 
+\contentsline {chapter}{Executive Summary}{2}{chapter*.1}%
+\contentsline {section}{Project Overview}{2}{section*.2}%
+\contentsline {section}{Key Design Outcomes Summary}{3}{figure.caption.5}%
+\contentsline {section}{Design Assumptions and Limitations}{3}{figure.caption.5}%
+\contentsline {chapter}{\numberline {1}Project Information}{4}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Project and Design Team Details}{4}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Applicable Codes and Standards}{4}{section.1.2}%
+\contentsline {chapter}{\numberline {2}Input Parameters}{5}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Basic Inputs (User-Defined)}{5}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Additional Inputs}{6}{section.2.2}%
+\contentsline {chapter}{\numberline {3}Loads and Load Combinations}{10}{chapter.3}%
+\contentsline {chapter}{\numberline {4}Analysis Results}{14}{chapter.4}%
+\contentsline {chapter}{\numberline {5}Design Checks}{16}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Plate Girder Design}{16}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Deck Slab Design}{28}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Cross Bracing Design}{32}{section.5.3}%
+\contentsline {section}{\numberline {5.4}End Diaphragm Design}{34}{section.5.4}%
+\contentsline {section}{\numberline {5.5}Overall Design Check Summary}{35}{section.5.5}%
+\contentsline {chapter}{\numberline {6}Drawings and Visualizations}{37}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Bridge Configuration and Layout}{37}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Plate Girder --- Detailed Views}{37}{section.6.2}%
+\contentsline {section}{\numberline {6.3}Cross Bracing Detail}{37}{section.6.3}%
+\contentsline {section}{\numberline {6.4}End Diaphragm Detail}{38}{section.6.4}%
+\contentsline {chapter}{\numberline {7}Material Take-off \& Quantity Summary}{39}{chapter.7}%
+\contentsline {chapter}{\numberline {8}Standards \& Assumptions}{40}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Design Standards}{40}{section.8.1}%
+\contentsline {section}{\numberline {8.2}Analysis and Design Assumptions of This Version}{41}{section.8.2}%
+\contentsline {section}{\numberline {8.3}Known Limitations of This Version}{43}{section.8.3}%
+\contentsline {chapter}{References}{44}{chapter*.19}%
+\contentsfinish 

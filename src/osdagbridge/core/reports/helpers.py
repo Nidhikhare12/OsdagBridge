@@ -91,13 +91,16 @@ def make_longtable(
     else:
         body_tex = rows.strip()
 
-    lbl_tex = f"\\label{{{label}}}\n" if label else "\n"
+    lbl_tex = f"\\label{{{label}}}" if label else ""
+    caption_line = f"\\caption{{\\textbf{{{caption}}}}} {lbl_tex} \\\\" if caption else ""
     cont_head = r"\multicolumn{" + str(ncols) + r"}{c}{\textbf{\tablename\ \thetable{} -- continued from previous page}} \\[6pt]"
     cont_foot = r"\multicolumn{" + str(ncols) + r"}{r}{\textit{" + continuation_note + r"}} \\"
 
-    parts = [
-        r"\begin{longtable}{" + col_spec + r"}",
-        r"\caption{\textbf{" + caption + r"}} " + lbl_tex + r"\hline",
+    parts = [r"\begin{longtable}{" + col_spec + r"}"]
+    if caption_line:
+        parts.append(caption_line)
+    parts.extend([
+        r"\hline",
         header_tex,
         r"\hline",
         r"\endfirsthead",
@@ -117,7 +120,7 @@ def make_longtable(
         "",
         body_tex,
         r"\end{longtable}"
-    ]
+    ])
 
     if note:
         parts.append(r"\vspace{-4pt}" + "\n" + r"\noindent\textit{" + note + r"}" + "\n")
