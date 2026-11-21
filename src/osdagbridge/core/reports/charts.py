@@ -423,19 +423,19 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
     ed_wt = _fval("steel_ed_wt_total")
 
     steel_items = [
-        ("Plate Girders", girders_wt),
-        ("Cross Bracing", cross_bracing_wt),
-        ("End Diaphragms", ed_wt),
+        ("Plate\nGirders", girders_wt),
+        ("Cross\nBracing", cross_bracing_wt),
+        ("End\nDiaphragms", ed_wt),
     ]
 
     steel_chart_path = None
     if any(wt > 0 for _, wt in steel_items):
-        fig, ax = plt.subplots(figsize=(6.2, 3.6))
+        fig, ax = plt.subplots(figsize=(4.0, 3.2))
         categories = [item[0] for item in steel_items]
         tonnages = [item[1] for item in steel_items]
         colors = [CHART_COLOR_PRIMARY, CHART_COLOR_SECONDARY, "#E67E22"]
 
-        bars = ax.bar(categories, tonnages, color=colors, width=0.48, edgecolor="none", zorder=3)
+        bars = ax.bar(categories, tonnages, color=colors, width=0.55, edgecolor="none", zorder=3)
 
         total_steel = sum(tonnages)
         max_tonnage = max(tonnages) if tonnages else 1.0
@@ -448,7 +448,7 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
                     f"{wt:.2f} MT\n({pct:.1f}%)",
                     ha="center",
                     va="bottom",
-                    fontsize=8.0,
+                    fontsize=10.5,
                     fontweight="bold",
                     zorder=5,
                 )
@@ -459,15 +459,17 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
                     "N.A.",
                     ha="center",
                     va="bottom",
-                    fontsize=8.0,
+                    fontsize=10.5,
                     fontweight="bold",
                     color="#888888",
                     zorder=5,
                 )
 
-        ax.set_ylim(0, max_tonnage * 1.25)
-        ax.set_ylabel("Weight (MT)", fontsize=9.0, fontweight="bold")
-        ax.set_title("Structural Steel Weight Breakdown", fontsize=10.5, fontweight="bold", pad=10)
+        ax.set_ylim(0, max_tonnage * 1.35)
+        ax.set_ylabel("Weight (MT)", fontsize=11.5, fontweight="bold")
+        ax.set_title("Structural Steel Breakdown", fontsize=12.5, fontweight="bold", pad=10)
+        ax.tick_params(axis="x", labelsize=10.5)
+        ax.tick_params(axis="y", labelsize=10.0)
         ax.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID, zorder=1)
         ax.set_axisbelow(True)
 
@@ -480,14 +482,14 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
 
     concrete_rebar_chart_path = None
     if concrete_vol > 0 or rebar_wt > 0:
-        fig, ax1 = plt.subplots(figsize=(6.2, 3.6))
+        fig, ax1 = plt.subplots(figsize=(4.0, 3.2))
 
         x_indices = [0, 1]
-        labels = [r"Deck Concrete ($m^3$)", "Deck Rebar Steel (MT)"]
+        labels = [r"Deck Concrete" + "\n" + r"($m^3$)", "Deck Rebar\n(MT)"]
         values = [concrete_vol, rebar_wt]
         colors = [CHART_COLOR_SECONDARY, CHART_COLOR_PRIMARY]
 
-        bars = ax1.bar(x_indices, values, color=colors, width=0.45, edgecolor="none", zorder=3)
+        bars = ax1.bar(x_indices, values, color=colors, width=0.50, edgecolor="none", zorder=3)
 
         max_val = max(values) if values else 1.0
         for bar, val, unit in zip(bars, values, [r"$m^3$", "MT"]):
@@ -497,16 +499,17 @@ def generate_material_quantity_charts(inputs: dict, output_dirs: Union[str, List
                 f"{val:.2f} {unit}",
                 ha="center",
                 va="bottom",
-                fontsize=8.0,
+                fontsize=11.0,
                 fontweight="bold",
                 zorder=5,
             )
 
         ax1.set_xticks(x_indices)
-        ax1.set_xticklabels(labels, fontsize=9.0, fontweight="bold")
-        ax1.set_ylim(0, max_val * 1.25)
-        ax1.set_ylabel("Quantity", fontsize=9.0, fontweight="bold")
-        ax1.set_title("Deck Slab Materials", fontsize=10.5, fontweight="bold", pad=10)
+        ax1.set_xticklabels(labels, fontsize=10.5, fontweight="bold")
+        ax1.set_ylim(0, max_val * 1.30)
+        ax1.set_ylabel("Quantity", fontsize=11.5, fontweight="bold")
+        ax1.set_title("Deck Slab Materials", fontsize=12.5, fontweight="bold", pad=10)
+        ax1.tick_params(axis="y", labelsize=10.0)
         ax1.grid(axis="y", linestyle=":", alpha=CHART_GRID_ALPHA, color=CHART_COLOR_GRID, zorder=1)
         ax1.set_axisbelow(True)
 
