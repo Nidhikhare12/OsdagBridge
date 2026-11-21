@@ -49,6 +49,29 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         for lc in all_lcs
     ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \\[6pt]"
 
+    support_rows = []
+    for lc in all_lcs:
+        support_data = rxn_summary.get(lc, {}) or {}
+        for support_name, value in (support_data.get("supports_kN", {}) or {}).items():
+            support_rows.append(
+                _tex(lc) + r" & " + _tex(support_name) + r" & " +
+                _fmt(value) + " " + chr(92) * 2 + "[6pt]"
+            )
+    support_body = ("\n\\hline\n").join(support_rows) if support_rows else r"--- & --- & --- \\[6pt]"
+
+
+    horizontal_rows = []
+    for lc in all_lcs:
+        support_data = rxn_summary.get(lc, {}) or {}
+        for support_name, components in (support_data.get("supports_xyz_kN", {}) or {}).items():
+            horizontal_rows.append(
+                _tex(lc) + r" & " + _tex(support_name) + r" & " +
+                _fmt(components.get("Rx")) + r" & " +
+                _fmt(components.get("Ry")) + r" & " +
+                _fmt(components.get("Rz")) + r" \\[6pt]"
+            )
+    horizontal_body = ("\n\\hline\n").join(horizontal_rows) if horizontal_rows else r"--- & --- & --- & --- & --- \\[6pt]"
+
     _span_m         = float(bridge.input_dict.get(KEY_SPAN, 0) or 0)
     _allow_live_mm  = _span_m * 1000.0 / 800.0
     _allow_total_mm = _span_m * 1000.0 / 600.0
@@ -142,16 +165,30 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 
 \vspace{1em}
 \begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
+\caption{\textbf{Reactions at Supports}}\\
 \hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
+\textbf{Load Case} & \textbf{Support} & \textbf{Reaction (kN)} \\[6pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endfirsthead
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\textbf{Load Case} & \textbf{Support} & \textbf{Reaction (kN)} \\[6pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endhead
+""" + support_body + r"""
+\end{longtable}
+
+\vspace{1em}
+\begin{longtable}{|>{\centering\arraybackslash}p{3.0cm}|>{\centering\arraybackslash}p{2.5cm}|>{\centering\arraybackslash}p{2.5cm}|>{\centering\arraybackslash}p{2.5cm}|>{\centering\arraybackslash}p{2.5cm}|}
+\caption{\textbf{Global XYZ Reactions at Supports}}\\
 \hline
+\textbf{Load Case} & \textbf{Support} & \textbf{Rx (kN)} & \textbf{Ry (kN)} & \textbf{Rz (kN)} \\[6pt]
+\hline
+\endfirsthead
+\hline
+\textbf{Load Case} & \textbf{Support} & \textbf{Rx (kN)} & \textbf{Ry (kN)} & \textbf{Rz (kN)} \\[6pt]
+\hline
+\endhead
+""" + horizontal_body + r"""
 \end{longtable}
 
 \vspace{1em}
