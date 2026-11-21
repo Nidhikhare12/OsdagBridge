@@ -172,12 +172,17 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
     rd = _tex(report_date)
     rv = _tex(report_version)
 
+    # Constrain header string lengths: truncate excessively long strings to preserve clean layout
+    pn_hdr = (pn[:45] + "...") if len(pn) > 48 else pn
+    rv_hdr = (rv[:32] + "...") if len(rv) > 35 else rv
+    right_hdr_text = jn + r""" \quad$\vert$\quad """ + rd + (r""" \quad$\vert$\quad """ + rv_hdr if rv_hdr else "")
+
     return (
         r"""
 \documentclass[""" + DOC_FONT_SIZE + r""",""" + DOC_PAPER_SIZE + r"""]{""" + DOC_CLASS + r"""}
 
 % Packages
-\usepackage[""" + DOC_PAPER_SIZE + r""", top=1.0in, bottom=1.25in, left=1.0in, right=1.0in, headheight=20pt, headsep=14pt, footskip=28pt]{geometry}
+\usepackage[""" + DOC_PAPER_SIZE + r""", top=1.0in, bottom=1.25in, left=1.0in, right=1.0in, headheight=30pt, headsep=10pt, footskip=28pt]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -231,8 +236,8 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
 
 \fancypagestyle{main}{
   \fancyhf{}
-  \fancyhead[L]{\small\textsf{""" + pn + r"""}}
-  \fancyhead[R]{\footnotesize\textsf{""" + jn + r""" \quad$\vert$\quad """ + rd + (r""" \quad$\vert$\quad """ + rv if rv else "") + r"""}}
+  \fancyhead[L]{\parbox[b]{0.36\headwidth}{\raggedright\small\textsf{""" + pn_hdr + r"""}}}
+  \fancyhead[R]{\parbox[b]{0.62\headwidth}{\raggedleft\footnotesize\textsf{""" + right_hdr_text + r"""}}}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
   \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
   \renewcommand{\headrulewidth}{""" + HEADER_RULE_WIDTH + r"""}
@@ -251,8 +256,8 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
 }
 \fancypagestyle{plain}{
   \fancyhf{}
-  \fancyhead[L]{\small\textsf{""" + pn + r"""}}
-  \fancyhead[R]{\footnotesize\textsf{""" + jn + r""" \quad$\vert$\quad """ + rd + (r""" \quad$\vert$\quad """ + rv if rv else "") + r"""}}
+  \fancyhead[L]{\parbox[b]{0.36\headwidth}{\raggedright\small\textsf{""" + pn_hdr + r"""}}}
+  \fancyhead[R]{\parbox[b]{0.62\headwidth}{\raggedleft\footnotesize\textsf{""" + right_hdr_text + r"""}}}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
   \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
   \renewcommand{\headrulewidth}{""" + HEADER_RULE_WIDTH + r"""}
