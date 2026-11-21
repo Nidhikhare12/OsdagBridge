@@ -122,6 +122,9 @@ from osdagbridge.core.utils.common import (
     KEY_LL_IRC_CLASS_A,
     KEY_LL_IRC_70R_WHEELED,
     KEY_LL_IRC_70R_TRACKED,
+    KEY_LL_IRC_CLASS_SV,
+    KEY_LL_IRC_70R_BOGIE,
+    KEY_LL_CUSTOM_VEHICLES,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
     KEY_WL_BASIC_WIND_SPEED,
@@ -214,9 +217,16 @@ logger = logging.getLogger("test_report")
 # 2. Mock Data Generator
 # ---------------------------------------------------------------------------
 
-def create_mock_payload_data():
-    """Build a comprehensive, realistic input_dict and output_dict."""
-    n_girders = 3
+def create_mock_payload_data(large: bool = False):
+    """Build a comprehensive, realistic input_dict and output_dict.
+    
+    Parameters
+    ----------
+    large : bool
+        If True, builds a stress-test payload with 6 girders (G1-G6),
+        5 cross-bracing panels, 5 selected vehicles plus a custom vehicle.
+    """
+    n_girders = 6 if large else 3
     span_m = 24.0
 
     # ── 2A. INPUT DICT ────────────────────────────────────────────────────────
@@ -232,7 +242,7 @@ def create_mock_payload_data():
         # Geometry
         KEY_SPAN: str(span_m),
         KEY_STRUCTURE_TYPE: "Simply Supported",
-        KEY_CARRIAGEWAY_WIDTH: "7.5",
+        KEY_CARRIAGEWAY_WIDTH: "15.0" if large else "7.5",
         KEY_SKEW_ANGLE: "0",
         KEY_DESIGN_MODE: "Optimized",
         # Typical Section
@@ -240,19 +250,24 @@ def create_mock_payload_data():
         KEY_TS_GIRDER_SPACING: "2.5",
         KEY_TS_DECK_THICKNESS: "220",
         KEY_TS_DECK_OVERHANG: "1.25",
-        KEY_TS_OVERALL_WIDTH: "10.0",
-        "typical_section.overall_bridge_width": "10.0",
+        KEY_TS_OVERALL_WIDTH: "17.5" if large else "10.0",
+        "typical_section.overall_bridge_width": "17.5" if large else "10.0",
         KEY_TS_FOOTPATH_WIDTH: "1.25",
         KEY_TS_FOOTPATH_THICKNESS: "150",
         "typical_section.crash_barrier.cross_sectional_area": "0.25",
         KEY_WC_THICKNESS: "75",
         KEY_WC_MATERIAL: "Bituminous Concrete",
         KEY_WC_DENSITY: "22.0",
-        KEY_WC_LD_LANE_TABLE_COUNT: "2",
+        KEY_WC_LD_LANE_TABLE_COUNT: "4" if large else "2",
         # Live Loads
         KEY_LL_IRC_CLASS_A: True,
         KEY_LL_IRC_70R_WHEELED: True,
-        KEY_LL_IRC_70R_TRACKED: False,
+        KEY_LL_IRC_70R_TRACKED: True if large else False,
+        KEY_LL_IRC_CLASS_SV: True if large else False,
+        KEY_LL_IRC_70R_BOGIE: True if large else False,
+        KEY_LL_CUSTOM_VEHICLES: [
+            {"name": "Heavy Mining Dumper 120T", "weight": 1200}
+        ] if large else None,
         KEY_LL_FOOTPATH_PRESSURE_MODE: "IRC 6:2017 (Auto)",
         KEY_LL_FOOTPATH_PRESSURE_VALUE: "4.0",
         # Environmental / Wind / Seismic / Temperature
@@ -285,7 +300,7 @@ def create_mock_payload_data():
         "member_properties.girder_details.section_properties.mass": "333.6",
     }
 
-    # Per-girder keys for G1, G2, G3
+    # Per-girder keys for G1..Gn
     for i in range(1, n_girders + 1):
         g_lbl = f"G{i}"
         m_id = f"G{i}M1"
@@ -493,9 +508,8 @@ def create_mock_payload_data():
 
     output_dict["design_results"] = {
         "per_girder": {
-            "G1": {"checks": per_girder_checks, "per_lc": per_lc_checks},
-            "G2": {"checks": per_girder_checks, "per_lc": per_lc_checks},
-            "G3": {"checks": per_girder_checks, "per_lc": per_lc_checks},
+            f"G{i}": {"checks": per_girder_checks, "per_lc": per_lc_checks}
+            for i in range(1, n_girders + 1)
         }
     }
 
@@ -558,29 +572,22 @@ def create_mock_payload_data():
     }
 
     # Chapter 5 Cross Bracing Forces & Results
+    cb_pairs = {}
+    for i in range(1, n_girders):
+        p_name = f"G{i}-G{i+1}"
+        cb_pairs[p_name] = {
+            "diag_tension_kN": 125.4,
+            "diag_compression_kN": -142.8,
+            "chord_tension_kN": 45.2,
+            "chord_compression_kN": -52.6,
+            "diag_tension_gov_lc": "1.35 DL + 1.50 LL",
+            "diag_compression_gov_lc": "1.35 DL + 1.50 LL",
+            "chord_tension_gov_lc": "1.35 DL + 1.50 LL",
+            "chord_compression_gov_lc": "1.35 DL + 1.50 LL",
+        }
+
     output_dict["crossbracing_forces_dict"] = {
-        "pairs": {
-            "G1-G2": {
-                "diag_tension_kN": 125.4,
-                "diag_compression_kN": -142.8,
-                "chord_tension_kN": 45.2,
-                "chord_compression_kN": -52.6,
-                "diag_tension_gov_lc": "1.35 DL + 1.50 LL",
-                "diag_compression_gov_lc": "1.35 DL + 1.50 LL",
-                "chord_tension_gov_lc": "1.35 DL + 1.50 LL",
-                "chord_compression_gov_lc": "1.35 DL + 1.50 LL",
-            },
-            "G2-G3": {
-                "diag_tension_kN": 125.4,
-                "diag_compression_kN": -142.8,
-                "chord_tension_kN": 45.2,
-                "chord_compression_kN": -52.6,
-                "diag_tension_gov_lc": "1.35 DL + 1.50 LL",
-                "diag_compression_gov_lc": "1.35 DL + 1.50 LL",
-                "chord_tension_gov_lc": "1.35 DL + 1.50 LL",
-                "chord_compression_gov_lc": "1.35 DL + 1.50 LL",
-            },
-        },
+        "pairs": cb_pairs,
         "geometry": {
             "diagonal_length_m": 2.85,
             "horiz_proj_m": 2.50,
@@ -657,7 +664,7 @@ def create_mock_payload_data():
 # 3. Main Runner & Quality Gate Analysis
 # ---------------------------------------------------------------------------
 
-def run_test(output_dir="output/before", file_stem="Report_Before"):
+def run_test(output_dir="output/before", file_stem="Report_Before", large: bool = False):
     abs_out_dir = os.path.abspath(output_dir)
     os.makedirs(abs_out_dir, exist_ok=True)
 
@@ -666,6 +673,7 @@ def run_test(output_dir="output/before", file_stem="Report_Before"):
     print("=" * 70)
     print(f"Target Output Directory: {abs_out_dir}")
     print(f"File Stem:               {file_stem}")
+    print(f"Payload Mode:            {'LARGE (Stress Test: 6 Girders, Multi-vehicle)' if large else 'NORMAL (3 Girders)'}")
 
     # 1. Assets preparation: copy logos to output_dir/assets so LaTeX finds them
     assets_dest = os.path.join(abs_out_dir, "assets")
@@ -686,7 +694,7 @@ def run_test(output_dir="output/before", file_stem="Report_Before"):
         client="Ministry of Road Transport and Highways (MoRTH)",
         company="FOSSEE, IIT Bombay",
         group_name="Bridge Engineering Division",
-        subtitle="Final Design Report - Rev 0",
+        subtitle="Final Design Report - Rev 0" if not large else "Final Design Report (Large Model Stress Test)",
         job_number="OSDAG-2026-BR-01",
         additional_comments="Screening Task Evaluation Report for FOSSEE Internship.",
         report_date="2026-11-21",
@@ -708,7 +716,7 @@ def run_test(output_dir="output/before", file_stem="Report_Before"):
     )
 
     # 3. Build Mock Payload Data and Assemble LaTeX
-    input_dict, output_dict = create_mock_payload_data()
+    input_dict, output_dict = create_mock_payload_data(large=large)
     payload = build_report_payload(request, input_dict, output_dict)
 
     print("\n[1/4] Assembling LaTeX document from payload...")
@@ -750,6 +758,7 @@ def run_test(output_dir="output/before", file_stem="Report_Before"):
     compiler = shutil.which("pdflatex")
     pdf_path = os.path.join(abs_out_dir, f"{file_stem}.pdf")
     log_path = os.path.join(abs_out_dir, f"{file_stem}.log")
+    aux_path = os.path.join(abs_out_dir, f"{file_stem}.aux")
 
     if compiler:
         print(f"\n[3/4] Compiling PDF with {compiler} (2 passes)...")
@@ -800,6 +809,55 @@ def run_test(output_dir="output/before", file_stem="Report_Before"):
         print("\n[4/4] LaTeX Quality Gate Summary:")
         print("  [NOTE] No .log file available for analysis.")
 
+    # 6. Multi-page Table Analysis (from .aux file)
+    if os.path.exists(aux_path):
+        with open(aux_path, "r", encoding="utf-8", errors="ignore") as f:
+            aux_text = f.read()
+
+        table_pattern = re.compile(
+            r'\\@writefile\{lot\}\{\\contentsline\s*\{table\}\{\\numberline\s*\{([^}]+)\}\{\\ignorespaces\s*(?:\\textbf\s*)?\{?([^}]+)\}?\}\}\{(\d+)\}'
+        )
+        all_pattern = re.compile(
+            r'\\@writefile\{(?:lot|toc|lof)\}\{\\contentsline\s*\{([^}]+)\}\{.*?\}\{(\d+)\}'
+        )
+
+        lot_tables = []
+        for m in table_pattern.finditer(aux_text):
+            lot_tables.append({
+                "num": m.group(1).strip(),
+                "title": m.group(2).strip().rstrip('}'),
+                "start_page": int(m.group(3)),
+            })
+
+        all_items = []
+        for m in all_pattern.finditer(aux_text):
+            all_items.append((m.group(1).strip(), int(m.group(2))))
+
+        table_idx = 0
+        multipage_found = []
+        for i, (elem_type, page) in enumerate(all_items):
+            if elem_type == "table" and table_idx < len(lot_tables):
+                next_page = page
+                for j in range(i + 1, len(all_items)):
+                    if all_items[j][1] > page:
+                        next_page = all_items[j][1]
+                        break
+                t_info = lot_tables[table_idx]
+                t_info["end_page"] = next_page
+                # When next_page >= page + 2, the table definitely spans across pages
+                if next_page >= page + 2:
+                    t_info["spans_multiple"] = True
+                    multipage_found.append(t_info)
+                table_idx += 1
+
+        print("\n[5/5] Multi-page Table Analysis (from .aux file):")
+        if multipage_found:
+            print(f"  Found {len(multipage_found)} table(s) spanning across multiple pages:")
+            for t in multipage_found:
+                print(f"    - Table {t['num']:5s} {t['title'][:45]:45s} | Starts P.{t['start_page']} -> Ends P.{t['end_page']-1}")
+        else:
+            print("  All tables fit within single page boundaries.")
+
     print("\n" + "=" * 70)
     print("Test Harness Execution Completed!")
     print("=" * 70)
@@ -810,7 +868,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test Harness for OsdagBridge Report Generator")
     parser.add_argument("--out-dir", default="output/before", help="Output directory for generated reports")
     parser.add_argument("--stem", default="Report_Before", help="File stem for .tex and .pdf")
+    parser.add_argument("--large", action="store_true", help="Stress test with 6 girders, 5 bracing panels, 5+ vehicles, custom vehicle")
     args = parser.parse_args()
 
-    success = run_test(output_dir=args.out_dir, file_stem=args.stem)
+    success = run_test(output_dir=args.out_dir, file_stem=args.stem, large=args.large)
     sys.exit(0 if success else 1)
