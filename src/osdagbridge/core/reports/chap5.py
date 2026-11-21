@@ -145,7 +145,7 @@ from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girde
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -160,15 +160,22 @@ def ch5_design_checks(checks_data, bridge) -> str:
         n = int(bridge.input_dict.get(KEY_TS_NO_OF_GIRDERS, 1))
         girder_entries = [(f"Girder {i}", f"M1") for i in range(1, n + 1)]
     n_girders = len(girder_entries)
+    _design_results_for_member_label = bridge.output_dict.get("design_results", {}) or {}
+    _raw_controlling_member = str(_design_results_for_member_label.get("controlling_member", ""))
+    _controlling_member_label_5x = (
+        _raw_controlling_member.replace(".", "")
+        if ".M" in _raw_controlling_member
+        else (f"{_raw_controlling_member}M1" if _raw_controlling_member else "Controlling member")
+    )
 
     # Deck slab design report values (Tables 5.17(a)-(g)), keyed to
     # common.KEY_DD_*. Populated by deckdesign.design_deck_slab(); empty
     # dict when deck design has not been run. Look up with deck_rpt.get(KEY_...).
     deck_rpt = bridge.output_dict.get("deck_report_values", {}) or {}
 
-    # Generate Table 5.1 rows (per-girder section properties)
+    # Generate Table 5.1 rows for the controlling segment section properties
     t51_rows = []
-    for lbl, _ in girder_entries:
+    for lbl in [_controlling_member_label_5x]:
         t51_rows.append(
             r"\multirow{13}{*}{\makecell{" + lbl + r"""}} & \textnormal{Depth, D (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_TOTAL_DEPTH) + r""" \\[6pt]
 \cline{2-3}
@@ -199,9 +206,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
         )
     t51_content = "\n".join(t51_rows)
 
-    # Generate Table 5.2 rows
+    # Generate Table 5.2 rows for the controlling segment section classification
     t52_rows = []
-    for lbl, _ in girder_entries:
+    for lbl in [_controlling_member_label_5x]:
         t52_rows.append(
             r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Top Flange & """ + _render_value(bridge.output_dict, KEY_SD_FLANGE_SLENDERNESS) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_FLANGE_CLASS_LIMIT) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_CLASS_FLANGE) + r""" \\[6pt]
 \cline{2-5}
@@ -212,7 +219,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
         )
     t52_content = "\n".join(t52_rows)
 
-    # Generate Table 5.3 rows
+    # Generate Table 5.3 rows for the controlling segment flexural check
     # Flexure UR is stored as a percent (cat_urs × 100); show as a ratio (÷100,
     # 2 dp) and PASS when ≤ 1.0.
     try:
@@ -223,7 +230,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
         _flex_ur_str = ""
         _flex_status = "---"
     t53_rows = []
-    for lbl, _ in girder_entries:
+    for lbl in [_controlling_member_label_5x]:
         t53_rows.append(
             r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Applied Moment, $M_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_MU_APPLIED, " kN-m") + r""" & --- \\[6pt]
 \cline{2-5}
@@ -234,7 +241,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
         )
     t53_content = "\n".join(t53_rows)
 
-    # Generate Table 5.4 rows
+    # Generate Table 5.4 rows for the controlling segment shear check
     # Shear UR is stored as a percent (cat_urs × 100); show as a ratio (÷100,
     # 2 dp) and PASS when ≤ 1.0.
     try:
@@ -245,7 +252,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
         _shear_ur_str = ""
         _shear_status = "---"
     t54_rows = []
-    for lbl, _ in girder_entries:
+    for lbl in [_controlling_member_label_5x]:
         t54_rows.append(
             r"\multirow{8}{*}{\makecell{" + lbl + r"""}} & Applied Shear, $V_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_VU, " kN") + r""" & --- \\[6pt]
 \cline{2-5}
@@ -293,7 +300,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
         _mn_val    = f"{_mn_r:.3f}"
         _mn_status = _interaction_status(_mn_r)
     t55_rows = []
-    for lbl, _ in girder_entries:
+    for lbl in [_controlling_member_label_5x]:
         t55_rows.append(
             r"\multirow{4}{*}{\makecell{" + lbl + r"""}} & High Shear Condition? & $V_u > 0.6\,V_d$ & """ + _render_value(bridge.output_dict, KEY_SD_HIGH_SHEAR) + r""" & --- \\[6pt]
 \cline{2-5}
@@ -316,7 +323,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
         _ltb_ur_str = ""
         _ltb_status = "---"
     t56_rows = []
-    for lbl, _ in girder_entries:
+    for lbl in [_controlling_member_label_5x]:
         t56_rows.append(
             r"\multirow{5}{*}{\makecell{" + lbl + r"""}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 & """ + _render_value(bridge.output_dict, KEY_SD_LTB_MCR, " kN-m") + r""" & --- \\[6pt]
 \cline{2-5}
@@ -333,7 +340,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
 
     # Generate Table 5.7 rows
     t57_rows = []
-    for lbl, _ in girder_entries:
+    for lbl in [_controlling_member_label_5x]:
         t57_rows.append(
             r"\multirow{6}{*}{\makecell{" + lbl + r"""}} & \textnormal{Shear Buckling Design Method} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_METHOD) + r""" \\[6pt]
 \cline{2-3}
@@ -362,7 +369,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
     _fqd_status = _ge_status(bridge.output_dict.get(KEY_SD_IS_FQD),
                              bridge.output_dict.get(KEY_SD_IS_FQ))
     t58_rows = []
-    for lbl, _ in girder_entries:
+    for lbl in [_controlling_member_label_5x]:
         t58_rows.append(
             r"\multirow{2}{*}{\makecell{" + lbl + r"""}} & Min. Moment of Inertia, $I_s$ & """ + _render_value(bridge.output_dict, KEY_SD_IS_IYS_MIN, " mm$^4$") + r""" & """ + _render_value(bridge.output_dict, KEY_SD_IS_IYS_PROV, " mm$^4$") + r""" & """ + _iys_status + r""" \\[6pt]
 \cline{2-5}
@@ -385,6 +392,10 @@ def ch5_design_checks(checks_data, bridge) -> str:
 \hline
 \textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t58_content + r"""
 \end{longtable}
 \noindent\textit{Note: IS 800 Cl. 8.7.1.2}
@@ -411,7 +422,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
     _ps_req, _ps_prov, _ps_st = _bs_check(KEY_SD_BS_FPSD)
     _cb_req, _cb_prov, _cb_st = _bs_check(KEY_SD_BS_FCD)
     t59_rows = []
-    for lbl, _ in girder_entries:
+    for lbl in [_controlling_member_label_5x]:
         t59_rows.append(
             r"\multirow{4}{*}{\makecell{" + lbl + r"""}} & Web Buckling Resistance & """ + _wb_req + r""" & """ + _wb_prov + r""" & """ + _wb_st + r""" \\[6pt]
 \cline{2-5}
@@ -504,21 +515,23 @@ def ch5_design_checks(checks_data, bridge) -> str:
     _steel_status  = _stress_status(_steel_sigma, _steel_allow)
 
     t511_rows = []
-    for lbl, _ in girder_entries:
-        t511_rows.append(
-            r"\makecell{" + lbl + r"""} & Structural Steel ($0.9\,f_y$) & """
-            + _steel_alw_str + r""" & """
-            + _steel_sig_str + r""" & """
-            + _steel_status + r""" \\[6pt]
+    _controlling_member_511 = str(_dr_511.get("controlling_member", "Controlling member"))
+    _controlling_label_511 = (
+        _controlling_member_511.replace(".", "")
+        if ".M" in _controlling_member_511 else f"{_controlling_member_511}M1"
+    )
+    t511_rows.append(
+        r"\makecell{" + _tex(_controlling_label_511) + r"""} & Structural Steel ($0.9\,f_y$) & """
+        + _steel_alw_str + r""" & """
+        + _steel_sig_str + r""" & """
+        + _steel_status + r""" \\[6pt]
 \hline"""
-        )
+    )
     t511_content = "\n".join(t511_rows)
 
     # Generate Table 5.12 rows — per-girder fatigue assessment (IRC 22 Cl. 605),
-    # mirroring the Generate Results dialog: one row per girder showing the
-    # GOVERNING fatigue check (worst of normal/shear by DCR). Source is the nested
-    # design_results["steeldesign.uls_per_girder"]["fatigue"][G{i}] dict, keyed by
-    # the canonical girder index, with {demand, capacity, ur, status}.
+    # mirroring the Generate Results dialog: one row per checked member/segment
+    # showing the GOVERNING fatigue check (worst of normal/shear by DCR).
     _fat_cat = ((bridge.output_dict.get("design_results", {}) or {})
                 .get(KEY_SD_ULS_PER_GIRDER, {}) or {}).get("fatigue", {}) or {}
 
@@ -528,16 +541,20 @@ def ch5_design_checks(checks_data, bridge) -> str:
         return r"\textcolor{red}{" + str(s) + "}" if "FAIL" in str(s).upper() else str(s)
 
     t512_rows = []
-    for _gi, (lbl, _) in enumerate(girder_entries, start=1):
-        _g = _fat_cat.get(f"G{_gi}", {}) or {}
+    for _member_key, _g in _fat_cat.items():
+        if str(_member_key).startswith("EB"):
+            continue
+        _member_label = str(_member_key).replace(".", "") if ".M" in str(_member_key) else f"{_member_key}M1"
         t512_rows.append(
-            r"\makecell{" + lbl + r"""} & """
+            r"\makecell{" + _tex(_member_label) + r"""} & """
             + _mpa(_g.get("demand")) + r""" & """
             + _mpa(_g.get("capacity")) + r""" & """
             + _dfmt(_g.get("ur"), nd=2) + r""" & """
             + _fat_status(_g.get("status")) + r""" \\[6pt]
 \hline"""
         )
+    if not t512_rows:
+        t512_rows.append(r"Not checked & --- & --- & --- & --- \\[6pt]\hline")
     t512_content = "\n".join(t512_rows)
 
     # Generate Table 5.13 rows — per-girder design summary, mirroring the Generate
@@ -553,11 +570,13 @@ def ch5_design_checks(checks_data, bridge) -> str:
         return (s + " " + unit) if unit and str(unit) not in ("-", "–") else s
 
     g_summary_rows = []
-    for _gi, (lbl, _) in enumerate(girder_entries, start=1):
-        g_data = _pg_summary.get(f"G{_gi}", {}) or {}
+    for _member_key, g_data in _pg_summary.items():
+        if str(_member_key).startswith("EB"):
+            continue
+        _member_label = str(_member_key).replace(".", "") if ".M" in str(_member_key) else f"{_member_key}M1"
         checks = g_data.get("checks") or []
         if not checks:
-            g_summary_rows.append(lbl + r""" &  &  &  &  &  &  \\[6pt]
+            g_summary_rows.append(_tex(_member_label) + r""" &  &  &  &  &  &  \\[6pt]
 \hline""")
             continue
 
@@ -577,7 +596,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
             ctrl_lc = (g_data.get("demand") or {}).get("governing_combination") or ""
 
         g_summary_rows.append(
-            lbl + r""" & """ + _tex(str(ctrl_lc)) + r""" & """ + _tex(str(ctrl.get("name", "")))
+            _tex(_member_label) + r""" & """ + _tex(str(ctrl_lc)) + r""" & """ + _tex(str(ctrl.get("name", "")))
             + r""" & """ + _with_unit(ctrl.get("demand"),   ctrl.get("demand_unit"))
             + r""" & """ + _with_unit(ctrl.get("capacity"), ctrl.get("capacity_unit"))
             + r""" & """ + _dfmt(ctrl.get("dcr"), nd=3)
@@ -731,7 +750,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                     + r" \\[6pt]\cline{2-6}"
                 )
             cb_forces_rows.append(r"\hline")
-    cb_forces_content = "\n".join(cb_forces_rows)
+    cb_forces_content = r"""\multicolumn{6}{|c|}{\textbf{NOT CHECKED - Cross Bracing geometry and member configuration not verified}} \\[6pt]\n\hline"""
 
     # Generate Table 5.20(b) rows
     def get_status_str(slnd_str, limit):
@@ -774,7 +793,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                 
             row_tex += "\n\\hline"
             cb_slenderness_rows.append(row_tex)
-    cb_slenderness_content = "\n".join(cb_slenderness_rows)
+    cb_slenderness_content = r"""\multicolumn{6}{|c|}{\textbf{NOT CHECKED - Cross Bracing member slenderness not verified}} \\[6pt]\n\hline"""
 
     # Generate Table 5.20(c) rows
     cb_capacity_rows = []
@@ -798,7 +817,14 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         cb_capacity_rows.append(first)
         cb_capacity_rows.extend(rest)
         cb_capacity_rows.append(r"\hline")
-    cb_capacity_content = "\n".join(cb_capacity_rows)
+    cb_capacity_content = r"""\multicolumn{8}{|c|}{\textbf{NOT CHECKED - Cross Bracing member capacity not verified}} \\[6pt]\n\hline"""
+
+    ed_forces_content = r"""\multicolumn{6}{|c|}{\textbf{NOT CHECKED - End Diaphragm geometry and member configuration not verified}} \\[6pt]
+\hline"""
+    ed_slenderness_content = r"""\multicolumn{6}{|c|}{\textbf{NOT CHECKED - End Diaphragm member slenderness not verified}} \\[6pt]
+\hline"""
+    ed_capacity_content = r"""\multicolumn{8}{|c|}{\textbf{NOT CHECKED - End Diaphragm member capacity not verified}} \\[6pt]"""
+
 
 
 
@@ -1009,14 +1035,9 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         if str(_k).startswith(KEY_MP_ED_TYPE) and _v:
             _ed_type = str(_v)
             break
-    _ed_is_cb = "brac" in _ed_type.strip().lower()
-    if _ed_is_cb:
-        _ed_moment_row = _row522(r"End Diaphragm --- Moment", _cb_row("compression"))
-        _ed_shear_row  = _row522(r"End Diaphragm --- Shear",  _cb_row("tension"))
-    else:
-        _ed_msg = r"Rolled / Welded section --- design to be added"
-        _ed_moment_row = _row522_msg(r"End Diaphragm --- Moment", _ed_msg)
-        _ed_shear_row  = _row522_msg(r"End Diaphragm --- Shear",  _ed_msg)
+    _ed_msg = r"NOT CHECKED - End Diaphragm design forces unavailable"
+    _ed_moment_row = _row522_msg(r"End Diaphragm --- Moment", _ed_msg)
+    _ed_shear_row  = _row522_msg(r"End Diaphragm --- Shear", _ed_msg)
 
     # Crack width (slab): governing crack width vs limit from the deck designer
     # (frequent SLS combination). _dk_gov_wk is the max of bottom/top/overhang wk.
@@ -1057,9 +1078,9 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         _row522(r"Deck --- Cantilever Overhang",  _deck_row(KEY_DD_M_ULS_OH, KEY_DD_MU_OH, "kN-m/m", is_oh=True)),
         _row522(r"Deck --- Punching Shear",       _deck_row(KEY_DD_PUNCH_VED, KEY_DD_VRD_C_MPA, "MPa")),
         _row522(r"Deck --- One-Way Shear",        _deck_row(KEY_DD_SHEAR_VED, KEY_DD_SHEAR_VRDC, "kN/m")),
-        _row522(r"Cross Bracing --- Compression", _cb_row("compression")),
-        _row522(r"Cross Bracing --- Tension",     _cb_row("tension")),
-        _row522(r"Cross Bracing --- Slenderness", _cb_slender_row()),
+        _row522_msg(r"Cross Bracing --- Compression", r"NOT CHECKED - member forces and configuration not verified"),
+        _row522_msg(r"Cross Bracing --- Tension", r"NOT CHECKED - member forces and configuration not verified"),
+        _row522_msg(r"Cross Bracing --- Slenderness", r"NOT CHECKED - member geometry not verified"),
         _ed_moment_row,
         _ed_shear_row,
     ]
@@ -1079,6 +1100,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{Girder} & \textbf{Property} & \textbf{Value} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Girder} & \textbf{Property} & \textbf{Value} \\[6pt]
+\hline
+\endhead
 """ + t51_content + r"""
 \end{longtable}
 
@@ -1088,6 +1113,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[6pt]
+\hline
+\endhead
 """ + t52_content + r"""
 \end{longtable}
 \noindent\textit{Note: IS 800:2007 Table 2}
@@ -1098,6 +1127,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t53_content + r"""
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 603.3.1, IS 800 Cl. 8.2.1}
@@ -1108,6 +1141,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t54_content + r"""
 \end{longtable}
 \noindent\textit{Note: IS 800 Cl. 8.4, IRC 22 Cl. 603.3.3.2}
@@ -1118,6 +1155,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t55_content + r"""
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 603.3.3.3}
@@ -1128,6 +1169,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t56_content + r"""
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 603.3.3.1, IS 800 Cl. 8.2.2}
@@ -1146,6 +1191,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t59_content + r"""
 \end{longtable}
 \noindent\textit{Note: IS 800 Cl. 8.4.2.2}
@@ -1156,6 +1205,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t510_content + r"""
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 604.3.2}
@@ -1166,6 +1219,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t511_content + r"""
 \end{longtable}
 
@@ -1175,6 +1232,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t512_content + r"""
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 605 --- governing of normal and shear fatigue (worst by DCR). Capacity reduction factor $\mu_r$ applied where plate thickness > 25 mm.}
@@ -1186,6 +1247,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{Girder} & \textbf{Controlling LC / Combination} & \textbf{Controlling Check} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Girder} & \textbf{Controlling LC / Combination} & \textbf{Controlling Check} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + g_summary_table_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. A value $\leq 1.0$ indicates a passing check. The controlling check is the criterion with the highest UR for each girder, with the real load case/combination that drives it.}
@@ -1197,6 +1262,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Reference} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Reference} \\[6pt]
+\hline
+\endhead
 """ + t514_content + r"""
 \end{longtable}
 
@@ -1210,6 +1279,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{Criterion} & \textbf{Governing Spacing} & \textbf{Actual Spacing Provided} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Criterion} & \textbf{Governing Spacing} & \textbf{Actual Spacing Provided} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t515_content + r"""
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 606.4, 606.9. Governing spacing $= \min(S_{L1}, S_{L2}, S_R)$.}
@@ -1220,6 +1293,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{Check} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Check} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + t516_content + r"""
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 606.6, 606.10.}
@@ -1263,6 +1340,10 @@ The reinforced concrete deck slab is designed per IRC~112:2011 (flexure, shear, 
 \hline
 \textbf{Location} & \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Location} & \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 \multirow{5}{*}{\makecell{At Midspan\\(Sagging)}} & Transverse BM (DL), $M_{T,DL}$ & $w_{DL}\,l_{eff}^2/10$ & """ + _dkf(KEY_DD_M_DL, nd=2) + r""" kN-m/m & --- \\[6pt]
 \cline{2-5}
  & Transverse BM (LL), $M_{T,LL}$ & Effective width (IRC 112 B3.1) & """ + _dkf(KEY_DD_M_LL, nd=2) + r""" kN-m/m & --- \\[6pt]
@@ -1288,6 +1369,10 @@ The reinforced concrete deck slab is designed per IRC~112:2011 (flexure, shear, 
 \hline
 \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 Overhang Length, $l_{oh}$ & --- & """ + _render_value(bridge.input_dict, KEY_TS_DECK_OVERHANG, " m") + r""" & --- \\[6pt]
 \hline
 Crash Barrier Load Moment & IRC 6 Cl. 206.4 & """ + _dkoh(KEY_DD_M_BARRIER, nd=2, unit=" kN-m/m") + r""" & --- \\[6pt]
@@ -1309,6 +1394,10 @@ Moment Capacity (top steel), $M_{Rd,oh}$ & IRC 112 Cl. 12.2 & """ + _dkoh(KEY_DD
 \hline
 \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 Design Wheel Load (ULS), $V_{Ed}$ & $\gamma_Q\,(1+IF)\,P_w$ & """ + _dkf(KEY_DD_PUNCH_VED_KN, nd=1) + r""" kN & --- \\[6pt]
 \hline
 Tyre Contact Area & $a \times b$ (IRC 6 Annex~A) & """ + _dkf(KEY_DD_TYRE_WIDTH, nd=0, scale=1000.0) + r""" $\times$ """ + _dkf(KEY_DD_TYRE_LENGTH, nd=0) + r""" mm & --- \\[6pt]
@@ -1333,6 +1422,10 @@ Punching Shear Check & $v_{Ed} \leq v_{Rd,c}$ & """ + (f"{_dkv(KEY_DD_PUNCH_VED)
 \hline
 \textbf{Parameter} & \textbf{Value / Reference} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Parameter} & \textbf{Value / Reference} \\[6pt]
+\hline
+\endhead
 \textnormal{Min. Reinforcement for Crack Control, $A_{s,min}$} & """ + _dkf(KEY_DD_AS_MIN, nd=0) + r""" mm²/m [IRC 112 Cl. 16.5.1] \\[6pt]
 \hline
 \textnormal{Provided Reinforcement (bottom)} & $\phi$""" + _dkf(KEY_DD_DIA_BOT, nd=0) + r""" @ """ + _dkf(KEY_DD_SPC_BOT, nd=0) + r""" mm c/c (""" + _dkf(KEY_DD_AS_BOT, nd=0) + r""" mm²/m) \\[6pt]
@@ -1351,6 +1444,10 @@ Punching Shear Check & $v_{Ed} \leq v_{Rd,c}$ & """ + (f"{_dkv(KEY_DD_PUNCH_VED)
 \hline
 \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 Design Shear per unit width, $V_{Ed}$ & $\gamma_{DL} V_{DL} + \gamma_{LL}(1{+}IF)V_{LL}$ & """ + _dkf(KEY_DD_SHEAR_VED, nd=2) + r""" kN/m & --- \\[6pt]
 \hline
 Effective depth, $d$ & $t_s - c_{nom} - \phi/2$ & """ + _dkf(KEY_DD_D_BOT, nd=1) + r""" mm & --- \\[6pt]
@@ -1372,6 +1469,10 @@ One-Way Shear Check & $V_{Ed} \leq V_{Rd,c}$ & """ + (f"{_dkv(KEY_DD_SHEAR_VED) 
 \hline
 \textbf{Parameter} & \textbf{Required / Limit} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Parameter} & \textbf{Required / Limit} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 \multicolumn{4}{|l|}{\textbf{Main Reinforcement --- Bottom (Transverse)}} \\[6pt]
 \hline
 Required Area, $A_{st,req}$ (mm²/m) & """ + _dkf(KEY_DD_AS_REQ_BOT, nd=0) + r""" mm²/m & """ + _dkf(KEY_DD_AS_BOT, nd=0) + r""" mm²/m & """ + _dks(_dkv(KEY_DD_AS_BOT) >= _dkv(KEY_DD_AS_REQ_BOT)) + r""" \\[6pt]
@@ -1402,7 +1503,7 @@ Clear Cover (IRC 112 Cl. 15.2) & $\geq$ """ + _dkf(KEY_DD_MIN_COVER, nd=0) + r""
 \label{sec:cross-bracing}
 % ===========================
 
-Cross bracing between adjacent plate girders provides lateral stability during construction, resists transverse loads (wind, seismic, braking) in service, and prevents lateral torsional buckling of the girders. Members are designed per IS~800:2007 Cl.~7 (compression) and Cl.~6 (tension). Forces are derived from the grillage model under the governing load combination  (DL + LL + WL).
+Cross bracing is intended to provide lateral stability between adjacent plate girders. However, the member configuration, design forces, geometry, slenderness, and capacity checks have not been verified in this report. No Cross Bracing utilization ratios are therefore reported.
 
 \vspace{1em}
 
@@ -1417,6 +1518,10 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
+\hline
+\endhead
 """ + cb_forces_content + r"""
 \end{longtable}
 \noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
@@ -1427,6 +1532,10 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
+\hline
+\endhead
 """ + cb_slenderness_content + r"""
 \end{longtable}
 \noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
@@ -1437,16 +1546,20 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
+\hline
+\endhead
 """ + cb_capacity_content + r"""
 \end{longtable}
-\noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
+\noindent\textit{Note: Cross-bracing forces, member geometry, slenderness, and capacity are NOT CHECKED in this report.}
 
 % ===========================
 \section{End Diaphragm Design}
 \label{sec:end-diaphragm}
 % ===========================
 
-End diaphragms at the supports transfer transverse loads to the bearings, restrain the bottom flanges against lateral displacement, and maintain the girder cross-section geometry during construction and in service. They are designed per IS~800:2007 and IRC~24:2010 Cl.~507.
+End diaphragms are intended to transfer transverse loads to the bearings, restrain the bottom flanges against lateral displacement, and maintain the girder cross-section geometry. However, the member configuration, design forces, geometry, slenderness, and capacity checks have not been verified in this report.
 
 \vspace{1em}
 
@@ -1461,7 +1574,11 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
 \hline
-""" + cb_forces_content + r"""
+\endfirsthead
+\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
+\hline
+\endhead
+""" + ed_forces_content + r"""
 \end{longtable}
 \noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
 
@@ -1471,7 +1588,11 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
 \hline
-""" + cb_slenderness_content + r"""
+\endfirsthead
+\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
+\hline
+\endhead
+""" + ed_slenderness_content + r"""
 \end{longtable}
 \noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
 
@@ -1482,9 +1603,14 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
-""" + cb_capacity_content + r"""
+\endfirsthead
+\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
+\hline
+\endhead
+""" + ed_capacity_content + r"""
+\hline
 \end{longtable}
-\noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
+\noindent\textit{Note: End Diaphragm member capacity checks are not verified. No cross-bracing results are substituted.}
 
 % ===========================
 \section{Overall Design Check Summary}
@@ -1497,9 +1623,54 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \hline
 \textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
 \hline
+\endfirsthead
+\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\hline
+\endhead
 """ + t522_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
 
-"""
+""" + _ur_charts_latex(fig_paths)
 
+
+def _ur_charts_latex(fig_paths):
+    """Build LaTeX figure blocks for available Chapter 5 UR charts."""
+    import os
+
+    charts = [
+        ("ur_steel_girders", "Steel Plate Girder Utilization Ratios"),
+        ("ur_deck_slab", "Concrete Deck Slab Utilization Ratios"),
+        ("ur_cross_bracing", "Cross Bracing Utilization Ratios"),
+        ("ur_end_diaphragms", "End Diaphragm Utilization Ratios"),
+    ]
+
+    parts = [
+        r"\section{UR Summary Charts}",
+        r"\label{sec:ur-summary-charts}",
+        "",
+    ]
+
+    for key, caption in charts:
+        path = (fig_paths or {}).get(key)
+
+        if not path or not os.path.isfile(path):
+            parts.append(
+                r"\noindent\textit{" + caption +
+                r": Chart image not available.}"
+            )
+            parts.append("")
+            continue
+
+        tex_path = path.replace("\\", "/")
+
+        parts.extend([
+            r"\begin{figure}[htbp]",
+            r"\centering",
+            r"\includegraphics[width=0.95\textwidth]{" + tex_path + "}",
+            r"\caption{" + caption + "}",
+            r"\end{figure}",
+            "",
+        ])
+
+    return "\n".join(parts) + "\n"

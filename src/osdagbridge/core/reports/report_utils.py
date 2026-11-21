@@ -2,6 +2,7 @@ from osdagbridge.core.utils.common import (
     KEY_MP_GD_MEMBER_ID,
     KEY_MP_GD_SELECT_GIRDER,
     KEY_MP_GIRDER_DEPTH,
+    KEY_MP_GD_SEGMENT_TABLE,
     KEY_TS_NO_OF_GIRDERS
 )
 
@@ -113,3 +114,19 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
             r'}}')
 
 
+
+
+def get_girder_segment_entries(input_dict):
+    """Return ordered (girder label, member ID) rows from each girder's segment table."""
+    n = int(input_dict.get(KEY_TS_NO_OF_GIRDERS, 0))
+    entries = []
+    for i in range(1, n + 1):
+        girder = f"G{i}"
+        segments = input_dict.get(f"{KEY_MP_GD_SEGMENT_TABLE}.{girder}")
+        if isinstance(segments, list) and segments:
+            for segment in segments:
+                member_id = str(segment.get("id") or f"{girder}M1")
+                entries.append((girder, member_id))
+        else:
+            entries.append((girder, f"{girder}M1"))
+    return entries

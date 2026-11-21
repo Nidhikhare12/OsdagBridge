@@ -2,7 +2,7 @@
 # EXECUTIVE SUMMARY
 # ═══════════════════════════════════════════════════════════════════════════════
 
-from osdagbridge.core.reports.report_utils import _fig_or_placeholder, _render_value, _tex, get_girder_entries
+from osdagbridge.core.reports.report_utils import _fig_or_placeholder, _render_value, _tex, get_girder_segment_entries
 from osdagbridge.core.utils.common import (
     KEY_CARRIAGEWAY_WIDTH,
     KEY_SD_SECTION_DESIGNATION,
@@ -10,7 +10,12 @@ from osdagbridge.core.utils.common import (
     KEY_STRUCTURE_TYPE,
     KEY_TS_DECK_THICKNESS,
     KEY_TS_GIRDER_SPACING,
-    KEY_TS_NO_OF_GIRDERS
+    KEY_TS_NO_OF_GIRDERS,
+    KEY_MP_GIRDER_DEPTH,
+    KEY_MP_GIRDER_TOP_FLANGE_WIDTH,
+    KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
+    KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH,
+    KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS,
 )
 
 
@@ -61,9 +66,8 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     geom_fig = _fig_or_placeholder(fig_paths.get('final_geometry'),
                                     'Figure 3 -- 3D View of Bridge Superstructure')
 
-    # All girders share the same section, governing check, and UR.
-    # The section designation is produced by the designer pipeline, so it lives
-    # in output_dict (not input_dict).
+    # The flat section designation is for the controlling member only. Segment
+    # section dimensions are read from the per-member input keys below.
     sec = _render_value(output_dict, KEY_SD_SECTION_DESIGNATION)
 
     # ── Pull the stored result dicts once, then work off these locals ─────────
@@ -102,12 +106,10 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
                 if girder_max_ur is None or dcr > girder_max_ur:
                     girder_max_ur = dcr
 
-    if not per_girder:
-        overall_design_status = ""
-    elif failing:
+    if failing:
         overall_design_status = "Fail (" + ", ".join(failing) + ")"
     else:
-        overall_design_status = "Pass"
+        overall_design_status = "Incomplete — cross-bracing and end-diaphragm checks are not verified"
 
     # Overall Utilization Ratio — the maximum UR across all bridge components,
     # tagged with the governing component (e.g. "1.05 (Deck slab)").
@@ -117,10 +119,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     deck_max = _max_float([v for k, v in deck_results.items() if str(k).startswith("ur_")])
     if deck_max is not None:
         component_urs.append((deck_max, "Deck slab"))
-    for results, label in ((cb_results, "Cross bracing"), (ed_results, "End diaphragm")):
-        m = _max_member_efficiency(results)
-        if m is not None:
-            component_urs.append((m, label))
+    # Cross bracing and end diaphragm are NOT CHECKED; exclude their URs.
     if component_urs:
         max_ur, max_label = max(component_urs, key=lambda t: t[0])
         overall_utilization_ratio = f"{max_ur:.2f} ({max_label})"
@@ -133,7 +132,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     # --- Dynamic Table 1: fetch backend-populated labels via exact suffix pattern ---
     # defaults.py populates: KEY_MP_GD_SELECT_GIRDER + '.G{i}' = 'G{i}'
     #                        KEY_MP_GD_MEMBER_ID     + '.G{i}.M1' = 'G{i}M1'
-    labels = get_girder_entries(input_dict)
+    labels = get_girder_segment_entries(input_dict)
     if not labels:
         labels = [("", "")]
     n_cols = len(labels)
@@ -152,12 +151,42 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     mid_cells = ' & '.join([_tex(mid) for _, mid in labels])
     member_id_row = 'Member ID & ' + mid_cells + r' \\' + '\n'
 
-    # Section / Governing Check / UR rows
-    sec_cells = ' & '.join([sec] * n_cols)
+    # Section designation is segment-specific. The governing check/UR are
+    # shown only under the controlling segment, not copied across every member.
+    import re
+    def _segment_section(girder_label, member_id):
+        gm = re.fullmatch(r"G(\d+)", str(girder_label))
+        mm = re.fullmatch(r"G\d+M(\d+)", str(member_id))
+        if not gm or not mm:
+            return sec
+        gi, mi = int(gm.group(1)), int(mm.group(1))
+        bases = (
+            KEY_MP_GIRDER_DEPTH,
+            KEY_MP_GIRDER_TOP_FLANGE_WIDTH,
+            KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
+            KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH,
+            KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS,
+        )
+        values = []
+        for base in bases:
+            raw = input_dict.get(f"{base}.G{gi}.M{mi}", input_dict.get(base))
+            try:
+                values.append(f"{float(raw) * 1000.0:.0f}")
+            except (TypeError, ValueError):
+                return sec
+        return _tex(" × ".join(values))
+
+    sec_cells = ' & '.join([_segment_section(lbl, mid) for lbl, mid in labels])
     sections = f"Section Designation & {sec_cells} \\\\"
-    gov_cells = ' & '.join([gov] * n_cols)
+    controlling_member = str(design_results.get("controlling_member", ""))
+    controlling_label = (
+        controlling_member.replace(".", "")
+        if ".M" in controlling_member
+        else (f"{controlling_member}M1" if controlling_member else "")
+    )
+    gov_cells = ' & '.join([gov if mid == controlling_label else "---" for _, mid in labels])
     gov_checks = f"Governing Check & {gov_cells} \\\\"
-    ur_cells = ' & '.join([ur] * n_cols)
+    ur_cells = ' & '.join([ur if mid == controlling_label else "---" for _, mid in labels])
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
     table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
@@ -230,10 +259,10 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
 \label{sec:key-outcomes}
 
-\noindent Girder design pass \\
-Cross bracing design pass \\
-End Diaphragm design pass \\
-Deck design pass
+\noindent Girder design: Review detailed checks \\
+Cross bracing design: NOT CHECKED \\
+End Diaphragm design: NOT CHECKED \\
+Deck design: Review detailed checks
 
 \section*{Design Assumptions and Limitations}
 \addcontentsline{toc}{section}{Design Assumptions and Limitations}

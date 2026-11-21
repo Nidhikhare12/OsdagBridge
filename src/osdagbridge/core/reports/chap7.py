@@ -1,5 +1,5 @@
-def ch7_quantities(input_dict):
-    return r"""
+def ch7_quantities(input_dict, fig_paths=None):
+    table = r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
 
@@ -30,4 +30,25 @@ def ch7_quantities(input_dict):
 \end{longtable}
 """
 
+    chart_parts = []
 
+    if fig_paths:
+        chart_items = [
+            ("quantity_steel_tonnage", "Steel Tonnage Distribution"),
+            ("quantity_concrete_reinforcement", "Concrete and Reinforcement Quantities"),
+        ]
+
+        for key, caption in chart_items:
+            image_path = fig_paths.get(key)
+            if image_path:
+                image_path = str(image_path).replace("\\", "/")
+                chart_parts.append(
+                    r"\begin{figure}[htbp]" + "\n"
+                    r"\centering" + "\n"
+                    r"\includegraphics[width=0.88\textwidth]{\detokenize{"
+                    + image_path + "}}" + "\n"
+                    r"\caption{" + caption + "}" + "\n"
+                    r"\end{figure}" + "\n"
+                )
+
+    return table + "\n" + "\n".join(chart_parts) + "\n"
