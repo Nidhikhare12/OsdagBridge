@@ -167,6 +167,47 @@ class BridgeInputValidator:
 
         return None
 
+    # Allowed mismatch between the entered G and E / (2(1 + nu)).
+    # The dialog stores G to one decimal, so rounding alone stays far below this.
+    SHEAR_MODULUS_TOLERANCE = 0.02
+
+    def validate_material_consistency(self, inputs: dict) -> list:
+        """
+        Cross-field checks for a custom steel material (Girder / Cross Bracing /
+        End Diaphragm). validate_material_inputs() checks each field against its
+        own range; this checks the fields against each other.
+
+        - Ultimate strength fu must be greater than yield strength fy
+          (true for every IS 2062 grade).
+        - Shear modulus G must match E / (2(1 + nu)) for an isotropic steel.
+
+        Values are read from the girder material keys, as in the dialog.
+        Missing or non-numeric values are skipped (the per-field check
+        reports those). Returns a list of error messages; empty if consistent.
+        """
+        errors = []
+
+        fy = self._to_float(inputs.get(KEY_MATERIAL_GIRDER_FY))
+        fu = self._to_float(inputs.get(KEY_MATERIAL_GIRDER_FU))
+        if fy is not None and fu is not None and fu <= fy:
+            errors.append(
+                f"Ultimate Tensile Strength, Fu ({fu:g} MPa) must be greater than "
+                f"Yield Strength, Fy ({fy:g} MPa)."
+            )
+
+        e = self._to_float(inputs.get(KEY_MATERIAL_GIRDER_E))
+        g = self._to_float(inputs.get(KEY_MATERIAL_GIRDER_G))
+        nu = self._to_float(inputs.get(KEY_MATERIAL_GIRDER_POISSON))
+        if e is not None and g is not None and nu is not None and e > 0:
+            g_expected = e / (2.0 * (1.0 + nu))
+            if abs(g - g_expected) > self.SHEAR_MODULUS_TOLERANCE * g_expected:
+                errors.append(
+                    f"Modulus of Rigidity, G ({g:g} GPa) does not match E and Poisson's Ratio: "
+                    f"G = E / (2(1 + ν)) = {g_expected:.1f} GPa for E = {e:g} GPa, ν = {nu:g}."
+                )
+
+        return errors
+
     # ==========================================================
     # ADDITIONAL INPUT VALIDATION (DDCL 2.1.3)
     # ==========================================================
