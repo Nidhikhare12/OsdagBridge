@@ -79,12 +79,12 @@ Every remaining overfull `\hbox` across both Normal and `--large` modes has been
 | 592, 598 (Norm) / 607, 613 (Lg) | **0.70 pt** | Table 2.12 (Girder restraints) | Sub-point text boundary rounding in `L{2.6cm}` column; clean wrap without clipping. |
 | 1788, 1794 (Norm) / 2131, 2137 (Lg) | **4.91 pt** | Table 5.14(c) (Bearing stiffener) | Mathematical symbol `$F_q$` formatting in compact check column; fits neatly within cell boundaries. |
 | 1788, 1794 (Norm) / 2131, 2137 (Lg) | **1.10 pt** | Table 5.14(c) (Bearing stiffener) | Microscopic cell margin allowance in capacity formula cell. |
-| 2305, 2311 (Norm) / 2681, 2687 (Lg) | **1.52 pt** | Table 5.20(c) (Cross Bracing Capacity) | Bold header text `\textbf{Demand}` inside `C{1.8cm}` column padding. |
-| 2322, 2325 (Norm) / 2698, 2701 (Lg) | **2.81 pt** | Table 5.20(c) (Cross Bracing rows) | Angle section string `ISA 100x100x10` natural character width in centered cell. |
-| 2322, 2325 (Norm) / 2698, 2701 (Lg) | **2.50 pt** | Table 5.20(c) (Cross Bracing rows) | Governing load combination identifier formatting in `C{2.4cm}` column. |
-| 2424, 2430 (Norm) / 2836, 2842 (Lg) | **1.52 pt** | Table 5.21(c) (End Diaphragm Capacity) | Bold header text `\textbf{Demand}` inside `C{1.8cm}` column padding. |
-| 2441, 2444 (Norm) / 2853, 2856 (Lg) | **2.81 pt** | Table 5.21(c) (End Diaphragm rows) | Angle section designation natural width in centered cell. |
-| 2441, 2444 (Norm) / 2853, 2856 (Lg) | **2.50 pt** | Table 5.21(c) (End Diaphragm rows) | Governing load combination identifier formatting in `C{2.4cm}` column. |
+| 2305, 2311 (Norm) / 2681, 2687 (Lg) | **1.52 pt** | Table 5.25 (Cross Bracing Capacity) | Bold header text `\textbf{Demand}` inside `C{1.8cm}` column padding. |
+| 2322, 2325 (Norm) / 2698, 2701 (Lg) | **2.81 pt** | Table 5.25 (Cross Bracing rows) | Angle section string `ISA 100x100x10` natural character width in centered cell. |
+| 2322, 2325 (Norm) / 2698, 2701 (Lg) | **2.50 pt** | Table 5.25 (Cross Bracing rows) | Governing load combination identifier formatting in `C{2.4cm}` column. |
+| 2424, 2430 (Norm) / 2836, 2842 (Lg) | **1.52 pt** | Table 5.28 (End Diaphragm Capacity) | Bold header text `\textbf{Demand}` inside `C{1.8cm}` column padding. |
+| 2441, 2444 (Norm) / 2853, 2856 (Lg) | **2.81 pt** | Table 5.28 (End Diaphragm rows) | Angle section designation natural width in centered cell. |
+| 2441, 2444 (Norm) / 2853, 2856 (Lg) | **2.50 pt** | Table 5.28 (End Diaphragm rows) | Governing load combination identifier formatting in `C{2.4cm}` column. |
 | 2884--2886 (Norm) / 3305--3307 (Lg) | **0.16 pt** | Chapter 8 (Assumption paragraph) | Imperceptible TeX line-breaking kerning at hyphenation boundary. |
 
 ---
@@ -102,14 +102,18 @@ Every remaining overfull `\hbox` across both Normal and `--large` modes has been
 | **Plate Girders: Stress** | **0.540** | **0.540** | Table 5.29 Row 5 (Serviceability Stress) | PASS |
 | **Plate Girders: Fatigue** | **0.420** | **0.420** | Table 5.29 Row 6 (Fatigue Assessment) | PASS |
 | **Plate Girders: Transverse Shear** | **0.480** | **0.480** | Table 5.29 Row 7 (Interface Shear) | PASS |
-| **Concrete Deck Slab: Crack Width** | *Not computed in mock* | *Not computed in mock* | Figure caption states: *(Note: Data not available for: Deck Slab)* | Graceful Fallback |
-| **Concrete Deck Slab: Flexure & Shear**| *Not computed in mock* | *Not computed in mock* | Figure caption states: *(Note: Data not available for: Deck Slab)* | Graceful Fallback |
-| **Cross Bracing: Compression** | **0.772** | **0.772** | Table 5.20(c) Governing Diagonal Comp. | PASS |
-| **Cross Bracing: Tension** | **0.512** | **0.512** | Table 5.20(c) Governing Diagonal Tens. | PASS |
-| **Cross Bracing: Slenderness** | **0.460** | **0.460** | Table 5.20(b) ($KL/r = 115.0 / 250 = 0.460$) | PASS |
-| **End Diaphragms: Compression** | **0.772** | **0.772** | Table 5.21(c) Governing Diagonal Comp. | PASS |
-| **End Diaphragms: Tension** | **0.512** | **0.512** | Table 5.21(c) Governing Diagonal Tens. | PASS |
-| **End Diaphragms: Slenderness** | **0.460** | **0.460** | Table 5.21(b) ($KL/r = 115.0 / 250 = 0.460$) | PASS |
+| **Concrete Deck Slab: Crack Width** | **0.950** | **0.950** | Table 5.17 ($w_k = 0.19\text{ mm} / 0.20\text{ mm}$ limit) | PASS |
+| **Concrete Deck Slab: Sagging Flexure** | **0.718** | **0.718** | Table 5.18 ($M_{Ed} = 68.4 / M_{Rd} = 95.2\text{ kNm/m}$) | PASS |
+| **Concrete Deck Slab: Hogging Flexure** | **0.703** | **0.703** | Table 5.19 ($M_{Ed} = 72.1 / M_{Rd} = 102.5\text{ kNm/m}$) | PASS |
+| **Concrete Deck Slab: Cantilever OH** | **0.655** | **0.655** | Table 5.20 ($M_{Ed} = 62.4 / M_{Rd} = 95.2\text{ kNm/m}$) | PASS |
+| **Concrete Deck Slab: Punching Shear** | **0.000** | **0.000** | Table 5.21 ($V_{Ed} = 0 / V_{Rd} = 0.68\text{ MPa}$) | PASS |
+| **Concrete Deck Slab: One-Way Shear** | **0.576** | **0.576** | Table 5.22 ($V_{Ed} = 85.4 / V_{Rd} = 148.2\text{ kN/m}$) | PASS |
+| **Cross Bracing: Compression** | **0.772** | **0.772** | Table 5.25 Governing Diagonal Comp. | PASS |
+| **Cross Bracing: Tension** | **0.512** | **0.512** | Table 5.25 Governing Diagonal Tens. | PASS |
+| **Cross Bracing: Slenderness** | **0.460** | **0.460** | Table 5.24 ($KL/r = 115.0 / 250 = 0.460$) | PASS |
+| **End Diaphragms: Compression** | **0.772** | **0.772** | Table 5.28 Governing Diagonal Comp. | PASS |
+| **End Diaphragms: Tension** | **0.512** | **0.512** | Table 5.28 Governing Diagonal Tens. | PASS |
+| **End Diaphragms: Slenderness** | **0.460** | **0.460** | Table 5.27 ($KL/r = 115.0 / 250 = 0.460$) | PASS |
 
 *Note on Value Label Collision Prevention*: All bar values in the range $[0.88, 1.02]$ are rendered inside the bar in bold white text, completely preventing collision with the horizontal red dashed limit line at $y = 1.0$.
 
@@ -119,7 +123,7 @@ Every remaining overfull `\hbox` across both Normal and `--large` modes has been
 |:---|:---:|:---:|:---|:---:|
 | **Structural Steel: Plate Girders** | **24.02** | **48.04** | MT | Table 7.1 Item 1 |
 | **Structural Steel: Cross Bracing** | **1.59** | **3.99** | MT | Table 7.1 Items 2(a) + 2(b) + 2(c) |
-| **Structural Steel: End Diaphragms** | **0.56** | **1.40** | MT | Calculated from $2 \times (n_g-1)$ panels |
+| **Structural Steel: End Diaphragms** | **0.56** | **1.40** | MT | Table 7.1 Item 2(d) & Figure 7.1 footnote ($2(n_g-1)$ panels) |
 | **Shear Stud Connectors** | **0.217** | **0.433** | MT | Table 7.1 Item 5 *(Table only per spec)* |
 | **Concrete (M40) for Deck Slab** | **52.80** | **92.40** | $\text{m}^3$ | Table 7.1 Item 3 |
 | **Reinforcement Steel (Fe 500)** | **6.34** | **11.09** | MT | Table 7.1 Item 4 |
@@ -135,21 +139,29 @@ Every remaining overfull `\hbox` across both Normal and `--large` modes has been
   2. *Concrete Deck Slab* (Crack Width, Sagging Flexure, Hogging Flexure, Cantilever OH, Punching Shear, One-Way Shear) — `#337AB7` (Steel Blue)
   3. *Cross Bracing* (Compression, Tension, Slenderness) — `#5CB85C` (Accent Green)
   4. *End Diaphragms* (Compression, Tension, Slenderness) — `#E67E22` (Engineering Amber)
-- **Separators & Headers**: Light gray vertical dotted divider lines separate each group. Bold group headers are displayed along the top margin.
-- **Code Limit & Legend**: A horizontal dashed red line at $\text{UR} = 1.0$ is clearly labeled in the two-column legend. Value labels near 1.0 are rendered inside bars in white bold font to ensure zero overlap.
-- **Missing Data Handling**: If any component group lacks computed data, a descriptive note is automatically appended to Figure 5.1's caption (e.g. `(Note: Data not available for: Deck Slab)`).
+- **Separators & Headers**: Light gray vertical dotted divider lines separate each group. Bold group headers are displayed along the top margin with no clipping.
+- **Legend Placement**: The legend is positioned cleanly below the plot (`loc="upper center"`, `bbox_to_anchor=(0.5, -0.32)`, `ncol=5`), completely eliminating any overlap with top group titles.
+- **Code Limit & Collision Prevention**: A horizontal dashed red line at $\text{UR} = 1.0$ is clearly labeled in the legend. Value labels near 1.0 (such as Crack Width 0.95) are rendered inside bars in white bold font to ensure zero overlap with the red limit line.
+- **Missing Data Handling**: If any component group lacks computed data, a descriptive note is automatically appended to Figure 5.1's caption (e.g. `(Note: Data not available for: <Group>)`).
 
 #### 7.2 Chapter 7: Material Take-off & Quantity Summary
-- **Single-Page Integration**: Prefixed with `\clearpage` to begin cleanly at the top of Page 46 (Page 62 in Large mode).
-- **Direct Placement**: Table 7.1 (Bill of Materials) occupies the upper half of the page. Directly below Table 7.1 (`\vspace{0.6em}`), both visualization charts are rendered side-by-side using `subfigure` environments at `0.49\textwidth` each.
-- **Visual Scale**: Figure dimensions ($6.2\text{ in} \times 3.6\text{ in}$) provide large, legible labels with zero blank space on the page.
-- **Categories**: The Structural Steel Breakdown chart displays exclusively **Plate Girders**, **Cross Bracing**, and **End Diaphragms** (with percentages), while shear studs remain strictly within Table 7.1 per engineering specification.
+- **Single-Page Integration**: Prefixed with `\clearpage` to begin cleanly at the top of the chapter page without orphan title pages.
+- **Direct Placement**: Table 7.1 (Bill of Materials) occupies the upper half. Directly below Table 7.1 (`\vspace{0.6em}`), both visualization charts are rendered side-by-side using `subfigure` environments at `0.49\textwidth` each.
+- **Visual Scale & Legibility**: Chart dimensions ($4.0\text{ in} \times 2.2\text{ in}$) with enlarged fonts (`10.5pt` to `12.5pt`) ensure value labels, axes, and titles exceed $\ge 8\text{ pt}$ at final print scale.
+- **Categories & Traceability**: The Structural Steel Breakdown chart displays exclusively **Plate Girders**, **Cross Bracing**, and **End Diaphragms** (with MT tonnages and percentages). Table 7.1 Item 2(d) and the Figure 7.1 footnote provide the exact traceable calculation basis ($2(n_g-1)$ panels across 2 support lines; chords ISA 75x75x8 at $8.95\text{ kg/m}$, diagonals ISA 100x100x10 at $14.90\text{ kg/m}$).
 
 ---
 
-### 8. Complete Git Commit History
+### 8. Known Observations
 
-The following 18 atomic commits form the refactoring and modernization sequence on branch `feature/report-refactor`:
+1. **Concrete Grade Display in Table 7.1**: Table 7.1 displays `"Concrete (M40) for Deck Slab"` while the input project parameter specifies `"M35"` concrete. This is a pre-existing legacy string hardcoded in `boq_generator.py` line 27 (`"concrete_deck_description": "Concrete (M40) for Deck Slab"`). It has been preserved without modifying legacy BOQ behavior to maintain backward compatibility with external consumers.
+2. **Dynamic Table Numbering**: Table numbering increments sequentially and dynamically via LaTeX `\thetable`. Converted tables correspond to Table 5.23 through 5.25 for Cross Bracing, Table 5.26 through 5.28 for End Diaphragms, Table 5.29 for the Overall Design Check Summary, and Table 7.1 for the Bill of Materials.
+
+---
+
+### 9. Complete Git Commit History
+
+The following 21 atomic commits form the refactoring and modernization sequence on branch `feature/report-refactor`:
 
 | Commit Hash | Commit Message | Key Changes |
 |:---|:---|:---|
@@ -171,10 +183,13 @@ The following 18 atomic commits form the refactoring and modernization sequence 
 | `69dcbf8` | Fix overfull hbox instances above 5pt across tables and reference text | Fixed Table 2.12, Table 5.20/5.21, bearing stiffness, and Table 1 widths, dropping overfull hboxes to 21/27 (all < 5pt). |
 | `0813d8d` | Redesign Section 5.5 UR chart: vertical grouped bars, End Diaphragm integration, vector PDF export | Implemented vertical grouped bars, End Diaphragms in bridge, value collision prevention, and vector PDF export. |
 | `f49eb58` | Update steel tonnage categories, integrate End Diaphragm weight, and fix Chapter 7 layout to single page | Added End Diaphragm BOQ calculations, updated steel categories to Girders/CB/ED, and unified Chapter 7 on Page 46. |
+| `ebd9d20` | Move UR chart legend below plot to eliminate group header collision | Positioned legend below x-axis (`bbox_to_anchor=(0.5, -0.32)`), clearing all group headers. |
+| `8f0c8af` | Increase Chapter 7 chart font sizes to >= 8pt at final scale | Increased chart fonts to 10.5–12.5pt ensuring full legibility at print size. |
+| `13a8a72` | Add traceable End Diaphragm calculation basis in Table 7.1 and Figure 7.1 caption | Integrated Item 2(d) in Table 7.1 and traceable footnote under Figure 7.1; adjusted `NEEDSPACE_LONGTABLE` to 5 baselineskips. |
 
 ---
 
-### 9. Test Execution Guide
+### 10. Test Execution Guide
 
 To reproduce and verify the quality gate at any time:
 
