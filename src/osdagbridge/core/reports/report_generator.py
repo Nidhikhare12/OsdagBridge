@@ -130,7 +130,7 @@ from .chap7 import ch7_quantities
 from .chap8 import ch8_design_log
 from .chap9 import references
 from .styles import generate_preamble
-from .charts import generate_ur_summary_chart
+from .charts import generate_ur_summary_chart, generate_material_quantity_charts
 
 logger = logging.getLogger(__name__)
 
@@ -795,12 +795,13 @@ def generate_report(payload, request):
             doc_parts.append(ch1_project_info(payload.metadata))
             doc_parts.append(ch2_input_parameters(payload.metadata, payload.inputs, payload.output_dict))
 
-            # ── Generate Section 5.5 UR Summary Chart (Phase 5) ──
+            # ── Generate Section 5.5 UR Summary & Chapter 7 Quantity Charts (Phases 5 & 6) ──
             chart_output_dirs = [
                 tmp_images,
                 os.path.join(request.output_dir, 'images'),
             ]
             ur_chart_path = generate_ur_summary_chart(bridge, chart_output_dirs)
+            steel_chart_path, concrete_chart_path = generate_material_quantity_charts(payload.inputs, chart_output_dirs)
 
             if 'loads' in secs:
                 doc_parts.append(ch3_loads(payload.inputs))
@@ -811,7 +812,7 @@ def generate_report(payload, request):
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, steel_chart=steel_chart_path, concrete_chart=concrete_chart_path))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}

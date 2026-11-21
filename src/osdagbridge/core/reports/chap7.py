@@ -3,11 +3,12 @@
 # Refactored in Phase 3B to use centralized styles and make_longtable
 # =============================================================================
 
+from typing import Optional
 from osdagbridge.core.reports.helpers import make_longtable
 from osdagbridge.core.reports.styles import TABLE_SPEC_BOQ, TABLE_COL_SEP_COMPACT
 
 
-def ch7_quantities(input_dict):
+def ch7_quantities(input_dict: dict, steel_chart: Optional[str] = None, concrete_chart: Optional[str] = None) -> str:
     headers = [
         "S.N.",
         "Item Description",
@@ -37,6 +38,45 @@ def ch7_quantities(input_dict):
         label="tab:bom",
     )
 
+    chart_block = ""
+    if steel_chart and concrete_chart:
+        chart_block = r"""
+\vspace{1.5em}
+\section{Material Breakdown Visualizations}
+\label{sec:material-charts}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.48\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{""" + steel_chart.replace("\\", "/") + r"""}
+  \caption{Structural Steel Weight (MT)}
+  \label{fig:steel-breakdown}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.48\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{""" + concrete_chart.replace("\\", "/") + r"""}
+  \caption{Concrete ($m^3$) vs Rebar (MT)}
+  \label{fig:concrete-rebar}
+\end{subfigure}
+\caption{Material Quantity Breakdown}
+\label{fig:material-breakdown}
+\end{figure}
+"""
+    elif steel_chart:
+        chart_block = r"""
+\vspace{1.5em}
+\section{Material Breakdown Visualizations}
+\label{sec:material-charts}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{""" + steel_chart.replace("\\", "/") + r"""}
+\caption{Structural Steel Weight Breakdown (MT)}
+\label{fig:steel-breakdown}
+\end{figure}
+"""
+
     return (
         r"""
 \chapter{Material Take-off \& Quantity Summary}
@@ -52,4 +92,5 @@ def ch7_quantities(input_dict):
         + r"""
 \endgroup
 """
+        + chart_block
     )
