@@ -1,0 +1,7 @@
+%% Minimal compatibility stub for the `makecell` package.
+%% Only \makecell{...} is used by the OsdagBridge report templates.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{makecell}[2026/11/21 minimal makecell stub]
+\newcommand{\makecell}[2][]{\begin{tabular}{@{}c@{}}#2\end{tabular}}
+\newcommand{\thead}[2][]{\textbf{#2}}
+\endinput

@@ -3,6 +3,8 @@
 # Extracted from report_generator.py — DO NOT add business logic here.
 # =============================================================================
 from __future__ import annotations
+import re
+import tempfile
 from typing import TYPE_CHECKING
 
 from osdagbridge.core.utils.common import (
@@ -142,10 +144,11 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries
+from osdagbridge.core.reports import charts
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, asset_dir=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -1065,6 +1068,40 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     ]
     t522_content = "\n".join(_t522)
 
+    # ---- Utilization-ratio chart data (Section 5.5) -------------------------
+    # Values are taken from the very rows reported in Table 5.22, so the chart
+    # can never disagree with the tabulated design checks.
+    def _ur_number(text):
+        match = re.search(r"(\d+(?:\.\d+)?)", str(text))
+        return float(match.group(1)) if match else 0.0
+
+    def _row_ur(row):
+        # Strip the trailing "\\[6pt]\n\hline" so the row-spacing value is
+        # never mistaken for a utilization ratio.  "---" and \multicolumn
+        # message rows carry no numeric check result.
+        cell = row.split(r" & ")[-1].split(r"\\")[0]
+        if r"\multicolumn" in cell:
+            return 0.0
+        return _ur_number(cell)
+
+    def _max_ur(prefixes):
+        values = [
+            _row_ur(row) for row in _t522
+            if any(row.split(r" & ")[0].startswith(p) for p in prefixes)
+        ]
+        return max(values) if values else 0.0
+
+    _ur_chart_data = [
+        ("Steel Plate Girders", _max_ur(("Girder",))),
+        ("Concrete Deck Slab", _max_ur(("Transverse Shear", "Crack Width", "Deck"))),
+        ("Cross Bracing", _max_ur(("Cross Bracing",))),
+        ("End Diaphragms", _max_ur(("End Diaphragm",))),
+    ]
+    ur_chart_tex = charts.utilization_ratio_figure(
+        _ur_chart_data,
+        asset_dir or tempfile.mkdtemp(prefix="osdagbridge_charts_"),
+    )
+
     return r"""
 \chapter{Design Checks}
 
@@ -1501,5 +1538,5 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
 
-"""
+""" + ur_chart_tex
 

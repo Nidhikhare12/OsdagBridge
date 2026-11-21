@@ -119,6 +119,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from . import styles
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -152,11 +153,11 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     jn = _tex(job_number)
     rd = _tex(report_date)
     rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
+    return (
+        r"\documentclass[" + styles.DOCUMENT_CLASS_OPTIONS + r"]{report}" + r"""
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[a4paper, margin=""" + styles.PAGE_MARGIN + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -192,21 +193,15 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+% Table layout and spacing -- all values come from the central style module.
+""" + styles.LATEX_TABLE_SETTINGS + r"""
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+% Prevent tables from overflowing into the footer box.  The threshold is
+% defined once in styles.PAGE_BOTTOM_THRESHOLD_LINES.
+\BeforeBeginEnvironment{table}{\needspace{""" + str(styles.PAGE_BOTTOM_THRESHOLD_LINES) + r"""\baselineskip}}
+\BeforeBeginEnvironment{longtable}{\needspace{""" + str(styles.PAGE_BOTTOM_THRESHOLD_LINES) + r"""\baselineskip}}
 
-\definecolor{osdagGreen}{HTML}{91B014}
+""" + styles.LATEX_COLOR_DEFINITIONS + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -252,7 +247,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{""" + str(styles.DOCUMENT_STRETCH) + r"""}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
@@ -275,6 +270,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \begin{document}
 """
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -924,11 +920,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, tmp_images))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, tmp_images))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -939,13 +935,11 @@ def generate_report(payload, request):
             doc_parts.append(references())
             doc_parts.append(r"\end{document}")
 
-            full_tex = "\n".join(doc_parts)
-
-
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
+            # One central pass applies the global style rules (repeating
+            # longtable headers and keeping headings off the footer margin)
+            # to every chapter, including legacy chapters that still emit
+            # raw LaTeX strings.
+            full_tex = styles.apply_global_styles("\n".join(doc_parts))
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
@@ -953,7 +947,16 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            # Compile twice for TOC and references
+            # Compile twice for TOC and references.  Expose the bundled
+            # minimal .sty compatibility files to pdflatex so a bare TeX
+            # installation is enough to build the report.
+            compile_env = os.environ.copy()
+            bundled_sty = os.path.abspath(os.path.join(
+                os.path.dirname(__file__), '..', '..', '..', '..', 'scripts', 'tex'))
+            if os.path.isdir(bundled_sty):
+                old_inputs = compile_env.get('TEXINPUTS', '')
+                compile_env['TEXINPUTS'] = bundled_sty + os.pathsep + old_inputs
+
             for _ in range(2):
                 try:
                     kwargs = {
@@ -961,7 +964,7 @@ def generate_report(payload, request):
                         'stdout': subprocess.PIPE,
                         'stderr': subprocess.PIPE,
                         'check': False,
-                        'env': os.environ.copy()
+                        'env': compile_env
                     }
                     if os.name == 'nt':
                         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW

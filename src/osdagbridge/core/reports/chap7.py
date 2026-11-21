@@ -1,4 +1,11 @@
-def ch7_quantities(input_dict):
+import tempfile
+
+from osdagbridge.core.reports import charts
+
+
+def ch7_quantities(input_dict, asset_dir=None):
+    material_chart_tex = charts.material_quantity_figure(
+        input_dict, asset_dir or tempfile.mkdtemp(prefix="osdagbridge_charts_"))
     return r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
@@ -28,6 +35,9 @@ def ch7_quantities(input_dict):
 6 & Crash Barrier & """ + str(input_dict.get("crash_barrier_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_qty", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_total", "N.A.")) + r""" \\
 \hline
 \end{longtable}
-"""
+
+\noindent\textit{Figure summary of the Bill of Materials: structural steel tonnage and concrete/reinforcement quantities.}
+
+""" + material_chart_tex
 
 
