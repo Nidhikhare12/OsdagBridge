@@ -776,9 +776,24 @@ class PlateGirderBridge:
             
             self.bridge_component_solver()
             self.compute_load_effects_cache()
+            # Reconcile per-girder deflections with composite design checks
+            dr_per_girder = (self.design_results or {}).get("per_girder", {})
             for _gi, _vals in (self._deflections_cache or {}).items():
                 _live = _vals.get("live_mm")
                 _total = _vals.get("total_mm")
+                # If composite design results exist for this girder, use composite deflections
+                # so Chapter 4, Chapter 5 Table 5.10, and Design Checks are completely aligned
+                g_num = _gi.replace("G", "").strip()
+                g_res = (dr_per_girder.get(f"Girder {g_num}")
+                         or dr_per_girder.get(_gi)
+                         or dr_per_girder.get(f"G{g_num}"))
+                if g_res and "demand" in g_res:
+                    dm = g_res["demand"]
+                    if dm.get("delta_live_mm") is not None:
+                        _live = dm["delta_live_mm"]
+                    if dm.get("delta_total_mm") is not None:
+                        _total = dm["delta_total_mm"]
+
                 if _live is not None:
                     self.output_dict[f"{KEY_SD_DEFL_LIVE}.{_gi}"] = round(float(_live), 3)
                 if _total is not None:
@@ -2703,6 +2718,13 @@ class PlateGirderBridge:
                 horiz_proj = s if bracing_type in ("X", "X-Bracing") else s / 2.0
                 L_d = math.sqrt(horiz_proj ** 2 + h ** 2)
                 cos_alpha = math.cos(math.atan2(h, horiz_proj))
+                forces_dict["geometry"] = {
+                    "diagonal_length_m": L_d,
+                    "horiz_proj_m": horiz_proj,
+                    "alpha_deg": math.degrees(math.atan2(h, horiz_proj)),
+                    "height_m": h,
+                }
+                forces_dict["brace_type"] = bracing_type
 
                 # Collect envelope forces over both ends and all load cases
                 elements = pair_to_elements.get(pair, [])

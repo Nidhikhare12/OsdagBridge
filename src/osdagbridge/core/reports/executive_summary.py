@@ -74,53 +74,99 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     cb_results     = output_dict.get("crossbracing_design_results", {}) or {}
     ed_results     = output_dict.get("end_diaphragm_design_results", {}) or {}
 
-    # Overall Design Status — girder checks only: Pass if every check passes,
-    # otherwise Fail with the names of the failing checks. Each check carries a
-    # pre-computed {name, dcr, status}.
-    failing = []                        # failing check names (order-preserving, deduped)
+    # Component status derivation from computed results only
+    # 1. Girder checks
+    girder_failing = []                 # failing check names (order-preserving, deduped)
     gov_name, gov_dcr = "", None
     girder_max_ur = None
-    for g, gd in per_girder.items():
-        if str(g).startswith("EB"):     # skip edge-beam pseudo girders
-            continue
-        for chk in (gd.get("checks") or []):
-            try:
-                _val = chk.get("dcr")
-                if _val is None:
-                    dcr = None
-                else:
-                    dcr = float(_val)
-            except (TypeError, ValueError):
-                dcr = None
-            name = str(chk.get("name", "")).strip()
-            is_fail = ("FAIL" in str(chk.get("status", "")).upper()) or (dcr is not None and dcr > 1.0)
-            if is_fail and name and name not in failing:
-                failing.append(name)
-            if dcr is not None:
-                if gov_dcr is None or dcr > gov_dcr:
-                    gov_dcr, gov_name = dcr, name
-                if girder_max_ur is None or dcr > girder_max_ur:
-                    girder_max_ur = dcr
+    girder_status = "NOT CALCULATED"
 
-    if not per_girder:
-        overall_design_status = ""
-    elif failing:
-        overall_design_status = "Fail (" + ", ".join(failing) + ")"
+    if per_girder:
+        girder_status = "PASS"
+        for g, gd in per_girder.items():
+            if str(g).startswith("EB"):     # skip edge-beam pseudo girders
+                continue
+            for chk in (gd.get("checks") or []):
+                try:
+                    _val = chk.get("dcr")
+                    dcr = float(_val) if _val is not None else None
+                except (TypeError, ValueError):
+                    dcr = None
+                name = str(chk.get("name", "")).strip()
+                chk_status = str(chk.get("status", "")).upper()
+                is_fail = ("FAIL" in chk_status) or (dcr is not None and dcr > 1.0)
+                if is_fail and name and name not in girder_failing:
+                    girder_failing.append(name)
+                if dcr is not None:
+                    if gov_dcr is None or dcr > gov_dcr:
+                        gov_dcr, gov_name = dcr, name
+                    if girder_max_ur is None or dcr > girder_max_ur:
+                        girder_max_ur = dcr
+        if girder_failing:
+            girder_status = "FAIL"
+
+    # 2. Cross Bracing checks
+    cb_max_ur = _max_member_efficiency(cb_results)
+    if not cb_results or not isinstance(cb_results, dict) or cb_max_ur is None:
+        cb_status = "NOT CALCULATED"
+    elif cb_max_ur > 1.0:
+        cb_status = "FAIL"
     else:
-        overall_design_status = "Pass"
+        cb_status = "PASS"
+
+    # 3. End Diaphragm checks
+    ed_max_ur = _max_member_efficiency(ed_results)
+    if not ed_results or not isinstance(ed_results, dict) or ed_max_ur is None:
+        ed_status = "NOT CALCULATED"
+    elif ed_max_ur > 1.0:
+        ed_status = "FAIL"
+    else:
+        ed_status = "PASS"
+
+    # 4. Deck Slab checks
+    deck_max_ur = _max_float([v for k, v in deck_results.items() if str(k).startswith("ur_")])
+    if not deck_results or not isinstance(deck_results, dict) or deck_max_ur is None:
+        deck_status = "NOT CALCULATED"
+    elif deck_max_ur > 1.0:
+        deck_status = "FAIL"
+    else:
+        deck_status = "PASS"
+
+    # 5. Overall Design Status aggregation
+    component_statuses = {
+        "Girder": girder_status,
+        "Cross bracing": cb_status,
+        "End diaphragm": ed_status,
+        "Deck slab": deck_status,
+    }
+    failing_comps = [c for c, st in component_statuses.items() if st == "FAIL"]
+    if failing_comps:
+        reasons = []
+        if girder_failing:
+            reasons.append(f"Girder: {', '.join(girder_failing)}")
+        for c in failing_comps:
+            if c != "Girder":
+                reasons.append(c)
+        overall_design_status = f"FAIL ({'; '.join(reasons)})"
+    elif any(st == "NOT CALCULATED" for st in component_statuses.values()):
+        uncalced = [c for c, st in component_statuses.items() if st == "NOT CALCULATED"]
+        overall_design_status = f"PARTIAL ({', '.join(uncalced)} not calculated)"
+    elif all(st == "PASS" for st in component_statuses.values()):
+        overall_design_status = "PASS"
+    else:
+        overall_design_status = "NOT CALCULATED"
 
     # Overall Utilization Ratio — the maximum UR across all bridge components,
-    # tagged with the governing component (e.g. "1.05 (Deck slab)").
+    # tagged with the governing component (e.g. "1.58 (Girder)").
     component_urs = []                  # (ur_value, component_label)
     if girder_max_ur is not None:
         component_urs.append((girder_max_ur, "Girder"))
-    deck_max = _max_float([v for k, v in deck_results.items() if str(k).startswith("ur_")])
-    if deck_max is not None:
-        component_urs.append((deck_max, "Deck slab"))
-    for results, label in ((cb_results, "Cross bracing"), (ed_results, "End diaphragm")):
-        m = _max_member_efficiency(results)
-        if m is not None:
-            component_urs.append((m, label))
+    if deck_max_ur is not None:
+        component_urs.append((deck_max_ur, "Deck slab"))
+    if cb_max_ur is not None:
+        component_urs.append((cb_max_ur, "Cross bracing"))
+    if ed_max_ur is not None:
+        component_urs.append((ed_max_ur, "End diaphragm"))
     if component_urs:
         max_ur, max_label = max(component_urs, key=lambda t: t[0])
         overall_utilization_ratio = f"{max_ur:.2f} ({max_label})"
@@ -140,8 +186,8 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
 
     # Column widths: row-label column fixed at 2.8cm; girder columns share remainder
     label_col_cm = 2.8
-    # Available width ≈ 15.0cm for A4 with 1in margins; each girder col gets equal share
-    girder_col_cm = round(max(1.5, (15.0 - label_col_cm) / n_cols), 1)
+    # Available width budget ≈ 14.4cm for A4 with 1in margins (15.92cm minus cell padding & rules)
+    girder_col_cm = round(max(1.5, (14.4 - label_col_cm) / n_cols), 1)
     col_spec = '|C{' + str(label_col_cm) + 'cm}|' + '|'.join(['C{' + str(girder_col_cm) + 'cm}'] * n_cols) + '|'
 
     # Header row
@@ -176,6 +222,29 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
               + urs + '\n'
               r'\hline' + '\n'
               r'\end{tabular}')
+
+    def _comp_line(title, status, max_ur=None, failing_checks=None):
+        out = r"\textbf{" + title + r":} "
+        if status == "PASS":
+            out += r"\textcolor{black}{PASS}"
+        elif status == "FAIL":
+            out += r"\textcolor{red}{FAIL}"
+        elif status == "NOT CALCULATED":
+            out += r"\textit{NOT CALCULATED}"
+        else:
+            out += _tex(status)
+        if max_ur is not None:
+            out += f" (Max UR = {max_ur:.2f})"
+        if failing_checks:
+            out += r" -- \textit{Failing: " + _tex(", ".join(failing_checks)) + r"}"
+        return out
+
+    outcomes_summary = "\n".join([
+        r"\noindent " + _comp_line("Girder Design", girder_status, girder_max_ur, girder_failing) + r" \\",
+        _comp_line("Cross Bracing Design", cb_status, cb_max_ur) + r" \\",
+        _comp_line("End Diaphragm Design", ed_status, ed_max_ur) + r" \\",
+        _comp_line("Deck Slab Design", deck_status, deck_max_ur),
+    ])
 
     return r"""
 \newpage
@@ -230,10 +299,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
 \label{sec:key-outcomes}
 
-\noindent Girder design pass \\
-Cross bracing design pass \\
-End Diaphragm design pass \\
-Deck design pass
+""" + outcomes_summary + r"""
 
 \section*{Design Assumptions and Limitations}
 \addcontentsline{toc}{section}{Design Assumptions and Limitations}

@@ -37,7 +37,10 @@ def ch6_drawings(fig_paths):
         return (r'\begin{figure}[H]' + '\n'
                 r'\centering' + '\n'
                 r'\fbox{\parbox{0.97\textwidth}{' + '\n'
-                r'\textit{[ PLACEHOLDER: ' + ' ' + title + r' ]}' + '\n'
+                r'\centering\vspace{0.8em}' + '\n'
+                r'\textbf{Figure Unavailable: } ' + title + r'\\[4pt]' + '\n'
+                r'\footnotesize \textit{CAD / analysis figure export is not available in the current environment session.}' + '\n'
+                r'\vspace{0.8em}' + '\n'
                 r'}}' + '\n'
                 r'\caption{' + title + '}\n'
                 + label_tex
@@ -58,7 +61,9 @@ def ch6_drawings(fig_paths):
             p = path.replace('\\', '/')
             body = r'\includegraphics[width=\linewidth]{' + p + '}'
         else:
-            body = r'\fbox{\parbox{0.95\linewidth}{\centering\textit{[ ' + title + r' ]}}}'
+            body = (r'\fbox{\parbox{0.95\linewidth}{\centering\vspace{0.4em}' + '\n'
+                    r'\footnotesize\textbf{Unavailable}\\[2pt]' + '\n'
+                    r'\textit{' + title + r'}\vspace{0.4em}}}')
         return (r'\begin{minipage}[t]{0.31\textwidth}' + '\n'
                 r'\centering' + '\n'
                 + body + '\n'

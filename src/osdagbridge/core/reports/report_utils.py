@@ -74,7 +74,7 @@ def get_girder_entries(input_dict):
 
 
 def _fig_or_placeholder(path, caption, width=r'0.9\textwidth'):
-    """Embed figure if path is provided (file already copied to assets), else show placeholder box.
+    """Embed figure if path is provided (file already copied to assets), else show professional placeholder box.
     path is the relative path as pdflatex will see it (e.g. 'assets/plan.png').
     """
     if path:
@@ -86,14 +86,17 @@ def _fig_or_placeholder(path, caption, width=r'0.9\textwidth'):
                 r'\end{figure}')
     return (r'\begin{figure}[H]' + '\n'
             r'\centering' + '\n'
-            r'\fbox{\parbox{0.97\textwidth}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
+            r'\fbox{\parbox{0.95\textwidth}{' + '\n'
+            r'\centering\vspace{0.8em}' + '\n'
+            r'\textbf{Figure Unavailable: } ' + _tex(caption) + r'\\[4pt]' + '\n'
+            r'\footnotesize \textit{CAD / analysis figure export is not available in the current environment session.}' + '\n'
+            r'\vspace{0.8em}' + '\n'
             r'}}' + '\n'
             r'\caption*{' + caption + '}\n'
             r'\end{figure}')
 
 def _fig_embed(path, caption, width=r'\textwidth', height=None):
-    """Embed a real figure when path is provided (already copied); otherwise use an fbox placeholder."""
+    """Embed a real figure when path is provided (already copied); otherwise use a professional unavailable marker."""
     if path:
         p = path.replace('\\', '/')
         opts = 'width=' + width
@@ -107,9 +110,11 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
                 r'\caption*{\small ' + caption + '}\n'
                 r'\vspace{-0.5em}' + '\n'
                 r'\end{figure}')
-    # fbox placeholder — matches template exactly
     return (r'\noindent\fbox{\parbox{0.97\textwidth}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
+            r'\centering\vspace{0.8em}' + '\n'
+            r'\textbf{Figure Unavailable: } ' + _tex(caption) + r'\\[4pt]' + '\n'
+            r'\footnotesize \textit{CAD / analysis figure export is not available in the current environment session.}' + '\n'
+            r'\vspace{0.8em}' + '\n'
             r'}}')
 
 
