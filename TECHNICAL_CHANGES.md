@@ -32,18 +32,19 @@ During the Phase 1 exploration and design approval, the codebase was confirmed t
 | File Path | Status | Purpose & Description |
 |:---|:---:|:---|
 | `src/osdagbridge/core/reports/styles.py` | **Created** | Single source of truth for page geometry (`geometry`), unified Osdag green brand colors (`#91B014`), document font sizes, line stretch, arraystretch, column-width presets, needspace thresholds, and `generate_preamble()`. |
-| `src/osdagbridge/core/reports/helpers.py` | **Created** | Reusable `make_longtable(...)` generator providing automatic header repetition (`\endfirsthead` / `\endhead`), non-incrementing continuation captions (`\tablename\ \thetable{} -- continued`), and clean column counting. |
-| `src/osdagbridge/core/reports/charts.py` | **Created** | Headless Matplotlib chart generator (Agg backend) for Section 5.5 (Utilization Ratio summary bar chart with limit line at UR = 1.0) and Chapter 7 (Structural steel tonnage breakdown and Concrete vs. Rebar quantities). |
+| `src/osdagbridge/core/reports/helpers.py` | **Created** | Reusable `make_longtable(...)` generator providing automatic header repetition (`\endfirsthead` / `\endhead`), non-incrementing continuation captions (`\tablename\ \thetable{} -- continued`), local `tabcolsep` and `fontsize` scopes. |
+| `src/osdagbridge/core/reports/charts.py` | **Created** | Headless Matplotlib chart generator (Agg backend) for Section 5.5 (Vertical grouped Utilization Ratio summary bar chart with limit line at UR = 1.0) and Chapter 7 (Structural steel tonnage breakdown and Concrete vs. Rebar quantities), with dual vector PDF and raster PNG export. |
+| `src/osdagbridge/core/boq/boq_generator.py` | **Modified** | Integrated End Diaphragm steel tonnage calculations ($2 \times (n_{girders}-1)$ panels) alongside Plate Girders and Cross Bracing. |
 | `scripts/test_report.py` | **Created** | Comprehensive test harness and quality gate analyzer. Builds realistic mock payloads (Normal 3-girder and `--large` 6-girder stress test), parses `.log` files for compilation metrics, detects multi-page tables via `.aux`, and verifies footer margins via PyMuPDF. |
-| `src/osdagbridge/core/reports/report_generator.py` | **Modified** | Refactored `preamble()` to call `generate_preamble()`, integrated asset resolution, wired chart generation pipelines into temporary and output directories, and passed charts to Chapters 5 & 7. |
+| `src/osdagbridge/core/reports/report_generator.py` | **Modified** | Refactored `preamble()` to call `generate_preamble()`, integrated asset resolution, added End Diaphragm accessor methods to `ReportDataBridge`, resolved running header collision, and synchronized page numbering with `\pageref{LastPage}`. |
 | `src/osdagbridge/core/reports/chap1.py` | **Modified** | Converted tabular metadata tables to centralized styles and `make_longtable`. |
-| `src/osdagbridge/core/reports/chap2.py` | **Modified** | Converted Tables 2.4 through 2.12 (Materials, Cross Bracing, End Diaphragms, Girder Details) to `make_longtable` with column presets. |
+| `src/osdagbridge/core/reports/chap2.py` | **Modified** | Converted Tables 2.4 through 2.12 (Materials, Cross Bracing, End Diaphragms, Girder Details) to `make_longtable` with column presets and optimized column widths. |
 | `src/osdagbridge/core/reports/chap3.py` | **Modified** | Refactored dead load and live load tables into Vehicle Live Load (one row per selected vehicle with Cl. 208 impact, Cl. 211 braking, straight bridge centrifugal note) and Footpath Live Load (Cl. 206.1 intensity, Cl. 206.2 kerb, software default/user-modified mode). |
 | `src/osdagbridge/core/reports/chap4.py` | **Modified** | Escaped caption unescaped `&`, adjusted 3-line demand cell to 2-line makecell (eliminating 2 overfull vboxes), added `\par\vspace{0.8em}` to placeholder figures (eliminating 442pt overfull hbox). |
-| `src/osdagbridge/core/reports/chap5.py` | **Modified** | Converted all 29 design check tables to `make_longtable`, added `\\*[6pt]` pagebreak guards inside multirow girder blocks, embedded the Section 5.5 UR summary bar chart. |
-| `src/osdagbridge/core/reports/chap7.py` | **Modified** | Closed unclosed `\begingroup`, converted BOQ Table 7.1 to `make_longtable`, added side-by-side material quantity subfigures. |
-| `src/osdagbridge/core/reports/chap8.py` | **Modified** | Closed two unclosed `\begingroup` blocks, resolved duplicate label `sec:assumptions` to `sec:exec-assumptions`, split unbroken inline math strings. |
-| `src/osdagbridge/core/reports/executive_summary.py` | **Modified** | Replaced hardcoded width calculation in Table 1 with tabcolsep-aware math, preventing table from overflowing textwidth. |
+| `src/osdagbridge/core/reports/chap5.py` | **Modified** | Converted all 29 design check tables to `make_longtable`, added `\\*[6pt]` pagebreak guards inside multirow girder blocks, embedded the redesigned Section 5.5 vertical grouped UR summary bar chart with vector PDF rendering and PNG fallback. |
+| `src/osdagbridge/core/reports/chap7.py` | **Modified** | Closed unclosed `\begingroup`, added `\clearpage` before chapter heading, converted BOQ Table 7.1 to `make_longtable`, embedded vector PDF material breakdown charts directly below Table 7.1 ensuring single-page layout. |
+| `src/osdagbridge/core/reports/chap8.py` | **Modified** | Closed two unclosed `\begingroup` blocks, resolved duplicate label `sec:assumptions` to `sec:exec-assumptions`, split unbroken inline math strings, shortened bearing stiffness and Cl. 208 references. |
+| `src/osdagbridge/core/reports/executive_summary.py` | **Modified** | Replaced hardcoded width calculation in Table 1 with tabcolsep-aware math and local `tabcolsep=3pt` scope, eliminating overfull hboxes in both normal and large modes. |
 
 ---
 
@@ -51,110 +52,136 @@ During the Phase 1 exploration and design approval, the codebase was confirmed t
 
 The table below tracks the metrics parsed directly from `pdflatex` compilation `.log` files, `.aux` files, and the PyMuPDF footer overlap detector across each development phase:
 
-| Metric | Baseline (Phase 3A) | Phase 3B (Tables & Loads) | Phase 4 (Layout & Overlap) | Phase 5 (UR Chart) | Phase 6 & 7 (Final Normal) | Phase 6 & 7 (Final Large) |
+| Metric | Baseline (Phase 3A) | Phase 3B (Tables & Loads) | Phase 4 (Layout & Overlap) | Phase 5 & 6 (Initial Charts) | Phase 7 Review Polish (Normal) | Phase 7 Review Polish (Large) |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Total LaTeX Errors (`! ...`)** | **138** | **0** | **0** | **0** | **0** | **0** |
 | - Misplaced `\noalign` | 46 | 0 | 0 | 0 | 0 | 0 |
 | - Misplaced `\omit` | 46 | 0 | 0 | 0 | 0 | 0 |
 | - Extra alignment tab | 46 | 0 | 0 | 0 | 0 | 0 |
-| **Overfull `\hbox` Count** | 59 | 59 | **46** | **46** | **46** | **53** |
+| **Overfull `\hbox` Count** | 59 | 59 | 46 | 46 (Norm) / 53 (Large) | **21** *(all < 4.91 pt)* | **27** *(all < 4.91 pt)* |
+| **Overfull `\hbox > 5pt`** | **59** | 59 | 12 | 12 (Norm) / 18 (Large) | **0** | **0** |
 | **Overfull `\vbox` Count** | 2 | 2 | **0** | **0** | **0** | **0** |
 | **Headheight Warnings** | 44 | 44 | **0** | **0** | **0** | **0** |
 | **Multiply-Defined Labels** | 2 | 0 | **0** | **0** | **0** | **0** |
 | **Unclosed Groups (`level > 0`)** | 1 | 0 | **0** | **0** | **0** | **0** |
-| **Multi-page Tables Detected** | 0 | 4 | **4** | **6** | **6** | **10** |
+| **Multi-page Tables Detected** | 0 | 4 | **4** | 6 (Norm) / 10 (Large) | **6** | **10** |
 | **Footer Collisions (`y > 765pt`)**| **Detected** | Detected | **0** | **0** | **0** | **0** |
 
 ---
 
-### 5. Detailed Root-Cause Analyses & Technical Solutions
+### 5. Overfull `\hbox` Audit (All Remaining Instances)
 
-#### 5.1 Misplaced `\noalign` / `\omit` / Extra alignment tab
-- **Root Cause**: In LaTeX `longtable`, `\caption{...}` must be terminated by a newline macro `\\`. In the legacy code, captions were written as `\caption{...}` without `\\` immediately followed by `\hline` or column headers. Because `\caption` internally processes tabular cells, omitting the trailing `\\` caused TeX's alignment state machine to misinterpret subsequent `\hline` commands as misplaced `\noalign` or `\omit` operations, resulting in 138 cascading compilation errors.
-- **Resolution**: Implemented `make_longtable` in `helpers.py`, which strictly outputs:
-  ```latex
-  \caption{\textbf{<caption_text>}} \label{<label>} \\
-  ```
-  Every table conversion across Chapters 1 through 8 now uses this helper, reducing misplaced `\noalign` errors to **0**.
+Every remaining overfull `\hbox` across both Normal and `--large` modes has been inspected and audited. **Zero instances exceed 5 pt**. No global `\sloppy` macro was used, ensuring strict typography standards:
 
-#### 5.2 Multi-Page Longtable Header Repetition
-- **Root Cause**: The legacy codebase wrapped `longtable` environments with a single top header and immediately transitioned into body rows. On tables spanning across page boundaries (e.g. Table 5.1, Table 5.4, Table 5.29), continuation pages had no column headings.
-- **Resolution**: `make_longtable` automatically structures every table with:
-  ```latex
-  \hline
-  <header_tex>
-  \hline
-  \endfirsthead
-  \multicolumn{N}{c}{\textbf{\tablename\ \thetable{} -- continued from previous page}} \\[6pt]
-  \hline
-  <header_tex>
-  \hline
-  \endhead
-  \hline
-  \multicolumn{N}{r}{\textit{Continued on next page}} \\
-  \endfoot
-  \hline
-  \endlastfoot
-  ```
-  The table number increments exactly once, and column headers repeat seamlessly on every page.
-
-#### 5.3 Unclosed Groups (`\end occurred inside a group at level 3`)
-- **Root Cause**:
-  1. `chap7.py` opened `\begingroup \small \setlength{\tabcolsep}{...}` around line 8 but omitted the matching `\endgroup`.
-  2. `chap8.py` opened two `\begingroup \small` blocks around the IRC and IS code reference tables without closing them.
-- **Resolution**: Inserted matching `\endgroup` calls in `chap7.py` and `chap8.py`.
-
-#### 5.4 Duplicate Label (`sec:assumptions`)
-- **Root Cause**: Both `executive_summary.py` (Section "Design Assumptions & Limitations") and `chap8.py` (Section "Design Assumptions") declared `\label{sec:assumptions}`.
-- **Resolution**: Renamed the executive summary label to `\label{sec:exec-assumptions}` and updated corresponding references.
-
-#### 5.5 Overfull `\hbox` and `\vbox` Elimination
-- **Root Cause 1 (442pt Overfull `\hbox`)**: In Chapter 4 (`chap4.py`), three structural analysis placeholder diagrams `\noindent\fbox{\parbox{0.97\textwidth}{...}}` were placed consecutively without a paragraph break (`\par`), forcing TeX to layout three full-width boxes on a single horizontal line.
-  - *Fix*: Added `\par\vspace{0.8em}` to `_fig_embed()` in `report_utils.py`.
-- **Root Cause 2 (Overfull `\vbox`)**: In Table 4.1, a 3-line cell `\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}` was placed inside a 2-row `\multirow{2}{*}`.
-  - *Fix*: Compressed to 2 lines `\makecell{\textbf{Load Case/}\\\textbf{Combination}}`.
-- **Root Cause 3 (27pt Overfull `\hbox` in Table 1)**: `executive_summary.py` calculated girder column width assuming `15.0cm` total text width without subtracting `2 * tabcolsep` per column.
-  - *Fix*: Reduced available width to `13.5cm - label_col_cm`.
-- **Root Cause 4 (Inline Math `\hbox`)**: In `chap8.py`, long unbroken inline math `$E_s = 200{,}000 \, \text{MPa}, \ G_s = 80{,}000 \, \text{MPa}, \ \nu = 0.30, \ \alpha = 11.7 \times 10^{-6}/^\circ\mathrm{C}$` could not break across margins.
-  - *Fix*: Broken into individual math tokens `$E_s = ...$`, `$G_s = ...$`.
-
-#### 5.6 Headheight Warnings (`fancyhdr`)
-- **Root Cause**: `geometry` was invoked without specifying `headheight`, defaulting to `12.0pt`. LaTeX logged 44 warnings requiring `headheight >= 17.1pt`.
-- **Resolution**: Set `headheight=20pt`, `headsep=14pt` in `styles.py`.
-
-#### 5.7 Footer Overlap Bug Proof & Resolution
-- **Bug Proof**:
-  - In `output/before/Report_Before.pdf`, body text reached $y = 772.0\text{ pt}$ while the footer rule was dragged upward to $y = 770.0\text{ pt}$ by a legacy `\vspace{-20pt}` hack in `fancyhdr`.
-  - In large models (6 girders), `\multirow{13}{*}{\makecell{G4}}` and `\makecell{G6}` broke across pages. Because TeX centered the multirow text across all 13 rows, the labels were rendered at $y = 785.7\text{ pt}$ and $y = 836.2\text{ pt}$, directly on top of the footer text.
-- **Resolution**:
-  1. Removed `\vspace{-20pt}` and `\vspace{-8pt}` hacks from `fancyhdr`.
-  2. Configured document geometry in `styles.py` with `bottom=1.25in`, `footskip=28pt`.
-  3. Added `\\*[6pt]` (pagebreak prohibition) between internal rows of multirow girder blocks in `chap5.py`, ensuring pagebreaks occur exclusively at girder boundaries (`\hline`).
-  4. Added `\needspace{10\baselineskip}` before opening longtables.
-  5. Built an automated PyMuPDF bounding-box detector into `test_report.py` checking all non-footer text blocks below $y = 765.0\text{ pt}$. Result: **0 footer collisions detected**.
+| Lines (.tex) | Size (pt) | Table / Paragraph Location | One-Line Engineering Reason |
+|:---|:---:|:---|:---|
+| 526, 532 (Norm) / 529, 535 (Lg) | **3.86 pt** | Table 2.9 (End Diaphragm props) | Minor sub-point padding variance in multi-column header text; visually imperceptible. |
+| 592, 598 (Norm) / 607, 613 (Lg) | **0.70 pt** | Table 2.12 (Girder restraints) | Sub-point text boundary rounding in `L{2.6cm}` column; clean wrap without clipping. |
+| 1788, 1794 (Norm) / 2131, 2137 (Lg) | **4.91 pt** | Table 5.14(c) (Bearing stiffener) | Mathematical symbol `$F_q$` formatting in compact check column; fits neatly within cell boundaries. |
+| 1788, 1794 (Norm) / 2131, 2137 (Lg) | **1.10 pt** | Table 5.14(c) (Bearing stiffener) | Microscopic cell margin allowance in capacity formula cell. |
+| 2305, 2311 (Norm) / 2681, 2687 (Lg) | **1.52 pt** | Table 5.20(c) (Cross Bracing Capacity) | Bold header text `\textbf{Demand}` inside `C{1.8cm}` column padding. |
+| 2322, 2325 (Norm) / 2698, 2701 (Lg) | **2.81 pt** | Table 5.20(c) (Cross Bracing rows) | Angle section string `ISA 100x100x10` natural character width in centered cell. |
+| 2322, 2325 (Norm) / 2698, 2701 (Lg) | **2.50 pt** | Table 5.20(c) (Cross Bracing rows) | Governing load combination identifier formatting in `C{2.4cm}` column. |
+| 2424, 2430 (Norm) / 2836, 2842 (Lg) | **1.52 pt** | Table 5.21(c) (End Diaphragm Capacity) | Bold header text `\textbf{Demand}` inside `C{1.8cm}` column padding. |
+| 2441, 2444 (Norm) / 2853, 2856 (Lg) | **2.81 pt** | Table 5.21(c) (End Diaphragm rows) | Angle section designation natural width in centered cell. |
+| 2441, 2444 (Norm) / 2853, 2856 (Lg) | **2.50 pt** | Table 5.21(c) (End Diaphragm rows) | Governing load combination identifier formatting in `C{2.4cm}` column. |
+| 2884--2886 (Norm) / 3305--3307 (Lg) | **0.16 pt** | Chapter 8 (Assumption paragraph) | Imperceptible TeX line-breaking kerning at hyphenation boundary. |
 
 ---
 
-### 6. Test Harness & Quality Verification Guide
+### 6. Exact Data Values Plotted vs. Tabular References
 
-The test harness operates in `scripts/test_report.py` without requiring GUI interaction.
+#### 6.1 Section 5.5: Utilization Ratio Summary Chart vs. Table 5.29
 
-#### Normal Mode (3-Girder Standard Model):
+| Component / Check | Plotted Value (Normal) | Plotted Value (Large) | Reference in Report | Status |
+|:---|:---:|:---:|:---|:---:|
+| **Plate Girders: Moment** | **0.785** | **0.785** | Table 5.29 Row 1 (Girder Flexure) | PASS |
+| **Plate Girders: Shear** | **0.621** | **0.621** | Table 5.29 Row 2 (Girder Shear) | PASS |
+| **Plate Girders: LTB (constr.)** | **0.714** | **0.714** | Table 5.29 Row 3 (LTB Construction) | PASS |
+| **Plate Girders: Deflection** | **0.650** | **0.650** | Table 5.29 Row 4 (Live Load Deflection) | PASS |
+| **Plate Girders: Stress** | **0.540** | **0.540** | Table 5.29 Row 5 (Serviceability Stress) | PASS |
+| **Plate Girders: Fatigue** | **0.420** | **0.420** | Table 5.29 Row 6 (Fatigue Assessment) | PASS |
+| **Plate Girders: Transverse Shear** | **0.480** | **0.480** | Table 5.29 Row 7 (Interface Shear) | PASS |
+| **Concrete Deck Slab: Crack Width** | *Not computed in mock* | *Not computed in mock* | Figure caption states: *(Note: Data not available for: Deck Slab)* | Graceful Fallback |
+| **Concrete Deck Slab: Flexure & Shear**| *Not computed in mock* | *Not computed in mock* | Figure caption states: *(Note: Data not available for: Deck Slab)* | Graceful Fallback |
+| **Cross Bracing: Compression** | **0.772** | **0.772** | Table 5.20(c) Governing Diagonal Comp. | PASS |
+| **Cross Bracing: Tension** | **0.512** | **0.512** | Table 5.20(c) Governing Diagonal Tens. | PASS |
+| **Cross Bracing: Slenderness** | **0.460** | **0.460** | Table 5.20(b) ($KL/r = 115.0 / 250 = 0.460$) | PASS |
+| **End Diaphragms: Compression** | **0.772** | **0.772** | Table 5.21(c) Governing Diagonal Comp. | PASS |
+| **End Diaphragms: Tension** | **0.512** | **0.512** | Table 5.21(c) Governing Diagonal Tens. | PASS |
+| **End Diaphragms: Slenderness** | **0.460** | **0.460** | Table 5.21(b) ($KL/r = 115.0 / 250 = 0.460$) | PASS |
+
+*Note on Value Label Collision Prevention*: All bar values in the range $[0.88, 1.02]$ are rendered inside the bar in bold white text, completely preventing collision with the horizontal red dashed limit line at $y = 1.0$.
+
+#### 6.2 Chapter 7: Material Quantity Charts vs. Table 7.1 (BOQ)
+
+| BOQ Item | Normal Mode (3 Girders) | Large Mode (6 Girders) | Unit | Reference in Table 7.1 |
+|:---|:---:|:---:|:---|:---:|
+| **Structural Steel: Plate Girders** | **24.02** | **48.04** | MT | Table 7.1 Item 1 |
+| **Structural Steel: Cross Bracing** | **1.59** | **3.99** | MT | Table 7.1 Items 2(a) + 2(b) + 2(c) |
+| **Structural Steel: End Diaphragms** | **0.56** | **1.40** | MT | Calculated from $2 \times (n_g-1)$ panels |
+| **Shear Stud Connectors** | **0.217** | **0.433** | MT | Table 7.1 Item 5 *(Table only per spec)* |
+| **Concrete (M40) for Deck Slab** | **52.80** | **92.40** | $\text{m}^3$ | Table 7.1 Item 3 |
+| **Reinforcement Steel (Fe 500)** | **6.34** | **11.09** | MT | Table 7.1 Item 4 |
+
+---
+
+### 7. Layout Description of Section 5.5 and Chapter 7 Pages
+
+#### 7.1 Section 5.5: Overall Component Utilization Ratio Summary
+- **Orientation & Dimensions**: Placed immediately following Table 5.29. Sized at $10.0\text{ in} \times 4.6\text{ in}$ and embedded at `0.96\textwidth` via vector PDF (`chart_ur_summary.pdf`) with PNG fallback.
+- **Visual Grouping**: Vertical bars are grouped into four distinct structural families:
+  1. *Plate Girders* (Moment, Shear, LTB, Deflection, Stress, Fatigue, Transverse Shear) — `#91B014` (Osdag Green)
+  2. *Concrete Deck Slab* (Crack Width, Sagging Flexure, Hogging Flexure, Cantilever OH, Punching Shear, One-Way Shear) — `#337AB7` (Steel Blue)
+  3. *Cross Bracing* (Compression, Tension, Slenderness) — `#5CB85C` (Accent Green)
+  4. *End Diaphragms* (Compression, Tension, Slenderness) — `#E67E22` (Engineering Amber)
+- **Separators & Headers**: Light gray vertical dotted divider lines separate each group. Bold group headers are displayed along the top margin.
+- **Code Limit & Legend**: A horizontal dashed red line at $\text{UR} = 1.0$ is clearly labeled in the two-column legend. Value labels near 1.0 are rendered inside bars in white bold font to ensure zero overlap.
+- **Missing Data Handling**: If any component group lacks computed data, a descriptive note is automatically appended to Figure 5.1's caption (e.g. `(Note: Data not available for: Deck Slab)`).
+
+#### 7.2 Chapter 7: Material Take-off & Quantity Summary
+- **Single-Page Integration**: Prefixed with `\clearpage` to begin cleanly at the top of Page 46 (Page 62 in Large mode).
+- **Direct Placement**: Table 7.1 (Bill of Materials) occupies the upper half of the page. Directly below Table 7.1 (`\vspace{0.6em}`), both visualization charts are rendered side-by-side using `subfigure` environments at `0.49\textwidth` each.
+- **Visual Scale**: Figure dimensions ($6.2\text{ in} \times 3.6\text{ in}$) provide large, legible labels with zero blank space on the page.
+- **Categories**: The Structural Steel Breakdown chart displays exclusively **Plate Girders**, **Cross Bracing**, and **End Diaphragms** (with percentages), while shear studs remain strictly within Table 7.1 per engineering specification.
+
+---
+
+### 8. Complete Git Commit History
+
+The following 18 atomic commits form the refactoring and modernization sequence on branch `feature/report-refactor`:
+
+| Commit Hash | Commit Message | Key Changes |
+|:---|:---|:---|
+| `ce1ebda` | Add report generation test harness | Created `scripts/test_report.py` with mock payload and verification passes. |
+| `29f1160` | Add centralized styles module and make_longtable helper (pure refactor) | Created `styles.py` and `helpers.py`; refactored `report_generator.py` preamble. |
+| `3506bf0` | Harness: asset resolution and LaTeX quality gate summary | Added asset copying to test harness and `.log` summary analyzer. |
+| `9fd3af2` | Phase 3B: Convert Chapter 7 to make_longtable and fix unclosed group | Converted Table 7.1 to `make_longtable` and closed unclosed `\begingroup`. |
+| `b2325f6` | Phase 3B: Convert Chapter 4 to make_longtable | Converted Chapter 4 tables and eliminated 442pt overfull hbox in placeholder figures. |
+| `ec2ae59` | Phase 3B: Convert Chapter 2 tables to make_longtable | Converted Tables 2.4–2.12 to `make_longtable` using centralized presets. |
+| `d699289` | Phase 3B: Convert Chapter 5 tables to make_longtable | Converted all 29 girder and slab design check tables; added multirow `\\*` guards. |
+| `31dc926` | Phase 3B: Fix duplicate labels in executive_summary and close groups in chap8 | Renamed `sec:assumptions` duplicate and closed 2 `\begingroup` blocks in `chap8.py`. |
+| `f4a4035` | Phase 3B Task B: Refactor Chapter 3 load tables and split live loads | Converted Chapter 3 tables; separated Vehicle LL and Footpath LL per IRC 6. |
+| `a1d2e36` | Phase 3B Task C: Add --large flag to test harness for multi-page stress testing | Added 6-girder multi-vehicle stress test payload to `scripts/test_report.py`. |
+| `7cbc5a8` | Phase 4: Layout, footer overlap prevention, spacing guards, and overfull box fixes | Set `headheight=20pt`, `footskip=28pt`, removed `\vspace{-20pt}` footer hack, built PyMuPDF detector. |
+| `7add12a` | Phase 5: Add Utilization Ratio charts in Section 5.5 | Implemented headless Matplotlib UR bar chart in `charts.py` and embedded in `chap5.py`. |
+| `8e80889` | Phase 6: Add Material Quantity charts in Chapter 7 | Implemented Structural Steel and Concrete vs. Rebar charts for Chapter 7. |
+| `93e4166` | Phase 7: Visual polish, centralized style audit, and technical documentation | Verified style consistency, wrote initial `TECHNICAL_CHANGES.md`. |
+| `0f13653` | Fix running header collision and synchronize document page numbering with total sheet count | Resolved header overlap with `\quad\vert\quad` metadata layout; set `\setcounter{page}{2}` for exact `LastPage` sync. |
+| `69dcbf8` | Fix overfull hbox instances above 5pt across tables and reference text | Fixed Table 2.12, Table 5.20/5.21, bearing stiffness, and Table 1 widths, dropping overfull hboxes to 21/27 (all < 5pt). |
+| `0813d8d` | Redesign Section 5.5 UR chart: vertical grouped bars, End Diaphragm integration, vector PDF export | Implemented vertical grouped bars, End Diaphragms in bridge, value collision prevention, and vector PDF export. |
+| `f49eb58` | Update steel tonnage categories, integrate End Diaphragm weight, and fix Chapter 7 layout to single page | Added End Diaphragm BOQ calculations, updated steel categories to Girders/CB/ED, and unified Chapter 7 on Page 46. |
+
+---
+
+### 9. Test Execution Guide
+
+To reproduce and verify the quality gate at any time:
+
 ```bash
+# 1. Normal Case (3 Girders, Standard IRC Loads):
 python3 scripts/test_report.py --out-dir output/final --stem Report_After_harness_normal
-```
-- Verifies: Chapter presence, 2-pass `pdflatex` compilation, `.log` quality gate summary, `.aux` multi-page table tracking, PyMuPDF footer overlap check.
 
-#### Large Stress-Test Mode (6 Girders, Multi-Vehicle):
-```bash
+# 2. Large Stress-Test Case (6 Girders, Multi-Vehicle, 10 Multi-Page Tables):
 python3 scripts/test_report.py --out-dir output/final --stem Report_After_harness_large --large
 ```
-- Stresses: 6 girders (G1–G6), 5 cross-bracing panels, multiple selected IRC live loads + custom vehicle, 10 multi-page tables.
-
----
-
-### 7. Generated Final Artifacts
-- **Normal Design Report**: [Report_After_harness_normal.pdf](file:///Users/adityagupta/Desktop/IIT%20BOMBAY/OsdagBridge/output/final/Report_After_harness_normal.pdf)
-- **Large Stress-Test Report**: [Report_After_harness_large.pdf](file:///Users/adityagupta/Desktop/IIT%20BOMBAY/OsdagBridge/output/final/Report_After_harness_large.pdf)
-- **LaTeX Source (Normal)**: [Report_After_harness_normal.tex](file:///Users/adityagupta/Desktop/IIT%20BOMBAY/OsdagBridge/output/final/Report_After_harness_normal.tex)
-- **LaTeX Source (Large)**: [Report_After_harness_large.tex](file:///Users/adityagupta/Desktop/IIT%20BOMBAY/OsdagBridge/output/final/Report_After_harness_large.tex)
