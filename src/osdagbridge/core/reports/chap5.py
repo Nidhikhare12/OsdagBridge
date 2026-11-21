@@ -171,29 +171,17 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t51_rows.append(
             r"\multirow{13}{*}{\makecell{" + lbl + r"""}} & \textnormal{Depth, D (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_TOTAL_DEPTH) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Top Flange Width, $b_f$ (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_TOP_FLANGE_WIDTH) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Bottom Flange Width, $b_f$ (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_BOTTOM_FLANGE_WIDTH) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Top Flange Thickness, $t_f$ (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_TOP_FLANGE_THICKNESS) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_BOTTOM_FLANGE_THICKNESS) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Web Thickness, $t_w$ (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_WEB_THICKNESS) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Gross Area, A (cm$^2$)} & """ + _render_value(bridge.output_dict, KEY_SD_SECTION_PROP_AREA) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} & """ + _render_value(bridge.output_dict, KEY_SD_SECTION_PROP_IZ) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} & """ + _render_value(bridge.output_dict, KEY_SD_SECTION_PROP_ZZ) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} & """ + _render_value(bridge.output_dict, KEY_SD_SECTION_PROP_ZUZ) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Effective Slab Width, $b_{eff}$ (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_EFFECTIVE_SLAB_WIDTH) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Transformed Composite $I_z$ (cm$^4$)} & """ + _render_value(bridge.output_dict, KEY_SD_COMPOSITE_IZ) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Depth to Plastic Neutral Axis (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_PNA_DEPTH) + r""" \\[6pt]
 \hline"""
         )
@@ -204,9 +192,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t52_rows.append(
             r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Top Flange & """ + _render_value(bridge.output_dict, KEY_SD_FLANGE_SLENDERNESS) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_FLANGE_CLASS_LIMIT) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_CLASS_FLANGE) + r""" \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Web & """ + _render_value(bridge.output_dict, KEY_SD_WEB_SLENDERNESS) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_WEB_CLASS_LIMIT) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_CLASS_WEB) + r""" \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Overall Section & --- & --- & """ + _render_value(bridge.output_dict, KEY_SD_SECTION_CLASS) + r""" \\[6pt]
 \hline"""
         )
@@ -226,9 +212,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t53_rows.append(
             r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Applied Moment, $M_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_MU_APPLIED, " kN-m") + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & """ + _render_value(bridge.output_dict, KEY_SD_MD_CAPACITY, " kN-m") + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ & """ + _flex_ur_str + r""" & """ + _flex_status + r""" \\[6pt]
 \hline"""
         )
@@ -248,19 +232,12 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t54_rows.append(
             r"\multirow{8}{*}{\makecell{" + lbl + r"""}} & Applied Shear, $V_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_VU, " kN") + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Shear Area, $A_v$ & $d_w \times t_w$ & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_AV, " mm$^2$") + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Panel Aspect Ratio, c/d & --- & """ + _render_value(bridge.output_dict, KEY_SD_PANEL_CD) + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Shear Buckling Coefficient, $k_v$ & IS 800 Cl. 8.4.2.2 & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_KV) + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Web Slenderness, $\lambda_w$ & $\sqrt{f_{yw}/(\sqrt{3}\,\tau_{cr})}$ & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_LAMBDA_W) + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Design Shear Stress, $\tau_b$ & IRC 22 Cl. 603.3.3.2 & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_TAU_B, " MPa") + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Shear Buckling Resistance, $V_{cr}$ & $A_v \times \tau_b$ & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_VCR, " kN") + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ & """ + _shear_ur_str + r""" & """ + _shear_status + r""" \\[6pt]
 \hline"""
         )
@@ -296,11 +273,8 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t55_rows.append(
             r"\multirow{4}{*}{\makecell{" + lbl + r"""}} & High Shear Condition? & $V_u > 0.6\,V_d$ & """ + _render_value(bridge.output_dict, KEY_SD_HIGH_SHEAR) + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Reduced Moment Capacity, $M_{dv}$ & IRC 22 Cl. 603.3.3.3 & """ + _render_value(bridge.output_dict, KEY_SD_MDV, " kN-m") + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Interaction Check: $M_u \leq M_{dv}$ & --- & """ + _mv_ur_str + r""" & """ + _mv_status + r""" \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & """ + _mn_cond + r""" & """ + _mn_val + r""" & """ + _mn_status + r""" \\[6pt]
 \hline"""
         )
@@ -319,13 +293,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t56_rows.append(
             r"\multirow{5}{*}{\makecell{" + lbl + r"""}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 & """ + _render_value(bridge.output_dict, KEY_SD_LTB_MCR, " kN-m") + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Non-dim. Slenderness, $\bar{\lambda}_{LT}$ & $\sqrt{M_p / M_{cr}}$ & """ + _render_value(bridge.output_dict, KEY_SD_LTB_LAMBDA) + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & LTB Reduction Factor, $\chi_{LT}$ & IS 800 Cl. 8.2.2 & """ + _render_value(bridge.output_dict, KEY_SD_LTB_CHI) + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & LTB Resistance, $M_b$ & $\chi_{LT}\,M_p / \gamma_{m0}$ & """ + _render_value(bridge.output_dict, KEY_SD_LTB_MB, " kN-m") + r""" & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & $M_u \leq M_b$ & $M_u / M_b$ & """ + _ltb_ur_str + r""" & """ + _ltb_status + r""" \\[6pt]
 \hline"""
         )
@@ -336,15 +306,10 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t57_rows.append(
             r"\multirow{6}{*}{\makecell{" + lbl + r"""}} & \textnormal{Shear Buckling Design Method} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_METHOD) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Intermediate Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_THICK) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Intermediate Stiffener Spacing (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_SPACING) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{End Panel Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_END_THICK) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{No. of End Panel Stiffeners} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_END_COUNT) + r""" \\*[6pt]
-\cline{2-3}\noalign{\nopagebreak}
  & \textnormal{Longitudinal Stiffeners} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_LONG) + r""" \\[6pt]
 \hline"""
         )
@@ -365,7 +330,6 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t58_rows.append(
             r"\multirow{2}{*}{\makecell{" + lbl + r"""}} & Min. Moment of Inertia, $I_s$ & """ + _render_value(bridge.output_dict, KEY_SD_IS_IYS_MIN, " mm$^4$") + r""" & """ + _render_value(bridge.output_dict, KEY_SD_IS_IYS_PROV, " mm$^4$") + r""" & """ + _iys_status + r""" \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Buckling Resistance, $F_{qd} \geq F_q$ & """ + _render_value(bridge.output_dict, KEY_SD_IS_FQ, " kN") + r""" & """ + _render_value(bridge.output_dict, KEY_SD_IS_FQD, " kN") + r""" & """ + _fqd_status + r""" \\[6pt]
 \hline"""
         )
@@ -419,11 +383,8 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t59_rows.append(
             r"\multirow{4}{*}{\makecell{" + lbl + r"""}} & Web Buckling Resistance & """ + _wb_req + r""" & """ + _wb_prov + r""" & """ + _wb_st + r""" \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Local Crushing Resistance & """ + _lc_req + r""" & """ + _lc_prov + r""" & """ + _lc_st + r""" \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Bearing Capacity & """ + _ps_req + r""" & """ + _ps_prov + r""" & """ + _ps_st + r""" \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Column Buckling Resistance & """ + _cb_req + r""" & """ + _cb_prov + r""" & """ + _cb_st + r""" \\[6pt]
 \hline"""
         )
@@ -477,7 +438,6 @@ def ch5_design_checks(checks_data, bridge) -> str:
             + _allow_live_str + r""" & """
             + _dfmt(_live_mm,  nd=3) + r""" & """
             + _defl_status(_live_mm,  _allow_live_mm) + r""" \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Total Load Deflection, $\delta_{total}$ (mm) & """
             + _allow_total_str + r""" & """
             + _dfmt(_total_mm, nd=3) + r""" & """
@@ -733,7 +693,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
 
                 if idx == 0:
                     prefix = r"\multirow{2}{*}{\makecell{" + _tex(pair) + r"}} & "
-                    suffix = r" \\*[6pt]\cline{2-6}\noalign{\nopagebreak}"
+                    suffix = r" \\*[6pt]"
                 else:
                     prefix = r" & "
                     suffix = r" \\[6pt]"
@@ -787,7 +747,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             for i, (m_lbl, m_nat, m_kl, m_slnd, m_stat) in enumerate(members):
                 col1 = r"\multirow{" + str(num_rows) + r"}{*}{\makecell{" + _tex(pair) + r"}}" if i == 0 else ""
                 if i < len(members) - 1:
-                    lines.append(f"{col1} & {m_lbl} & {m_nat} & {m_kl} & {m_slnd} & {m_stat} \\\\*[6pt]\n\\cline{{2-6}}\\noalign{{\\nopagebreak}}")
+                    lines.append(f"{col1} & {m_lbl} & {m_nat} & {m_kl} & {m_slnd} & {m_stat} \\\\*[6pt]")
                 else:
                     lines.append(f"{col1} & {m_lbl} & {m_nat} & {m_kl} & {m_slnd} & {m_stat} \\\\[6pt]")
             row_tex = "\n".join(lines) + "\n\\hline"
@@ -807,7 +767,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             status   = bridge.get_cb_status(pair, member, ftype)
             if idx == 0:
                 prefix = r"\multirow{2}{*}{\makecell{" + _tex(pair) + r"}} & "
-                suffix = r" \\*[6pt]\cline{2-8}\noalign{\nopagebreak}"
+                suffix = r" \\*[6pt]"
             else:
                 prefix = r" & "
                 suffix = r" \\[6pt]"
@@ -1372,19 +1332,13 @@ The reinforced concrete deck slab is designed per IRC~112:2011 (flexure, shear, 
 \hline
 \endhead
 \multirow{5}{*}{\makecell{At Midspan\\(Sagging)}} & Transverse BM (DL), $M_{T,DL}$ & $w_{DL}\,l_{eff}^2/10$ & """ + _dkf(KEY_DD_M_DL, nd=2) + r""" kN-m/m & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Transverse BM (LL), $M_{T,LL}$ & Effective width (IRC 112 B3.1) & """ + _dkf(KEY_DD_M_LL, nd=2) + r""" kN-m/m & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Total Design BM, $M_{u,sag}$ & """ + _dkf(KEY_DD_GAMMA_DL, nd=2) + r""" DL + """ + _dkf(KEY_DD_GAMMA_LL, nd=2) + r""" LL & """ + _dkf(KEY_DD_M_ULS_SAG, nd=2) + r""" kN-m/m & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Effective depth, $d$ & $t_s - c_{nom} - \phi/2$ & """ + _dkf(KEY_DD_D_BOT, nd=1) + r""" mm & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Moment Capacity, $M_{Rd}$ & IRC 112 Cl. 12.2 & """ + _dkf(KEY_DD_MU_BOT, nd=2) + r""" kN-m/m & """ + _dks(_dkv(KEY_DD_MU_BOT) >= _dkv(KEY_DD_M_ULS_SAG)) + r""" \\[6pt]
 \hline
 \multirow{3}{*}{\makecell{At Support\\(Hogging)}} & Total Design BM, $M_{u,hog}$ & """ + _dkf(KEY_DD_GAMMA_DL, nd=2) + r""" DL + """ + _dkf(KEY_DD_GAMMA_LL, nd=2) + r""" LL (at support) & """ + _dkf(KEY_DD_M_ULS_HOG, nd=2) + r""" kN-m/m & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Required Top Steel, $A_{st,top}$ & $M_u / (0.87\,f_y\,d)$ & """ + _dkf(KEY_DD_AS_REQ_TOP, nd=0) + r""" mm²/m & --- \\*[6pt]
-\cline{2-5}\noalign{\nopagebreak}
  & Moment Capacity, $M_{Rd}$ & IRC 112 Cl. 12.2 & """ + _dkf(KEY_DD_MU_TOP, nd=2) + r""" kN-m/m & """ + _dks(_dkv(KEY_DD_MU_TOP) >= _dkv(KEY_DD_M_ULS_HOG)) + r""" \\[6pt]
 \hline
 \end{longtable}
