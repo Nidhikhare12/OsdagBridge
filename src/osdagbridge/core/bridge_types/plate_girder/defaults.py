@@ -867,6 +867,42 @@ def seed_no_of_girders(overall_width: float) -> int:
         raise ValueError("Overall bridge width must be positive.")
     return max(2, ceil(overall_width / DEFAULT_GIRDER_SPACING))
 
+# Two deck widths closer than this (m) count as the same width.
+_LAYOUT_WIDTH_TOLERANCE = 1e-3
+
+def _stored_girder_count_for_width(basic_input_dict: dict, overall_width: float):
+    """Girder count already in the dict, if it is still valid for `overall_width`.
+
+    Every layout solve stores the deck width it was solved for in
+    KEY_TS_OVERALL_WIDTH, next to KEY_TS_NO_OF_GIRDERS. If the deck width has
+    changed since (carriageway, median or footpath edited), the stored count
+    belongs to the old deck and is discarded, so the caller re-seeds it from the
+    new width. Without this, the count depended on the first width solved in
+    the session (issue #112).
+
+    The stored count is kept when the width is unchanged (e.g. a count the user
+    set in Typical Section, or one loaded from an .osi file), and when no width
+    was stored with it (a dict built by hand or through the API).
+    Returns None when there is no usable count.
+    """
+    stored_count = basic_input_dict.get(KEY_TS_NO_OF_GIRDERS)
+    if stored_count in (None, ""):
+        return None
+    try:
+        stored_count = int(float(stored_count))
+    except (TypeError, ValueError):
+        return None
+
+    stored_width = basic_input_dict.get(KEY_TS_OVERALL_WIDTH)
+    if stored_width in (None, ""):
+        return stored_count
+    try:
+        if abs(float(stored_width) - overall_width) > _LAYOUT_WIDTH_TOLERANCE:
+            return None
+    except (TypeError, ValueError):
+        return None
+    return stored_count
+
 def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
     """Parse basic inputs and solve bridge layout. Updates basic_input_dict in-place."""
     from .initial_sizing import BridgeConfigurationSolver
@@ -912,9 +948,10 @@ def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
         median_width=float(median_width),
         n_footpaths=n_footpaths,
     )
-    no_of_girders = int(
-        basic_input_dict.get(KEY_TS_NO_OF_GIRDERS)
-        or seed_no_of_girders(solver.calculate_overall_bridge_width())
+    overall_width = solver.calculate_overall_bridge_width()
+    no_of_girders = (
+        _stored_girder_count_for_width(basic_input_dict, overall_width)
+        or seed_no_of_girders(overall_width)
     )
     sizing_result = solver._solve_layout(no_of_girders=no_of_girders, changed_field='girders')
 
