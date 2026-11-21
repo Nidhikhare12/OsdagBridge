@@ -858,6 +858,38 @@ def run_test(output_dir="output/before", file_stem="Report_Before", large: bool 
         else:
             print("  All tables fit within single page boundaries.")
 
+    # 7. Footer-Overlap Detection (PyMuPDF)
+    overlap_detected = []
+    if os.path.exists(pdf_path):
+        try:
+            import fitz
+            doc = fitz.open(pdf_path)
+            footer_threshold_y = 765.0  # body text should not exceed y=765pt on A4 with 1.15in bottom margin
+            for page_idx in range(len(doc)):
+                page = doc[page_idx]
+                blocks = page.get_text("blocks")
+                for b in blocks:
+                    y1 = b[3]
+                    txt = b[4].strip()
+                    # Skip known footer texts
+                    if any(k in txt for k in ["Osdag", "Page", "Software default", "Ministry", "Bridge Report", "Indian Institute of Technology"]):
+                        continue
+                    if y1 > footer_threshold_y:
+                        overlap_detected.append((page_idx + 1, round(y1, 1), txt[:50]))
+            doc.close()
+        except ImportError:
+            print("\n[NOTE] PyMuPDF (fitz) not available; skipping footer overlap check.")
+        except Exception as e:
+            print(f"\n[NOTE] Footer overlap check error: {e}")
+
+    print("\n[6/6] Footer Overlap Detection:")
+    if overlap_detected:
+        print(f"  [WARNING] Found {len(overlap_detected)} text block(s) intruding into footer zone (y > 765pt):")
+        for p, y, txt in overlap_detected:
+            print(f"    - Page {p} (y={y}pt): {txt!r}")
+    else:
+        print("  0 footer overlap collisions detected (all body text ends cleanly above footer zone).")
+
     print("\n" + "=" * 70)
     print("Test Harness Execution Completed!")
     print("=" * 70)

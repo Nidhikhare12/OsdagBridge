@@ -131,7 +131,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \textbf{Material Properties (IRC 22:2015 Annex III)}
 
 \begin{itemize}
-\item Steel: $E_s = 200{,}000 \, \text{MPa}, \ G_s = 80{,}000 \, \text{MPa}, \ \nu = 0.30, \ \alpha = 11.7 \times 10^{-6}/^\circ\mathrm{C}$ (grade-independent).
+\item Steel: $E_s = 200{,}000 \, \text{MPa}$, $G_s = 80{,}000 \, \text{MPa}$, $\nu = 0.30$, $\alpha = 11.7 \times 10^{-6}/^\circ\mathrm{C}$ (grade-independent).
 \item Minimum structural concrete grade: M25.
 \item Default reinforcement grade: Fe500.
 \end{itemize}

@@ -110,7 +110,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
 
     # 1. Table 4.1: Summary of Maximum Demands
     demands_header = (
-        r"\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}"
+        r"\multirow{2}{*}{\makecell{\textbf{Load Case/}\\\textbf{Combination}}}"
         r" & \multicolumn{3}{c|}{\textbf{Bending Moment}}"
         r" & \multicolumn{3}{c|}{\textbf{Shear Force}}"
         r" & \multicolumn{2}{c|}{\textbf{Reaction at Supports}} \\"

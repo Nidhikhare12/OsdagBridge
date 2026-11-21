@@ -64,7 +64,7 @@ CAPTION_BELOW_SKIP = "2pt"
 # ---------------------------------------------------------------------------
 # Minimum baseline skips required before opening a table or longtable
 NEEDSPACE_TABLE = r"5\baselineskip"
-NEEDSPACE_LONGTABLE = r"5\baselineskip"
+NEEDSPACE_LONGTABLE = r"10\baselineskip"
 NEEDSPACE_SECTION = r"4\baselineskip"
 
 # ---------------------------------------------------------------------------
@@ -99,16 +99,16 @@ COL_VALUE_FULL = "10.0cm"
 
 # Common table column specifications
 TABLE_SPEC_TITLE = r"|L{4cm}|L{10cm}|"
-TABLE_SPEC_TWO_COL = r"|L{5.5cm}|L{8.5cm}|"
+TABLE_SPEC_TWO_COL = r"|L{5.2cm}|L{8.4cm}|"
 TABLE_SPEC_GIRDER_SUMMARY = r"|C{2.0cm}|L{7.5cm}|>{\centering\arraybackslash}p{4.5cm}|"
 TABLE_SPEC_OVERALL_SUMMARY = r"|C{3.0cm}|L{4.0cm}|C{2.1cm}|C{2.1cm}|>{\centering\arraybackslash}p{1.6cm}|"
 TABLE_SPEC_BOQ = r"|C{0.9cm}|L{3.2cm}|C{2.7cm}|C{1.8cm}|C{1.7cm}|C{1.7cm}|C{1.7cm}|"
-TABLE_SPEC_DEMANDS = r"|>{\centering\arraybackslash}p{2.8cm}|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.4cm}|>{\centering\arraybackslash}p{1.4cm}|"
-TABLE_SPEC_REACTIONS = r"|C{4.6cm}|C{4.6cm}|C{4.6cm}|"
-TABLE_SPEC_DEFLECTION = r"|L{5.8cm}|L{8.4cm}|"
-TABLE_SPEC_GIRDER_GEN = r"|L{1.8cm}|L{1.8cm}|p{3.2cm}|p{3.5cm}|p{3.5cm}|"
-TABLE_SPEC_GIRDER_DIM = r"|L{1.6cm}|L{2.0cm}|L{1.6cm}|p{4.0cm}|p{4.0cm}|"
-TABLE_SPEC_GIRDER_REST = r"|L{1.3cm}|p{2.2cm}|p{2.0cm}|p{2.8cm}|p{2.4cm}|p{2.2cm}|"
+TABLE_SPEC_DEMANDS = r"|>{\centering\arraybackslash}p{2.5cm}|>{\centering\arraybackslash}p{1.4cm}|>{\centering\arraybackslash}p{1.25cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.4cm}|>{\centering\arraybackslash}p{1.25cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.3cm}|>{\centering\arraybackslash}p{1.3cm}|"
+TABLE_SPEC_REACTIONS = r"|C{4.4cm}|C{4.4cm}|C{4.4cm}|"
+TABLE_SPEC_DEFLECTION = r"|L{5.5cm}|L{8.2cm}|"
+TABLE_SPEC_GIRDER_GEN = r"|L{1.5cm}|L{1.6cm}|p{3.0cm}|p{3.3cm}|p{3.3cm}|"
+TABLE_SPEC_GIRDER_DIM = r"|L{1.5cm}|L{1.8cm}|L{1.5cm}|p{3.8cm}|p{3.8cm}|"
+TABLE_SPEC_GIRDER_REST = r"|C{1.5cm}|L{2.3cm}|L{2.3cm}|L{2.8cm}|L{2.4cm}|L{2.3cm}|"
 TABLE_SPEC_CB = r"|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{3.5cm}|C{2.0cm}|"
 TABLE_SPEC_ED = r"|L{2.5cm}|L{2.5cm}|L{3.5cm}|L{4.5cm}|"
 TABLE_SPEC_GIRDER_CLASS = r"|C{1.8cm}|L{2.8cm}|C{3.2cm}|C{2.2cm}|>{\centering\arraybackslash}p{3.5cm}|"
@@ -117,7 +117,7 @@ TABLE_SPEC_STIFFENER_SUMMARY = r"|C{2.0cm}|L{6.2cm}|>{\arraybackslash}p{6.2cm}|"
 TABLE_SPEC_END_PANEL_CHECK = r"|C{1.8cm}|L{3.2cm}|C{3.2cm}|>{\centering\arraybackslash}p{3.6cm}|C{1.7cm}|"
 TABLE_SPEC_SERVICEABILITY_5COL = r"|C{1.8cm}|L{3.2cm}|C{3.0cm}|>{\centering\arraybackslash}p{3.2cm}|C{2.2cm}|"
 TABLE_SPEC_FATIGUE_5COL = r"|C{1.8cm}|C{3.2cm}|C{3.2cm}|>{\centering\arraybackslash}p{3.0cm}|C{2.2cm}|"
-TABLE_SPEC_GIRDER_DCR = r"|C{1.2cm}|>{\centering\arraybackslash}p{3.0cm}|C{2.2cm}|C{1.8cm}|C{1.8cm}|C{1.4cm}|C{1.4cm}|"
+TABLE_SPEC_GIRDER_DCR = r"|C{1.2cm}|>{\centering\arraybackslash}p{2.8cm}|C{2.4cm}|C{1.8cm}|C{1.8cm}|C{1.3cm}|C{1.3cm}|"
 TABLE_SPEC_SC_CAPACITY = r"|L{3.2cm}|C{5.0cm}|>{\centering\arraybackslash}p{2.5cm}|L{2.8cm}|"
 TABLE_SPEC_SC_SPACING = r"|L{3.0cm}|>{\centering\arraybackslash}p{4.0cm}|>{\centering\arraybackslash}p{4.0cm}|C{2.0cm}|"
 TABLE_SPEC_TRANSVERSE_SHEAR = r"|L{4.5cm}|>{\arraybackslash}p{6.8cm}|C{2.0cm}|"
@@ -125,11 +125,11 @@ TABLE_SPEC_DECK_FLEXURE = r"|C{2.5cm}|C{3.0cm}|C{2.8cm}|>{\centering\arraybacksl
 TABLE_SPEC_DECK_CHECK_4COL = r"|L{4.8cm}|C{3.0cm}|>{\centering\arraybackslash}p{4.0cm}|C{1.8cm}|"
 TABLE_SPEC_DECK_CRACK = r"|L{6.0cm}|>{\arraybackslash}p{8.0cm}|"
 TABLE_SPEC_DECK_DETAILING = r"|L{4.8cm}|>{\centering\arraybackslash}p{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{1.6cm}|"
-TABLE_SPEC_CB_PROPS = r"|C{1.6cm}|L{1.8cm}|L{2.0cm}|C{2.2cm}|C{1.8cm}|C{1.8cm}|"
-TABLE_SPEC_CB_SLENDER = r"|C{1.8cm}|L{1.8cm}|L{2.0cm}|C{2.2cm}|C{2.0cm}|>{\centering\arraybackslash}p{3.0cm}|"
-TABLE_SPEC_CB_CAPACITY = r"|C{1.5cm}|L{1.5cm}|C{1.8cm}|C{2.5cm}|C{1.5cm}|C{1.5cm}|C{1.0cm}|C{1.5cm}|"
+TABLE_SPEC_CB_PROPS = r"|C{1.5cm}|L{2.6cm}|L{1.8cm}|C{2.4cm}|C{1.8cm}|C{1.8cm}|"
+TABLE_SPEC_CB_SLENDER = r"|C{1.5cm}|L{2.0cm}|L{2.0cm}|C{2.4cm}|C{2.0cm}|>{\centering\arraybackslash}p{3.0cm}|"
+TABLE_SPEC_CB_CAPACITY = r"|C{1.3cm}|L{1.5cm}|C{2.4cm}|C{2.8cm}|C{1.6cm}|C{1.6cm}|C{1.0cm}|C{1.4cm}|"
 TABLE_SPEC_VEHICLE_LL = r"|L{4.2cm}|C{2.8cm}|C{3.2cm}|C{3.2cm}|"
-TABLE_SPEC_FOOTPATH_LL = r"|L{4.5cm}|C{2.0cm}|C{1.8cm}|C{2.8cm}|C{2.8cm}|"
+TABLE_SPEC_FOOTPATH_LL = r"|L{4.2cm}|C{1.8cm}|C{1.6cm}|C{2.6cm}|C{2.6cm}|"
 TABLE_SPEC_LOAD_COMBOS = r"|C{3.5cm}|p{10.5cm}|"
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
 \documentclass[""" + DOC_FONT_SIZE + r""",""" + DOC_PAPER_SIZE + r"""]{""" + DOC_CLASS + r"""}
 
 % Packages
-\usepackage[""" + DOC_PAPER_SIZE + r""", margin=""" + PAGE_MARGIN + r"""]{geometry}
+\usepackage[""" + DOC_PAPER_SIZE + r""", top=1.0in, bottom=1.25in, left=1.0in, right=1.0in, headheight=20pt, headsep=14pt, footskip=28pt]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -235,16 +235,18 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
   \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
-  \renewcommand{\headrule}{\color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + HEADER_RULE_WIDTH + r""" \vspace{""" + HEADER_RULE_GAP + r"""}}
+  \renewcommand{\headrulewidth}{""" + HEADER_RULE_WIDTH + r"""}
+  \renewcommand{\headrule}{\color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + HEADER_RULE_WIDTH + r""" \vskip """ + HEADER_RULE_GAP + r"""}
+  \renewcommand{\footrulewidth}{""" + FOOTER_RULE_WIDTH + r"""}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{""" + FOOTER_SD_VSPACE_TOP + r"""}%
+      \vskip -12pt%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{""" + FOOTER_DEFAULT_NOTE + r"""}}\hfil}%
-      \vspace{""" + FOOTER_SD_VSPACE_BOT + r"""}%
+      \vskip 4pt%
     }{%
-      \vspace{""" + FOOTER_NORMAL_VSPACE + r"""}%
+      \vskip -4pt%
     }%
-    \color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + FOOTER_RULE_WIDTH + r""" \vspace{""" + FOOTER_RULE_GAP + r"""}%
+    \color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + FOOTER_RULE_WIDTH + r""" \vskip """ + FOOTER_RULE_GAP + r"""%
   }
 }
 \fancypagestyle{plain}{
@@ -253,16 +255,18 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
   \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
-  \renewcommand{\headrule}{\color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + HEADER_RULE_WIDTH + r""" \vspace{""" + HEADER_RULE_GAP + r"""}}
+  \renewcommand{\headrulewidth}{""" + HEADER_RULE_WIDTH + r"""}
+  \renewcommand{\headrule}{\color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + HEADER_RULE_WIDTH + r""" \vskip """ + HEADER_RULE_GAP + r"""}
+  \renewcommand{\footrulewidth}{""" + FOOTER_RULE_WIDTH + r"""}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{""" + FOOTER_SD_VSPACE_TOP + r"""}%
+      \vskip -12pt%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{""" + FOOTER_DEFAULT_NOTE + r"""}}\hfil}%
-      \vspace{""" + FOOTER_SD_VSPACE_BOT + r"""}%
+      \vskip 4pt%
     }{%
-      \vspace{""" + FOOTER_NORMAL_VSPACE + r"""}%
+      \vskip -4pt%
     }%
-    \color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + FOOTER_RULE_WIDTH + r""" \vspace{""" + FOOTER_RULE_GAP + r"""}%
+    \color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + FOOTER_RULE_WIDTH + r""" \vskip """ + FOOTER_RULE_GAP + r"""%
   }
 }
 \fancypagestyle{firstpage}{
@@ -270,7 +274,7 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
   \renewcommand{\headrulewidth}{0pt}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
   \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
-  \renewcommand{\footrule}{\vspace{""" + FOOTER_NORMAL_VSPACE + r"""}\color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + FOOTER_RULE_WIDTH + r""" \vspace{""" + FOOTER_RULE_GAP + r"""}}
+  \renewcommand{\footrule}{\vskip -4pt\color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + FOOTER_RULE_WIDTH + r""" \vskip """ + FOOTER_RULE_GAP + r"""}
 }
 \pagestyle{main}
 \setstretch{""" + str(LINE_STRETCH) + r"""}
