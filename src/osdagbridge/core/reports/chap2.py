@@ -168,10 +168,24 @@ Where the user has modified additional inputs, those values are reported here. W
 \vspace{0.8cm}
 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Typical Section Details}}
+\caption{\textbf{Typical Section Details}}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} \\[6pt]
 \hline
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ -- continued from previous page}\\
+\hline
+\textbf{Parameter} & \textbf{Value} \\[6pt]
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\hline
+\endlastfoot
 \textnormal{Overall Bridge Width (m)} & """ + (_render_value(input_dict, KEY_TS_OVERALL_WIDTH)) + r""" \\[6pt]
 \hline
 \textnormal{No. of Girders} & """ + (_render_value(input_dict, KEY_TS_NO_OF_GIRDERS)) + r""" \\[6pt]
@@ -367,9 +381,8 @@ def _girder_tables(input_dict, n_girders):
             + dim_rows
             + r"""\end{longtable}
 
-\vspace{0.6em}
+\newpage
 
-\vspace{4pt}
 \begin{longtable}{|L{1.4cm}|p{2.2cm}|p{2.2cm}|p{3.0cm}|p{2.4cm}|p{2.2cm}|}
 \caption{\textbf{Girder Restraint and Stiffener Details}}\\
 \hline
@@ -377,7 +390,6 @@ def _girder_tables(input_dict, n_girders):
 \hline
 \endfirsthead
 
-\multicolumn{6}{c}{\tablename\ \thetable\ -- continued from previous page}\\
 \hline
 \textbf{Girder} & \textbf{Torsional / Warping Restraint} & \textbf{Web Philosophy} & \textbf{Intermediate Stiffeners} & \textbf{Longitudinal Stiffeners} & \textbf{Bearing Stiffener} \\[6pt]
 \hline

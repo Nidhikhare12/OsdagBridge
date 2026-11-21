@@ -11,6 +11,15 @@ from osdagbridge.core.utils.common import (
     KEY_TS_NO_OF_GIRDERS,
     KEY_TS_DECK_THICKNESS,
     KEY_TS_GIRDER_SPACING,
+    KEY_MP_GIRDER_DEPTH,
+    KEY_MP_ED_TYPE,
+    KEY_MP_ED_BRACING_TYPE,
+    KEY_MP_ED_TOP_CHORD,
+    KEY_MP_ED_BOTTOM_CHORD,
+    KEY_TD_ED_PROP_M,
+    KEY_TD_ED_TOP_CHORD_PROP_M,
+    KEY_TD_ED_BOTTOM_CHORD_PROP_M,
+    KEY_SKEW_ANGLE,
 )
 
 logger = logging.getLogger("osdagbridge.core.boq_generator")
@@ -66,6 +75,12 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         "bracing_diag_wt_single": "N.A.",
         "bracing_diag_wt_total": "N.A.",
         
+        "end_diaphragm_vol_formula": r"Section mass per metre $\times$ Member length",
+        "end_diaphragm_qty": "N.A.",
+        "end_diaphragm_vol_total": "N.A.",
+        "end_diaphragm_wt_single": "N.A.",
+        "end_diaphragm_wt_total": "N.A.",
+
         "concrete_deck_vol_formula": r"\placeholder{Width $\times$ Thickness $\times$ Length}",
         "concrete_deck_qty": "N.A.",
         "concrete_deck_vol_total": "N.A.",
@@ -89,6 +104,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         "crash_barrier_vol_total": "N.A.",
         "crash_barrier_wt_single": "N.A.",
         "crash_barrier_wt_total": "N.A.",
+
     }
     try:
         span_val = inputs.get(KEY_SPAN)
@@ -329,7 +345,116 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 quantities[f"{prefix}_vol_total"] = "N.A."
                 quantities[f"{prefix}_wt_single"] = "N.A."
                 quantities[f"{prefix}_wt_total"] = "N.A."
+        # 5d. End Diaphragm Steel Quantity and Weight
+        import math
 
+        spacing_val = inputs.get(KEY_TS_GIRDER_SPACING)
+        depth_val = resolve_girder_value(outputs, KEY_MP_GIRDER_DEPTH)
+        logger.warning(
+            "[ED-BOQ-DEBUG] spacing=%r, depth=%r, skew=%r",
+            spacing_val, depth_val, inputs.get(KEY_SKEW_ANGLE, 0.0)
+        )
+        spacing = float(spacing_val)
+        depth = float(depth_val)
+        skew = math.radians(float(inputs.get(KEY_SKEW_ANGLE, 0.0)))
+
+        if spacing > 0 and depth > 0 and abs(math.cos(skew)) > 1e-9:
+            total_length = 0.0
+            total_mass_kg = 0.0
+            valid_pairs = 0
+
+            for i in range(n_girders - 1):
+                pair_id = f"G{i + 1}G{i + 2}"
+                logger.warning(
+                    "[ED-BOQ-KEYS] pair=%s, ed_related=%r",
+                    pair_id,
+                    {
+                    k: v for k, v in outputs.items()
+                    if pair_id in str(k)
+                    and (
+                        "diaphragm" in str(k).lower()
+                        or ".ed." in str(k).lower()
+                    )
+                }
+            )
+                ed_type = str(outputs.get(
+                    f"member_properties.end_diaphragm_details.{pair_id}.type", ""
+                )).lower()
+
+                bracing_type = str(outputs.get(
+                    f"member_properties.end_diaphragm_details.{pair_id}.bracing_type", ""
+                )).upper()
+
+                diagonal_mass = float(outputs.get(
+                    f"transverse_member_design.ed.section_properties.end_diaphragm.{pair_id}.M",
+                    0.0
+                ) or 0.0)
+
+                top_mass = float(outputs.get(
+                    f"transverse_member_design.ed.section_properties.top_chord.{pair_id}.M",
+                    0.0
+                ) or 0.0)
+
+                bottom_mass = float(outputs.get(
+                    f"transverse_member_design.ed.section_properties.bottom_chord.{pair_id}.M",
+                    0.0
+                ) or 0.0)
+                logger.warning(
+                    "[ED-BOQ-DEBUG] pair=%r, type=%r, bracing=%r, diag_mass=%r, top_mass=%r, bot_mass=%r",
+                    pair_id, ed_type, bracing_type, diagonal_mass, top_mass, bottom_mass
+                )
+                pair_length = 0.0
+                pair_mass = 0.0
+
+                if "cross" in ed_type:
+                    if bracing_type.startswith("X"):
+                        diagonal_length = math.sqrt(
+                            (spacing / math.cos(skew)) ** 2 + depth ** 2
+                        )
+                        chord_length = spacing / math.cos(skew)
+
+                        pair_length = 4 * diagonal_length + 4 * chord_length
+                        pair_mass = (
+                            4 * diagonal_length * diagonal_mass
+                            + 2 * chord_length * top_mass
+                            + 2 * chord_length * bottom_mass
+                        )
+
+                    elif bracing_type.startswith("K"):
+                        diagonal_length = math.sqrt(
+                            (spacing / (2 * math.cos(skew))) ** 2
+                            + depth ** 2
+                        )
+                        chord_length = spacing / math.cos(skew)
+
+                        pair_length = 4 * diagonal_length + 2 * chord_length
+                        pair_mass = (
+                            4 * diagonal_length * diagonal_mass
+                            + 2 * chord_length * bottom_mass
+                        )
+
+                elif ed_type:
+                    member_length = spacing / math.cos(skew)
+                    pair_length = 2 * member_length
+                    pair_mass = 2 * member_length * diagonal_mass
+
+                if pair_length > 0 and pair_mass > 0:
+                    total_length += pair_length
+                    total_mass_kg += pair_mass
+                    valid_pairs += 1
+
+            if valid_pairs > 0:
+                total_volume = total_mass_kg / 7850.0
+                single_mass_mt = (total_mass_kg / valid_pairs) / 1000.0
+                total_mass_mt = total_mass_kg / 1000.0
+
+                quantities["end_diaphragm_vol_formula"] = (
+                    r"Section mass per metre $\times$ Member length"
+                )
+                quantities["end_diaphragm_qty"] = str(valid_pairs)
+                quantities["end_diaphragm_vol_total"] = f"{total_volume:.4f}"
+                quantities["end_diaphragm_wt_single"] = f"{single_mass_mt:.4f}"
+                quantities["end_diaphragm_wt_total"] = f"{total_mass_mt:.4f}"
         # 6. Crash Barrier (Cu.m) and Weight (MT)
         KEY_CB_AREA = "typical_section.crash_barrier.area"
         cb_area = 0.0
@@ -361,6 +486,6 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["crash_barrier_wt_total"] = "N.A."
 
     except Exception as exc:
-        logger.warning(f"Error calculating material quantities: {exc}")
+        logger.exception("Error calculating material quantities")
 
     return quantities
