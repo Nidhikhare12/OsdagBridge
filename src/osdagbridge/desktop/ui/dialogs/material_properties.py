@@ -351,6 +351,19 @@ class MaterialPropertiesDialog(QDialog):
                 self._warn_and_autofill(widget, corrected, message)
                 return
 
+        # Every field is in range on its own; now check the steel fields
+        # against each other (fu > fy, G consistent with E and nu).
+        if not self.is_deck_material:
+            values = {key: widget.text().strip() for key, widget in self.field_inputs.items()}
+            errors = self.validator.validate_material_consistency(values)
+            if errors:
+                CustomMessageBox(
+                    title="Validation Error",
+                    text="\n".join(errors),
+                    dialogType=MessageBoxType.Critical,
+                ).exec()
+                return
+
         self._save_form()
         self.accept()
 
