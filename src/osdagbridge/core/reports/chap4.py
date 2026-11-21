@@ -5,7 +5,7 @@ from osdagbridge.core.utils.common import (
     KEY_SD_DEFL_LIVE,
     KEY_SD_DEFL_TOTAL,
 )
-from osdagbridge.core.reports.report_utils import _tex, _fig_embed
+from osdagbridge.core.reports.report_utils import _tex, _fig_embed, make_longtable_header
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -141,11 +141,11 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \endgroup
 
 \vspace{1em}
-\begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
-\hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
-\hline
+""" + make_longtable_header(
+    col_spec=r"|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|",
+    caption=r"\textbf{Reactions at Supports}",
+    header_row=r"\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)}",
+) + r"""
  & """ + '' + r""" & """ + '' + r""" \\[6pt]
 \hline
  & """ + '' + r""" & """ + '' + r""" \\[6pt]
@@ -155,11 +155,11 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{7cm}|p{8.5cm}|}
-\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
+""" + make_longtable_header(
+    col_spec=r"|L{7cm}|p{8.5cm}|",
+    caption=r"\textbf{Deflection Summary (Live Load \& Total Load)}",
+    header_row=r"\textbf{Parameter} & \textbf{Value}",
+) + r"""
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]
