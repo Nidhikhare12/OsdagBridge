@@ -142,21 +142,18 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 
 \vspace{1em}
 \begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
+\caption{\textbf{Reactions at Supports}}\\
 \hline
 \textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\multicolumn{3}{|c|}{\textit{Detailed reaction table not available in this report run.}} \\[6pt]
 \hline
 \end{longtable}
+\noindent\textit{Note: Support reaction values for all governing load cases and combinations are reported in Table 4.1 (Summary of Maximum Demands).}
 
 \vspace{1em}
 \begin{longtable}{|L{7cm}|p{8.5cm}|}
-\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
+\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline

@@ -50,7 +50,7 @@ design modules, and notes the limitations of the current software version.
 \section{Design Standards}
 \label{sec:design_standards}
 
-The following Indian Road Congress (IRC) codes and Indian Standards (IS) 
+The following Indian Road Congress (IRC) codes and Indian Standards (IS)
 form the basis of all design calculations in this software.
 
 \vspace{0.5cm}
@@ -61,19 +61,19 @@ form the basis of all design calculations in this software.
 \caption{\textbf{IRC Codes}}
 \begin{tabular}{|c|c|p{13cm}|}
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
+\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\
 \hline
-IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
+IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\
 \hline
-IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\ 
+IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\
 \hline
-IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\ 
+IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\
 \hline
-IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\ 
+IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\
 \hline
-IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\ 
+IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\
 \hline
-IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
+IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \hline
 \end{tabular}
 \end{table}
@@ -147,7 +147,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \textbf{Loading}
 
 \begin{itemize}
-\item Dead load densities per IRC 6:2017 Cl.203: structural steel $78.5 \ \text{kN/m}^3$, concrete $25.0 \ \text{kN/m}^3$, bituminous wearing course $24.0 \ \text{kN/m}^3$.
+\item Standard code reference densities per IRC 6:2017 Cl.203 (code reference defaults: structural steel $78.5 \ \text{kN/m}^3$, concrete $25.0 \ \text{kN/m}^3$, bituminous wearing course $24.0 \ \text{kN/m}^3$). Note: The adopted project values used for self-weight analysis in this report run are defined in Table 3.1 (structural steel: $76.4 \ \text{kN/m}^3$, concrete deck: $24.5 \ \text{kN/m}^3$).
 \item Multi-lane live load reduction factors per IRC 6:2017 Cl.204.4 Table 6A: 1st lane = 1.0, 2nd lane = 0.8, 3rd lane onwards = 0.4.
 \item Impact factor (dynamic load allowance) computed from span per IRC 6:2017 Cl.208.2/208.3.
 \item Wind load applied as transverse, longitudinal, and vertical components per IRC 6:2017 Cl.209.3.3--209.3.5.
@@ -187,6 +187,12 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
   should be performed for long-term deflection checks.
 \item The grillage analysis assumes simply supported boundary conditions;
   continuous spans are not currently supported.
+\item End diaphragm structural design checks are not yet implemented in the solver.
+\item Entire carriageway crowd-loading analysis is not supported.
+\item Tracked-vehicle braking is unsupported by the current solver implementation.
+\item Ordinary versus crowd footway classification is not selectable through the current GUI.
+\item Headless and interactive GUI calculations retain documented small differences
+  (Girder moment: 0.26\%, shear: 0.31\%, fatigue: 0.28\%).
 \end{itemize}
 """)
 

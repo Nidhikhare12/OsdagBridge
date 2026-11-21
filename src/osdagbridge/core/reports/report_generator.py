@@ -1,5 +1,5 @@
 # =============================================================================
-# OsdagBridge — Report Generator  
+# OsdagBridge — Report Generator
 # Matches OsdagBridge expected report format:
 #   • Full title page with logo
 #   • Numbered TOC (Executive Summary + Chapters 1-9)
@@ -109,6 +109,7 @@ from typing import Optional, List, Literal
 
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE,
+    KEY_SL_ZONE_FACTOR,
     KEY_SPAN,
     KEY_TL_BRIDGE_TEMP_MAX,
     KEY_TL_BRIDGE_TEMP_MIN,
@@ -119,6 +120,14 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import (
+    get_geometry_latex,
+    get_color_definitions_latex,
+    get_table_styling_latex,
+    get_header_footer_latex,
+    get_caption_setup_latex,
+    get_column_definitions_latex,
+)
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -152,128 +161,75 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     jn = _tex(job_number)
     rd = _tex(report_date)
     rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
+
+    geom_pkg = get_geometry_latex()
+    colors = get_color_definitions_latex()
+    captions = get_caption_setup_latex()
+    table_styling = get_table_styling_latex()
+    header_footer = get_header_footer_latex(pn, jn, rd, rv)
+    col_defs = get_column_definitions_latex()
+
+    return rf"""
+\documentclass[12pt,a4paper]{{report}}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{tabularx}
-\usepackage{float}
-\usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
-\usepackage{setspace}
-\usepackage{enumitem}
-\usepackage{caption}
+{geom_pkg}
+\usepackage{{graphicx}}
+\usepackage{{amsmath}}
+\usepackage{{amssymb}}
+\usepackage{{booktabs}}
+\usepackage{{array}}
+\usepackage{{tabularx}}
+\usepackage{{float}}
+\usepackage{{fancyhdr}}
+\usepackage[hidelinks]{{hyperref}}
+\usepackage{{xcolor}}
+\usepackage{{setspace}}
+\usepackage{{enumitem}}
+\usepackage{{caption}}
 
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
-\usepackage{subcaption}
-\usepackage{multirow}
-\usepackage{colortbl}
-\usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
-\usepackage{titlesec}
-\usepackage{titletoc}
-\usepackage{lastpage}
-\usepackage{makecell}
-\usepackage{etoolbox}
-\usepackage{needspace}
+{captions}
+\usepackage{{subcaption}}
+\usepackage{{multirow}}
+\usepackage{{colortbl}}
+\usepackage{{longtable}}
+\usepackage{{titlesec}}
+\usepackage{{titletoc}}
+\usepackage{{lastpage}}
+\usepackage{{makecell}}
+\usepackage{{etoolbox}}
+\usepackage{{needspace}}
 
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+\numberwithin{{table}}{{chapter}}
+\numberwithin{{figure}}{{chapter}}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+{table_styling}
 
-\definecolor{osdagGreen}{HTML}{91B014}
+{colors}
 
-\fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
-\pagestyle{main}
-\setstretch{1.15}
+{header_footer}
+\pagestyle{{main}}
+\setstretch{{1.15}}
 
 % Custom Commands
-\newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
-\newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\newcommand{{\placeholder}}[1]{{\textit{{\textless #1\textgreater}}}}
+\newcommand{{\todo}}[1]{{\colorbox{{yellow}}{{TODO: #1}}}}
+
+{col_defs}
 
 % Software-default asterisk
-\newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
+\newcommand{{\sdstar}}{{\textsuperscript{{*}}}}
+\newbool{{hasSDonPage}}
+\boolfalse{{hasSDonPage}}
+\newcommand{{\markSD}}{{\global\booltrue{{hasSDonPage}}}}
+\renewcommand{{\sdstar}}{{\textsuperscript{{*}}\markSD{{}}}}
+\AddToHook{{shipout/before}}{{\global\boolfalse{{hasSDonPage}}}}
 
-\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
-\author{}
-\date{}
+\title{{\Large\textbf{{OsdagBridge}} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{{2cm}} \large Design Report}}
+\author{{}}
+\date{{}}
 
-\begin{document}
+\begin{{document}}
 """
 
 
@@ -322,13 +278,13 @@ def title_page(m, osdag_logo, org_logo):
 \hline
 \textbf{Author / Designer} & """ + _tex(m.designer) + r""" \\
 \hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
+\textbf{Reviewer} & """ + (_tex(m.reviewer) if m.reviewer and str(m.reviewer).strip() else 'Not specified') + r""" \\
 \hline
 \textbf{Organization} & """ + _tex(m.company) + r""" \\
 \hline
 \textbf{Client Name and Organization} & """ + _tex(m.client) + r""" \\
 \hline
-\textbf{Job Number} & """ + _tex(m.job_number) + r""" \\
+\textbf{Job Number} & """ + (_tex(m.job_number) if m.job_number and str(m.job_number).strip() else 'Not specified') + r""" \\
 \hline
 \textbf{Date} & """ + _tex(m.report_date) + r""" \\
 \hline
@@ -382,7 +338,7 @@ def toc_section():
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# Public data-classes 
+# Public data-classes
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -646,10 +602,10 @@ def _format_project_location(pl_data):
         pl_dict = pl_data
     else:
         return str(pl_data)
-    
+
     method = pl_dict.get('method')
     data = pl_dict.get('data', {})
-    
+
     if method == 'location_name':
         dist = data.get('district', '')
         state = data.get('state', '')
@@ -675,7 +631,7 @@ def _format_project_location(pl_data):
         return 'Map Location'
     elif method == 'custom_data':
         return 'Custom Location Data'
-    
+
     return str(pl_data)
 
 # ---------------------------------------------------------------------------
@@ -706,28 +662,33 @@ def build_report_payload(request, input_dict, output_dict):
         # Inject detailed project location and weather data into input_dict dict
         try:
             import ast
-            if isinstance(raw_pl, str) and '{' in raw_pl:
-                pl_dict = ast.literal_eval(raw_pl)
-            elif isinstance(raw_pl, dict):
-                pl_dict = raw_pl
+            loc_source = input_dict.get('project.location') or raw_pl
+            if isinstance(loc_source, str) and '{' in loc_source:
+                pl_dict = ast.literal_eval(loc_source)
+            elif isinstance(loc_source, dict):
+                pl_dict = loc_source
             else:
                 pl_dict = {}
-                
+
             if pl_dict and isinstance(pl_dict, dict):
                 data = pl_dict.get('data', {})
                 weather = pl_dict.get('weather_data', {})
-                
+
                 # We prioritize manual inputs if they exist, else we use the DB/map coordinates
                 lat_val = data.get('latitude') or weather.get('latitude')
                 lon_val = data.get('longitude') or weather.get('longitude')
-                
+
                 if 'latitude' not in input_dict and lat_val:
                     input_dict['latitude'] = lat_val
                 if 'longitude' not in input_dict and lon_val:
                     input_dict['longitude'] = lon_val
-                    
+
                 if 'seismic_zone' not in input_dict and weather.get('zone'):
                     input_dict['seismic_zone'] = weather.get('zone')
+                if KEY_SL_ZONE_FACTOR not in input_dict and weather.get('z_value'):
+                    input_dict[KEY_SL_ZONE_FACTOR] = weather.get('z_value')
+                if 'zone_factor' not in input_dict and weather.get('z_value'):
+                    input_dict['zone_factor'] = weather.get('z_value')
                 if 'wind_speed' not in input_dict and weather.get('wind_speed'):
                     input_dict['wind_speed'] = weather.get('wind_speed')
                 if 'shade_temp_max' not in input_dict and weather.get('max_temp'):
@@ -767,7 +728,7 @@ def build_report_payload(request, input_dict, output_dict):
         asum = {}
         if output_dict:
             asum = output_dict.get('analysis_summary', {})
-   
+
 
         # 4) Grab Design Checks and Log
         dc = []
@@ -851,7 +812,7 @@ def generate_report(payload, request):
                     os.environ['PATH'] = str(latex_env.bin_dir) + os.pathsep + os.environ.get('PATH', '')
         except Exception as e:
             logger.info("osdag_latex_env not found or failed to load. (%s)", e)
-            
+
         logger.info("Compiler: %s", compiler)
 
         os.makedirs(request.output_dir, exist_ok=True)
@@ -903,6 +864,21 @@ def generate_report(payload, request):
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
+            # Generate Utilization Ratio (UR) bar charts into tmp_assets
+            if 'design_checks' in payload.options.sections:
+                try:
+                    from osdagbridge.core.reports.ur_charts import generate_all_ur_charts
+                    generate_all_ur_charts(bridge, tmp_assets)
+                except Exception as _ue:
+                    logger.warning("Could not generate UR charts: %s", _ue)
+
+            # Generate Chapter 7 Material Quantity charts into tmp_assets
+            try:
+                from osdagbridge.core.reports.material_charts import generate_all_material_charts
+                generate_all_material_charts(payload.inputs, payload.output_dict, tmp_assets)
+            except Exception as _me:
+                logger.warning("Could not generate material charts: %s", _me)
+
             doc_parts = []
             doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
             doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
@@ -928,11 +904,11 @@ def generate_report(payload, request):
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, payload.output_dict, fig_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
-        
+
 
             doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
 
@@ -965,7 +941,7 @@ def generate_report(payload, request):
                     }
                     if os.name == 'nt':
                         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
+
                     res = subprocess.run(
                         [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
                         **kwargs
@@ -977,6 +953,21 @@ def generate_report(payload, request):
                 shutil.copy2(tmp_tex, tex_path)
             if os.path.exists(tmp_pdf):
                 shutil.copy2(tmp_pdf, pdf_path)
+
+            # Copy all assets (logos, UR charts) to output_dir so exported TeX can be compiled independently
+            out_assets = os.path.join(request.output_dir, 'assets')
+            os.makedirs(out_assets, exist_ok=True)
+            if os.path.exists(tmp_assets):
+                for _asset_file in os.listdir(tmp_assets):
+                    _src = os.path.join(tmp_assets, _asset_file)
+                    if os.path.isfile(_src):
+                        shutil.copy2(_src, os.path.join(out_assets, _asset_file))
+
+            # Also preserve log and aux files in output_dir
+            for ext in ['.log', '.aux', '.out', '.toc']:
+                tmp_f = os.path.join(tmp_dir, request.file_stem + ext)
+                if os.path.exists(tmp_f):
+                    shutil.copy2(tmp_f, os.path.join(request.output_dir, request.file_stem + ext))
 
         if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)

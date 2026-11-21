@@ -36,9 +36,9 @@ def ch6_drawings(fig_paths):
                     )
         return (r'\begin{figure}[H]' + '\n'
                 r'\centering' + '\n'
-                r'\fbox{\parbox{0.97\textwidth}{' + '\n'
-                r'\textit{[ PLACEHOLDER: ' + ' ' + title + r' ]}' + '\n'
-                r'}}' + '\n'
+                r'\vspace{6pt}' + '\n'
+                r'{\small\itshape [ ' + title + r': View not captured in headless report run (requires active CAD session) ]}' + '\n'
+                r'\vspace{6pt}' + '\n'
                 r'\caption{' + title + '}\n'
                 + label_tex
                 + r'\end{figure}' + '\n')
@@ -58,7 +58,9 @@ def ch6_drawings(fig_paths):
             p = path.replace('\\', '/')
             body = r'\includegraphics[width=\linewidth]{' + p + '}'
         else:
-            body = r'\fbox{\parbox{0.95\linewidth}{\centering\textit{[ ' + title + r' ]}}}'
+            body = (r'\vspace{6pt}' + '\n'
+                    r'{\scriptsize\itshape [ View unavailable in headless run ]}' + '\n'
+                    r'\vspace{6pt}')
         return (r'\begin{minipage}[t]{0.31\textwidth}' + '\n'
                 r'\centering' + '\n'
                 + body + '\n'
@@ -126,7 +128,7 @@ def ch6_drawings(fig_paths):
 \chapter{Drawings and Visualizations}
 \label{ch:drawings}
 
-This section presents CAD-generated views of the designed bridge and its components. All views are generated automatically by OsdagBridge using pythonOCC.
+This section presents CAD-generated drawings and visualizations of the designed bridge superstructure and its structural components. In a standard interactive session, 3D and 2D views are generated automatically by OsdagBridge using pythonOCC. When reports are compiled in headless or automated execution environments without an active CAD display session, graphical viewport captures are unavailable, and the corresponding view entries are documented accordingly below.
 
 \section{Bridge Configuration and Layout}
 \label{sec:bridge-layout}
