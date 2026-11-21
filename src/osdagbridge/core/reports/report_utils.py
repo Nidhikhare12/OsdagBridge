@@ -97,14 +97,14 @@ def _fig_or_placeholder(path, caption, width=r'0.9\textwidth'):
                 r'\end{figure}')
     return (r'\begin{figure}[H]' + '\n'
             r'\centering' + '\n'
-            r'\fbox{\parbox{0.97\textwidth}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
-            r'}}' + '\n'
+            r'\vspace{6pt}' + '\n'
+            r'{\small\itshape [ ' + caption + r': View not captured in headless report run (requires active CAD session) ]}' + '\n'
+            r'\vspace{6pt}' + '\n'
             r'\caption*{' + caption + '}\n'
             r'\end{figure}')
 
 def _fig_embed(path, caption, width=r'\textwidth', height=None):
-    """Embed a real figure when path is provided (already copied); otherwise use an fbox placeholder."""
+    """Embed a real figure when path is provided (already copied); otherwise note view unavailable."""
     if path:
         p = path.replace('\\', '/')
         opts = 'width=' + width
@@ -118,9 +118,8 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
                 r'\caption*{\small ' + caption + '}\n'
                 r'\vspace{-0.5em}' + '\n'
                 r'\end{figure}')
-    # fbox placeholder — matches template exactly
-    return (r'\noindent\fbox{\parbox{0.97\textwidth}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
-            r'}}')
+    return (r'\begin{center}' + '\n'
+            r'{\small\itshape [ ' + caption + r': View not captured in headless report run ]}' + '\n'
+            r'\end{center}')
 
 

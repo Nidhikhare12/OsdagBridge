@@ -42,7 +42,7 @@ class TestReportStyles(unittest.TestCase):
     def test_geometry_latex(self):
         geom = get_geometry_latex()
         self.assertIn("a4paper", geom)
-        self.assertIn("headheight=18pt", geom)
+        self.assertIn("headheight=24pt", geom)
         self.assertIn("bottom=28mm", geom)
         self.assertIn("footskip=14mm", geom)
 
@@ -61,14 +61,16 @@ class TestReportStyles(unittest.TestCase):
     def test_header_footer_no_negative_vspace(self):
         hf = get_header_footer_latex("TestProject", "JOB-001", "2026-11-19", "Rev 0")
         self.assertIn("TestProject $|$ JOB-001", hf)
-        self.assertIn("Page \\thepage\\ of \\pageref{LastPage}", hf)
+        self.assertIn(r"Page \thepage\ of \pageref", hf)
+        self.assertIn(r"0.55\headwidth", hf)
+        self.assertIn(r"0.40\headwidth", hf)
         self.assertNotIn(r"\vspace{-20pt}", hf)
         self.assertNotIn(r"\vspace{-8pt}", hf)
 
     def test_preamble_integration(self):
         p = preamble("Project Alpha", "JOB-100", "2026-11-19")
         self.assertIn(r"\documentclass[12pt,a4paper]{report}", p)
-        self.assertIn("headheight=18pt", p)
+        self.assertIn("headheight=24pt", p)
         self.assertIn("footskip=14mm", p)
         self.assertIn(r"\definecolor{osdagGreen}{HTML}{91B014}", p)
         self.assertIn(r"\begin{document}", p)
@@ -1110,6 +1112,712 @@ class TestFinalAuditDocumentation(unittest.TestCase):
         self.assertIn("Ordinary versus crowd footway classification is not selectable through the current GUI", tex)
         self.assertIn("Headless and interactive GUI calculations retain documented small differences", tex)
         self.assertIn(r"Girder moment: 0.26\%, shear: 0.31\%, fatigue: 0.28\%", tex)
+
+
+class TestFinalPdfQualityCorrections(unittest.TestCase):
+    """Unit tests for the final PDF quality correction pass."""
+
+    def test_executive_summary_key_outcomes_itemization(self):
+        """1. Executive summary reflects true design statuses, not hardcoded pass."""
+        from osdagbridge.core.reports.executive_summary import executive_summary
+        inp = {"Project Title": "Test Bridge", "Job Number": "JOB-01"}
+        out = {
+            "girders": {"G1": {"status": "FAIL", "utilization_ratio": 1.57}},
+            "deck_slab": {"status": "PASS"},
+            "cross_bracing": {"status": "PASS"},
+        }
+        tex = executive_summary(inp, out, {})
+        # Must show Plate Girders FAIL with governing Fatigue Normal Stress check
+        self.assertIn("Plate Girders", tex)
+        self.assertIn("FAIL", tex)
+        self.assertIn("Fatigue Normal Stress", tex)
+        self.assertIn("UR = 1.57", tex)
+        self.assertNotIn("Bending Moment", tex)
+        # Must show Deck Slab PASS
+        self.assertIn("Concrete Deck Slab", tex)
+        # Must show Cross Bracing PASS
+        self.assertIn("Cross Bracing", tex)
+        # Must show End Diaphragms Solver Pending
+        self.assertIn("End Diaphragms", tex)
+        self.assertIn("Solver Pending", tex)
+        # Must not claim End Diaphragm pass
+        self.assertNotIn("End Diaphragm design pass", tex)
+        self.assertNotIn("Girder design pass", tex)
+
+    def test_table_2_7_girder_dimensions_mm_conversion(self):
+        """2. Table 2.7 converts metre values to millimetres properly."""
+        import types
+        from osdagbridge.core.reports.chap2 import ch2_input_parameters
+        from osdagbridge.core.utils.common import (
+            KEY_MP_GIRDER_DEPTH,
+            KEY_MP_GIRDER_WEB_THICKNESS,
+            KEY_MP_GIRDER_TOP_FLANGE_WIDTH,
+            KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
+            KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH,
+            KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS,
+        )
+        inp = {
+            f"{KEY_MP_GIRDER_DEPTH}.G1.M1": 1.67,
+            f"{KEY_MP_GIRDER_WEB_THICKNESS}.G1.M1": 0.01,
+            f"{KEY_MP_GIRDER_TOP_FLANGE_WIDTH}.G1.M1": 0.51,
+            f"{KEY_MP_GIRDER_TOP_FLANGE_THICKNESS}.G1.M1": 0.022,
+            f"{KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH}.G1.M1": 0.51,
+            f"{KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS}.G1.M1": 0.022,
+            "Number of Girders": 1,
+        }
+        meta = types.SimpleNamespace(project_location="Test Location")
+        out = {}
+        tex = ch2_input_parameters(meta, inp, out)
+        self.assertIn("1670 mm", tex)
+        self.assertIn("10 mm", tex)
+        self.assertIn("510 mm", tex)
+        self.assertIn("22 mm", tex)
+        self.assertNotIn("1.67 mm", tex)
+        self.assertNotIn("0.01 mm", tex)
+        self.assertNotIn("0.51 mm", tex)
+        self.assertNotIn("0.022 mm", tex)
+
+    def test_end_diaphragm_disclosure_and_summary(self):
+        """3. Section 5.4 and Table 5.29 honestly disclose End Diaphragm solver status."""
+        from osdagbridge.core.reports.chap5 import ch5_design_checks
+        class MockBridge:
+            def __init__(self):
+                self.input_dict = {
+                    "Effective Span (m)": 30.0,
+                    "Number of Girders": 4,
+                    "End Diaphragm Section Type": "Truss",
+                    "End Diaphragm Steel Section": "ISA 100x100x10",
+                }
+                self.output_dict = {}
+                self.payload = None
+            def get_cb_pairs(self):
+                return []
+            def get_cb_governing_force(self, pair, m):
+                return ("", "")
+            def get_cb_efficiency(self, pair, m, f):
+                return ""
+            def get_cb_status(self, pair, m, f):
+                return ""
+            def get_cb_section(self, pair, m, f):
+                return ""
+
+        bridge = MockBridge()
+        tex = ch5_design_checks([], bridge)
+        # Table 5.26 configuration should exist
+        self.assertIn(r"\label{tab:ed-config}", tex)
+        self.assertIn("End Diaphragm --- Configuration and Boundary Restraints", tex)
+        # Table 5.28 duplicate capacity should NOT exist
+        self.assertNotIn(r"\label{tab:ed-capacity}", tex)
+        # Disclosure message
+        self.assertIn("End Diaphragm Structural Verification Status", tex)
+        self.assertIn("Detailed structural capacity verification", tex)
+        self.assertIn("Solver Pending / Not Verified", tex)
+        # Table 5.29 has Solver Pending for End Diaphragms
+        self.assertIn("Solver Pending (Structural checks unavailable in solver)", tex)
+
+    def test_chapter_6_no_placeholder_boxes(self):
+        """4. Chapter 6 does not emit [ PLACEHOLDER: ... ] or fbox graphics."""
+        from osdagbridge.core.reports.chap6 import ch6_drawings
+        tex = ch6_drawings({})
+        self.assertNotIn(r"\fbox{\parbox", tex)
+        self.assertNotIn(r"[ PLACEHOLDER:", tex)
+        self.assertIn("View not captured in headless report run (requires active CAD session)", tex)
+        self.assertIn("active CAD display session", tex)
+
+    def test_ur_chart_styling_headroom_and_legend(self):
+        """5. UR charts configure sufficient headroom and upper center legend."""
+        from osdagbridge.core.reports.ur_charts import plot_ur_bar_chart
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import tempfile
+        items = [
+            {"label": "G1", "ur": 1.57, "status": "FAIL"},
+            {"label": "G2", "ur": 0.85, "status": "PASS"},
+            {"label": "G3", "ur": 0.85, "status": "PASS"},
+            {"label": "G4", "ur": 1.57, "status": "FAIL"},
+        ]
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_path = os.path.join(tmp_dir, "test_ur.png")
+            plot_ur_bar_chart(items, "Test Girders", out_path)
+            self.assertTrue(os.path.exists(out_path))
+            self.assertGreater(os.path.getsize(out_path), 5000)
+
+    def test_table1_individual_girder_utilization_ratios(self):
+        """6. Executive Summary Table 1 reports individual girder URs matching Table 5.12."""
+        from osdagbridge.core.reports.executive_summary import executive_summary
+        from osdagbridge.core.utils.common import (
+            KEY_MP_GD_SELECT_GIRDER,
+            KEY_MP_GD_MEMBER_ID,
+            KEY_SD_ULS_PER_GIRDER,
+            KEY_TS_NO_OF_GIRDERS,
+        )
+        inp = {
+            "Project Title": "Test Bridge",
+            "Job Number": "JOB-01",
+            KEY_TS_NO_OF_GIRDERS: 4,
+            f"{KEY_MP_GD_SELECT_GIRDER}.G1": "G1",
+            f"{KEY_MP_GD_MEMBER_ID}.G1.M1": "G1M1",
+            f"{KEY_MP_GD_SELECT_GIRDER}.G2": "G2",
+            f"{KEY_MP_GD_MEMBER_ID}.G2.M1": "G2M1",
+            f"{KEY_MP_GD_SELECT_GIRDER}.G3": "G3",
+            f"{KEY_MP_GD_MEMBER_ID}.G3.M1": "G3M1",
+            f"{KEY_MP_GD_SELECT_GIRDER}.G4": "G4",
+            f"{KEY_MP_GD_MEMBER_ID}.G4.M1": "G4M1",
+        }
+        out = {
+            "design_results": {
+                "per_girder": {
+                    "G1": {"checks": [{"name": "Fatigue Normal Stress", "dcr": 1.5285, "status": "FAIL"}]},
+                    "G2": {"checks": [{"name": "Fatigue Normal Stress", "dcr": 1.5402, "status": "FAIL"}]},
+                    "G3": {"checks": [{"name": "Fatigue Normal Stress", "dcr": 1.5726, "status": "FAIL"}]},
+                    "G4": {"checks": [{"name": "Fatigue Normal Stress", "dcr": 1.5726, "status": "FAIL"}]},
+                },
+                KEY_SD_ULS_PER_GIRDER: {
+                    "fatigue": {
+                        "G1": {"ur": 1.528, "status": "FAIL"},
+                        "G2": {"ur": 1.540, "status": "FAIL"},
+                        "G3": {"ur": 1.573, "status": "FAIL"},
+                        "G4": {"ur": 1.573, "status": "FAIL"},
+                    }
+                }
+            }
+        }
+        tex = executive_summary(inp, out, {})
+        # Verify Table 1 contains the specific per-girder UR values
+        self.assertIn("Utilization Ratio & 1.53 & 1.54 & 1.57 & 1.57 \\\\", tex)
+        # Verify governing check row
+        self.assertIn("Governing Check & Fatigue Normal Stress & Fatigue Normal Stress & Fatigue Normal Stress & Fatigue Normal Stress \\\\", tex)
+        # Ensure it is not repeating 1.57 blindly for all girders
+        self.assertNotIn("Utilization Ratio & 1.57 & 1.57 & 1.57 & 1.57 \\\\", tex)
+        self.assertNotIn("Utilization Ratio & 1.57 (Girder) & 1.57 (Girder)", tex)
+
+    def test_total_load_deflection_disclosure(self):
+        """7. Total-load deflection failure is disclosed while preserving governing fatigue."""
+        from osdagbridge.core.reports.executive_summary import executive_summary
+        from osdagbridge.core.reports.chap5 import ch5_design_checks
+        from osdagbridge.core.utils.common import (
+            KEY_SD_DEFL_TOTAL,
+            KEY_SD_DEFL_ALLOW_TOTAL,
+            KEY_SPAN,
+            KEY_TS_NO_OF_GIRDERS,
+        )
+        inp = {KEY_SPAN: 30.0, KEY_TS_NO_OF_GIRDERS: 4}
+        out = {
+            "design_results": {
+                "per_girder": {
+                    "G1": {"checks": [{"name": "Fatigue Normal Stress", "dcr": 1.57, "status": "FAIL"}]}
+                }
+            },
+            f"{KEY_SD_DEFL_TOTAL}.G1": 51.137,
+            f"{KEY_SD_DEFL_TOTAL}.G2": 51.274,
+            KEY_SD_DEFL_ALLOW_TOTAL: 50.0,
+        }
+        tex = executive_summary(inp, out, {})
+        # Discloses total-load deflection failure in overall status and outcomes
+        self.assertIn("Total Load Deflection", tex)
+        self.assertIn("Total-load deflection also exceeds allowable limit", tex)
+        # Preserves governing fatigue failure
+        self.assertIn("Governing Check: Fatigue Normal Stress (UR = 1.57)", tex)
+
+        # Check Table 5.27 distinguishing composite deflection and total deflection
+        class MockBridge:
+            def __init__(self):
+                self.input_dict = {KEY_SPAN: 30.0, KEY_TS_NO_OF_GIRDERS: 4}
+                self.output_dict = out
+                self.payload = None
+            def get_cb_pairs(self): return []
+            def get_cb_governing_force(self, pair, m): return ("", "")
+            def get_cb_efficiency(self, pair, m, f): return ""
+            def get_cb_status(self, pair, m, f): return ""
+            def get_cb_section(self, pair, m, f): return ""
+
+        ch5_tex = ch5_design_checks([], MockBridge())
+        self.assertIn("Girder --- Deflection (composite)", ch5_tex)
+        self.assertIn("Girder --- Total Deflection (Table 5.9)", ch5_tex)
+        self.assertIn("51.27 mm", ch5_tex)
+
+    def test_end_diaphragm_wording_updated(self):
+        """8. Section 5.4 uses honest wording for pending solver implementation."""
+        from osdagbridge.core.reports.chap5 import ch5_design_checks
+        from osdagbridge.core.utils.common import KEY_TS_NO_OF_GIRDERS
+        class MockBridge:
+            def __init__(self):
+                self.input_dict = {"Effective Span (m)": 30.0, KEY_TS_NO_OF_GIRDERS: 4}
+                self.output_dict = {}
+                self.payload = None
+            def get_cb_pairs(self): return []
+            def get_cb_governing_force(self, pair, m): return ("", "")
+            def get_cb_efficiency(self, pair, m, f): return ""
+            def get_cb_status(self, pair, m, f): return ""
+            def get_cb_section(self, pair, m, f): return ""
+
+        ch5_tex = ch5_design_checks([], MockBridge())
+        self.assertIn("The intended design basis is per IS~800:2007 and IRC~24:2010 Cl.~507", ch5_tex)
+        self.assertIn("detailed member sizing and code verification remain pending solver implementation", ch5_tex)
+        self.assertNotIn("They are designed per IS~800:2007 and IRC~24:2010 Cl.~507.", ch5_tex)
+
+    def test_missing_environmental_inputs_and_metadata(self):
+        """9. Environmental inputs handle missing data honestly without placeholders."""
+        import types
+        from osdagbridge.core.reports.chap2 import ch2_input_parameters
+        from osdagbridge.core.reports.chap3 import ch3_loads
+        from osdagbridge.core.reports.chap1 import ch1_project_info
+        from osdagbridge.core.reports.report_generator import title_page
+
+        meta = types.SimpleNamespace(
+            project_name="Test",
+            project_location="Test Loc",
+            designer="Designer",
+            reviewer="",
+            company="Osdag",
+            client="FOSSEE",
+            job_number="",
+            report_date="2026-11-21",
+            subtitle="",
+        )
+        c1_tex = ch1_project_info(meta)
+        self.assertIn("Not specified", c1_tex)
+
+        cov_tex = title_page(meta, "", "")
+        self.assertIn(r"\textbf{Reviewer} & Not specified", cov_tex)
+        self.assertIn(r"\textbf{Job Number} & Not specified", cov_tex)
+
+        # Chap 2 fallback test
+        c2_tex = ch2_input_parameters(meta, {}, {})
+        self.assertIn("Not provided", c2_tex)
+        self.assertNotIn("[from Project Location]", c2_tex)
+        self.assertNotIn("These inputs are mandatory and were provided by the user.", c2_tex)
+
+        # Chap 3 fallback test
+        c3_tex = ch3_loads({})
+        self.assertNotIn("[from Project Location]", c3_tex)
+        self.assertIn("Not available in this report run", c3_tex)
+
+    def test_cross_bracing_section_reconciliation_and_member_id(self):
+        """10. Table 2.9 reconciles configured trial section and design result, cleaning redundant member IDs."""
+        import types
+        from osdagbridge.core.reports.chap2 import ch2_input_parameters
+        from osdagbridge.core.utils.common import (
+            KEY_MP_CB_SELECT_GIRDERS,
+            KEY_MP_CB_MEMBER_ID,
+            KEY_MP_CB_TYPE,
+            KEY_MP_CB_BRACING_SECTION_DESIGNATION,
+            KEY_MP_CB_SPACING,
+            KEY_TS_NO_OF_GIRDERS,
+        )
+        meta = types.SimpleNamespace(project_name="Test", project_location="Pune", designer="Designer", reviewer="", company="Osdag", client="FOSSEE", job_number="", report_date="2026-11-21", subtitle="")
+        inp = {
+            KEY_TS_NO_OF_GIRDERS: 4,
+            f"{KEY_MP_CB_SELECT_GIRDERS}.G1G2.B1M1": "G1 to G2",
+            f"{KEY_MP_CB_MEMBER_ID}.G1G2.B1M1": "B1M1 to B1M1",
+            f"{KEY_MP_CB_TYPE}.G1G2.B1M1": "X-Bracing",
+            f"{KEY_MP_CB_BRACING_SECTION_DESIGNATION}.G1G2.B1M1": "IS 100 x 100 x 10",
+            f"{KEY_MP_CB_SPACING}.G1G2.B1M1": 15.0,
+        }
+        out = {
+            "crossbracing_design_results": {
+                "G1-G2": {
+                    "diagonal": {"compression": {"section_size.designation": "40 x 40 x 3"}},
+                    "chord": {"compression": {"section_size.designation": "40 x 40 x 3"}},
+                }
+            }
+        }
+        tex = ch2_input_parameters(meta, inp, out)
+        # Verify member ID cleaned from 'B1M1 to B1M1' to 'B1M1'
+        self.assertIn("G1 to G2 & B1M1 & X-Bracing", tex)
+        self.assertNotIn("B1M1 to B1M1", tex)
+        # Verify both configured trial section and final design result are present
+        self.assertIn("IS 100 x 100 x 10", tex)
+        self.assertIn("40 x 40 x 3", tex)
+        self.assertIn("Initial Trial", tex)
+        self.assertIn("Final Designed", tex)
+        self.assertIn("software-configured initial trial section from input parameters", tex)
+
+    def test_material_density_clarification(self):
+        """11. Material densities distinguish adopted project values from general IRC 6 Cl. 203 defaults."""
+        import types
+        from osdagbridge.core.reports.chap3 import ch3_loads
+        from osdagbridge.core.reports.chap8 import ch8_design_log
+        from osdagbridge.core.utils.common import (
+            KEY_MATERIAL_GIRDER_DENSITY,
+            KEY_MATERIAL_DECK_DENSITY,
+            KEY_PL_SELF_WEIGHT_FACTOR,
+        )
+        inp = {
+            KEY_MATERIAL_GIRDER_DENSITY: 76.4,
+            KEY_MATERIAL_DECK_DENSITY: 24.5,
+            KEY_PL_SELF_WEIGHT_FACTOR: 1.0,
+        }
+        c3_tex = ch3_loads(inp)
+        self.assertIn("76.4", c3_tex)
+        self.assertIn("24.5", c3_tex)
+        self.assertIn("Adopted material self-weight densities are project-specific values", c3_tex)
+        self.assertIn("distinguished from general IRC 6:2017 Cl. 203 reference defaults", c3_tex)
+
+        c8_tex = ch8_design_log([], inp)
+        self.assertIn("Standard code reference densities per IRC 6:2017 Cl.203", c8_tex)
+        self.assertIn("78.5", c8_tex)
+        self.assertIn("25.0", c8_tex)
+        self.assertIn("adopted project values used for self-weight analysis in this report run are defined in Table 3.1", c8_tex)
+
+    def test_harmonized_standards_and_references(self):
+        """12. Applicable standards across Chap 1, Chap 8, and Chap 9 consistently reference applied editions."""
+        import types
+        from osdagbridge.core.reports.chap1 import ch1_project_info
+        from osdagbridge.core.reports.chap8 import ch8_design_log
+        from osdagbridge.core.reports.chap9 import references
+        meta = types.SimpleNamespace(project_name="Test", project_location="Pune", designer="Designer", reviewer="", company="Osdag", client="FOSSEE", job_number="", report_date="2026-11-21", subtitle="")
+
+        c1_tex = ch1_project_info(meta)
+        self.assertIn("Indian Roads Congress (IRC) 5:2015", c1_tex)
+        self.assertIn("Indian Roads Congress (IRC) 22:2015", c1_tex)
+        self.assertIn("Indian Roads Congress (IRC) 112:2020", c1_tex)
+        self.assertNotIn("IRC 5 (2024)", c1_tex)
+
+        c8_tex = ch8_design_log([], {})
+        self.assertIn("IRC 5 & 2015", c8_tex)
+        self.assertIn("IRC 22 & 2015", c8_tex)
+        self.assertIn("IRC 112 & 2020", c8_tex)
+
+        c9_tex = references()
+        self.assertIn("IRC 5:2015", c9_tex)
+        self.assertIn("IRC 22:2015", c9_tex)
+        self.assertIn("IRC 112:2020", c9_tex)
+        self.assertIn("IS 456:2000", c9_tex)
+        self.assertNotIn("IRC 5 (2024)", c9_tex)
+        self.assertNotIn("IRC 22 (2014)", c9_tex)
+        self.assertNotIn("IRC 112 (2011)", c9_tex)
+
+    def test_temperature_rise_fall_rendering_and_basis(self):
+        """13. Temperature rise/fall uses math minus sign and explains IRC 6 Cl. 215.2 basis."""
+        from osdagbridge.core.reports.chap3 import ch3_loads
+        from osdagbridge.core.utils.common import (
+            KEY_TL_BRIDGE_TEMP_MIN,
+            KEY_TL_BRIDGE_TEMP_MAX,
+            KEY_TL_TEMP_RISE,
+            KEY_TL_TEMP_FALL,
+        )
+        inp = {
+            "shade_temp_max": 43.3,
+            "shade_temp_min": 1.7,
+            KEY_TL_BRIDGE_TEMP_MIN: "-8.30",
+            KEY_TL_BRIDGE_TEMP_MAX: "58.30",
+            KEY_TL_TEMP_RISE: "33.30",
+            KEY_TL_TEMP_FALL: "33.30",
+        }
+        tex = ch3_loads(inp)
+        self.assertIn("-8.30 to 58.30", tex)
+        # Must contain math minus for fall, not \textminus which renders as '=' in OT1
+        self.assertIn(r"$+33.30\,^\circ\mathrm{C} \ / \ -33.30\,^\circ\mathrm{C}$", tex)
+        self.assertNotIn(r"\textminus", tex)
+        self.assertIn("Calculated per IRC 6:2017 Cl. 215.2 for metallic bridges", tex)
+        self.assertIn("mean reference/installation temperature", tex)
+
+    def test_review3_table2_9_header_widths_and_labels(self):
+        """Review 3.1: Table 2.9 uses compact multiline headers preventing column collision."""
+        import types
+        from osdagbridge.core.reports.chap2 import ch2_input_parameters
+        meta = types.SimpleNamespace(project_name="Test", project_location="Pune", designer="Designer", reviewer="", company="Osdag", client="FOSSEE", job_number="", report_date="2026-11-21", subtitle="")
+        tex = ch2_input_parameters(meta, {"typical_section.no_of_girders": 2}, {})
+        self.assertIn(r"\begin{longtable}{|L{2.0cm}|C{1.8cm}|C{2.2cm}|C{2.8cm}|C{2.8cm}|C{1.8cm}|}", tex)
+        self.assertIn(r"\makecell{\textbf{Initial Trial}\\\textbf{Section}}", tex)
+        self.assertIn(r"\makecell{\textbf{Final Designed}\\\textbf{Section}}", tex)
+        self.assertIn("Note: IS 100 x 100 x 10 is the software-configured initial trial section", tex)
+
+    def test_review3_table3_3_page_break_placement(self):
+        """Review 3.2: Table 3.3 begins on a new page preventing ghost continuation headers."""
+        from osdagbridge.core.reports.chap3 import ch3_loads
+        tex = ch3_loads({})
+        # Chap 3 loads string must separate Table 3.2 and Table 3.3 with \newpage
+        self.assertIn(r"\newpage" + "\n" + r"\begin{longtable}{|L{3.2cm}|C{2.6cm}|C{2.0cm}|C{3.2cm}|C{2.0cm}|}", tex)
+
+    def test_review3_table4_2_support_reactions_merged_fallback(self):
+        """Review 3.3: Table 4.2 replaces blank rows with merged unavailable message and directs to Table 4.1."""
+        import types
+        from osdagbridge.core.reports.chap4 import ch4_analysis
+        dummy_bridge = types.SimpleNamespace(input_dict={}, output_dict={})
+        tex = ch4_analysis({}, {}, dummy_bridge, 30.0)
+        self.assertIn(r"\multicolumn{3}{|c|}{\textit{Detailed reaction table not available in this report run.}}", tex)
+        self.assertIn("Support reaction values for all governing load cases and combinations are reported in Table 4.1", tex)
+        # Verify no empty table cells
+        self.assertNotIn(r" &  &  \\[6pt]", tex)
+
+    def test_review3_end_diaphragm_wording_reconciliation(self):
+        """Review 3.4: End diaphragm text correctly references configured cross-bracing / transverse bracing arrangement."""
+        from osdagbridge.core.reports.chap5 import ch5_design_checks
+        from osdagbridge.core.reports.chap7 import ch7_quantities
+
+        class MockBridge:
+            input_dict = {"typical_section.no_of_girders": 4}
+            output_dict = {}
+            payload = None
+            def get_cb_pairs(self):
+                return []
+            def get_cb_governing_force(self, pair, m):
+                return ("", "")
+            def get_cb_efficiency(self, pair, m, f):
+                return ""
+            def get_cb_status(self, pair, m, f):
+                return ""
+            def get_cb_section(self, pair, m, f):
+                return ""
+
+        bridge = MockBridge()
+        tex_ch5 = ch5_design_checks([], bridge)
+        self.assertIn("configured as cross-bracing members (from model configuration)", tex_ch5)
+        self.assertIn("configured cross-bracing end diaphragms", tex_ch5)
+        self.assertNotIn("configured with rolled or welded beam sections", tex_ch5)
+        self.assertIn("Solver Pending / Not Verified", tex_ch5)
+
+        tex_ch7 = ch7_quantities({}, {"bom": []})
+        self.assertIn("configured cross-bracing end diaphragm", tex_ch7)
+        self.assertNotIn("rolled/welded diaphragm sections", tex_ch7)
+
+    def test_review3_harmonize_is_standards_in_chap1_and_chap9(self):
+        """Review 3.5: IS 1786:2008 and IS 1893 (Part 3):2014 are included in Chapter 1 and Chapter 9 bibliography."""
+        import types
+        from osdagbridge.core.reports.chap1 import ch1_project_info
+        from osdagbridge.core.reports.chap9 import references
+        meta = types.SimpleNamespace(project_name="Test", project_location="Pune", designer="Designer", reviewer="", company="Osdag", client="FOSSEE", job_number="", report_date="2026-11-21", subtitle="")
+        tex_ch1 = ch1_project_info(meta)
+        self.assertIn("Indian Standard (IS) 1786:2008", tex_ch1)
+        self.assertIn("Indian Standard (IS) 1893 (Part 3):2014", tex_ch1)
+
+        tex_ch9 = references()
+        self.assertIn("IS 1786:2008", tex_ch9)
+        self.assertIn("IS 1893 (Part 3):2014", tex_ch9)
+
+    def test_review3_table2_4_traffic_lane_count(self):
+        """Review 3.6: Table 2.4 populates numerical traffic lane count and IRC 5 clause basis."""
+        import types
+        from osdagbridge.core.reports.chap2 import ch2_input_parameters
+        from osdagbridge.core.utils.common import KEY_CARRIAGEWAY_WIDTH, KEY_WC_LD_LANE_TABLE_COUNT
+        meta = types.SimpleNamespace(project_name="Test", project_location="Pune", designer="Designer", reviewer="", company="Osdag", client="FOSSEE", job_number="", report_date="2026-11-21", subtitle="")
+
+        # Derived from 7.5 m carriageway
+        tex_derived = ch2_input_parameters(meta, {KEY_CARRIAGEWAY_WIDTH: 7.5}, {})
+        self.assertIn(r"\textnormal{No. of Traffic Lanes} & 2 (derived from 7.5 m carriageway per IRC 5 Cl. 104.3.1) \\[6pt]", tex_derived)
+
+        # Explicit user-specified value
+        tex_explicit = ch2_input_parameters(meta, {KEY_WC_LD_LANE_TABLE_COUNT: 2}, {})
+        self.assertIn(r"\textnormal{No. of Traffic Lanes} & 2 (per IRC 5 Cl. 104.3.1) \\[6pt]", tex_explicit)
+
+    def test_review4_table3_4_page_break_placement(self):
+        """Review 4.1: Table 3.4 begins cleanly on a new page eliminating ghost continuation headers."""
+        from osdagbridge.core.reports.chap3 import ch3_loads
+        tex = ch3_loads({})
+        self.assertIn(r"\newpage" + "\n" + r"\begin{longtable}{|L{5.8cm}|p{9.7cm}|}", tex)
+
+    def test_review4_end_diaphragm_table_2_10_reference(self):
+        """Review 4.2: End diaphragm text refers to Table 2.10 without unresolved ?? references."""
+        from osdagbridge.core.reports.chap5 import ch5_design_checks
+        class MockBridge:
+            input_dict = {"typical_section.no_of_girders": 4}
+            output_dict = {}
+            payload = None
+            def get_cb_pairs(self):
+                return []
+            def get_cb_governing_force(self, pair, m):
+                return ("", "")
+            def get_cb_efficiency(self, pair, m, f):
+                return ""
+            def get_cb_status(self, pair, m, f):
+                return ""
+            def get_cb_section(self, pair, m, f):
+                return ""
+
+        bridge = MockBridge()
+        tex = ch5_design_checks([], bridge)
+        self.assertIn("IS 100 x 100 x 10 initial section (refer to Table 2.10)", tex)
+        self.assertNotIn("Table~\\ref{tab:cb-details}", tex)
+        self.assertNotIn("Table ??", tex)
+
+    def test_standards_edition_harmonization_in_chap5(self):
+        """Review 5: Chapter 5 uses IRC 22:2015 and IRC 112:2020 without stale 2014/2011 references."""
+        from osdagbridge.core.reports.chap5 import ch5_design_checks
+        class MockBridge:
+            input_dict = {"typical_section.no_of_girders": 4}
+            output_dict = {}
+            payload = None
+            def get_cb_pairs(self):
+                return []
+            def get_cb_governing_force(self, pair, m):
+                return ("", "")
+            def get_cb_efficiency(self, pair, m, f):
+                return ""
+            def get_cb_status(self, pair, m, f):
+                return ""
+            def get_cb_section(self, pair, m, f):
+                return ""
+
+        bridge = MockBridge()
+        tex = ch5_design_checks([], bridge)
+        # Section 5 general intro
+        self.assertIn("All checks reference IS 800:2007 and IRC 22:2015 unless stated otherwise", tex)
+        self.assertNotIn("IRC 22:2014", tex)
+        # Section 5.2 Deck Slab Design
+        self.assertIn("designed per IRC~112:2020", tex)
+        self.assertIn("IRC~22:2015", tex)
+        self.assertNotIn("IRC~112:2011", tex)
+        self.assertNotIn("IRC 112:2011", tex)
+
+    def test_stiffener_design_summary_table_5_7(self):
+        """Review 6: Table 5.7 discloses intermediate spacing status and distinguishes calculated vs configured stiffeners."""
+        from osdagbridge.core.reports.chap5 import ch5_design_checks
+        from osdagbridge.core.utils.common import (
+            KEY_MP_STIFFENER_INTERMEDIATE_SPACING,
+            KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS,
+            KEY_MP_STIFFENER_BEARING_THICKNESS,
+            KEY_SD_STIFF_METHOD,
+            KEY_SD_STIFF_INT_THICK,
+            KEY_SD_STIFF_INT_SPACING,
+            KEY_SD_STIFF_END_THICK,
+            KEY_SD_STIFF_END_COUNT,
+            KEY_SD_STIFF_LONG,
+        )
+
+        class MockBridge:
+            input_dict = {
+                "typical_section.no_of_girders": 4,
+                KEY_MP_STIFFENER_INTERMEDIATE_SPACING: 2440,
+                KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS: 10,
+                KEY_MP_STIFFENER_BEARING_THICKNESS: 10,
+            }
+            output_dict = {
+                KEY_SD_STIFF_METHOD: "post_critical",
+                KEY_SD_STIFF_INT_THICK: 21.1,
+                KEY_SD_STIFF_INT_SPACING: None,  # Not computed by solver in verification run
+                KEY_SD_STIFF_END_THICK: 1.2,    # Calculated min. thickness for bearing contact
+                KEY_SD_STIFF_END_COUNT: 4,
+                KEY_SD_STIFF_LONG: "None",
+            }
+            payload = None
+            def get_cb_pairs(self):
+                return []
+            def get_cb_governing_force(self, pair, m):
+                return ("", "")
+            def get_cb_efficiency(self, pair, m, f):
+                return ""
+            def get_cb_status(self, pair, m, f):
+                return ""
+            def get_cb_section(self, pair, m, f):
+                return ""
+
+        bridge = MockBridge()
+        tex = ch5_design_checks([], bridge)
+
+        # 1. Intermediate Stiffener Spacing is populated with disclosure and Table 2.8 cross-reference, never blank
+        self.assertIn(r"\textnormal{Intermediate Stiffener Spacing (mm)} & Not available in this report run (configured: 2440 mm, refer to Table 2.8)", tex)
+        self.assertNotIn(r"\textnormal{Intermediate Stiffener Spacing (mm)} &  \\", tex)
+
+        # 2. End Panel Stiffener Thickness documents 1.2 mm unit basis as calculated min. for bearing contact and cross-references configured 10 mm
+        self.assertIn(r"\textnormal{End Panel Stiffener Thickness (mm)} & 1.2 (calculated min. for bearing contact; configured: 10 mm, refer to Table 2.8)", tex)
+
+        # 3. Table 5.7 includes explanatory note distinguishing calculated vs configured parameters
+        self.assertIn(r"Note: Stiffener summary values represent calculated design check requirements", tex)
+        self.assertIn(r"refer to Table 2.8.", tex)
+
+        # 4. Multirow lines 1-5 within each girder use \* to prevent awkward splits across pages
+        self.assertIn(r"\textnormal{Shear Buckling Design Method} & post\_\allowbreak{}critical \\*[6pt]", tex)
+        self.assertIn(r"\textnormal{Intermediate Stiffener Thickness (mm)} & 10.0 provided vs.\ 21.1 required (\textcolor{red}{FAIL}, UR = 2.11) \\*[6pt]", tex)
+
+    def test_intermediate_stiffener_slenderness_disclosure(self):
+        """Review 7: Intermediate stiffener thickness provided vs required disclosed in Table 5.7, Table 5.29, and Exec Summary."""
+        from osdagbridge.core.reports.chap5 import ch5_design_checks
+        from osdagbridge.core.reports.executive_summary import executive_summary
+        from osdagbridge.core.utils.common import (
+            KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS,
+            KEY_MP_STIFFENER_INTERMEDIATE_OUTSTAND,
+            KEY_SD_STIFF_INT_THICK,
+        )
+
+        inp = {
+            KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS: 10,
+            KEY_MP_STIFFENER_INTERMEDIATE_OUTSTAND: 250,
+            "typical_section.no_of_girders": 4,
+        }
+        out = {
+            KEY_SD_STIFF_INT_THICK: 21.1,
+            "girders": {"G1": {"status": "FAIL", "utilization_ratio": 1.57}},
+            "design_results": {
+                "per_girder": {
+                    "G1": {"checks": [{"name": "Fatigue Normal Stress", "dcr": 1.57, "status": "FAIL"}]},
+                }
+            }
+        }
+
+        # 1. Executive Summary discloses intermediate stiffener slenderness failure
+        exec_tex = executive_summary(inp, out, {})
+        self.assertIn("Intermediate stiffener outstand slenderness also fails", exec_tex)
+        self.assertIn("10.0 mm provided vs 21.1 mm required, UR = 2.11", exec_tex)
+        self.assertIn("Intermediate Stiffener Slenderness", exec_tex)
+        # Main girder governing check remains Fatigue Normal Stress
+        self.assertIn("FAIL --- Governing Check: Fatigue Normal Stress (UR = 1.57)", exec_tex)
+
+        # 2. Table 5.29 discloses Intermediate Stiffener in Overall Design Check Summary
+        class MockBridge:
+            input_dict = inp
+            output_dict = out
+            payload = None
+            def get_cb_pairs(self):
+                return []
+            def get_cb_governing_force(self, pair, m):
+                return ("", "")
+            def get_cb_efficiency(self, pair, m, f):
+                return ""
+            def get_cb_status(self, pair, m, f):
+                return ""
+            def get_cb_section(self, pair, m, f):
+                return ""
+
+        bridge = MockBridge()
+        chap5_tex = ch5_design_checks([], bridge)
+        self.assertIn("Girder --- Intermediate Stiffener", chap5_tex)
+        self.assertIn("IS 800 Cl. 8.7.1.5", chap5_tex)
+        self.assertIn(r"\textcolor{red}{2.11}", chap5_tex)
+
+    def test_bearing_stiffener_demand_terminology(self):
+        """Review 7: Bearing stiffener demand terminology is corrected to per-girder support-end shear (Vu = 378.79 kN)."""
+        from osdagbridge.core.reports.chap5 import ch5_design_checks
+        from osdagbridge.core.utils.common import (
+            KEY_SD_BS_R,
+            KEY_SD_BS_FCDW_WB,
+            KEY_SD_BS_FCDW_LC,
+            KEY_SD_BS_FPSD,
+            KEY_SD_BS_FCD,
+        )
+
+        class MockBridge:
+            input_dict = {"typical_section.no_of_girders": 4}
+            output_dict = {
+                KEY_SD_BS_R: 378.79,
+                KEY_SD_BS_FCDW_WB: 168429.67,
+                KEY_SD_BS_FCDW_LC: 483.79,
+                KEY_SD_BS_FPSD: 3181.82,
+                KEY_SD_BS_FCD: 2863.64,
+            }
+            payload = None
+            def get_cb_pairs(self):
+                return []
+            def get_cb_governing_force(self, pair, m):
+                return ("", "")
+            def get_cb_efficiency(self, pair, m, f):
+                return ""
+            def get_cb_status(self, pair, m, f):
+                return ""
+            def get_cb_section(self, pair, m, f):
+                return ""
+
+        bridge = MockBridge()
+        chap5_tex = ch5_design_checks([], bridge)
+
+        # 1. Header uses Demand (Vu) and Resistance
+        self.assertIn(r"\textbf{Girder} & \textbf{Check} & \textbf{Demand ($V_u$)} & \textbf{Resistance} & \textbf{Status}", chap5_tex)
+
+        # 2. Footnote explains Vu = 378.79 kN as per-girder support-end shear demand
+        self.assertIn(r"Demand ($V_u = 378.79$ kN) represents the governing per-girder support-end shear force", chap5_tex)
+        self.assertIn("transmitted directly into the bearing stiffeners of each individual girder", chap5_tex)
 
 
 if __name__ == "__main__":

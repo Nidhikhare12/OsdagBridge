@@ -109,6 +109,7 @@ from typing import Optional, List, Literal
 
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE,
+    KEY_SL_ZONE_FACTOR,
     KEY_SPAN,
     KEY_TL_BRIDGE_TEMP_MAX,
     KEY_TL_BRIDGE_TEMP_MIN,
@@ -277,13 +278,13 @@ def title_page(m, osdag_logo, org_logo):
 \hline
 \textbf{Author / Designer} & """ + _tex(m.designer) + r""" \\
 \hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
+\textbf{Reviewer} & """ + (_tex(m.reviewer) if m.reviewer and str(m.reviewer).strip() else 'Not specified') + r""" \\
 \hline
 \textbf{Organization} & """ + _tex(m.company) + r""" \\
 \hline
 \textbf{Client Name and Organization} & """ + _tex(m.client) + r""" \\
 \hline
-\textbf{Job Number} & """ + _tex(m.job_number) + r""" \\
+\textbf{Job Number} & """ + (_tex(m.job_number) if m.job_number and str(m.job_number).strip() else 'Not specified') + r""" \\
 \hline
 \textbf{Date} & """ + _tex(m.report_date) + r""" \\
 \hline
@@ -661,10 +662,11 @@ def build_report_payload(request, input_dict, output_dict):
         # Inject detailed project location and weather data into input_dict dict
         try:
             import ast
-            if isinstance(raw_pl, str) and '{' in raw_pl:
-                pl_dict = ast.literal_eval(raw_pl)
-            elif isinstance(raw_pl, dict):
-                pl_dict = raw_pl
+            loc_source = input_dict.get('project.location') or raw_pl
+            if isinstance(loc_source, str) and '{' in loc_source:
+                pl_dict = ast.literal_eval(loc_source)
+            elif isinstance(loc_source, dict):
+                pl_dict = loc_source
             else:
                 pl_dict = {}
 
@@ -683,6 +685,10 @@ def build_report_payload(request, input_dict, output_dict):
 
                 if 'seismic_zone' not in input_dict and weather.get('zone'):
                     input_dict['seismic_zone'] = weather.get('zone')
+                if KEY_SL_ZONE_FACTOR not in input_dict and weather.get('z_value'):
+                    input_dict[KEY_SL_ZONE_FACTOR] = weather.get('z_value')
+                if 'zone_factor' not in input_dict and weather.get('z_value'):
+                    input_dict['zone_factor'] = weather.get('z_value')
                 if 'wind_speed' not in input_dict and weather.get('wind_speed'):
                     input_dict['wind_speed'] = weather.get('wind_speed')
                 if 'shade_temp_max' not in input_dict and weather.get('max_temp'):

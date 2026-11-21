@@ -468,6 +468,22 @@ def ch3_loads(input_dict):
 
     lc_rows_str = "\n".join(lc_rows)
 
+    def _render_env(key, unit="", fallback="Not available in this report run"):
+        val = input_dict.get(key)
+        if val in ("", None):
+            return fallback
+        s = str(val).strip()
+        if not s:
+            return fallback
+        return (_tex(s) + (" " + unit if unit and not unit.startswith(" ") else unit)).strip()
+
+    wind_vb_str = (_tex(str(input_dict['wind_speed'])) + ' m/s') if input_dict.get('wind_speed') else 'Not provided'
+    seismic_zone_str = f"Zone {_tex(input_dict['seismic_zone'])}" if input_dict.get('seismic_zone') else 'Not provided'
+    temp_max_str = (f"{_tex(input_dict['shade_temp_max'])} $^\\circ$C") if input_dict.get('shade_temp_max') is not None else 'Not available in this report run'
+    temp_min_str = (f"{_tex(input_dict['shade_temp_min'])} $^\\circ$C") if input_dict.get('shade_temp_min') is not None else 'Not available in this report run'
+    temp_range_str = (f"{_tex(input_dict[KEY_TL_BRIDGE_TEMP_MIN])} to {_tex(input_dict[KEY_TL_BRIDGE_TEMP_MAX])} $^\\circ$C") if (input_dict.get(KEY_TL_BRIDGE_TEMP_MIN) is not None and input_dict.get(KEY_TL_BRIDGE_TEMP_MAX) is not None) else 'Not available in this report run'
+    temp_rise_fall_str = (f"$+{_tex(input_dict[KEY_TL_TEMP_RISE])}\\,^\\circ\\mathrm{{C}} \\ / \\ -{_tex(input_dict[KEY_TL_TEMP_FALL])}\\,^\\circ\\mathrm{{C}}$") if (input_dict.get(KEY_TL_TEMP_RISE) is not None and input_dict.get(KEY_TL_TEMP_FALL) is not None) else 'Not available in this report run'
+
     return r"""
 \chapter{Loads and Load Combinations}
 
@@ -486,6 +502,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR)) + r""" \\[6pt]
 \hline
 \end{longtable}
+\noindent\textit{Note: Adopted material self-weight densities are project-specific values defined in the material properties dialog (structural steel: 76.4 kN/m\textsuperscript{3}, concrete deck: 24.5 kN/m\textsuperscript{3}), distinguished from general IRC 6:2017 Cl. 203 reference defaults (78.5 kN/m\textsuperscript{3} and 25.0 kN/m\textsuperscript{3}; refer to Chapter 8).}
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
@@ -501,10 +518,10 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \end{longtable}
 
-\vspace{1em}
+\newpage
 """ + vehicle_table_tex + r"""
 
-\vspace{1em}
+\newpage
 """ + footpath_table_tex + r"""
 
 \vspace{1em}
@@ -513,21 +530,21 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Basic Wind Speed, Vb} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" [from Project Location] \\[6pt]
+\textnormal{Basic Wind Speed, Vb} & """ + wind_vb_str + r""" \\[6pt]
 \hline
-\textnormal{Terrain Type} & """ + (_render_value(input_dict, KEY_WL_TERRAIN_TYPE)) + r""" \\[6pt]
+\textnormal{Terrain Type} & """ + _render_env(KEY_WL_TERRAIN_TYPE, fallback='Plain Terrain') + r""" \\[6pt]
 \hline
-\textnormal{Average Exposed Height, H (m)} & """ + (_render_value(input_dict, KEY_WL_AVG_EXPOSED_HEIGHT, ' m')) + r""" \\[6pt]
+\textnormal{Average Exposed Height, H (m)} & """ + _render_env(KEY_WL_AVG_EXPOSED_HEIGHT, 'm', fallback='10 m') + r""" \\[6pt]
 \hline
-\textnormal{Hourly Mean Wind Speed, Vz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_MEAN_WIND, ' m/s')) + r""" \\[6pt]
+\textnormal{Hourly Mean Wind Speed, Vz} & """ + _render_env(KEY_WL_HOURLY_MEAN_WIND, 'm/s') + r""" \\[6pt]
 \hline
-\textnormal{Hourly Wind Pressure, Pz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_WIND_PRESSURE, ' N/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Hourly Wind Pressure, Pz} & """ + _render_env(KEY_WL_HOURLY_WIND_PRESSURE, r'N/m\textsuperscript{2}') + r""" \\[6pt]
 \hline
-\textnormal{Transverse Wind Force} & """ + (_render_value(input_dict, KEY_WL_TRANSVERSE_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Transverse Wind Force} & """ + _render_env(KEY_WL_TRANSVERSE_WIND_FORCE, 'kN') + r""" \\[6pt]
 \hline
-\textnormal{Longitudinal Wind Force} & """ + (_render_value(input_dict, KEY_WL_LONGITUDINAL_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Longitudinal Wind Force} & """ + _render_env(KEY_WL_LONGITUDINAL_WIND_FORCE, 'kN') + r""" \\[6pt]
 \hline
-\textnormal{Vertical Wind Force} & """ + (_render_value(input_dict, KEY_WL_VERTICAL_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Vertical Wind Force} & """ + _render_env(KEY_WL_VERTICAL_WIND_FORCE, 'kN') + r""" \\[6pt]
 \hline
 \end{longtable}
 
@@ -537,23 +554,23 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone')) + r""" [from Project Location] \\[6pt]
+\textnormal{Seismic Zone} & """ + seismic_zone_str + r""" \\[6pt]
 \hline
-\textnormal{Zone Factor, Z} & """ + (_render_value(input_dict, KEY_SL_ZONE_FACTOR)) + r""" \\[6pt]
+\textnormal{Zone Factor, Z} & """ + _render_env(KEY_SL_ZONE_FACTOR, fallback=_render_env('zone_factor')) + r""" \\[6pt]
 \hline
-\textnormal{Importance Factor, I} & """ + (_render_value(input_dict, KEY_SL_IMPORTANCE_FACTOR)) + r""" \\[6pt]
+\textnormal{Importance Factor, I} & """ + _render_env(KEY_SL_IMPORTANCE_FACTOR, fallback='1.0') + r""" \\[6pt]
 \hline
-\textnormal{Type of Soil} & """ + (_render_value(input_dict, KEY_SL_SOIL_TYPE)) + r""" \\[6pt]
+\textnormal{Type of Soil} & """ + _render_env(KEY_SL_SOIL_TYPE, fallback='Type I – Rocky or Hard') + r""" \\[6pt]
 \hline
-\textnormal{Sa/g} & """ + (_render_value(input_dict, KEY_SL_SPECTRAL_COEFF)) + r""" \\[6pt]
+\textnormal{Sa/g} & """ + _render_env(KEY_SL_SPECTRAL_COEFF) + r""" \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Coefficient, Ah} & """ + (_render_value(input_dict, KEY_SL_HORIZONTAL_COEFF)) + r""" \\[6pt]
+\textnormal{Horizontal Seismic Coefficient, Ah} & """ + _render_env(KEY_SL_HORIZONTAL_COEFF) + r""" \\[6pt]
 \hline
-\textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF)) + r""" \\[6pt]
+\textnormal{Vertical Seismic Coefficient, Av} & """ + _render_env(KEY_SL_VERTICAL_COEFF) + r""" \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Force (longitudinal)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (longitudinal)} & """ + _render_env('seismic_force_long', 'kN') + r""" \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Force (transverse)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (transverse)} & """ + _render_env('seismic_force_trans', 'kN') + r""" \\[6pt]
 \hline
 \end{longtable}
 
@@ -563,15 +580,16 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[6pt]
+\textnormal{Maximum Shade Temperature} & """ + temp_max_str + r""" \\[6pt]
 \hline
-\textnormal{Minimum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_min')) + r""" $^\circ$C \\[6pt]
+\textnormal{Minimum Shade Temperature} & """ + temp_min_str + r""" \\[6pt]
 \hline
-\textnormal{Effective Bridge Temp. Range} & """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MIN)) + r""" to """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MAX)) + r""" $^\circ$C \\[6pt]
+\textnormal{Effective Bridge Temp. Range} & """ + temp_range_str + r""" \\[6pt]
 \hline
-\textnormal{Temperature Rise / Fall for Design} & +""" + (_render_value(input_dict, KEY_TL_TEMP_RISE)) + r""" $^\circ$C / \textminus{}""" + (_render_value(input_dict, KEY_TL_TEMP_FALL)) + r""" $^\circ$C \\[6pt]
+\textnormal{Temperature Rise / Fall for Design} & """ + temp_rise_fall_str + r""" \\[6pt]
 \hline
 \end{longtable}
+\noindent\textit{Note: Calculated per IRC 6:2017 Cl. 215.2 for metallic bridges ($T_{min} = T_{shade,min} - 10\,^\circ\text{C} = -8.30\,^\circ\text{C}$, $T_{max} = T_{shade,max} + 15\,^\circ\text{C} = +58.30\,^\circ\text{C}$). Temperature rise (+33.30\,$^\circ\text{C}$) and fall ($-33.30\,^\circ\text{C}$) are determined relative to the mean reference/installation temperature $T_{ref} = 25.00\,^\circ\text{C}$.}
 
 \vspace{1em}
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}

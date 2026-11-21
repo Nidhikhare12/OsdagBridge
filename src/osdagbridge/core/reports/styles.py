@@ -15,7 +15,7 @@ MARGIN_TOP = "25mm"
 MARGIN_BOTTOM = "28mm"       # Ample space to prevent any table/footer collision
 MARGIN_LEFT = "25mm"
 MARGIN_RIGHT = "25mm"
-HEAD_HEIGHT = "18pt"         # Eliminates fancyhdr \headheight warnings (min 17.5pt required)
+HEAD_HEIGHT = "24pt"         # Ample height for compact two-column header with rule
 HEAD_SEP = "8mm"             # Clean separation between header rule and body text
 FOOT_SKIP = "14mm"           # Dedicated footer zone separated from printable body
 
@@ -127,49 +127,50 @@ def get_header_footer_latex(
     report_date: str,
     report_version: str = "Rev 0"
 ) -> str:
-    """Return clean fancyhdr configuration with zero negative vspace hacks.
+    """Return clean fancyhdr configuration with robust field width constraints.
 
-    The bottom margin (28mm) and footskip (14mm) provide a dedicated footer zone
-    positioned 14mm above the paper edge. Body text terminates at 28mm from paper edge,
-    guaranteeing at least 14mm of white space buffer. Tables cannot collide with the footer.
+    Header layout:
+      Left parbox: 55% of headwidth, raggedright, compact font (Project & Title).
+      Right parbox: 40% of headwidth, raggedleft, compact font (Date & Revision).
+      The remaining 5% buffer guarantees zero field overlap under any string length.
     """
     return rf"""\fancypagestyle{{main}}{{
   \fancyhf{{}}
-  \fancyhead[L]{{{project_name} $|$ {job_number}}}
-  \fancyhead[R]{{{report_date} $|$ {report_version}}}
-  \fancyfoot[L]{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}
-  \fancyfoot[R]{{Page \thepage\ of \pageref{{LastPage}}}}
-  \renewcommand{{\headrule}}{{\color{{osdagGreen}}\hrule width\headwidth height 1pt \vskip 2pt}}
+  \fancyhead[L]{{\parbox[b]{{0.55\headwidth}}{{\raggedright\scriptsize\textcolor{{osdagGray}}{{{project_name} $|$ {job_number}}}}}}}
+  \fancyhead[R]{{\parbox[b]{{0.40\headwidth}}{{\raggedleft\scriptsize\textcolor{{osdagGray}}{{{report_date} $|$ {report_version}}}}}}}
+  \fancyfoot[L]{{\scriptsize\textcolor{{osdagGray}}{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}}}
+  \fancyfoot[R]{{\scriptsize\textcolor{{osdagGray}}{{Page \thepage\ of \pageref*{{LastPage}}}}}}
+  \renewcommand{{\headrule}}{{\color{{osdagGreen}}\hrule width\headwidth height 0.8pt \vskip 2pt}}
   \renewcommand{{\footrule}}{{%
     \ifbool{{hasSDonPage}}{{%
       \hbox to \headwidth{{\textcolor{{black}}{{\footnotesize\textit{{* Software default value}}}}\hfil}}%
       \vskip 3pt%
     }}{{}}%
-    \color{{osdagGreen}}\hrule width\headwidth height 1pt \vskip 4pt%
+    \color{{osdagGreen}}\hrule width\headwidth height 0.8pt \vskip 3pt%
   }}
 }}
 
 \fancypagestyle{{plain}}{{
   \fancyhf{{}}
-  \fancyhead[L]{{{project_name} $|$ {job_number}}}
-  \fancyhead[R]{{{report_date} $|$ {report_version}}}
-  \fancyfoot[L]{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}
-  \fancyfoot[R]{{Page \thepage\ of \pageref{{LastPage}}}}
-  \renewcommand{{\headrule}}{{\color{{osdagGreen}}\hrule width\headwidth height 1pt \vskip 2pt}}
+  \fancyhead[L]{{\parbox[b]{{0.55\headwidth}}{{\raggedright\scriptsize\textcolor{{osdagGray}}{{{project_name} $|$ {job_number}}}}}}}
+  \fancyhead[R]{{\parbox[b]{{0.40\headwidth}}{{\raggedleft\scriptsize\textcolor{{osdagGray}}{{{report_date} $|$ {report_version}}}}}}}
+  \fancyfoot[L]{{\scriptsize\textcolor{{osdagGray}}{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}}}
+  \fancyfoot[R]{{\scriptsize\textcolor{{osdagGray}}{{Page \thepage\ of \pageref*{{LastPage}}}}}}
+  \renewcommand{{\headrule}}{{\color{{osdagGreen}}\hrule width\headwidth height 0.8pt \vskip 2pt}}
   \renewcommand{{\footrule}}{{%
     \ifbool{{hasSDonPage}}{{%
       \hbox to \headwidth{{\textcolor{{black}}{{\footnotesize\textit{{* Software default value}}}}\hfil}}%
       \vskip 3pt%
     }}{{}}%
-    \color{{osdagGreen}}\hrule width\headwidth height 1pt \vskip 4pt%
+    \color{{osdagGreen}}\hrule width\headwidth height 0.8pt \vskip 3pt%
   }}
 }}
 
 \fancypagestyle{{firstpage}}{{
   \fancyhf{{}}
   \renewcommand{{\headrulewidth}}{{0pt}}
-  \fancyfoot[L]{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}
-  \fancyfoot[R]{{Page \thepage\ of \pageref{{LastPage}}}}
-  \renewcommand{{\footrule}}{{\color{{osdagGreen}}\hrule width\headwidth height 1pt \vskip 4pt}}
+  \fancyfoot[L]{{\scriptsize\textcolor{{osdagGray}}{{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}}}}
+  \fancyfoot[R]{{\scriptsize\textcolor{{osdagGray}}{{Page \thepage\ of \pageref*{{LastPage}}}}}}
+  \renewcommand{{\footrule}}{{\color{{osdagGreen}}\hrule width\headwidth height 0.8pt \vskip 3pt}}
 }}
 """

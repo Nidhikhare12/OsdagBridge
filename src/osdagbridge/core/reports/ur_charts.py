@@ -348,7 +348,7 @@ def _apply_chart_styling(ax: plt.Axes, title: str, xlabel: str, max_ur: float):
         ax.set_xlabel(xlabel, fontsize=9.5, fontweight="bold", labelpad=8, color="#222222")
 
     # Y-axis limit with ample headroom for data labels and threshold line
-    y_top = max(max_ur * 1.24, 1.30)
+    y_top = max(max_ur * 1.35, 1.45)
     ax.set_ylim(0, y_top)
 
     # Clean horizontal grid
@@ -423,7 +423,7 @@ def plot_ur_bar_chart(
         c = fail_color if u > 1.0 else pass_color
         ax.text(
             bar.get_x() + bar.get_width() / 2.0,
-            h + 0.025,
+            h + 0.03,
             f"{u:.2f}",
             ha="center",
             va="bottom",
@@ -433,14 +433,15 @@ def plot_ur_bar_chart(
             zorder=4,
         )
 
-    # Clean legend for pass / fail identification
+    # Clean legend for pass / fail identification positioned cleanly at upper center
     legend_handles = [
         Rectangle((0, 0), 1, 1, facecolor=pass_color, edgecolor="#333", linewidth=0.5, label="PASS (UR ≤ 1.0)"),
         Rectangle((0, 0), 1, 1, facecolor=fail_color, edgecolor="#333", linewidth=0.5, label="FAIL (UR > 1.0)"),
     ]
     ax.legend(
         handles=legend_handles,
-        loc="upper left",
+        loc="upper center",
+        ncol=2,
         fontsize=8.0,
         frameon=True,
         facecolor="#FAFAFA",

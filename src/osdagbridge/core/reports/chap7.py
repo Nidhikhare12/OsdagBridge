@@ -128,7 +128,7 @@ reinforcement steel, and connection hardware comprising the superstructure.
 Standard unit weights applied: Structural Steel $= 7850\text{{ kg/m}}^3$ ($7.85\text{{ MT/m}}^3$),
 Reinforced Concrete $= 2500\text{{ kg/m}}^3$ ($2.50\text{{ MT/m}}^3$), Reinforcement Steel $= 7850\text{{ kg/m}}^3$.
 End diaphragm quantities are not included in Table~\ref{{tab:bom}} because detailed member sizing for
-rolled/welded diaphragm sections remains pending in the OsdagBridge solver.
+configured cross-bracing end diaphragm sections remains pending in the OsdagBridge solver.
 \end{{flushleft}}
 
 \section{{Steel Tonnage by Structural Component}}
@@ -149,7 +149,7 @@ Figure~\ref{{fig:material-steel-tonnage}} illustrates the complete mass reconcil
   \item \textbf{{Total Structural Steel:}} Summing plate girders ($32.89\text{{ MT}}$), cross bracing ($0.47\text{{ MT}}$),
   and shear connectors ($0.16\text{{ MT}}$) reconciles to a grand total of $\mathbf{{33.52\text{{ MT}}}}$ of structural steel
   for the superstructure.
-  \item \textbf{{End Diaphragms:}} In accordance with engineering reporting standards, because rolled/welded
+  \item \textbf{{End Diaphragms:}} In accordance with engineering reporting standards, because configured cross-bracing
   end diaphragm design checks are pending solver implementation, end diaphragm steel quantities are marked as
   \textit{{Unavailable (Not in BOQ)}} rather than represented by artificial zeros.
 \end{{itemize}}
