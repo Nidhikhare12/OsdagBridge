@@ -103,6 +103,9 @@ TABLE_SPEC_TWO_COL = r"|L{5.5cm}|L{8.5cm}|"
 TABLE_SPEC_GIRDER_SUMMARY = r"|C{2.5cm}|L{8.0cm}|>{\centering\arraybackslash}p{5.0cm}|"
 TABLE_SPEC_OVERALL_SUMMARY = r"|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|"
 TABLE_SPEC_BOQ = r"|C{0.9cm}|L{3.2cm}|C{2.7cm}|C{1.8cm}|C{1.7cm}|C{1.7cm}|C{1.7cm}|"
+TABLE_SPEC_DEMANDS = r"|>{\centering\arraybackslash}p{2.8cm}|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.1cm}|>{\centering\arraybackslash}p{1.4cm}|>{\centering\arraybackslash}p{1.4cm}|"
+TABLE_SPEC_REACTIONS = r"|C{4.6cm}|C{4.6cm}|C{4.6cm}|"
+TABLE_SPEC_DEFLECTION = r"|L{5.8cm}|L{8.4cm}|"
 
 # ---------------------------------------------------------------------------
 # 7. Document Spacing Constants
