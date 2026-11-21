@@ -231,8 +231,8 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
 
 \fancypagestyle{main}{
   \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
+  \fancyhead[L]{\small\textsf{""" + pn + r"""}}
+  \fancyhead[R]{\footnotesize\textsf{""" + jn + r""" \quad$\vert$\quad """ + rd + (r""" \quad$\vert$\quad """ + rv if rv else "") + r"""}}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
   \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
   \renewcommand{\headrulewidth}{""" + HEADER_RULE_WIDTH + r"""}
@@ -251,8 +251,8 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
 }
 \fancypagestyle{plain}{
   \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
+  \fancyhead[L]{\small\textsf{""" + pn + r"""}}
+  \fancyhead[R]{\footnotesize\textsf{""" + jn + r""" \quad$\vert$\quad """ + rd + (r""" \quad$\vert$\quad """ + rv if rv else "") + r"""}}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
   \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
   \renewcommand{\headrulewidth}{""" + HEADER_RULE_WIDTH + r"""}
@@ -273,7 +273,7 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
   \fancyfoot[L]{""" + FOOTER_ORG_TEXT + r"""}
-  \fancyfoot[R]{""" + FOOTER_PAGE_TEXT + r"""}
+  \fancyfoot[R]{}
   \renewcommand{\footrule}{\vskip -4pt\color{""" + COLOR_PRIMARY_NAME + r"""}\hrule width\headwidth height """ + FOOTER_RULE_WIDTH + r""" \vskip """ + FOOTER_RULE_GAP + r"""}
 }
 \pagestyle{main}
