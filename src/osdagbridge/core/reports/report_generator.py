@@ -103,9 +103,14 @@
 #                                                          else → CustomMessageBox("Report Saved")
 #==============================================================================
 
-import os, shutil, logging, datetime, tempfile, subprocess
+import os, shutil, logging, datetime, tempfile, subprocess, hashlib, json
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
+
+# In-process cache so an identical preview/export is effectively instant.
+# Bump the version whenever layout/chart code changes.
+REPORT_CACHE_VERSION = "2026-11-22-v1"
+_REPORT_CACHE: dict = {}
 
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE,
@@ -832,11 +837,42 @@ _FIGURE_MAP = [
     ('defl_ll',               'defl_ll.png'),
 ]
 
+def _report_cache_key(payload, request) -> str:
+    blob = json.dumps({
+        "inputs": payload.inputs,
+        "outputs": payload.output_dict,
+        "sections": request.options.sections,
+        "options": request.options.__dict__,
+        "metadata": request.metadata.__dict__,
+    }, default=str, sort_keys=True)
+    return hashlib.sha256(
+        (REPORT_CACHE_VERSION + blob).encode("utf-8")).hexdigest()
+
+
 def generate_report(payload, request):
     # type: (ReportPayload, ReportRequest) -> ReportResult
     """Compile the full OsdagBridge Design Report to PDF (+ .tex source)."""
     tex_path = None
     try:
+        os.makedirs(request.output_dir, exist_ok=True)
+        pdf_path = os.path.join(request.output_dir, request.file_stem + '.pdf')
+        tex_path = os.path.join(request.output_dir, request.file_stem + '.tex')
+
+        # generate_report() enriches payload.inputs with BOQ quantities, so the
+        # key must be captured on the payload at first use and reused.
+        cache_key = getattr(payload, '_report_cache_key', None)
+        if cache_key is None:
+            cache_key = _report_cache_key(payload, request)
+            payload._report_cache_key = cache_key
+        cached = _REPORT_CACHE.get(cache_key)
+        if cached:
+            with open(pdf_path, 'wb') as fh:
+                fh.write(cached[0])
+            with open(tex_path, 'wb') as fh:
+                fh.write(cached[1])
+            logger.info("Report served from cache (instant preview)")
+            return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
+
         # Use OsdagLatexEnv to discover the bundled pdflatex path
         compiler = 'pdflatex'
         try:
@@ -998,6 +1034,11 @@ def generate_report(payload, request):
 
         if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)
+            with open(pdf_path, 'rb') as fh:
+                pdf_bytes = fh.read()
+            with open(tex_path, 'rb') as fh:
+                tex_bytes = fh.read()
+            _REPORT_CACHE[cache_key] = (pdf_bytes, tex_bytes)
             return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
 
         logger.error("pdflatex ran but no PDF was produced.")

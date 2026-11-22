@@ -11,6 +11,7 @@ manual typing is required, and only modal dialog exec() calls are stubbed.
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -129,6 +130,23 @@ def main() -> int:
             state["report"] = True
             window.grab().save(str(out_dir / "gui_after_report.png"))
             print(f"REAL UI REPORT PASSED: {pdf_path}")
+
+            # Live PDF preview: render page 1 and open it in an X11 window so
+            # a real screen recording shows the finished report.
+            preview_png = "/tmp/opencode/live_preview.png"
+            try:
+                subprocess.run(
+                    ["pdftoppm", "-f", "1", "-l", "1", "-r", "96", "-png",
+                     "-singlefile", str(pdf_path), preview_png],
+                    check=True, capture_output=True)
+                preview_proc = subprocess.Popen(
+                    ["display", preview_png],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                app.processEvents()
+                time.sleep(6)  # keep the preview visible for the recording
+                preview_proc.terminate()
+            except Exception as exc:
+                print(f"Preview step skipped: {exc}")
             break
         time.sleep(0.05)
 

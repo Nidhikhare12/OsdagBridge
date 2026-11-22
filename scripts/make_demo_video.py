@@ -22,8 +22,8 @@ FONT = (Path(matplotlib.__file__).parent / "mpl-data" / "fonts" /
 if not FONT.exists():
     FONT = Path("/usr/share/fonts/google-noto-vf/NotoSans[wght].ttf")
 
-W, H = 1280, 800
-BAR = 84
+W, H = 1920, 1080
+BAR = 104
 BG = (245, 246, 240)
 GREEN = (145, 176, 20)
 DARK = (34, 34, 34)
@@ -59,9 +59,9 @@ def _slide(image_path, title, subtitle, duration, workdir, index):
     if image_path == "TITLE":
         draw = ImageDraw.Draw(canvas)
         draw.rectangle((0, 0, W, 16), fill=GREEN)
-        draw.text((W // 2, H // 2 - 50), title, font=_font(44),
+        draw.text((W // 2, H // 2 - 70), title, font=_font(64),
                   fill=DARK, anchor="mm")
-        draw.text((W // 2, H // 2 + 20), subtitle, font=_font(26),
+        draw.text((W // 2, H // 2 + 30), subtitle, font=_font(38),
                   fill=GREEN, anchor="mm")
     else:
         img = Image.open(OUT / image_path).convert("RGB")
@@ -69,8 +69,8 @@ def _slide(image_path, title, subtitle, duration, workdir, index):
         canvas.paste(img, ((W - img.width) // 2, 20))
         draw = ImageDraw.Draw(canvas)
         draw.rectangle((0, H - BAR, W, H), fill=DARK)
-        draw.text((30, H - BAR + 18), title, font=_font(28), fill="white")
-        draw.text((30, H - BAR + 52), subtitle, font=_font(18), fill=(200, 215, 180))
+        draw.text((40, H - BAR + 20), title, font=_font(40), fill="white")
+        draw.text((40, H - BAR + 62), subtitle, font=_font(26), fill=(200, 215, 180))
     path = workdir / f"slide_{index:02d}.png"
     canvas.save(path)
     return f"file '{path}'\nduration {duration}\n", duration

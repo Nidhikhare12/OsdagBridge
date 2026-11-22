@@ -24,6 +24,6 @@ Repo: https://github.com/danish9661/OsdagBridge
    https://github.com/danish9661/OsdagBridge/pull/new/report-generator-enhancements
 3. Submit the repo link, the two required PDFs and the technical document as required.
 
-A silent screengrab demo is included at `deliverables/Demo_Video.mp4` (56 s, 1280×800) — upload it as an unlisted YouTube video and include the link.
+A silent **1920×1080** demo is included at `deliverables/Demo_Video.mp4` / `Demo_Video_1080p.mp4` (56 s), plus a 45 s real-time X11 capture `Demo_Live_X11_1080p.mp4`. Upload the 1080p demo as an unlisted YouTube video and include the link.
 
 The full conda environment is installed at `/home/danish1075/miniconda3/envs/osdagbridge-env`; all GUI/report tests were re-run there with real OCC, osdag_core, fiona and PySide6 (no stubs).
