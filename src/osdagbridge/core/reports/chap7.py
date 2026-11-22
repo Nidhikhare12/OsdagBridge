@@ -1,9 +1,53 @@
+import os
 from osdagbridge.core.reports.report_utils import make_longtable_header
 
 
-def ch7_quantities(input_dict):
+def ch7_quantities(input_dict, tmp_dir=None):
     def _v(key, fallback="N.A."):
         return str(input_dict.get(key, fallback))
+
+    charts_latex = ""
+    if tmp_dir and isinstance(tmp_dir, str) and os.path.isdir(tmp_dir):
+        try:
+            from osdagbridge.core.reports.visualizations import (
+                extract_quantity_data,
+                generate_quantity_charts,
+            )
+            qty_data = extract_quantity_data(input_dict)
+            chart1_path, chart2_path = generate_quantity_charts(qty_data, tmp_dir)
+
+            parts = []
+            if chart1_path and os.path.isfile(chart1_path):
+                parts.append(
+                    r"\vspace{1.5em}" + "\n"
+                    r"\begin{figure}[H]" + "\n"
+                    r"\centering" + "\n"
+                    r"\includegraphics[width=0.88\textwidth]{qty_chart_steel.png}" + "\n"
+                    r"\caption{\textbf{Fig.~7.1 --- Structural Steel Material Quantities (MT).} "
+                    r"Breakdown of structural steel components. End-diaphragm quantity is not calculated in the current release; "
+                    r"subtotal includes plate girders and cross bracing only.}" + "\n"
+                    r"\label{fig:steel-quantities}" + "\n"
+                    r"\end{figure}"
+                )
+            if chart2_path and os.path.isfile(chart2_path):
+                parts.append(
+                    r"\vspace{1.5em}" + "\n"
+                    r"\begin{figure}[H]" + "\n"
+                    r"\centering" + "\n"
+                    r"\includegraphics[width=0.88\textwidth]{qty_chart_concrete_rebar.png}" + "\n"
+                    r"\caption{\textbf{Fig.~7.2 --- Concrete and Reinforcement Quantities.} "
+                    r"Left: Deck slab concrete volume (m$^3$). "
+                    r"Right: Reinforcement steel weight (MT), based on an empirical estimate of "
+                    r"120~kg/m$^3$ of concrete slab (actual bar schedule not computed).}" + "\n"
+                    r"\label{fig:concrete-rebar-quantities}" + "\n"
+                    r"\end{figure}"
+                )
+            charts_latex = "\n".join(parts)
+        except Exception:
+            charts_latex = (
+                "\n"
+                r"\noindent\textit{[Material quantity visualizations could not be generated.]}"
+            )
 
     return r"""
 \chapter{Material Take-off \& Quantity Summary}
@@ -35,4 +79,4 @@ def ch7_quantities(input_dict):
 \hline
 \end{longtable}
 \endgroup
-"""
+""" + charts_latex + "\n"
