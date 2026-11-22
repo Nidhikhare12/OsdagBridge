@@ -146,7 +146,7 @@ from osdagbridge.core.reports import styles
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, chart_dir=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -903,7 +903,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                         best = (_d, _lc)
         return _lc_short(best[1]) if best else "---"
 
-    def _dcr_row(check_ids, fallback_unit=""):
+    def _dcr_row(check_ids, fallback_unit="", record=None):
         # Prefer per_girder["checks"] (carries units); worst girder by DCR.
         best = None  # (dcr, demand, capacity, dunit, cunit, g)
         for g, gd in _pg_522.items():
@@ -917,6 +917,8 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                                 chk.get("demand_unit") or "", chk.get("capacity_unit") or "", g)
         if best is not None:
             d, dem, cap, du, cu, g = best
+            if record is not None:
+                record(d)
             return (_gov_lc_in_522(g, check_ids),
                     _vu_522(dem, du) or "---", _vu_522(cap, cu) or "---", _ur_522(d) or "---")
         # Fallback: per_lc (no units) for SLS-conditional checks (e.g. deflection).
@@ -935,6 +937,8 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         if best is None:
             return ("---", "---", "---", "---")
         d, dem, cap, _lc = best
+        if record is not None:
+            record(d)
         return (_lc_short(_lc),
                 _vu_522(dem, fallback_unit) or "---", _vu_522(cap, fallback_unit) or "---",
                 _ur_522(d) or "---")
@@ -942,7 +946,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     # (3) Cross bracing — worst pair/member by UR for the given force type.
     _cb_pairs_522 = bridge.get_cb_pairs()
 
-    def _cb_row(force_type):
+    def _cb_row(force_type, record=None):
         best = None  # (ur, pair, member, capacity_str)
         for pair in _cb_pairs_522:
             for member in ("diagonal", "chord"):
@@ -957,12 +961,14 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         if best is None:
             return ("---", "---", "---", "---")
         ur, pair, member, cap = best
+        if record is not None:
+            record(ur)
         gov = bridge.get_cb_gov_lc(pair, member, force_type) or "---"
         dem = f"{float(cap) * ur:.2f} kN" if cap else "---"
         cap_s = (cap + " kN") if cap else "---"
         return (gov, dem, cap_s, _ur_522(ur))
 
-    def _cb_slender_row():
+    def _cb_slender_row(record=None):
         best = None  # (ratio, slend, limit)
         for pair in _cb_pairs_522:
             for member in ("diagonal", "chord"):
@@ -978,11 +984,23 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         if best is None:
             return ("---", "---", "---", "---")
         ratio, sf, lim = best
+        if record is not None:
+            record(ratio)
         return ("---", f"{sf:.1f}", f"{lim:.0f}", _ur_522(ratio))
 
     def _row522(label, cells):
         c = [x if x else "---" for x in cells]
         return label + r" & " + r" & ".join(c) + r" \\[6pt]" + "\n\\hline"
+
+    # UR chart data: (label, ur) per member group, recorded while the summary
+    # rows below are built, then rendered as bar charts at the end of 5.5.
+    _ur_groups = {"girders": [], "deck": [], "bracing": [], "diaphragm": []}
+
+    def _rec(group, label):
+        def _r(ur):
+            if ur is not None:
+                _ur_groups[group].append((label, float(ur)))
+        return _r
 
     # Deck rows: Demand/Capacity from deck_report_values (KEY_DD_*, the same dict
     # the 5.17 tables use); UR = Demand/Capacity. The deck is designed for the
@@ -992,7 +1010,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         r"Basic ULS: " + _tex(f"{_dkv(KEY_DD_GAMMA_DL):g}DL + {_dkv(KEY_DD_GAMMA_LL):g}LL")
     ) if _dk_has else "---"
 
-    def _deck_row(dem_key, cap_key, unit, is_oh=False):
+    def _deck_row(dem_key, cap_key, unit, is_oh=False, record=None):
         if not _dk_has:
             return ("---", "---", "---", "---")
         if is_oh and not _dk_oh:
@@ -1000,6 +1018,8 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         dem = _dkv(dem_key)
         cap = _dkv(cap_key)
         ur = (dem / cap) if cap > 0 else None
+        if record is not None and ur is not None:
+            record(ur)
         return (_deck_combo, f"{dem:.2f} {unit}", f"{cap:.2f} {unit}", _ur_522(ur))
 
     def _row522_msg(label, msg):
@@ -1016,8 +1036,8 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             break
     _ed_is_cb = "brac" in _ed_type.strip().lower()
     if _ed_is_cb:
-        _ed_moment_row = _row522(r"End Diaphragm --- Moment", _cb_row("compression"))
-        _ed_shear_row  = _row522(r"End Diaphragm --- Shear",  _cb_row("tension"))
+        _ed_moment_row = _row522(r"End Diaphragm --- Moment", _cb_row("compression", record=_rec("diaphragm", "Moment")))
+        _ed_shear_row  = _row522(r"End Diaphragm --- Shear",  _cb_row("tension", record=_rec("diaphragm", "Shear")))
     else:
         _ed_msg = r"Rolled / Welded section --- design to be added"
         _ed_moment_row = _row522_msg(r"End Diaphragm --- Moment", _ed_msg)
@@ -1047,24 +1067,26 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         (f"{_wk_lim:.3f} mm" if _dk_has else "---"),
         (_ur_522(_dk_gov_wk / _wk_lim) if (_dk_has and _wk_lim > 0) else "---"),
     )
+    if _dk_has and _wk_lim > 0:
+        _ur_groups["deck"].append(("Crack Width", _dk_gov_wk / _wk_lim))
 
     _t522 = [
-        _row522(r"Girder --- Moment",             _dcr_row({1})),
-        _row522(r"Girder --- Shear",              _dcr_row({2})),
-        _row522(r"Girder --- LTB (constr.)",      _dcr_row({5})),
-        _row522(r"Girder --- Deflection",         _dcr_row({13, 14}, fallback_unit="mm")),
-        _row522(r"Girder --- Stress",             _dcr_row({11}, fallback_unit="MPa")),
-        _row522(r"Girder --- Fatigue",            _dcr_row({8, 9}, fallback_unit="MPa")),
-        _row522(r"Transverse Shear (slab)",       _dcr_row({16})),
+        _row522(r"Girder --- Moment",             _dcr_row({1}, record=_rec("girders", "Moment"))),
+        _row522(r"Girder --- Shear",              _dcr_row({2}, record=_rec("girders", "Shear"))),
+        _row522(r"Girder --- LTB (constr.)",      _dcr_row({5}, record=_rec("girders", "LTB (constr.)"))),
+        _row522(r"Girder --- Deflection",         _dcr_row({13, 14}, fallback_unit="mm", record=_rec("girders", "Deflection"))),
+        _row522(r"Girder --- Stress",             _dcr_row({11}, fallback_unit="MPa", record=_rec("girders", "Stress"))),
+        _row522(r"Girder --- Fatigue",            _dcr_row({8, 9}, fallback_unit="MPa", record=_rec("girders", "Fatigue"))),
+        _row522(r"Transverse Shear (slab)",       _dcr_row({16}, record=_rec("deck", "Transverse Shear"))),
         _row522(r"Crack Width (slab)",            _crack_cells),
-        _row522(r"Deck --- Flexure (sagging)",    _deck_row(KEY_DD_M_ULS_SAG, KEY_DD_MU_BOT, "kN-m/m")),
-        _row522(r"Deck --- Flexure (hogging)",    _deck_row(KEY_DD_M_ULS_HOG, KEY_DD_MU_TOP, "kN-m/m")),
-        _row522(r"Deck --- Cantilever Overhang",  _deck_row(KEY_DD_M_ULS_OH, KEY_DD_MU_OH, "kN-m/m", is_oh=True)),
-        _row522(r"Deck --- Punching Shear",       _deck_row(KEY_DD_PUNCH_VED, KEY_DD_VRD_C_MPA, "MPa")),
-        _row522(r"Deck --- One-Way Shear",        _deck_row(KEY_DD_SHEAR_VED, KEY_DD_SHEAR_VRDC, "kN/m")),
-        _row522(r"Cross Bracing --- Compression", _cb_row("compression")),
-        _row522(r"Cross Bracing --- Tension",     _cb_row("tension")),
-        _row522(r"Cross Bracing --- Slenderness", _cb_slender_row()),
+        _row522(r"Deck --- Flexure (sagging)",    _deck_row(KEY_DD_M_ULS_SAG, KEY_DD_MU_BOT, "kN-m/m", record=_rec("deck", "Flexure (sagging)"))),
+        _row522(r"Deck --- Flexure (hogging)",    _deck_row(KEY_DD_M_ULS_HOG, KEY_DD_MU_TOP, "kN-m/m", record=_rec("deck", "Flexure (hogging)"))),
+        _row522(r"Deck --- Cantilever Overhang",  _deck_row(KEY_DD_M_ULS_OH, KEY_DD_MU_OH, "kN-m/m", is_oh=True, record=_rec("deck", "Cantilever Overhang"))),
+        _row522(r"Deck --- Punching Shear",       _deck_row(KEY_DD_PUNCH_VED, KEY_DD_VRD_C_MPA, "MPa", record=_rec("deck", "Punching Shear"))),
+        _row522(r"Deck --- One-Way Shear",        _deck_row(KEY_DD_SHEAR_VED, KEY_DD_SHEAR_VRDC, "kN/m", record=_rec("deck", "One-Way Shear"))),
+        _row522(r"Cross Bracing --- Compression", _cb_row("compression", record=_rec("bracing", "Compression"))),
+        _row522(r"Cross Bracing --- Tension",     _cb_row("tension", record=_rec("bracing", "Tension"))),
+        _row522(r"Cross Bracing --- Slenderness", _cb_slender_row(record=_rec("bracing", "Slenderness"))),
         _ed_moment_row,
         _ed_shear_row,
     ]
