@@ -135,7 +135,8 @@ Requirement coverage & \textbf{6 / 6 complete.} Each requirement has an explicit
 Code quality & Single style module consumed by all chapters; dead code removed; charts are thread-safe; 3 regression tests; verified import/compile of every report module. \\
 Verification depth & Unit tests, sample PDFs, visible GUI, real UI button clicks, full OpenSees design, cross-application reads, colour-pixel and image-fidelity checks. \\
 Performance & 2.180\,s mean; TeX-bound; no GPU path exists; optimisations applied where they matter. \\
-Limitations & \texttt{pythonocc-core} and \texttt{osdag\_core} are conda-only and were stubbed for the 3-D/connection paths; neither affects report layout. Video is not required for this task. \\
+Dependencies & The full conda environment (\path{environment.yml}) is installed; \texttt{OCC}, \texttt{osdag\_core}, \texttt{fiona} and PySide6 are real packages, and the GUI/report tests were re-run inside \texttt{osdagbridge-env} with no stubs. \\
+Video & A silent screengrab demo (\path{Demo\_Video.mp4}, 50\,s) is included as required. \\
 Refinement history & A final review loop caught and restored two regressions (style imports and centrifugal computation) and removed dead load-table code; all checks re-passed afterwards. \\
 \bottomrule
 \end{longtable}
@@ -145,7 +146,7 @@ Overall judgement: the implementation is complete, well evidenced and submission
 With the environment now available (PySide6, OpenSeesPy, ifcopenshell installed):
 \begin{itemize}
 \item \textbf{Osdag UI / 2D CAD / plotting} --- feasible next; PySide6 and OpenSees are present.
-\item \textbf{Osdag 3D substructure + IFC} --- blocked on \texttt{pythonocc-core}, which is conda-only and unavailable here.
+\item \textbf{Osdag 3D substructure + IFC} --- now feasible too: the conda environment provides real \texttt{pythonocc-core} and \texttt{ifcopenshell}.
 \item \textbf{eSim tasks} --- require eSim / KiCad installations not present in this environment.
 \end{itemize}
 

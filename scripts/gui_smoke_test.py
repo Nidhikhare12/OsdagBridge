@@ -290,9 +290,10 @@ def main() -> int:
     )
 
     from osdagbridge.desktop.ui.cad_3d import CAD3DWindow
-    # The 3-D driver is irrelevant to report generation and unavailable with
-    # the OCC stub, so skip that deferred initialization cleanly.
-    CAD3DWindow._complete_cad_init = lambda self: None
+    # With a real pythonocc-core present, allow the actual 3-D driver to
+    # initialize.  Only skip it when OCC was stubbed for a minimal install.
+    if "OCC" in sys.modules and getattr(sys.modules["OCC"], "__file__", None) is None:
+        CAD3DWindow._complete_cad_init = lambda self: None
 
     app = QApplication.instance() or QApplication(sys.argv)
     window = CustomWindow("OsdagBridge", PlateGirderBridge)

@@ -49,7 +49,9 @@ from osdagbridge.core.bridge_types.plate_girder.plategirderbridge import (  # no
 from osdagbridge.desktop.ui.dialogs import report_options as ro  # noqa: E402
 from osdagbridge.desktop.ui.dialogs import custom_messagebox as cmb  # noqa: E402
 
-CAD3DWindow._complete_cad_init = lambda self: None
+if "OCC" in sys.modules and getattr(sys.modules["OCC"], "__file__", None) is None:
+    # OCC was stubbed: skip the 3-D driver initialization.
+    CAD3DWindow._complete_cad_init = lambda self: None
 cmb.CustomMessageBox.exec = lambda self, *a, **k: 0
 
 
