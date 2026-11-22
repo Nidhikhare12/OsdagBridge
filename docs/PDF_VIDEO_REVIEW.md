@@ -26,7 +26,7 @@ logo, so the direct export is the higher-fidelity master.
 
 | Property | Value |
 |---|---|
-| Duration | 56 s |
+| Duration | 75 s |
 | Resolution | **1920×1080** |
 | Codec | MPEG-4 Part 2 (`mpeg4`), `yuv420p` |
 | Audio | None (silent, as permitted) |

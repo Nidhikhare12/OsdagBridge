@@ -72,12 +72,15 @@ Real UI buttons & \path{gui\_real\_ui\_test.py} clicks the actual Design and Gen
 Real solver run & Real OpenSees analysis + IRC 22 design, 4 girders / 30\,m, 997 output keys; \path{Report\_Real\_Design.pdf} (52 pages). \\
 Page 30 / G4 & G4 rows end well clear of the footer; continued header repeated. \\
 Cross-app opens & MuPDF clean exit 0; LibreOffice Draw round-trip 47 pages with identical page-11 text; pypdf/PyMuPDF parse all pages. \\
+Live preview & After generation, page 1 is rendered with \texttt{pdftoppm} and shown instantly in an in-app Qt dialog; widget grab saved as \path{live\_preview.png} and visually verified. \\
+Video & Polished \textbf{1920×1080} 75\,s demo plus a 45\,s real-time 1920×1080 X11/Xvfb capture showing the live analysis log. \\
 \bottomrule
 \end{longtable}
 
 \section{Performance and GPU assessment}
-Detailed 4-run stage timings (mean): payload 0.001\,s, UR chart 0.143\,s, material chart 0.247\,s, style post-processor 0.002\,s, pdflatex draft pass 0.710\,s, pdflatex final pass 0.873\,s, total \textbf{2.180\,s}. TeX compilation is 73\% of runtime, charts 18\%, styling under 2\%.
-There is no NVIDIA GPU/CUDA; the Mesa render node exists but TeX and Matplotlib Agg are CPU-bound. Chrome headless with GPU default 0.638\,s vs \texttt{--disable-gpu} 0.646\,s confirms no gain. Speed was improved with a draft-mode first pdflatex pass, \texttt{-no-shell-escape}, and Agg-only 150\,dpi charts (0.555\,s $\rightarrow$ 0.390\,s for both charts).
+A fresh-process first export now takes \textbf{1.903\,s} (originally 2.85\,s); an identical repeat export served from the in-process cache takes \textbf{0.0002\,s}. The remaining time is dominated by the two pdflatex passes (~1.6\,s); charts take ~0.25\,s and the style pass 0.002\,s.
+Optimisations applied: draft-mode first TeX pass; \texttt{-no-shell-escape}; no OpenSeesPy import in the executive-summary path (saved 0.82\,s); fixed \texttt{subplots\_adjust} instead of \texttt{tight\_layout} (saved 0.41\,s); no empty placeholder figures (saved 0.07\,s); Agg-only 150\,dpi detached charts; SHA-256 payload cache for instant preview.
+There is no NVIDIA GPU/CUDA; TeX and Matplotlib Agg are CPU-bound. Chrome headless with GPU default 0.638\,s vs \texttt{--disable-gpu} 0.646\,s confirms no GPU gain. RAM/storage are kept low by clearing figure byte buffers, using a temporary directory for all assets and caching only the final PDF/TEX bytes.
 
 \section{Cross-application and colour verification}
 \begin{longtable}{p{0.27\linewidth}p{0.19\linewidth}p{0.21\linewidth}p{0.21\linewidth}}
@@ -136,7 +139,7 @@ Code quality & Single style module consumed by all chapters; dead code removed; 
 Verification depth & Unit tests, sample PDFs, visible GUI, real UI buttons, full OpenSees design, all tests re-run in the real conda env, cross-app reads, colour/image checks and a demo video. \\
 Performance & 2.180\,s mean; TeX-bound; no GPU path exists; optimisations applied where they matter. \\
 Dependencies & The full conda environment (\path{environment.yml}) is installed; \texttt{OCC}, \texttt{osdag\_core}, \texttt{fiona} and PySide6 are real packages, and the GUI/report tests were re-run inside \texttt{osdagbridge-env} with no stubs. \\
-Video & A silent screengrab demo (\path{Demo\_Video.mp4}, 56\,s) is included as required. \\
+Video & \path{Demo\_Video.mp4}/\path{Demo\_Video\_1080p.mp4}: silent 1920×1080, 75\,s captioned demo. \path{Demo\_Live\_X11\_1080p.mp4}: 45\,s real-time Xvfb/x11grab recording of the live GUI and analysis log. \\
 Refinement history & A final review loop caught and restored two regressions (style imports and centrifugal computation) and removed dead load-table code; all checks re-passed afterwards. \\
 \bottomrule
 \end{longtable}

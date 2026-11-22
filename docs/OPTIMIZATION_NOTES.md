@@ -36,7 +36,7 @@ same report costs only two small file writes.
   ~38 kB) — sufficient for 187–234 ppi in the final PDF.
 - The output folder receives only the requested `.pdf` and `.tex` plus the
   deliverables; no image assets are left behind.
-- Videos: the primary demo is ~8.7 MB (1920×1080, 56 s); the raw real-time X11
+- Videos: the primary demo is ~10 MB (1920×1080, 75 s); the raw real-time X11
   clip is ~7.5 MB for 45 s. Both are well within typical upload limits.
 
 ## 4. 1080p video and real X11 capture

@@ -45,7 +45,15 @@ SLIDES = [
      "Red dashed UR = 1.0 threshold", 6),
     ("report_assets/material_chart.png", "7. Material quantity charts (Chapter 7)",
      "Steel tonnage, concrete volume, rebar weight", 6),
-    ("report_assets/real_page30.png", "8. Real design, Page 30",
+    ("TITLE", "8. Export time optimised",
+     "1.90 s first export - 0.0002 s cached preview", 5),
+    ("TITLE", "9. Real-time PDF preview",
+     "In-app Qt dialog shows page 1 immediately", 5),
+    ("TITLE", "10. 1920x1080 + real X11 capture",
+     "Xvfb display - 45 s live recording included", 5),
+    ("TITLE", "11. Low RAM and storage",
+     "Temp assets auto-cleaned - charts 150 dpi PNG", 5),
+    ("report_assets/real_page30.png", "12. Real design, Page 30",
      "G4 rows clear of footer; header repeated", 7),
 ]
 

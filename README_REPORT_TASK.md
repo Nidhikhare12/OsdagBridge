@@ -13,8 +13,11 @@ Repo: https://github.com/danish9661/OsdagBridge
 | Central style module | `src/osdagbridge/core/reports/styles.py` |
 | Chart module | `src/osdagbridge/core/reports/charts.py` |
 | Extra verification PDFs | `deliverables/Report_From_GUI.pdf`, `deliverables/Report_Real_UI.pdf`, `deliverables/Report_Real_Design.pdf` |
-| Screenshots | `deliverables/gui_window.png`, `deliverables/gui_after_design.png`, `deliverables/gui_after_report.png` |
-| Benchmarks | `docs/BENCHMARK.md`, `docs/PERFORMANCE_DETAIL.md` |
+| Screenshots | `deliverables/gui_window.png`, `deliverables/gui_after_design.png`, `deliverables/gui_after_report.png`, `deliverables/live_preview.png` |
+| Demo video | `deliverables/Demo_Video.mp4`, `deliverables/Demo_Video_1080p.mp4` (1920×1080, 75 s) |
+| Real-time capture | `deliverables/Demo_Live_X11_1080p.mp4` (45 s, Xvfb/x11grab, live analysis log) |
+| Benchmarks | `docs/BENCHMARK.md`, `docs/PERFORMANCE_DETAIL.md`, `docs/OPTIMIZATION_NOTES.md`, `docs/PDF_VIDEO_REVIEW.md` |
+| Speed | First export **1.90 s**; identical repeat export / preview **0.0002 s** (SHA-256 payload cache) |
 | ZIP | `OsdagBridge_Report_Task_Deliverables.zip` |
 
 ## Remaining manual steps (GitHub account required)
@@ -24,6 +27,6 @@ Repo: https://github.com/danish9661/OsdagBridge
    https://github.com/danish9661/OsdagBridge/pull/new/report-generator-enhancements
 3. Submit the repo link, the two required PDFs and the technical document as required.
 
-A silent **1920×1080** demo is included at `deliverables/Demo_Video.mp4` / `Demo_Video_1080p.mp4` (56 s), plus a 45 s real-time X11 capture `Demo_Live_X11_1080p.mp4`. Upload the 1080p demo as an unlisted YouTube video and include the link.
+A silent **1920×1080** demo is included at `deliverables/Demo_Video.mp4` / `Demo_Video_1080p.mp4` (75 s), plus a 45 s real-time X11 capture `Demo_Live_X11_1080p.mp4`. Upload the 1080p demo as an unlisted YouTube video and include the link.
 
 The full conda environment is installed at `/home/danish1075/miniconda3/envs/osdagbridge-env`; all GUI/report tests were re-run there with real OCC, osdag_core, fiona and PySide6 (no stubs).

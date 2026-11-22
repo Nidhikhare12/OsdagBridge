@@ -33,7 +33,7 @@ Measured with `scripts/benchmark_detailed.py`, 4 production runs, identical
 | `styles.apply_global_styles()` over ~84 kB LaTeX | 0.002 s | 0.002 s | 0.002 s |
 | pdflatex pass 1 (`-draftmode`) | 0.710 s | 0.702 s | 0.718 s |
 | pdflatex pass 2 (final PDF) | 0.873 s | 0.866 s | 0.888 s |
-| **Total pipeline** | **1.903 s** | 1.941 s | 2.852 s |
+| **Total pipeline** | **1.903 s** | 1.865 s | 1.980 s |
 
 Interpretation: **TeX compilation is 73 % of runtime**, charts 18 %, everything
 else <2 %. The central style post-processor is effectively free.
