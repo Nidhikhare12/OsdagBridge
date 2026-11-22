@@ -351,3 +351,11 @@ def contents_layout():
 \tableofcontents
 """
 
+
+
+def chapter_title(title, numbered=True):
+    """Shared chapter command; title is report-authored LaTeX."""
+    return (r"\chapter{" if numbered else r"\chapter*{") + title + "}"
+
+
+FIG_WIDTH_DRAWING = r"0.85\textwidth"

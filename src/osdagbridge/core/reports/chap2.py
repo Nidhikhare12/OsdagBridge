@@ -85,7 +85,7 @@ def ch2_input_parameters(m, input_dict, output_dict=None):
 \hline
 """)
     return r"""
-\chapter{Input Parameters}
+""" + styles.chapter_title(r"Input Parameters") + r"""
 
 \setlength{\abovecaptionskip}{2pt}
 \setlength{\belowcaptionskip}{2pt}

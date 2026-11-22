@@ -11,7 +11,7 @@ def _f(input_dict, key):
 
 def ch7_quantities(input_dict, chart_dir=None):
     return r"""
-\chapter{Material Take-off \& Quantity Summary}
+""" + styles.chapter_title(r"Material Take-off \& Quantity Summary") + r"""
 \label{ch:material-takeoff}
 
 \noindent\textbf{Table 7.1  Bill of Materials (Steel, Concrete, and Reinforcement Quantities)}
@@ -56,12 +56,14 @@ def _ch7_chart_block(input_dict, chart_dir):
     import os
     from .ur_charts import render_bar_chart
 
+    bracing_parts = [_f(input_dict, key) for key in (
+        "bracing_top_wt_total", "bracing_bot_wt_total", "bracing_diag_wt_total")]
+    bracing_total = (sum(bracing_parts)
+                     if all(v is not None for v in bracing_parts) else None)
     steel = [
         ("Girders", _f(input_dict, "steel_girders_wt_total")),
-        ("Bracing Top", _f(input_dict, "bracing_top_wt_total")),
-        ("Bracing Bottom", _f(input_dict, "bracing_bot_wt_total")),
-        ("Bracing Diagonal", _f(input_dict, "bracing_diag_wt_total")),
-        ("Shear Studs", _f(input_dict, "shear_studs_wt_total")),
+        ("Cross Bracing", bracing_total),
+        ("End Diaphragms", _f(input_dict, "end_diaphragms_wt_total")),
     ]
     concrete_vs_rebar = [
         ("Concrete (m3)", _f(input_dict, "concrete_deck_vol_total")),
@@ -84,5 +86,6 @@ def _ch7_chart_block(input_dict, chart_dir):
         r"\vspace{1em}" + "\n"
         + r"\noindent\textbf{Material Quantity Charts}" + "\n"
         + "\n".join(figs) + "\n"
+        + r"\noindent\textit{N/A means that the material take-off has not supplied a quantity; it does not mean zero.}" + "\n"
     )
 

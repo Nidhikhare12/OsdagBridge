@@ -1,3 +1,4 @@
+from . import styles
 def ch6_drawings(fig_paths):
     """Chapter 6 – Drawings and Visualizations.
 
@@ -29,14 +30,14 @@ def ch6_drawings(fig_paths):
             return (r'\begin{figure}[H]' + '\n'
                     r'\centering' + '\n'
                     r'\vspace{4pt}' + '\n'
-                    r'\includegraphics[width=0.85\textwidth]{' + p + '}\n'
+                    r'\includegraphics[width=' + styles.FIG_WIDTH_DRAWING + ']{' + p + '}\n'
                     r'\caption{' + title + '}\n'
                     + label_tex
                     + r'\end{figure}' + '\n'
                     )
         return (r'\begin{figure}[H]' + '\n'
                 r'\centering' + '\n'
-                r'\fbox{\parbox{0.97\textwidth}{' + '\n'
+                r'\fbox{\parbox{' + styles.FIG_PLACEHOLDER_WIDTH + '}{' + '\n'
                 r'\textit{[ PLACEHOLDER: ' + ' ' + title + r' ]}' + '\n'
                 r'}}' + '\n'
                 r'\caption{' + title + '}\n'
@@ -123,7 +124,7 @@ def ch6_drawings(fig_paths):
 )
 
     return (r"""
-\chapter{Drawings and Visualizations}
+""" + styles.chapter_title(r"Drawings and Visualizations") + r"""
 \label{ch:drawings}
 
 This section presents CAD-generated views of the designed bridge and its components. All views are generated automatically by OsdagBridge using pythonOCC.

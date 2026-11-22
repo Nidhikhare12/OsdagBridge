@@ -1,6 +1,7 @@
+from . import styles
 def references():
     return r"""
-\chapter*{References}
+""" + styles.chapter_title(r"References", numbered=False) + r"""
 \addcontentsline{toc}{chapter}{References}
 
 

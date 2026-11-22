@@ -36,7 +36,7 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
 def _ch8_assumptions(is_custom: bool) -> str:
     assumptions = [
         r"""
-\chapter{Standards \& Assumptions}
+""" + styles.chapter_title(r"Standards \& Assumptions") + r"""
 \label{ch:Design Standards}
 
 This section provides references to standards used to calibrate the OsdagBridge

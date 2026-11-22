@@ -77,7 +77,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _live_status     = styles.status_or_dash(None if _live_mm  is None else _live_mm  <= _allow_live_mm)
     _total_status    = styles.status_or_dash(None if _total_mm is None else _total_mm <= _allow_total_mm)
     return r"""
-\chapter{Analysis Results}
+""" + styles.chapter_title(r"Analysis Results") + r"""
 
 A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements --- longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
 

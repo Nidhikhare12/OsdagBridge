@@ -32,7 +32,10 @@ def render_bar_chart(title, points, ylabel, out_path, limit=None,
     (y, legend label) pair drawn as a red dashed line, or None. Returns True
     when the figure was written, False when there is nothing to plot.
     """
-    pts = [(lbl, float(v)) for lbl, v in points if v is not None]
+    import math
+    pts = [(lbl, float(v) if v is not None else None) for lbl, v in points]
+    pts = [(lbl, v if v is not None and math.isfinite(v) else None)
+           for lbl, v in pts]
     if not pts:
         return False
 
@@ -41,7 +44,7 @@ def render_bar_chart(title, points, ylabel, out_path, limit=None,
     import matplotlib.pyplot as plt
 
     labels = [p[0] for p in pts]
-    values = [p[1] for p in pts]
+    values = [p[1] if p[1] is not None else 0.0 for p in pts]
 
     fig_w = max(6.5, 0.9 * len(pts) + 2.5)
     fig, ax = plt.subplots(figsize=(fig_w, 3.6), dpi=200)
@@ -62,9 +65,12 @@ def render_bar_chart(title, points, ylabel, out_path, limit=None,
     ax.set_xticklabels(labels, rotation=20, ha="right", fontsize=8)
     ax.tick_params(axis="y", labelsize=8)
 
-    for rect, v in zip(bars, values):
+    for rect, (_, raw) in zip(bars, pts):
+        v = raw if raw is not None else 0.0
+        if raw is None:
+            rect.set_visible(False)
         ax.text(rect.get_x() + rect.get_width() / 2.0, v + top * 0.015,
-                value_fmt.format(v), ha="center", va="bottom", fontsize=8)
+                value_fmt.format(v) if raw is not None else "N/A", ha="center", va="bottom", fontsize=8)
 
     ax.grid(axis="y", color="0.85", linewidth=0.6, zorder=0)
     ax.set_axisbelow(True)

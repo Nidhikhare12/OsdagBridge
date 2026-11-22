@@ -1,3 +1,4 @@
+from . import styles
 # =============================================================================
 # Chapter 3: Loads and Load Combinations
 # Extracted from report_generator.py — DO NOT add business logic here.
@@ -288,7 +289,7 @@ def ch3_loads(input_dict):
     lc_rows_str = "\n".join(lc_rows)
 
     return r"""
-\chapter{Loads and Load Combinations}
+""" + styles.chapter_title(r"Loads and Load Combinations") + r"""
 
 This section summarizes all loads applied to the bridge and the load combinations considered for analysis and design.
 
@@ -346,6 +347,8 @@ This section summarizes all loads applied to the bridge and the load combination
 \textnormal{Impact Factor (IRC 6 Cl. 208)} & """ + _tex(impact_factor_str) + r""" & --- \\[6pt]
 \hline
 \textnormal{Braking Load (IRC 6 Cl. 211.2)} & """ + _tex(braking_force_val or braking_force_str or "N/A") + r""" & kN \\[6pt]
+\hline
+\textnormal{Centrifugal Force} & Not supplied by the current load model & kN \\[6pt]
 \hline
 \end{longtable}
 

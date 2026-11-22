@@ -1,9 +1,10 @@
+from . import styles
 from osdagbridge.core.reports.report_utils import _tex
 
 
 def ch1_project_info(m):
     return r"""
-\chapter{Project Information}
+""" + styles.chapter_title(r"Project Information") + r"""
 
 This section records all project metadata as entered by the designer.
 

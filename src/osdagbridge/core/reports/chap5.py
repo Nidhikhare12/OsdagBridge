@@ -1121,7 +1121,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         )
 
     return r"""
-\chapter{Design Checks}
+""" + styles.chapter_title(r"Design Checks") + r"""
 
 This section presents all structural design checks performed by OsdagBridge. For each member, the demand from the governing load combination, the code-based capacity, and the utilization ratio are tabulated. All checks reference IS 800:2007 and IRC 22:2014 unless stated otherwise.
 
