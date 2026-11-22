@@ -11,6 +11,11 @@ from osdagbridge.core.utils.common import (
     KEY_TS_NO_OF_GIRDERS,
     KEY_TS_DECK_THICKNESS,
     KEY_TS_GIRDER_SPACING,
+    KEY_MP_ED_TYPE,
+    KEY_TD_ED_PROP_M,
+    KEY_MP_ED_MASS,
+    KEY_TD_ED_PROP_A,
+    KEY_MP_ED_SECTIONAL_AREA,
 )
 
 logger = logging.getLogger("osdagbridge.core.boq_generator")
@@ -65,6 +70,12 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         "bracing_diag_vol_total": "N.A.",
         "bracing_diag_wt_single": "N.A.",
         "bracing_diag_wt_total": "N.A.",
+
+        "end_diaphragm_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "end_diaphragm_qty": "N.A.",
+        "end_diaphragm_vol_total": "N.A.",
+        "end_diaphragm_wt_single": "N.A.",
+        "end_diaphragm_wt_total": "N.A.",
         
         "concrete_deck_vol_formula": r"\placeholder{Width $\times$ Thickness $\times$ Length}",
         "concrete_deck_qty": "N.A.",
@@ -321,9 +332,38 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["bracing_diag_vol_total"] = f"{diag_vol_total:.2f}"
             quantities["bracing_diag_wt_single"] = f"{diag_wt_single:.4f}"
             quantities["bracing_diag_wt_total"] = f"{diag_wt_total:.2f}"
+
+            # 5d. End Diaphragms
+            ed_type = str(inputs.get(KEY_MP_ED_TYPE, "Cross Bracing")).strip().lower()
+            ed_qty = (n_girders - 1) * 2  # 2 lines of end diaphragms (start & end)
+            if "brac" in ed_type or bracing_area > 0.0:
+                # Cross bracing type: top + bottom + 2 diagonals per bay
+                ed_vol_single = bracing_area * (2 * spacing + 2 * bracing_len)
+                ed_vol_total = ed_qty * ed_vol_single
+                ed_wt_single = ed_vol_single * 7.85
+                ed_wt_total = ed_vol_total * 7.85
+                quantities["end_diaphragm_vol_formula"] = f"${bracing_area:.5f}\\text{{ m}}^2 \\times {(2 * spacing + 2 * bracing_len):.2f}\\text{{ m}} = {ed_vol_single:.5f}\\text{{ m}}^3$"
+            else:
+                ed_mass = float(outputs.get(KEY_TD_ED_PROP_M) or inputs.get(KEY_MP_ED_MASS, 0) or 0)
+                ed_area = float(outputs.get(KEY_TD_ED_PROP_A) or inputs.get(KEY_MP_ED_SECTIONAL_AREA, 0) or 0) / 10000.0
+                if ed_area > 0:
+                    ed_vol_single = ed_area * spacing
+                elif ed_mass > 0:
+                    ed_vol_single = (ed_mass / 7850.0) * spacing
+                else:
+                    ed_vol_single = 0.01 * spacing
+                ed_vol_total = ed_qty * ed_vol_single
+                ed_wt_single = ed_vol_single * 7.85
+                ed_wt_total = ed_vol_total * 7.85
+                quantities["end_diaphragm_vol_formula"] = f"${(ed_vol_single / spacing if spacing else 0):.5f}\\text{{ m}}^2 \\times {spacing:.2f}\\text{{ m}} = {ed_vol_single:.5f}\\text{{ m}}^3$"
+
+            quantities["end_diaphragm_qty"] = str(ed_qty)
+            quantities["end_diaphragm_vol_total"] = f"{ed_vol_total:.2f}"
+            quantities["end_diaphragm_wt_single"] = f"{ed_wt_single:.4f}"
+            quantities["end_diaphragm_wt_total"] = f"{ed_wt_total:.2f}"
         else:
             # Keep all bracing volumes, quantities, and weights as default placeholder "N.A."
-            for prefix in ("bracing_top", "bracing_bot", "bracing_diag"):
+            for prefix in ("bracing_top", "bracing_bot", "bracing_diag", "end_diaphragm"):
                 quantities[f"{prefix}_vol_formula"] = "N.A."
                 quantities[f"{prefix}_qty"] = "N.A."
                 quantities[f"{prefix}_vol_total"] = "N.A."

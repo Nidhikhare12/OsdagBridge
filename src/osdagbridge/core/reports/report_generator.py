@@ -920,6 +920,17 @@ def generate_report(payload, request):
                 except Exception as exc:
                     logger.warning("Failed to generate UR summary chart: %s", exc)
 
+            # Generate Material Quantity Summary Charts for Chapter 7
+            if 'boq_summary' not in fig_paths:
+                try:
+                    from osdagbridge.core.reports.boq_charts import generate_boq_summary_charts
+                    boq_res = generate_boq_summary_charts(payload.inputs, tmp_images, payload.output_dict)
+                    fig_paths['boq_summary'] = boq_res['summary'].replace('\\', '/')
+                    fig_paths['boq_steel_tonnage'] = boq_res['steel'].replace('\\', '/')
+                    fig_paths['boq_concrete_rebar'] = boq_res['concrete_rebar'].replace('\\', '/')
+                except Exception as exc:
+                    logger.warning("Failed to generate BOQ summary charts: %s", exc)
+
             doc_parts = []
             doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
             doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
@@ -945,7 +956,7 @@ def generate_report(payload, request):
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, fig_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
