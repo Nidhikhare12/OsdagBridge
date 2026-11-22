@@ -1,3 +1,4 @@
+from . import styles
 # ═══════════════════════════════════════════════════════════════════════════════
 # EXECUTIVE SUMMARY
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -251,6 +252,5 @@ Deck design pass
 \end{itemize}
 
 % Restore numbered chapter format
-\titleformat{\chapter}[block]{\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{-30pt}{10pt}
+""" + styles.chapter_heading() + r"""
 """

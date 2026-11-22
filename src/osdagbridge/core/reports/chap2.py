@@ -1,3 +1,4 @@
+from . import styles
 # Chapter 2: Input Parameters — exact LaTeX template match
 
 
@@ -404,7 +405,7 @@ def _bracing_tables(input_dict, n_girders):
 \newpage
 
 \vspace{0.4em}
-\setlength{\tabcolsep}{4pt}
+""" + styles.table_padding(styles.TABCOLSEP_COMPACT) + r"""
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
 
@@ -424,7 +425,7 @@ def _bracing_tables(input_dict, n_girders):
 
 \vspace{0.4em}
 \noindent
-\setlength{\tabcolsep}{4pt}
+""" + styles.table_padding(styles.TABCOLSEP_COMPACT) + r"""
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
 

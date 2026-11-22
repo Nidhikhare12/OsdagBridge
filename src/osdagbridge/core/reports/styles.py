@@ -185,3 +185,19 @@ def repeated_header(header_rows):
     (\\endhead).
     """
     return header_rows + "\n\\endfirsthead\n" + header_rows + "\n\\endhead"
+
+
+# Chapter heading variants used by the contents and the main report body.
+def chapter_heading(before="-30pt"):
+    return (r"\titleformat{\chapter}[block]{\normalfont\Large\bfseries\centering}"
+            r"{\thechapter}{1em}{}" "\n"
+            r"\titlespacing*{\chapter}{0pt}{" + before + r"}{10pt}")
+
+
+def table_padding(size):
+    return r"\setlength{\tabcolsep}{" + size + "}"
+
+
+TABCOLSEP_COMPACT = "4pt"
+TABCOLSEP_ANALYSIS = "3pt"
+ANALYSIS_ARRAY_STRETCH = "1.25"

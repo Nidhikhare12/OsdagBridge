@@ -84,8 +84,8 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \vspace{1em}
 \begingroup
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
+""" + styles.table_padding(styles.TABCOLSEP_ANALYSIS) + r"""
+\renewcommand{\arraystretch}{""" + styles.ANALYSIS_ARRAY_STRETCH + r"""}
 
 \begin{longtable}{|
 >{\centering\arraybackslash}p{3.1cm}|

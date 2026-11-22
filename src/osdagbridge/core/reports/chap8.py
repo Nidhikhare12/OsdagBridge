@@ -51,7 +51,7 @@ form the basis of all design calculations in this software.
 \vspace{0.5cm}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+""" + styles.table_padding(styles.TABCOLSEP_TIGHT) + r"""
 \begin{table}[H]
 \caption{\textbf{IRC Codes}}
 \begin{tabular}{|c|c|p{13cm}|}
@@ -74,7 +74,7 @@ IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \end{table}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+""" + styles.table_padding(styles.TABCOLSEP_TIGHT) + r"""
 \begin{table}[H]
 \caption{\textbf{IS Codes}}
 \begin{tabular}{|c|c|p{13cm}|}

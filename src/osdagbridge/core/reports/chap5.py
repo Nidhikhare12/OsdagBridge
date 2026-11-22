@@ -1563,7 +1563,7 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 
 \vspace{0.4em}
 \noindent
-\setlength{\tabcolsep}{4pt}
+""" + styles.table_padding(styles.TABCOLSEP_COMPACT) + r"""
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
 
@@ -1622,7 +1622,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{0.4em}
 \noindent
-\setlength{\tabcolsep}{4pt}
+""" + styles.table_padding(styles.TABCOLSEP_COMPACT) + r"""
 \setlength{\LTleft}{0pt}
 \setlength{\LTright}{\fill}
 
