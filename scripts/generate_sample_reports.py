@@ -37,6 +37,8 @@ from osdagbridge.core.reports.report_generator import (  # noqa: E402
 )
 from osdagbridge.core.utils.common import (  # noqa: E402
     KEY_DESIGN_MODE,
+    KEY_LL_CURVE_RADIUS,
+    KEY_LL_DESIGN_SPEED,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
     KEY_LL_IRC_70R_WHEELED,
@@ -57,13 +59,15 @@ from osdagbridge.core.utils.common import (  # noqa: E402
 def sample_inputs() -> dict:
     return {
         KEY_SPAN: 30.0,
-        KEY_TS_NO_OF_GIRDERS: 3,
+        KEY_TS_NO_OF_GIRDERS: 4,
         KEY_DESIGN_MODE: "Optimized",
         KEY_WC_LD_LANE_TABLE_COUNT: 2,
         KEY_MATERIAL_GIRDER_DENSITY: 78.5,
         KEY_MATERIAL_DECK_DENSITY: 25.0,
         KEY_LL_IRC_CLASS_A: True,
         KEY_LL_IRC_70R_WHEELED: True,
+        KEY_LL_CURVE_RADIUS: 300.0,
+        KEY_LL_DESIGN_SPEED: 80.0,
         KEY_LL_FOOTPATH_PRESSURE_MODE: "Automatic",
         KEY_LL_FOOTPATH_PRESSURE_VALUE: "5.0",
         KEY_WL_BASIC_WIND_SPEED: 40,
@@ -97,12 +101,12 @@ def sample_outputs() -> dict:
         ],
         "design_results": {
             "per_girder": {
-                "G1": {
+                girder: {
                     "checks": [
                         {
                             "check_id": 1,
-                            "dcr": 0.82,
-                            "demand": 20500.0,
+                            "dcr": dcr,
+                            "demand": 20500.0 * dcr / 0.82,
                             "capacity": 25000.0,
                             "demand_unit": "kNm",
                             "capacity_unit": "kNm",
@@ -117,6 +121,8 @@ def sample_outputs() -> dict:
                         },
                     ]
                 }
+                for girder, dcr in (("G1", 0.72), ("G2", 0.76),
+                                    ("G3", 0.79), ("G4", 0.82))
             }
         },
         "deck_design_results": {},

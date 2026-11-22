@@ -217,7 +217,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \hline
 \textbf{Carriageway Width} &  \\
 \hline
-\textbf{No. of Girders} & 3 \\
+\textbf{No. of Girders} & 4 \\
 \hline
 \textbf{Girder Spacing} &  \\
 \hline
@@ -262,20 +262,21 @@ This section provides a concise summary of the bridge design, key inputs, govern
 
 \vspace{0.4em}
 \noindent
-\begin{tabular}{|C{2.8cm}|C{4.1cm}|C{4.1cm}|C{4.1cm}|}
+\begin{tabular}{|C{2.8cm}|C{3.0cm}|C{3.0cm}|C{3.0cm}|C{3.0cm}|}
 \hline
+  \textbf{} &
   \textbf{} &
   \textbf{} &
   \textbf{} &
   \textbf{} \\
 \hline
-Member ID &  &  &  \\
+Member ID &  &  &  &  \\
 \hline
-Section Designation &  &  &  \\
+Section Designation &  &  &  &  \\
 \hline
-Governing Check &  &  &  \\
+Governing Check &  &  &  &  \\
 \hline
-Utilization Ratio & 0.82 (Girder) & 0.82 (Girder) & 0.82 (Girder) \\
+Utilization Ratio & 0.82 (Girder) & 0.82 (Girder) & 0.82 (Girder) & 0.82 (Girder) \\
 \hline
 \end{tabular}
 
@@ -441,7 +442,7 @@ Where the user has modified additional inputs, those values are reported here. W
 \hline
 \textnormal{Overall Bridge Width (m)} & 12.0 \\[6pt]
 \hline
-\textnormal{No. of Girders} & 3 \\[6pt]
+\textnormal{No. of Girders} & 4 \\[6pt]
 \hline
 \textnormal{Girder Spacing (m)} &  \\[6pt]
 \hline
@@ -495,6 +496,8 @@ Where the user has modified additional inputs, those values are reported here. W
 \hline
  &  & Optimized &  &  \\[8pt]
 \hline
+ &  & Optimized &  &  \\[8pt]
+\hline
 \end{longtable}
 
 \vspace{0.6em}
@@ -504,6 +507,8 @@ Where the user has modified additional inputs, those values are reported here. W
 \caption{\textbf{Girder Section Dimensions}}
 \hline
 \textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]
+\hline
+ &  &  & ,  & ,  \\[8pt]
 \hline
  &  &  & ,  & ,  \\[8pt]
 \hline
@@ -530,6 +535,8 @@ Where the user has modified additional inputs, those values are reported here. W
 \hline
  & ,  &  & ; Spacing: ; Thickness:  &  & No.: ; Spacing: ; Thickness:  \\[8pt]
 \hline
+ & ,  &  & ; Spacing: ; Thickness:  &  & No.: ; Spacing: ; Thickness:  \\[8pt]
+\hline
 \end{longtable}
 
 
@@ -550,6 +557,8 @@ Where the user has modified additional inputs, those values are reported here. W
 \hline
  &  &  &  &  \\[6pt]
 \hline
+ &  &  &  &  \\[6pt]
+\hline
 \end{longtable}
 
 \vspace{0.4em}
@@ -562,6 +571,8 @@ Where the user has modified additional inputs, those values are reported here. W
 \caption{\textbf{Member Properties: End Diaphragm Details}}
 \hline
 \textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
+\hline
+ &  &  &  \\[6pt]
 \hline
  &  &  &  \\[6pt]
 \hline
@@ -982,6 +993,32 @@ This section presents all structural design checks performed by OsdagBridge. For
 \cline{2-3}
  & \textnormal{Depth to Plastic Neutral Axis (mm)} &  \\[6pt]
 \hline
+\multirow{13}{*}{\makecell{}} & \textnormal{Depth, D (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Top Flange Width, $b_f$ (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Bottom Flange Width, $b_f$ (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Top Flange Thickness, $t_f$ (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Web Thickness, $t_w$ (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Gross Area, A (cm$^2$)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Effective Slab Width, $b_{eff}$ (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Transformed Composite $I_z$ (cm$^4$)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Depth to Plastic Neutral Axis (mm)} &  \\[6pt]
+\hline
 \end{longtable}
 
 \vspace{1em}
@@ -989,6 +1026,12 @@ This section presents all structural design checks performed by OsdagBridge. For
 \caption{\textbf{Girder Section Classification}}
 \hline
 \textbf{} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[6pt]
+\hline
+\multirow{3}{*}{\makecell{}} & Top Flange &  &  &  \\[6pt]
+\cline{2-5}
+ & Web &  &  &  \\[6pt]
+\cline{2-5}
+ & Overall Section & --- & --- &  \\[6pt]
 \hline
 \multirow{3}{*}{\makecell{}} & Top Flange &  &  &  \\[6pt]
 \cline{2-5}
@@ -1035,6 +1078,12 @@ This section presents all structural design checks performed by OsdagBridge. For
 \cline{2-5}
  & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ &  & --- \\[6pt]
 \hline
+\multirow{3}{*}{\makecell{}} & Applied Moment, $M_u$ & Governing LC (ULS) &  & --- \\[6pt]
+\cline{2-5}
+ & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 &  & --- \\[6pt]
+\cline{2-5}
+ & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ &  & --- \\[6pt]
+\hline
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 603.3.1, IS 800 Cl. 8.2.1}
 
@@ -1043,6 +1092,22 @@ This section presents all structural design checks performed by OsdagBridge. For
 \caption{\textbf{Shear Capacity Check}}
 \hline
 \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\multirow{8}{*}{\makecell{}} & Applied Shear, $V_u$ & Governing LC (ULS) &  & --- \\[6pt]
+\cline{2-5}
+ & Shear Area, $A_v$ & $d_w \times t_w$ &  & --- \\[6pt]
+\cline{2-5}
+ & Panel Aspect Ratio, c/d & --- &  & --- \\[6pt]
+\cline{2-5}
+ & Shear Buckling Coefficient, $k_v$ & IS 800 Cl. 8.4.2.2 &  & --- \\[6pt]
+\cline{2-5}
+ & Web Slenderness, $\lambda_w$ & $\sqrt{f_{yw}/(\sqrt{3}\,\tau_{cr})}$ &  & --- \\[6pt]
+\cline{2-5}
+ & Design Shear Stress, $\tau_b$ & IRC 22 Cl. 603.3.3.2 &  & --- \\[6pt]
+\cline{2-5}
+ & Shear Buckling Resistance, $V_{cr}$ & $A_v \times \tau_b$ &  & --- \\[6pt]
+\cline{2-5}
+ & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ &  & --- \\[6pt]
 \hline
 \multirow{8}{*}{\makecell{}} & Applied Shear, $V_u$ & Governing LC (ULS) &  & --- \\[6pt]
 \cline{2-5}
@@ -1125,6 +1190,14 @@ This section presents all structural design checks performed by OsdagBridge. For
 \cline{2-5}
  & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & N/A & N/A & N/A \\[6pt]
 \hline
+\multirow{4}{*}{\makecell{}} & High Shear Condition? & $V_u > 0.6\,V_d$ &  & --- \\[6pt]
+\cline{2-5}
+ & Reduced Moment Capacity, $M_{dv}$ & IRC 22 Cl. 603.3.3.3 &  & --- \\[6pt]
+\cline{2-5}
+ & Interaction Check: $M_u \leq M_{dv}$ & --- &  & --- \\[6pt]
+\cline{2-5}
+ & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & N/A & N/A & N/A \\[6pt]
+\hline
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 603.3.3.3}
 
@@ -1133,6 +1206,16 @@ This section presents all structural design checks performed by OsdagBridge. For
 \caption{\textbf{Lateral Torsional Buckling Check -- Construction Stage}}
 \hline
 \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\hline
+\multirow{5}{*}{\makecell{}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 &  & --- \\[6pt]
+\cline{2-5}
+ & Non-dim. Slenderness, $\bar{\lambda}_{LT}$ & $\sqrt{M_p / M_{cr}}$ &  & --- \\[6pt]
+\cline{2-5}
+ & LTB Reduction Factor, $\chi_{LT}$ & IS 800 Cl. 8.2.2 &  & --- \\[6pt]
+\cline{2-5}
+ & LTB Resistance, $M_b$ & $\chi_{LT}\,M_p / \gamma_{m0}$ &  & --- \\[6pt]
+\cline{2-5}
+ & $M_u \leq M_b$ & $M_u / M_b$ &  & --- \\[6pt]
 \hline
 \multirow{5}{*}{\makecell{}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 &  & --- \\[6pt]
 \cline{2-5}
@@ -1207,6 +1290,18 @@ This section presents all structural design checks performed by OsdagBridge. For
 \cline{2-3}
  & \textnormal{Longitudinal Stiffeners} &  \\[6pt]
 \hline
+\multirow{6}{*}{\makecell{}} & \textnormal{Shear Buckling Design Method} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Intermediate Stiffener Thickness (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Intermediate Stiffener Spacing (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{End Panel Stiffener Thickness (mm)} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{No. of End Panel Stiffeners} &  \\[6pt]
+\cline{2-3}
+ & \textnormal{Longitudinal Stiffeners} &  \\[6pt]
+\hline
 \end{longtable}
 
 \vspace{1em}
@@ -1215,6 +1310,14 @@ This section presents all structural design checks performed by OsdagBridge. For
 \caption{\textbf{End Panel Stiffener Checks}}
 \hline
 \textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\hline
+\multirow{4}{*}{\makecell{}} & Web Buckling Resistance & N/A & N/A & N/A \\[6pt]
+\cline{2-5}
+ & Local Crushing Resistance & N/A & N/A & N/A \\[6pt]
+\cline{2-5}
+ & Bearing Capacity & N/A & N/A & N/A \\[6pt]
+\cline{2-5}
+ & Column Buckling Resistance & N/A & N/A & N/A \\[6pt]
 \hline
 \multirow{4}{*}{\makecell{}} & Web Buckling Resistance & N/A & N/A & N/A \\[6pt]
 \cline{2-5}
@@ -1261,6 +1364,10 @@ This section presents all structural design checks performed by OsdagBridge. For
 \cline{2-5}
  & Total Load Deflection, $\delta_{total}$ (mm) & L/600 = 50.0 mm &  & --- \\[6pt]
 \hline
+\multirow{2}{*}{\makecell{}} & Live Load Deflection, $\delta_{LL}$ (mm) & L/800 = 37.5 mm &  & --- \\[6pt]
+\cline{2-5}
+ & Total Load Deflection, $\delta_{total}$ (mm) & L/600 = 50.0 mm &  & --- \\[6pt]
+\hline
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 604.3.2}
 
@@ -1269,6 +1376,8 @@ This section presents all structural design checks performed by OsdagBridge. For
 \caption{\textbf{Serviceability -- Maximum Stress Limitation}}
 \hline
 \textbf{} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[6pt]
+\hline
+\makecell{} & Structural Steel ($0.9\,f_y$) &  &  & --- \\[6pt]
 \hline
 \makecell{} & Structural Steel ($0.9\,f_y$) &  &  & --- \\[6pt]
 \hline
@@ -1290,6 +1399,8 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \makecell{} &  &  &  & --- \\[6pt]
 \hline
+\makecell{} &  &  &  & --- \\[6pt]
+\hline
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 605 --- governing of normal and shear fatigue (worst by DCR). Capacity reduction factor $\mu_r$ applied where plate thickness > 25 mm.}
 
@@ -1300,11 +1411,13 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \textbf{Girder} & \textbf{Controlling LC / Combination} & \textbf{Controlling Check} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
+ &  &  & 18000.00 kNm & 25000.00 kNm & 0.720 & --- \\[6pt]
+\hline
+ &  &  & 19000.00 kNm & 25000.00 kNm & 0.760 & --- \\[6pt]
+\hline
+ &  &  & 19750.00 kNm & 25000.00 kNm & 0.790 & --- \\[6pt]
+\hline
  &  &  & 20500.00 kNm & 25000.00 kNm & 0.820 & --- \\[6pt]
-\hline
- &  &  &  &  &  &  \\[6pt]
-\hline
- &  &  &  &  &  &  \\[6pt]
 \hline
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. A value $\leq 1.0$ indicates a passing check. The controlling check is the criterion with the highest UR for each girder, with the real load case/combination that drives it.}
@@ -1837,7 +1950,7 @@ This section presents CAD-generated views of the designed bridge and its compone
 \hline
 \textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
 \hline
-1 & Structural Steel (IS 2062) for Girders & $0.09000\text{ m}^2 \times 30.00\text{ m} = 2.70000\text{ m}^3$ & 3 & 8.10 & 21.20 & 63.59 \\
+1 & Structural Steel (IS 2062) for Girders & $0.09000\text{ m}^2 \times 30.00\text{ m} = 2.70000\text{ m}^3$ & 4 & 10.80 & 21.20 & 84.78 \\
 \hline
 2(a) & Cross Bracing - Top Chord & N.A. & N.A. & N.A. & N.A. & N.A. \\
 \hline

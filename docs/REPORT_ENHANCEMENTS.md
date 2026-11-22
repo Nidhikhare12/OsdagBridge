@@ -180,6 +180,20 @@ Run the style regression tests with:
 PYTHONPATH=src python -m pytest tests/unit/test_report_styles.py -q
 ```
 
+An offscreen GUI smoke test is also provided.  It creates the real
+`CustomWindow` and `ReportOptionsDialog`; on machines without PySide6 it
+installs a thin PyQt5 compatibility shim and inert stubs for OCC/OpenSees
+(which are not exercised by the report path):
+
+```bash
+QT_QPA_PLATFORM=offscreen PYTHONPATH=src python scripts/gui_smoke_test.py
+```
+
+All chapter modules now import `styles` directly and take their spacing
+constants (`SECTION_SKIP`, `TABLE_TOP_SKIP`, `FIGURE_SKIP`) from it.
+Centrifugal load is computed per IRC 6 Cl. 209 from `KEY_LL_CURVE_RADIUS`
+and `KEY_LL_DESIGN_SPEED` (or reported as "straight alignment").
+
 > The sample payload contains representative (not physically complete)
 > design values so that the PDF can be built without a GUI or an OpenSees
 > analysis.  In a full OsdagBridge session the same code path is reached from
