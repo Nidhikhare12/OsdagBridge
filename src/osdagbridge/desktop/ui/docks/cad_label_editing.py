@@ -15,7 +15,7 @@ additional input dictionaries and redraws the CAD.
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QRectF, QEvent, QObject
+from PySide6.QtCore import Qt, QRectF, QEvent, QObject, QTimer
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import QLineEdit, QToolTip
 
@@ -177,6 +177,8 @@ class EditableCADLabelsMixin:
         self.setFocus()
         unchanged = text == getattr(self, "_label_editor_initial", None)
         if commit and param is not None and not unchanged:
-            # Value validity (range, layout feasibility) is checked by the receiver
-            self.label_value_committed.emit(param, text)
+            # Value validity (range, layout feasibility) is checked by the receiver.
+            # Emitted on the next event-loop pass: the receiver may open a modal
+            # error dialog, which must not run inside the editor's own key event.
+            QTimer.singleShot(0, lambda p=param, t=text: self.label_value_committed.emit(p, t))
         self.update()
