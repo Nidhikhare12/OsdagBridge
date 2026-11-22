@@ -1,0 +1,121 @@
+\documentclass[11pt,a4paper]{report}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{cite}
+
+% --- Hyperref Setup ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=green!50!black,
+    urlcolor=blue!80!black
+}
+
+% --- Header and Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small FOSSEE Winter Internship 2026: OsdagBridge Testing Report}
+\fancyhead[R]{\small\nouppercase{\leftmark}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% --- Code Listings Setup ---
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegray},
+    keywordstyle=\color{blue!80!black}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+% --- Title Page ---
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+    
+    {\Huge \bfseries Technical Verification, Testing \& Issue Reporting for OsdagBridge \par}
+    \vspace{0.8cm}
+    {\LARGE FOSSEE Winter Internship 2026 Screening Task \par}
+    \vspace{1.5cm}
+    
+    \textbf{\Large Candidate Information:}\\[0.3cm]
+    {\large Pranshu \par}
+    {\large Repository: \url{https://github.com/Pranshu10khtk/OsdagBridge} \par}
+    {\large Upstream Target: \url{https://github.com/Nidhikhare12/OsdagBridge} \par}
+    
+    \vspace{2.5cm}
+    
+    \textbf{\Large Free/Libre and Open Source Software for Education (FOSSEE)}\\[0.2cm]
+    {\large Indian Institute of Technology Bombay \par}
+    \vfill
+    {\large \today \par}
+\end{titlepage}
+
+% --- Front Matter ---
+\pagenumbering{roman}
+
+\begin{abstract}
+This report documents the comprehensive software quality assurance, verification and validation (V\&V), numerical stability audit, and defect investigation conducted on \textbf{OsdagBridge} as part of the FOSSEE Winter Internship 2026 screening task. OsdagBridge is an open-source bridge engineering software system developed for the analysis, design, and 3D modeling of steel and composite bridges under Indian Standard codes (IRC:5, IRC:6, IRC:22, IRC:24, and IS 800). 
+
+Testing covers input boundary verification, custom material parameter propagation, multi-run state isolation, internal dictionary data contracts, 3D OpenCASCADE CAD generation, and 2D Matplotlib response envelopes. A modular automated verification framework has been constructed within the dedicated \texttt{fossee\_testing} workspace. Defect reports identify root causes at the source-code level and supply actionable fixes, advancing software reliability for structural engineering practitioners.
+\end{abstract}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\clearpage
+\pagenumbering{arabic}
+
+% --- Main Sections (Modular Inputs) ---
+\input{sections/01_introduction}
+\input{sections/02_software_overview}
+\input{sections/03_environment_setup}
+\input{sections/04_testing_methodology}
+\input{sections/05_test_cases}
+\input{sections/06_custom_material_testing}
+\input{sections/07_multi_run_testing}
+\input{sections/08_dictionary_verification}
+\input{sections/09_cad_plot_verification}
+\input{sections/10_test_results}
+\input{sections/11_bug_investigation}
+\input{sections/12_suggested_fixes}
+\input{sections/13_conclusion}
+
+% --- References ---
+\bibliographystyle{plain}
+\bibliography{references}
+
+% --- Appendices ---
+\appendix
+\input{sections/14_appendices}
+
+\end{document}

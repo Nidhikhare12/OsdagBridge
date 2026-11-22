@@ -1,0 +1,23 @@
+\chapter{CAD and Structural Plot Verification}
+\label{chap:cad_plot_verification}
+
+\section{3D CAD Generation via OpenCASCADE}
+OsdagBridge utilizes \texttt{pythonocc-core} to generate high-fidelity 3D solid representations of the bridge superstructure:
+\begin{itemize}
+    \item Longitudinal plate girder I-sections with top and bottom flanges and vertical web plates.
+    \item Transverse stiffeners and bearing stiffeners placed at calculated spacings.
+    \item Cross-frame bracing and end diaphragms aligned with skew geometry.
+    \item Concrete deck slab with cantilever overhangs.
+\end{itemize}
+
+Verification checks confirm that solid shapes render without geometric self-intersection, that coordinate axes match physical orientations, and that viewport camera manipulations (rotate, pan, zoom) remain responsive.
+
+\section{2D Response Envelope Plots via Matplotlib}
+The \texttt{MplPlotWidget} embedded in the output dock renders:
+\begin{itemize}
+    \item \textbf{Bending Moment Diagrams (BMD)}: Longitudinal distribution along all girders under individual load cases and ULS/SLS load combinations.
+    \item \textbf{Shear Force Diagrams (SFD)}: Stepped shear force profiles highlighting maximum end shear reactions.
+    \item \textbf{Deflection Profiles}: Maximum mid-span deflection under live loads verified against the allowable limit ($\delta_{all} = L / 800$).
+\end{itemize}
+
+Testing evaluates dynamic canvas updating when the user toggles between different load combinations in the GUI dock.

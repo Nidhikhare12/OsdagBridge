@@ -1,0 +1,24 @@
+\chapter{Custom Material Testing}
+\label{chap:custom_materials}
+
+\section{Motivation and Engineering Context}
+Modern composite bridge designs frequently specify high-performance or weathering steels (e.g., ASTM A588, IS 2062 E410/E450) and specialized high-strength concrete mixes (M45, M50, M60). OsdagBridge provides dedicated "Custom" material modes allowing engineers to specify exact mechanical properties.
+
+\section{Steel Member Material Verification}
+Structural steel properties are parameterized across three primary structural member groups:
+\begin{enumerate}
+    \item Main Longitudinal Girders (\texttt{material.girder.*})
+    \item Intermediate and Support Cross Bracings (\texttt{material.cross\_bracing.*})
+    \item End Diaphragms (\texttt{material.end\_diaphragm.*})
+\end{enumerate}
+
+Validation rules ensure yield strength ($100 \le f_y \le 1200\text{ MPa}$), ultimate tensile strength ($100 \le f_u \le 1500\text{ MPa}$), and modulus of elasticity ($100 \le E \le 300\text{ GPa}$) reside within physically realistic bounds. Crucially, testing verifies that assigning custom properties to bracing elements does not overwrite main girder specifications.
+
+\section{Concrete Deck Slab Material Verification}
+For the concrete deck slab (\texttt{material.deck.*}), the custom dialog accepts compressive cylinder strength ($f_{ck}$), tensile strength ($f_{ctm}$), and secant modulus of elasticity ($E_{cm}$). 
+
+The modular ratio $m$ is evaluated as:
+\begin{equation}
+    m = \frac{E_s}{E_{cm}}
+\end{equation}
+Testing verifies that transformed composite section inertias ($I_{comp}$) and bottom flange section moduli ($Z_{bot}$) reflect the user-specified custom modular ratio rather than reverting to preset constants.

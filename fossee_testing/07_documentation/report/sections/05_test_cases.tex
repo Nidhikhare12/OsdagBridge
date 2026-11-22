@@ -1,0 +1,32 @@
+\chapter{Test Case Documentation}
+\label{chap:test_cases}
+
+\section{Overview of the Test Case Suite}
+The test suite systematically addresses functional, edge, and negative scenarios across the Plate Girder Bridge module. Test cases are tracked centrally in \texttt{02\_test\_cases/test\_case\_register.csv}.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Summary of Defined Test Suites across Functional Categories.}
+    \label{tab:test_suite_summary}
+    \begin{tabularx}{\textwidth}{llcX}
+        \toprule
+        \textbf{Category} & \textbf{Prefix} & \textbf{Cases Defined} & \textbf{Primary Focus Areas} \\
+        \midrule
+        Basic Inputs & \texttt{TC\_BI} & 10 & Span boundaries, carriageway width (IRC:5), skew angles (IRC:24), data types. \\
+        Custom Materials & \texttt{TC\_CM} & 6 & Steel properties ($f_y, f_u, E, G, \rho$), concrete deck ($f_{ck}, E_{cm}$), member decoupling. \\
+        Additional Inputs & \texttt{TC\_AI} & 5 & Transverse spacing, cantilever overhang, IRC:6 live loads, wind/seismic factors. \\
+        Multi-Run & \texttt{TC\_MR} & 3 & Session determinism, 3-run alternating isolation, 5-run memory/graphics stability. \\
+        Dictionary Verification & \texttt{TC\_DV} & 3 & Canonical dot keys, output dictionary population, .osi roundtrip integrity. \\
+        CAD and Plots & \texttt{TC\_CP} & 3 & OpenCASCADE 3D solid rendering, skew geometries, Matplotlib envelope plots. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\section{Basic Input Verification Cases}
+Basic inputs are governed by \texttt{BridgeInputValidator.validate\_basic\_inputs}. Key validations include:
+\begin{itemize}
+    \item \textbf{Span Limits}: Minimum $12.0\text{ m}$, maximum $45.0\text{ m}$. Values outside this window trigger validation alerts and prevent invalid FEA runs.
+    \item \textbf{Carriageway Width}: Evaluated under IRC:5:2015 Clause 104.3.1. Bridges without a median require minimum widths based on intended lane counts ($4.25\text{ m}$ single-lane, $7.5\text{ m}$ two-lane).
+    \item \textbf{Skew Angles}: Restricted to $[-60^\circ, +60^\circ]$ as per IRC:24 provisions for conventional plate girder layouts.
+\end{itemize}

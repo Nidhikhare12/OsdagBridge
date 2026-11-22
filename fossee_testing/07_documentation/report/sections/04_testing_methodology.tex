@@ -1,0 +1,20 @@
+\chapter{Testing Methodology}
+\label{chap:testing_methodology}
+
+\section{Verification \& Validation Framework}
+The quality assurance strategy implemented in this campaign employs a multi-tiered verification framework:
+\begin{enumerate}
+    \item \textbf{Equivalence Partitioning \& Boundary Value Analysis (BVA)}: Applied to numeric geometric boundaries (spans from $12\text{ m}$ to $45\text{ m}$, carriageway widths, skew angles) to verify input validation guards.
+    \item \textbf{State Isolation \& Multi-Run Determinism}: Probing session-level memory retention, cache leaks, and object cleanup across consecutive design runs.
+    \item \textbf{Data Contract Auditing}: Verifying the integrity of internal dictionaries (\texttt{input\_dict}, \texttt{output\_dict}) against canonical definitions in \texttt{common.py}.
+    \item \textbf{Visual \& Graphical Fidelity Checks}: Verifying OpenCASCADE 3D mesh reconstruction and Matplotlib curve accuracy.
+\end{enumerate}
+
+\section{Severity and Defect Classification}
+Defects identified during testing are categorized according to standard software testing severity levels:
+\begin{itemize}
+    \item \textbf{Critical}: Calculation errors that lead to unsafe structural designs, or unhandled exceptions that cause application crashes.
+    \item \textbf{Major}: Feature-breaking defects (e.g., failure to generate 3D CAD or failure of file persistence) where workarounds are not obvious.
+    \item \textbf{Moderate}: Input validation oversights, UI state persistence glitches, or formatting inconsistencies.
+    \item \textbf{Minor}: Cosmetic blemishes, typographical issues, or minor logging defects.
+\end{itemize}

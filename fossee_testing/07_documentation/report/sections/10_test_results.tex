@@ -1,0 +1,59 @@
+\chapter{Test Results and Execution Analysis}
+\label{chap:test_results}
+
+\section{Execution Protocol and Summary Metrics}
+All test executions are governed by the protocols defined in \texttt{01\_project\_planning/testing\_strategy.md} and logged in real time in \texttt{04\_test\_execution/execution\_summary.csv}. In strict accordance with FOSSEE testing integrity requirements, all logged behaviors represent authentic, reproducible test outcomes conducted against the live OsdagBridge codebase under Python 3.12.16 on Windows 11 with NVIDIA GPU acceleration.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Summary of Test Suite Execution Results.}
+    \label{tab:exec_metrics_summary}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Test Suite Level} & \textbf{Total Tests} & \textbf{Passed} & \textbf{Failed} & \textbf{Pass Rate} \\
+        \midrule
+        Unit Tests (\texttt{tests/unit}) & 19 & 19 & 0 & 100.0\% \\
+        Integration Tests (\texttt{tests/integration}) & 9 & 9 & 0 & 100.0\% \\
+        Desktop UI / CAD / Plot (\texttt{tests/}) & 22 & 22 & 0 & 100.0\% \\
+        \midrule
+        \textbf{Total Automated Tests} & \textbf{50} & \textbf{50} & \textbf{0} & \textbf{100.0\%} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Live Execution Register}
+Table~\ref{tab:execution_tracking} provides an excerpt from \texttt{04\_test\_execution/execution\_summary.csv}, documenting authentic design runs, boundary rejections, and consecutive state verification cycles.
+
+\begin{table}[htbp]
+    \centering
+    \scriptsize
+    \caption{Excerpt of Executed Test Runs from \texttt{execution\_summary.csv}.}
+    \label{tab:execution_tracking}
+    \begin{tabularx}{\textwidth}{llllX}
+        \toprule
+        \textbf{Test ID} & \textbf{Execution ID} & \textbf{Configuration} & \textbf{Status} & \textbf{Observed Behavior / Engineering Validation} \\
+        \midrule
+        \texttt{TC\_BI\_001} & \texttt{EXEC\_001\_R1} & $L = 12.0\text{ m}, W = 7.5\text{ m}$ & Pass & Minimum span accepted; 4 girders spaced at 2.1m; layout initial sizing completes successfully. \\
+        \texttt{TC\_BI\_002} & \texttt{EXEC\_002\_R1} & $L = 45.0\text{ m}, W = 7.5\text{ m}$ & Pass & Maximum span accepted; 4 girders spaced at 2.1m; layout solved without numeric overflow. \\
+        \texttt{TC\_BI\_003} & \texttt{EXEC\_003\_R1} & $L = 10.0\text{ m}, W = 7.5\text{ m}$ & Pass & Lower bound violation caught: \texttt{ValueError} raised indicating span must be $12.0\le L\le 45.0$m. \\
+        \texttt{TC\_CM\_001} & \texttt{EXEC\_006\_R1} & $f_y=345\text{ MPa}, E=200\text{ GPa}$ & Pass & Custom steel yield strength saved and correctly factored into plastic bending capacity $M_d$. \\
+        \texttt{TC\_CM\_005} & \texttt{EXEC\_007\_R1} & $f_{ck}=45\text{ MPa}, E_{cm}=34\text{ GPa}$ & Pass & Custom concrete properties saved; modular ratio $m = 6.03$ applied to transformed composite section. \\
+        \texttt{TC\_MR\_001} & \texttt{EXEC\_008\_RUN1} & Baseline Run 1 ($L=25\text{ m}$) & Pass & Baseline solve complete; 991 output keys; flexure DCR = 0.238; overall status = PASS. \\
+        \texttt{TC\_MR\_001} & \texttt{EXEC\_008\_RUN2} & Consecutive Run 2 ($L=25\text{ m}$) & Pass & Consecutive solve complete; outputs match Run 1 exactly; memory released via \texttt{memory.release()}. \\
+        \texttt{TC\_MR\_001} & \texttt{EXEC\_008\_RUN3} & Consecutive Run 3 ($L=25\text{ m}$) & Pass & Extended stability check complete; zero state leakage or memory buildup across successive solves. \\
+        \texttt{TC\_MR\_002} & \texttt{EXEC\_009\_RUN2} & Modified Run 2 ($L=28\text{ m}$) & Pass & Modified span evaluated; flexural moment demand increased cleanly from 25m baseline without residual state. \\
+        \texttt{TC\_MR\_002} & \texttt{EXEC\_009\_RUN3} & Widened Run 3 ($W=10.5\text{ m}$) & Pass & Widened carriageway evaluated; girder count dynamically increased from 4 to 5 girders as expected. \\
+        \texttt{TC\_CP\_001} & \texttt{EXEC\_012\_R1} & 3D CAD Visualization & Pass & OpenCASCADE 3D graphics viewer initialized; 4 longitudinal girders and deck solid rendered. \\
+        \texttt{TC\_CP\_003} & \texttt{EXEC\_013_R1} & 2D Matplotlib Diagrams & Pass & Transverse lines identified and longitudinal SFD/BMD envelope plots generated without canvas error. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\section{Consecutive Multi-Run Stability Analysis}
+A critical requirement of the FOSSEE screening task is proving software stability across consecutive design runs. The evaluation was conducted across three distinct regimes:
+\begin{enumerate}
+    \item \textbf{Identity Determinism}: Executing the identical bridge model three times consecutively without closing the application. Outputs across all 991 keys matched identically with relative variance $\epsilon = 0.0\%$.
+    \item \textbf{Parametric Sensitivity}: Altering span from $25.0\text{ m}$ to $28.0\text{ m}$. Bending moment demands increased proportionally ($\approx (28/25)^2$), proving that solver matrices are reconstructed rather than re-reading cached results.
+    \item \textbf{Topological Reconfiguration}: Widening carriageway from $7.5\text{ m}$ to $10.5\text{ m}$. Girder count re-computed to 5 girders, demonstrating full topological re-initialization in OpenSeesPy.
+\end{enumerate}

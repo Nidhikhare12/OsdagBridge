@@ -1,0 +1,24 @@
+\chapter{Software Overview}
+\label{chap:software_overview}
+
+\section{System Architecture}
+OsdagBridge is architected around a shared-core pattern where all engineering calculations, numerical solvers, and data structures reside within a centralized core module (\texttt{osdagbridge.core}). The desktop application (\texttt{PySide6}), command-line interface (\texttt{osdagbridge.cli}), and emerging web interfaces consume this unified backend, guaranteeing consistency across platforms.
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\parbox{0.85\textwidth}{\centering \textbf{[OsdagBridge Shared-Core Architecture Diagram]}\\[0.5em]
+    \small User Interfaces (PySide6 Desktop, CLI, Web) $\leftrightarrow$ Data Contracts (\texttt{input\_dict}, \texttt{output\_dict}) $\leftrightarrow$ Core Engine (Initial Sizing, IRC Solvers, Grillage Mesher) $\leftrightarrow$ CAD/Plot Engines (OpenCASCADE, Matplotlib)}}
+    \caption{Conceptual Architectural Decomposition of OsdagBridge.}
+    \label{fig:arch_overview}
+\end{figure}
+
+\section{Core Engineering Modules}
+\begin{itemize}
+    \item \textbf{Initial Sizing}: Automatically determines preliminary cross-section dimensions (web height $d_w$, web thickness $t_w$, flange widths $b_f$, flange thicknesses $t_f$) based on empirical span-to-depth ratios and moment estimates.
+    \item \textbf{Composite Section Properties}: Calculates effective deck width ($b_{eff}$), neutral axis location ($y_{na}$), transformed cross-sectional inertia ($I_{comp}$), and elastic section moduli ($Z_{top}, Z_{bot}$) considering modular ratios ($m = E_s / E_c$).
+    \item \textbf{Solvers}: Supports multi-solver adapters including lightweight native FEM, OpenSeesPy, and OspGrillage for finite-element grillage modeling.
+    \item \textbf{Codal Standards Compliance}: Built-in modules implementing IRC:5 (general design), IRC:6 (live loads, wind, seismic), IRC:22 (composite superstructures), IRC:24 (steel bridges), and IS 800:2007 (general steel construction).
+\end{itemize}
+
+\section{Interactive Desktop Workflow}
+The desktop GUI is built using PySide6. The user selects a bridge type (e.g., Plate Girder Bridge), defines basic parameters (span, width, skew), optionally refines advanced inputs via the Additional Inputs dialog, specifies materials, and executes the design. Real-time visual feedback is rendered through an interactive 3D OpenCASCADE canvas and 2D Matplotlib response envelope graphs.

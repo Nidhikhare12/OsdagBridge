@@ -1,0 +1,32 @@
+\chapter{Appendices}
+\label{chap:appendices}
+
+\section{Appendix A: Master Test Case Register}
+The complete master register is maintained in \texttt{02\_test\_cases/test\_case\_register.csv}. Below is an excerpt of core test cases:
+
+\begin{table}[htbp]
+    \centering
+    \tiny
+    \caption{Excerpt from Central Test Case Register.}
+    \label{tab:app_test_cases}
+    \begin{tabularx}{\textwidth}{llllX}
+        \toprule
+        \textbf{Test ID} & \textbf{Module} & \textbf{Category} & \textbf{Objective} & \textbf{Expected Result} \\
+        \midrule
+        \texttt{TC\_BI\_001} & Plate Girder & Basic Input & Verify minimum span (12.0m) & Input accepted; initial sizing completes. \\
+        \texttt{TC\_BI\_003} & Plate Girder & Basic Input & Reject sub-minimum span (<12.0m) & Error prompt: Span must be between 12.0m and 45.0m. \\
+        \texttt{TC\_CM\_001} & Plate Girder & Custom Material & Custom steel yield strength $f_y=345$ & Preserved in input dict and applied to capacity check. \\
+        \texttt{TC\_MR\_001} & Plate Girder & Multi-Run & Determinism across consecutive runs & Identical output dictionaries and zero numerical drift. \\
+        \texttt{TC\_DV\_001} & Plate Girder & Dictionary & Schema initialization completeness & All canonical keys present with valid default values. \\
+        \texttt{TC\_CP\_001} & Plate Girder & CAD \& Plot & 3D solid model rendering & 4 longitudinal girders and deck render cleanly. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\section{Appendix B: Automation Script Listings}
+Key automation scripts located in \texttt{06\_automation\_scripts/} are detailed below:
+\begin{itemize}
+    \item \texttt{compare\_dictionaries.py}: Implements recursive dictionary traversal with configurable absolute and relative numerical tolerances.
+    \item \texttt{validate\_inputs.py}: Interfaces directly with \texttt{BridgeInputValidator} and \texttt{validate\_osi\_inputs()} for batch verification of \texttt{.osi} project files.
+    \item \texttt{generate\_test\_summary.py}: Parses CSV registers and computes execution rate, pass percentage, and executive Markdown metrics.
+\end{itemize}
