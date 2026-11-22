@@ -191,6 +191,10 @@ class CAD3DWindow(QWidget):
             available.add("Railing")
         if getattr(design_params, "enable_median", False):
             available.add("Median")
+        # Substructure (piers / caps / piles) exists unless disabled.
+        _sub = getattr(design_params, "substructure_params", None)
+        if _sub is None or bool(getattr(_sub, "enable_substructure", True)):
+            available.add("Substructure")
         self.component_selector.set_available_components(available)
 
         # Render on display
@@ -376,6 +380,11 @@ class CAD3DWindow(QWidget):
             selectable=False
         )
 
+        # Substructure colours: warm concrete grey (rendered transparent)
+        # and steel blue for the reinforcement cage (opaque).
+        SUBSTRUCTURE_CONCRETE_COLOR = Quantity_Color(199/255, 188/255, 173/255, Quantity_TOC_RGB)
+        SUBSTRUCTURE_REBAR_COLOR = Quantity_Color(70/255, 90/255, 120/255, Quantity_TOC_RGB)
+
         SUPPORT_VERTICAL_COLOR   = Quantity_Color(0.0, 0.35, 0.0,  Quantity_TOC_RGB)  # Green
         SUPPORT_TRANSVERSE_COLOR = Quantity_Color(0.1,  0.1, 0.85, Quantity_TOC_RGB)  # Blue
         SUPPORT_LONGIT_COLOR     = Quantity_Color(0.85, 0.1, 0.1, Quantity_TOC_RGB)  # Red
@@ -465,6 +474,53 @@ class CAD3DWindow(QWidget):
             "Railing",
             f"Railing\nType: {params.railing_type.upper()}\nRails: {params.rail_count}\nWidth: {params.railing_width:.2f} mm",
             BARRIER_COLOR
+        )
+
+        # SUBSTRUCTURE (piers, pier caps, pile caps, piles + rebar)
+        # Concrete solids are displayed semi-transparent (opacity hint
+        # from SubstructureParamsDTO, default 0.35) so the reinforcement
+        # cage inside the pier and pile cap stays visible; the rebar
+        # itself is opaque steel.
+        _sub = getattr(params, "substructure_params", None)
+        _sub_transparency = float(getattr(_sub, "concrete_transparency", 0.35))
+
+        display_and_register(
+            cad_data.get("piers", []),
+            "Pier",
+            f"Pier (Circular Column)\nDiameter: {getattr(_sub, 'pier_diameter', 800):.0f} mm\nHeight: {getattr(_sub, 'pier_height', 3000):.0f} mm\nConcrete Grade: {params.concrete_grade}",
+            SUBSTRUCTURE_CONCRETE_COLOR,
+            transparency=_sub_transparency
+        )
+
+        display_and_register(
+            cad_data.get("pier_caps", []),
+            "Pier Cap",
+            f"Pier Cap (Hammerhead)\nTop Width: {getattr(_sub, 'pier_cap_top_width', 3000):.0f} mm\nBottom Width: {getattr(_sub, 'pier_cap_bottom_width', 1200):.0f} mm\nDepth: {getattr(_sub, 'pier_cap_depth', 600):.0f} mm\nConcrete Grade: {params.concrete_grade}",
+            SUBSTRUCTURE_CONCRETE_COLOR,
+            transparency=_sub_transparency
+        )
+
+        display_and_register(
+            cad_data.get("pile_caps", []),
+            "Pile Cap",
+            f"Pile Cap\nLength: {getattr(_sub, 'pile_cap_length', 2200):.0f} mm\nWidth: {getattr(_sub, 'pile_cap_width', 1200):.0f} mm\nDepth: {getattr(_sub, 'pile_cap_depth', 600):.0f} mm\nPiles: {getattr(_sub, 'n_piles_x', 2) * getattr(_sub, 'n_piles_y', 2)}\nConcrete Grade: {params.concrete_grade}",
+            SUBSTRUCTURE_CONCRETE_COLOR,
+            transparency=_sub_transparency
+        )
+
+        display_and_register(
+            cad_data.get("piles", []),
+            "Pile",
+            f"Pile (Bored)\nDiameter: {getattr(_sub, 'pile_diameter', 400):.0f} mm\nLength: {getattr(_sub, 'pile_length', 5000):.0f} mm\nSpacing: {getattr(_sub, 'pile_spacing_x', 600):.0f} mm c/c\nConcrete Grade: {params.concrete_grade}",
+            SUBSTRUCTURE_CONCRETE_COLOR,
+            transparency=_sub_transparency
+        )
+
+        display_and_register(
+            cad_data.get("substructure_rebar", []),
+            "Substructure Rebar",
+            f"Reinforcement\nMain Bar Dia: {getattr(_sub, 'rebar_main_diameter', 16):.0f} mm @ {getattr(_sub, 'rebar_spacing_longitudinal', 150):.0f} mm\nTransverse Dia: {getattr(_sub, 'rebar_transverse_diameter', 8):.0f} mm @ {getattr(_sub, 'rebar_spacing_transverse', 200):.0f} mm\nCover: {getattr(_sub, 'rebar_cover', 40):.0f} mm\nSteel: {getattr(_sub, 'rebar_grade', 'Fe 500')}",
+            SUBSTRUCTURE_REBAR_COLOR
         )
 
         # Nodes and grillage overlays
@@ -716,6 +772,7 @@ class CAD3DWindow(QWidget):
             "Crash Barrier": ["Crash Barrier", "Crash Barrier W-Beam"],
             "Median":        ["Median", "Median W-Beam"],
             "Railing":       ["Railing"],
+            "Substructure":  ["Pier", "Pier Cap", "Pile Cap", "Pile", "Substructure Rebar"],
             "Grillage":      ["Grillage"],
             "Node":          ["Node"],
         }
@@ -1209,6 +1266,7 @@ class BridgeComponentCheckbox(QWidget):
         ("Crash Barrier", "Crash Barrier"),
         ("Median",        "Median"),
         ("Railing",       "Railing"),
+        ("Substructure",  "Substructure"),
         ("Grillage view", "Grillage"),
         ("Node",          "Node"),
         ("Node Numbers",  "NodeNumbers"),
@@ -1216,7 +1274,7 @@ class BridgeComponentCheckbox(QWidget):
     OVERLAY_KEYS = {"Grillage", "Node", "NodeNumbers"}
     # Base components that are only present in some designs. Their checkboxes
     # are hidden when the component is not part of the current design.
-    OPTIONAL_KEYS = {"Railing", "Median"}
+    OPTIONAL_KEYS = {"Railing", "Median", "Substructure"}
 
     def __init__(self, parent: CAD3DWindow):
         super().__init__(parent)

@@ -277,3 +277,93 @@ class BridgeMetadataMapper:
             
         if props:
             self.assign_metadata(element, props)
+
+    def map_substructure(self, element, cad, item):
+        """
+        Property sets for the substructure elements (BOQ-relevant).
+
+        Follows the existing Pset_OsdagBridgeProperties pattern: every
+        value is a named IfcPropertySingleValue (dimensions already in
+        metres via _to_meters, volumes in m^3 from the extractor). The
+        concrete grade is enriched with the database material properties
+        like the deck slab; rebar assemblies carry the steel grade
+        (default Fe 500) and cage-level bar counts / steel volume.
+        """
+        if not cad: return
+        role = getattr(item, "role", None) or ""
+        concrete_grade = getattr(cad, "concrete_grade", "M30")
+        rebar_grade = "Fe 500"
+
+        sub = getattr(cad, "substructure_params", None)
+        if sub is not None and getattr(sub, "rebar_grade", None):
+            rebar_grade = sub.rebar_grade
+
+        props = {}
+
+        if role == "Pier":
+            props = {
+                "ComponentRole": "Pier (Circular Column)",
+                "Diameter": self._to_meters(getattr(item, "diameter", None)),
+                "Height": self._to_meters(getattr(item, "height", None)),
+                "ConcreteVolume": getattr(item, "concrete_volume", None),
+                "Material": concrete_grade,
+            }
+        elif role == "PierCap":
+            props = {
+                "ComponentRole": "Pier Cap (Hammerhead)",
+                "TopWidth": self._to_meters(getattr(item, "top_width", None)),
+                "BottomWidth": self._to_meters(getattr(item, "bottom_width", None)),
+                "Depth": self._to_meters(getattr(item, "depth", None)),
+                "Length": self._to_meters(getattr(item, "cap_length", None)),
+                "ConcreteVolume": getattr(item, "concrete_volume", None),
+                "Material": concrete_grade,
+            }
+        elif role == "PileCap":
+            props = {
+                "ComponentRole": "Pile Cap",
+                "Length": self._to_meters(getattr(item, "length", None)),
+                "Width": self._to_meters(getattr(item, "width", None)),
+                "Depth": self._to_meters(getattr(item, "depth", None)),
+                "NumberOfPiles": getattr(item, "n_piles", None),
+                "ConcreteVolume": getattr(item, "concrete_volume", None),
+                "Material": concrete_grade,
+            }
+        elif role == "Pile":
+            props = {
+                "ComponentRole": "Pile (Bored)",
+                "Diameter": self._to_meters(getattr(item, "diameter", None)),
+                "Length": self._to_meters(getattr(item, "length", None)),
+                "ConcreteVolume": getattr(item, "concrete_volume", None),
+                "Material": concrete_grade,
+            }
+        elif role == "Rebar":
+            props = {
+                "ComponentRole": "Reinforcement",
+                "ParentElement": getattr(item, "parent", None),
+                "BarCount": getattr(item, "bar_count", None),
+                "MainBarCount": getattr(item, "main_count", None),
+                "TransverseBarCount": getattr(item, "transverse_count", None),
+                "TieCount": getattr(item, "tie_count", None),
+                "MainBarDiameter": self._to_meters(getattr(item, "main_diameter", None)),
+                "TransverseBarDiameter": self._to_meters(getattr(item, "transverse_diameter", None)),
+                "MainBarSpacing": self._to_meters(getattr(item, "main_spacing", None)),
+                "TransverseBarSpacing": self._to_meters(getattr(item, "transverse_spacing", None)),
+                "ClearCover": self._to_meters(getattr(item, "cover", None)),
+                "SteelVolume": getattr(item, "steel_volume", None),
+                "Material": rebar_grade,
+            }
+
+        if not props:
+            return
+
+        if role == "Rebar":
+            # Rebar grades (Fe 500 etc.) are not in the structural steel
+            # table; keep the label only.
+            self.assign_metadata(element, props)
+            return
+
+        # Concrete members: enrich with the database material properties
+        # (fck / fctm / Ecm) exactly like the deck slab.
+        db_props = self._lookup_material_properties(concrete_grade, is_steel=False)
+        props.update(db_props)
+        self.assign_metadata(element, props)

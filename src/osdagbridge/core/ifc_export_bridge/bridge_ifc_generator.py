@@ -60,14 +60,22 @@ class BridgeIfcGenerator:
         self.site = self.file.createIfcSite(create_ifc_guid(), self._owner_history, Name="Default Site", ObjectPlacement=self.file.createIfcLocalPlacement(None, place_3d))
         self.building = self.file.createIfcBuilding(create_ifc_guid(), self._owner_history, Name="Bridge Structure", ObjectPlacement=self.file.createIfcLocalPlacement(self.site.ObjectPlacement, place_3d))
         self.storey = self.file.createIfcBuildingStorey(create_ifc_guid(), self._owner_history, Name="Superstructure", ObjectPlacement=self.file.createIfcLocalPlacement(self.building.ObjectPlacement, place_3d))
+        # Substructure storey: piers, pier caps, pile caps, piles and their
+        # reinforcement live below the superstructure, still inside the same
+        # global axis (the substructure extends into negative Z).
+        self.substructure_storey = self.file.createIfcBuildingStorey(create_ifc_guid(), self._owner_history, Name="Substructure", ObjectPlacement=self.file.createIfcLocalPlacement(self.building.ObjectPlacement, place_3d))
         
         # Relate hierarchy
         self.file.createIfcRelAggregates(create_ifc_guid(), self._owner_history, RelatingObject=self.project, RelatedObjects=[self.site])
         self.file.createIfcRelAggregates(create_ifc_guid(), self._owner_history, RelatingObject=self.site, RelatedObjects=[self.building])
-        self.file.createIfcRelAggregates(create_ifc_guid(), self._owner_history, RelatingObject=self.building, RelatedObjects=[self.storey])
+        self.file.createIfcRelAggregates(create_ifc_guid(), self._owner_history, RelatingObject=self.building, RelatedObjects=[self.storey, self.substructure_storey])
 
     def bind_element_to_storey(self, element):
         self.file.createIfcRelContainedInSpatialStructure(create_ifc_guid(), self._owner_history, RelatingStructure=self.storey, RelatedElements=[element])
+
+    def bind_element_to_substructure_storey(self, element):
+        """Spatially contains a substructure element (piers, caps, piles)."""
+        self.file.createIfcRelContainedInSpatialStructure(create_ifc_guid(), self._owner_history, RelatingStructure=self.substructure_storey, RelatedElements=[element])
 
     def generate_from_extracted_data(self, extracted_dict, cad_context=None):
         """Consume extracted dictionary logic and bind to schema."""
@@ -597,6 +605,136 @@ class BridgeIfcGenerator:
                  self.bind_element_to_storey(elem)
                  self.metadata.map_barrier(elem, cad_context, item.ifc_name)
 
+        # ------------------------------------------------------------------
+        # SUBSTRUCTURE processors (piers, pier caps, pile caps, piles, rebar)
+        #
+        # Entity mapping (IFC4) chosen for clean BOQ scheduling in BIM
+        # software such as Revit:
+        #   Pier column     -> IfcColumn   (PredefinedType = COLUMN)
+        #   Pier cap        -> IfcBeam     (PredefinedType = BEAM)
+        #   Pile cap        -> IfcFooting  (PredefinedType = PILE_CAP)
+        #   Pile            -> IfcPile     (PredefinedType = BORED)
+        #   Rebar cages     -> IfcBuildingElementProxy (one proxy per
+        #                     parent component, all bar solids inside a
+        #                     single Body representation, following the
+        #                     metallic-barrier assembly pattern above)
+        # All elements keep the global axis of the superstructure (X along
+        # the span, Y transverse, Z vertical, millimetres -> metres via
+        # the shared scale factor s) and only carry local placements.
+        # ------------------------------------------------------------------
+
+        def _process_pier_column(item):
+            prof = self.mapper.create_circle_profile(item.r * s)
+            scaled_origin = [v * s for v in item.origin]
+            place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=item.uDir, x_dir=item.wDir)
+            local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+            solid = self.mapper.create_extruded_solid(prof, item.H * s, local_identity)
+
+            shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
+            self.mapper.apply_color(shape, RCC_COLOR)
+            prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+            elem = self.file.createIfcColumn(create_ifc_guid(), self._owner_history,
+                Name=item.ifc_name, Description="Reinforced concrete circular pier column",
+                ObjectType="Pier", ObjectPlacement=self.file.createIfcLocalPlacement(self.substructure_storey.ObjectPlacement, place),
+                Representation=prod_def, PredefinedType="COLUMN")
+            self.bind_element_to_substructure_storey(elem)
+            self.metadata.map_substructure(elem, cad_context, item)
+
+        def _process_pier_cap(item):
+            # Trapezoid profile in the local plane: profile +u -> global X,
+            # profile +v -> global -Z (the placement maps local Y to -Z when
+            # extruding along +Y), hence v is measured downward from the top.
+            pts_m = [(u * s, v * s) for (u, v) in item.points]
+            prof = self.mapper.create_polygonal_profile(pts_m, f"PierCapProfile_{item.ifc_name}")
+            scaled_origin = [v * s for v in item.origin]
+            place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=item.uDir, x_dir=item.wDir)
+            local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+            solid = self.mapper.create_extruded_solid(prof, item.length * s, local_identity)
+
+            shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
+            self.mapper.apply_color(shape, RCC_COLOR)
+            prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+            elem = self.file.createIfcBeam(create_ifc_guid(), self._owner_history,
+                Name=item.ifc_name, Description="Trapezoidal hammerhead pier cap",
+                ObjectType="Pier Cap", ObjectPlacement=self.file.createIfcLocalPlacement(self.substructure_storey.ObjectPlacement, place),
+                Representation=prod_def, PredefinedType="BEAM")
+            self.bind_element_to_substructure_storey(elem)
+            self.metadata.map_substructure(elem, cad_context, item)
+
+        def _process_pile_cap(item):
+            # Rectangular profile: local X -> global X (length), local Y ->
+            # global Y (width); extruded upward by the depth.
+            prof = self.mapper.create_rectangular_profile(item.length * s, item.width * s)
+            scaled_origin = [v * s for v in item.origin]
+            place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=item.uDir, x_dir=item.wDir)
+            local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+            solid = self.mapper.create_extruded_solid(prof, item.depth * s, local_identity)
+
+            shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
+            self.mapper.apply_color(shape, RCC_COLOR)
+            prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+            elem = self.file.createIfcFooting(create_ifc_guid(), self._owner_history,
+                Name=item.ifc_name, Description="Rectangular reinforced concrete pile cap",
+                ObjectType="Pile Cap", ObjectPlacement=self.file.createIfcLocalPlacement(self.substructure_storey.ObjectPlacement, place),
+                Representation=prod_def, PredefinedType="PILE_CAP")
+            self.bind_element_to_substructure_storey(elem)
+            self.metadata.map_substructure(elem, cad_context, item)
+
+        def _process_pile(item):
+            prof = self.mapper.create_circle_profile(item.r * s)
+            scaled_origin = [v * s for v in item.origin]
+            place = self.mapper.create_axis2placement_3d(scaled_origin, z_dir=item.uDir, x_dir=item.wDir)
+            local_identity = self.mapper.create_axis2placement_3d((0, 0, 0), z_dir=(0, 0, 1), x_dir=(1, 0, 0))
+            solid = self.mapper.create_extruded_solid(prof, item.H * s, local_identity)
+
+            shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", [solid])
+            self.mapper.apply_color(shape, RCC_COLOR)
+            prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+            elem = self.file.createIfcPile(create_ifc_guid(), self._owner_history,
+                Name=item.ifc_name, Description="Bored cast-in-situ concrete pile",
+                ObjectType="Pile", ObjectPlacement=self.file.createIfcLocalPlacement(self.substructure_storey.ObjectPlacement, place),
+                Representation=prod_def, PredefinedType="BORED")
+            self.bind_element_to_substructure_storey(elem)
+            self.metadata.map_substructure(elem, cad_context, item)
+
+        def _process_rebar_assembly(item):
+            """One IfcBuildingElementProxy per reinforcement cage.
+
+            All bar / tie solids share a single Body representation (same
+            pattern as the metallic barrier assemblies); the cage-level
+            quantities live in the Pset via the metadata mapper.
+            """
+            solids = []
+            for bar in getattr(item, "bars", []):
+                if bar.get("kind") == "tie":
+                    prof = self.mapper.create_circle_hollow_profile(
+                        bar["radius"] * s, bar["wall"] * s)
+                else:
+                    prof = self.mapper.create_circle_profile(
+                        bar["diameter"] * s / 2.0)
+                place = self.mapper.create_axis2placement_3d(
+                    [v * s for v in bar["origin"]],
+                    z_dir=bar["dir"], x_dir=bar["x_dir"])
+                solids.append(self.mapper.create_extruded_solid(
+                    prof, bar["length"] * s, place))
+
+            if not solids:
+                return
+
+            shape = self.file.createIfcShapeRepresentation(self.mapper._context3d, "Body", "SweptSolid", solids)
+            self.mapper.apply_color(shape, STEEL_COLOR)
+            prod_def = self.file.createIfcProductDefinitionShape(None, None, [shape])
+            elem = self.file.createIfcBuildingElementProxy(create_ifc_guid(), self._owner_history,
+                Name=item.ifc_name,
+                Description=f"Reinforcement cage of {getattr(item, 'parent', 'substructure member')}",
+                ObjectType="RebarAssembly",
+                ObjectPlacement=self.file.createIfcLocalPlacement(
+                    self.substructure_storey.ObjectPlacement,
+                    self.mapper.create_axis2placement_3d((0, 0, 0))),
+                Representation=prod_def)
+            self.bind_element_to_substructure_storey(elem)
+            self.metadata.map_substructure(elem, cad_context, item)
+
         # Iterate over extraction dictionary explicitly
         for key in ["girders", "stiffeners"]:
              for item in extracted_dict.get(key, []):
@@ -618,7 +756,20 @@ class BridgeIfcGenerator:
                      _process_barrier(item)
                  elif item._class_name == "RailingSweep":
                      _process_railing(item)
-                 
+
+        # Substructure: piers, pier caps, pile caps, piles and rebar cages
+        _substructure_dispatch = {
+            "PierColumn": _process_pier_column,
+            "PierCapSolid": _process_pier_cap,
+            "PileCapSolid": _process_pile_cap,
+            "PileSolid": _process_pile,
+            "RebarAssembly": _process_rebar_assembly,
+        }
+        for item in extracted_dict.get("substructure", []):
+            handler = _substructure_dispatch.get(item._class_name)
+            if handler is not None:
+                handler(item)
+
         # Intentionally ignore "deck_textures"
         print("Model assembly complete. Saving...")
         self.file.write(self.output_path)
