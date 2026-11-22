@@ -166,7 +166,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{tabularx}
 \usepackage{float}
 \usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
+\usepackage[hidelinks,linktoc=all]{hyperref}
+\hypersetup{pdftitle={OsdagBridge Design Report --- """ + pn + r"""},pdfauthor={OsdagBridge / FOSSEE},pdfsubject={Steel girder bridge design report},pdfkeywords={OsdagBridge,IRC 22,IS 800,design report}}
 \usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
