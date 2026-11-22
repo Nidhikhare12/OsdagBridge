@@ -443,9 +443,25 @@ class ReportDataBridge:
         return f"{float(val):.3f}" if val is not None else ""
 
     def get_cb_efficiency(self, pair: str, member: str, force_type: str) -> str:
-        """Utilization ratio (efficiency)."""
-        val = self._cb_osdag(pair, member, force_type).get("efficiency")
-        return f"{float(val):.3f}" if val is not None else ""
+        """Utilization ratio calculated from displayed demand and capacity."""
+        try:
+            pairs = self._cb_forces_dict()["pairs"][pair]
+            key = f"diag_{force_type}_kN" if member == "diagonal" else f"chord_{force_type}_kN"
+
+            demand = pairs.get(key)
+            capacity = self.get_cb_capacity(pair, member, force_type)
+
+            if demand is None or not capacity:
+                return ""
+
+            capacity = float(capacity)
+            if capacity <= 0:
+                return ""
+
+            return f"{abs(float(demand)) / capacity:.3f}"
+
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            return ""
 
     def get_cb_slenderness(self, pair: str, member: str) -> str:
         """KL/r — same for tension and compression (geometry-based)."""
@@ -457,17 +473,21 @@ class ReportDataBridge:
         return ""
 
     def get_cb_status(self, pair: str, member: str, force_type: str) -> str:
-        """PASS / FAIL based on UR <= 1.0."""
+        """PASS / FAIL based on demand-to-capacity ratio."""
         try:
-            val = self._cb_osdag(pair, member, force_type).get("efficiency")
-            if val is not None:
-                ur = float(val)
-                if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+            efficiency = self.get_cb_efficiency(pair, member, force_type)
+
+            if not efficiency:
+                return ""
+
+            return (
+                r"\textcolor{black}{PASS}"
+                if float(efficiency) <= 1.0
+                else r"\textcolor{red}{FAIL}"
+            )
+
         except (TypeError, ValueError):
-            pass
-        return ""
+            return ""
 
     def get_cb_gov_lc(self, pair: str, member: str, force_type: str) -> str:
         """Governing load case label for member (tension or compression)."""

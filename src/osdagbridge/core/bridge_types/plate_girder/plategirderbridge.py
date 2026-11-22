@@ -1,10 +1,8 @@
 
 from __future__ import annotations
 from pathlib import Path
-Path(r"C:\Users\groza\Downloads\OsdagBridge\src\which_file_is_running.txt").write_text(__file__)
 import sqlite3
 import types
-from pathlib import Path
 from .ui_fields import FrontendData
 from .dto import (
     ConcreteProperties,
@@ -39,6 +37,11 @@ from .plot_generator import (
 )
 from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
 from osdagbridge.core.utils.common import (
+    KEY_WL_TRANSVERSE_WIND_FORCE, KEY_WC_LD_LANE_TABLE_COUNT,
+    KEY_SL_LONGITUDINAL_FORCE,
+    KEY_SL_TRANSVERSE_FORCE,
+    KEY_WL_LONGITUDINAL_WIND_FORCE,
+    KEY_WL_VERTICAL_WIND_FORCE,
     KEY_STRUCTURE_TYPE,
     KEY_PROJECT_LOCATION,
     KEY_SPAN,
@@ -779,11 +782,20 @@ class PlateGirderBridge:
             
             self.bridge_component_solver()
             self.compute_load_effects_cache()
-            for _gi, _vals in (self._deflections_cache or {}).items():
-                _live = _vals.get("live_mm")
-                _total = _vals.get("total_mm")
+            # Use composite-stiffness-corrected deflections from the design pipeline.
+            _per_girder = (
+                (self.output_dict.get("design_results") or {}).get("per_girder") or {}
+            )
+
+            for _gi, _gdata in _per_girder.items():
+                _demand = (_gdata or {}).get("demand") or {}
+
+                _live = _demand.get("delta_live_mm")
+                _total = _demand.get("delta_total_mm")
+
                 if _live is not None:
                     self.output_dict[f"{KEY_SD_DEFL_LIVE}.{_gi}"] = round(float(_live), 3)
+
                 if _total is not None:
                     self.output_dict[f"{KEY_SD_DEFL_TOTAL}.{_gi}"] = round(float(_total), 3)
             
@@ -974,6 +986,19 @@ class PlateGirderBridge:
         from osdagbridge.core.reports.report_generator import build_report_payload, generate_report
 
         report_inputs = self.input_dict.copy()
+                # Populate traffic lane count for the report using IRC 6 Table 6.
+        # For a single carriageway (no median), use the full carriageway width.
+        if str(report_inputs.get(KEY_INCLUDE_MEDIAN, "No")).strip().lower() not in (
+            "yes", "true", "1"
+        ):
+            try:
+                carriageway_width = float(report_inputs.get(KEY_CARRIAGEWAY_WIDTH))
+                if carriageway_width > 0:
+                    report_inputs[KEY_WC_LD_LANE_TABLE_COUNT] = IRC6_2017.table_6(
+                        carriageway_width
+                    )
+            except (TypeError, ValueError):
+                pass
                 # Report fix: girder dimensions must be in mm. Any value < 5 is in metres.
         _dim_keys = (KEY_MP_GIRDER_DEPTH, KEY_MP_GIRDER_WEB_THICKNESS,
                      KEY_MP_GIRDER_TOP_FLANGE_WIDTH, KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
@@ -1430,6 +1455,14 @@ class PlateGirderBridge:
             d_depth=d_depth,
             partial_safety_factor=1.0,
         )
+
+        wind_results = self.grillage_model.wind_force_results
+
+        self.input_dict.update({
+            KEY_WL_TRANSVERSE_WIND_FORCE: wind_results["transverse"],
+            KEY_WL_LONGITUDINAL_WIND_FORCE: wind_results["longitudinal"],
+            KEY_WL_VERTICAL_WIND_FORCE: wind_results["vertical"],
+        })
 
     # ============================================================
     #   Temperature Load Analysis  IRC:6-2017 Cl.215
@@ -1988,7 +2021,13 @@ class PlateGirderBridge:
             dead_load_kN=dead_load_kN,
             live_load_kN=live_load_kN,
             partial_safety_factor=1.5,  # IRC:6-2017 Table B.2 seismic ULS
-        )
+        )# Pass calculated seismic resultants to the report input dictionary.
+        seismic_results = self.grillage_model.seismic_force_results
+
+        self.input_dict.update({
+            KEY_SL_LONGITUDINAL_FORCE: seismic_results["longitudinal"],
+            KEY_SL_TRANSVERSE_FORCE: seismic_results["transverse"],
+        })
 
     def vehicle_lane_coordinates(self) -> list:
         """

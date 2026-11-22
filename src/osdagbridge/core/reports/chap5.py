@@ -1090,8 +1090,11 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
 
     def _row522_msg(label, msg):
         # Single message spanning the 4 data columns.
-        return label + r" & \multicolumn{4}{c|}{" + msg + r"} \\[6pt]" + "\n\\hline"
-
+        return (
+            label
+            + r" & \multicolumn{4}{c|}{" + msg + r"} \\[6pt]\hline"
+            + "\n"
+        )
     # End diaphragm: when configured as Cross Bracing it is designed as bracing
     # members → mirror the cross-bracing axial rows. For Rolled / Welded beam end
     # diaphragms the moment/shear design is not implemented yet → show a message.
@@ -1102,12 +1105,51 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             break
     _ed_is_cb = "brac" in _ed_type.strip().lower()
     if _ed_is_cb:
-        _ed_moment_row = _row522(r"End Diaphragm --- Compression", _cb_row("compression"))
-        _ed_shear_row = _row522(r"End Diaphragm --- Tension", _cb_row("tension"))
+        _ed_pairs_522 = bridge.get_ed_pairs()
+
+        def _ed_row(force_type):
+            best = None
+
+            for pair in _ed_pairs_522:
+                for member in ("diagonal", "chord"):
+                    demand = bridge.get_ed_force(pair, member, force_type)
+                    cap = bridge.get_ed_capacity(pair, member, force_type)
+                    eff = bridge.get_ed_efficiency(pair, member, force_type)
+
+                    try:
+                        demand_value = float(demand)
+                        cap_value = float(cap)
+                        ur = demand_value / cap_value if cap_value > 0 else 0.0
+                    except (TypeError, ValueError):
+                        continue
+
+                    if best is None or ur > best[0]:
+                        best = (ur, pair, member, demand_value, cap_value)
+
+            if best is None:
+                return ("---", "---", "---", "---")
+
+            ur, pair, member, demand, cap = best
+            gov = bridge.get_ed_gov_lc(pair, member, force_type) or "---"
+
+            return (
+                gov,
+                f"{demand:.2f} kN",
+                f"{cap:.2f} kN",
+                _ur_522(ur),
+            )
+
+        _ed_moment_row = _row522(
+            r"End Diaphragm --- Axial Compression", _ed_row("compression")
+        )
+        _ed_shear_row = _row522(
+            r"End Diaphragm --- Axial Tension", _ed_row("tension")
+        )
+
     else:
         _ed_msg = r"Rolled / Welded section --- design to be added"
         _ed_moment_row = _row522_msg(r"End Diaphragm --- Moment", _ed_msg)
-        _ed_shear_row  = _row522_msg(r"End Diaphragm --- Shear",  _ed_msg)
+        _ed_shear_row = _row522_msg(r"End Diaphragm --- Shear", _ed_msg)
 
     # Crack width (slab): governing crack width vs limit from the deck designer
     # (frequent SLS combination). _dk_gov_wk is the max of bottom/top/overhang wk.
@@ -1204,7 +1246,35 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                     except (TypeError, ValueError):
                         pass
             return max(values) if values else None
+        def _chart_cb(force_type):
+            values = []
+            for pair in _cb_pairs_522:
+                for member in ("diagonal", "chord"):
+                    try:
+                        values.append(float(
+                            bridge.get_cb_efficiency(pair, member, force_type)
+                        ))
+                    except (TypeError, ValueError):
+                        pass
+            return max(values) if values else None
 
+        # ADD THIS NEW FUNCTION BELOW
+        def _chart_ed(force_type):
+            values = []
+            for pair in _ed_pairs_522:
+                for member in ("diagonal", "chord"):
+                    try:
+                        demand = float(
+                            bridge.get_ed_force(pair, member, force_type)
+                        )
+                        capacity = float(
+                            bridge.get_ed_capacity(pair, member, force_type)
+                        )
+                        if capacity > 0:
+                            values.append(demand / capacity)
+                    except (TypeError, ValueError):
+                        pass
+            return max(values) if values else None
         def _make_chart(filename, title, labels, values):
             valid = [
                 (label, value) for label, value in zip(labels, values)
@@ -1302,7 +1372,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             ed_path = _make_chart(
                 "ur_end_diaphragm.png", "End Diaphragm Utilization Ratios",
                 ["Compression", "Tension"],
-                [_chart_cb("compression"), _chart_cb("tension")]
+                [_chart_ed("compression"), _chart_ed("tension")]
             )
 
         chart_items = [
@@ -1849,7 +1919,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{1em}
 \begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
-\caption{\textbf{End Diaphragm --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}\\
+\caption{\textbf{End Diaphragm --- Slenderness Ratio Check (IS~800 Cl.~3.8)}}\\
 \hline
 \textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
 \hline
@@ -1860,7 +1930,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \endhead
 """ + ed_slenderness_content + r"""
 \end{longtable}
-\noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
+\noindent\textit{Note: Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
 
 \vspace{1em}
 

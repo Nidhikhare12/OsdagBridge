@@ -5,6 +5,8 @@
 
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,
+    KEY_SL_LONGITUDINAL_FORCE,
+    KEY_SL_TRANSVERSE_FORCE,
     KEY_FOOTPATH,
     KEY_LL_CUSTOM_VEHICLES,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
@@ -118,14 +120,19 @@ def ch3_loads(input_dict):
     else:
         impact_factor_str = "N/A"
 
+    
     lanes = input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT)
     braking_force_str = ""
     if lanes not in (None, ""):
         try:
             lanes_int = int(lanes)
-            braking_force_t = IRC6_2017.cl_211_2_braking_force(lanes_int)
-            braking_force_kN = braking_force_t * 9.81
-            braking_force_str = f"{braking_force_kN:.2f} kN ({braking_force_t:.2f} tonnes)"
+            braking_force_N = IRC6_2017.cl_211_2_braking_force(lanes_int)
+            braking_force_kN = braking_force_N / 1000
+            braking_force_t = braking_force_N / 9810
+            braking_force_str = (
+                f"{braking_force_kN:.2f} kN "
+                f"({braking_force_t:.2f} tonnes)"
+            )
         except Exception:
             braking_force_str = "N/A"
     else:
@@ -414,9 +421,9 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textnormal{Average Exposed Height, H (m)} & """ + (_render_value(input_dict, KEY_WL_AVG_EXPOSED_HEIGHT, ' m')) + r""" \\[6pt]
 \hline
-\textnormal{Hourly Mean Wind Speed, Vz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_MEAN_WIND, ' m/s')) + r""" \\[6pt]
+\textnormal{Hourly Mean Wind Speed, Vz} & """ + (vz_str) + r""" \\[6pt]
 \hline
-\textnormal{Hourly Wind Pressure, Pz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_WIND_PRESSURE, ' N/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Hourly Wind Pressure, Pz} & """ + (pz_str) + r""" \\[6pt]
 \hline
 \textnormal{Transverse Wind Force} & """ + (_render_value(input_dict, KEY_WL_TRANSVERSE_WIND_FORCE, ' kN')) + r""" \\[6pt]
 \hline
@@ -460,9 +467,9 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF)) + r""" \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Force (longitudinal)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (longitudinal)} & """ + (_render_value(input_dict, KEY_SL_LONGITUDINAL_FORCE, ' kN')) + r""" \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Force (transverse)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (transverse)} & """ + (_render_value(input_dict, KEY_SL_TRANSVERSE_FORCE, ' kN')) + r""" \\[6pt]
 \hline
 \end{longtable}
 
