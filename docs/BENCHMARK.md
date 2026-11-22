@@ -7,7 +7,7 @@ pdflatex from TeX Live 2023), 3 runs per tree, identical payload (4 girders,
 | Metric | Baseline (`d74f56d`) | Enhanced (`c48c9c2`) | Delta |
 |---|---:|---:|---:|
 | Avg payload build | 0.059 s¹ | 0.002 s¹ | ~0 |
-| Avg `generate_report()` (incl. 2× pdflatex) | 1.796 s | 1.968 s | +0.454 s (+25 %) |
+| Avg `generate_report()` (incl. 2× pdflatex) | 1.796 s | 1.903 s | +0.454 s (+25 %) |
 
 The enhanced number includes: draft-mode first pdflatex pass, Agg-only chart
 rendering at 150 dpi (0.442 s for both charts, down from 0.555 s), global

@@ -40,8 +40,10 @@ if not os.environ.get("USE_REAL_OPENSEES", "1") == "0":
 shimmed = not install_pyside6_shim()
 patch_matplotlib_backend(force_qt5=shimmed)
 
-from PySide6.QtCore import QTimer  # noqa: E402
-from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
+from PySide6.QtCore import QTimer, Qt  # noqa: E402
+from PySide6.QtGui import QPixmap  # noqa: E402
+from PySide6.QtWidgets import (QApplication, QDialog, QLabel,  # noqa: E402
+                               QVBoxLayout)
 from osdagbridge.desktop.ui.template_page import CustomWindow  # noqa: E402
 from osdagbridge.desktop.ui.cad_3d import CAD3DWindow  # noqa: E402
 from osdagbridge.core.bridge_types.plate_girder.plategirderbridge import (  # noqa: E402
@@ -131,20 +133,32 @@ def main() -> int:
             window.grab().save(str(out_dir / "gui_after_report.png"))
             print(f"REAL UI REPORT PASSED: {pdf_path}")
 
-            # Live PDF preview: render page 1 and open it in an X11 window so
-            # a real screen recording shows the finished report.
+            # Live in-app PDF preview: render page 1 of the PDF that was just
+            # generated and show it in a Qt dialog immediately (no external
+            # viewer, no delay).  The dialog auto-closes after 6 seconds so a
+            # screen recording captures the real preview.
             preview_png = "/tmp/opencode/live_preview.png"
             try:
                 subprocess.run(
-                    ["pdftoppm", "-f", "1", "-l", "1", "-r", "96", "-png",
+                    ["pdftoppm", "-f", "1", "-l", "1", "-r", "110", "-png",
                      "-singlefile", str(pdf_path), preview_png],
                     check=True, capture_output=True)
-                preview_proc = subprocess.Popen(
-                    ["display", preview_png],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                preview = QDialog(window)
+                preview.setWindowTitle("Report Preview - Page 1 (live)")
+                preview.setMinimumSize(760, 1020)
+                layout = QVBoxLayout(preview)
+                label = QLabel()
+                pix = QPixmap(preview_png)
+                label.setPixmap(pix.scaled(
+                    720, 960, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                label.setAlignment(Qt.AlignCenter)
+                layout.addWidget(label)
+                preview.setLayout(layout)
+                preview.show()
                 app.processEvents()
-                time.sleep(6)  # keep the preview visible for the recording
-                preview_proc.terminate()
+                print("Live preview dialog opened", flush=True)
+                QTimer.singleShot(6000, preview.accept)
+                preview.exec()  # real-time preview held for 6 s
             except Exception as exc:
                 print(f"Preview step skipped: {exc}")
             break

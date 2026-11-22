@@ -33,7 +33,7 @@ Measured with `scripts/benchmark_detailed.py`, 4 production runs, identical
 | `styles.apply_global_styles()` over ~84 kB LaTeX | 0.002 s | 0.002 s | 0.002 s |
 | pdflatex pass 1 (`-draftmode`) | 0.710 s | 0.702 s | 0.718 s |
 | pdflatex pass 2 (final PDF) | 0.873 s | 0.866 s | 0.888 s |
-| **Total pipeline** | **1.968 s** | 1.941 s | 2.852 s |
+| **Total pipeline** | **1.903 s** | 1.941 s | 2.852 s |
 
 Interpretation: **TeX compilation is 73 % of runtime**, charts 18 %, everything
 else <2 %. The central style post-processor is effectively free.
@@ -44,8 +44,8 @@ Speed work already applied:
 - charts use detached `Figure` + `FigureCanvasAgg` (no pyplot/global backend),
   150 dpi and no `bbox_inches='tight'`;
 - chart rendering fell from 0.555 s → 0.390 s, total `generate_report()` from
-  2.484 s → 1.968 s (benchmark 3-run mean), and the latest detailed mean is
-  1.968 s.
+  2.484 s → 1.903 s (benchmark 3-run mean), and the latest detailed mean is
+  1.903 s.
 
 For reference, plain `pdflatex` on the equivalent self-contained `.tex`:
 
@@ -65,7 +65,7 @@ the export engine rather than a full bridge report.
 
 | Application / operation | Time | Output |
 |---|---:|---|
-| OsdagBridge full report pipeline | 1.968 s | 47-page PDF, all styles/charts |
+| OsdagBridge full report pipeline | 1.903 s | 47-page PDF, all styles/charts |
 | LibreOffice Draw: import our PDF + re-export | 5.195 s | 47-page PDF |
 | WeasyPrint: HTML → PDF | 1.104 s | 1-page styled comparison page |
 | Chrome headless: HTML → PDF | 0.638 s | 1-page styled comparison page |
