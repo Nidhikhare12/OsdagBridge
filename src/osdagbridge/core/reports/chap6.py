@@ -1,5 +1,5 @@
 def ch6_drawings(fig_paths):
-    """Chapter 6 – Drawings and Visualizations.
+    """Chapter 6 - Drawings and Visualizations.
 
     Layout: section heading → figure → small numbered label below.
     No subsection headers. 6.3 and 6.4 are headings only (no figures).
@@ -22,7 +22,7 @@ def ch6_drawings(fig_paths):
     """
 
     def _sec_fig(path, title, label=None):
-        """Figure block: image first, numbered below. Placeholder if no path."""
+        """Figure block: image first, numbered below. Omitted if no path."""
         label_tex = (r'\label{' + label + '}\n') if label else ''
         if path:
             p = path.replace('\\', '/')
@@ -34,14 +34,7 @@ def ch6_drawings(fig_paths):
                     + label_tex
                     + r'\end{figure}' + '\n'
                     )
-        return (r'\begin{figure}[H]' + '\n'
-                r'\centering' + '\n'
-                r'\fbox{\parbox{0.97\textwidth}{' + '\n'
-                r'\textit{[ PLACEHOLDER: ' + ' ' + title + r' ]}' + '\n'
-                r'}}' + '\n'
-                r'\caption{' + title + '}\n'
-                + label_tex
-                + r'\end{figure}' + '\n')
+        return ""
 
     sup3d  = _sec_fig(fig_paths.get('final_geometry'),   'Overall 3D Bridge Superstructure',   'fig:bridge-3d')
     cs     = _sec_fig(fig_paths.get('cross_section'),     'Typical Cross Section',              'fig:cross-section')
@@ -57,31 +50,30 @@ def ch6_drawings(fig_paths):
         if path:
             p = path.replace('\\', '/')
             body = r'\includegraphics[width=\linewidth]{' + p + '}'
-        else:
-            body = r'\fbox{\parbox{0.95\linewidth}{\centering\textit{[ ' + title + r' ]}}}'
-        return (r'\begin{minipage}[t]{0.31\textwidth}' + '\n'
-                r'\centering' + '\n'
-                + body + '\n'
-                r'\captionof{figure}{' + title + '}\n'
-                + label_tex + '\n'
-                r'\end{minipage}')
+            return (r'\begin{minipage}[t]{0.31\textwidth}' + '\n'
+                    r'\centering' + '\n'
+                    + body + '\n'
+                    r'\captionof{figure}{' + title + '}\n'
+                    + label_tex + '\n'
+                    r'\end{minipage}')
+        return ""
 
-    # Cross Bracing section views (Figures 6.8, 6.9, 6.10) — 3 columns
+    # Cross Bracing section views (Figures 6.8, 6.9, 6.10) - 3 columns
     cb_bracing = _sec_cell(
         fig_paths.get('cb_bracing'),
-        'Cross Bracing -- Bracing Section',
+        'Cross Bracing - Bracing Section',
         'fig:cb-bracing-sec'
     )
 
     cb_top = _sec_cell(
         fig_paths.get('cb_top_chord'),
-        'Cross Bracing -- Top Chord Section',
+        'Cross Bracing - Top Chord Section',
         'fig:cb-top-chord'
     )
 
     cb_bottom = _sec_cell(
         fig_paths.get('cb_bottom_chord'),
-        'Cross Bracing -- Bottom Chord Section',
+        'Cross Bracing - Bottom Chord Section',
         'fig:cb-bottom-chord'
     )
     cb_sections_row = (
@@ -95,22 +87,22 @@ def ch6_drawings(fig_paths):
 
     eddia  = _sec_fig(fig_paths.get('ed_diagram'),        'End Diaphragm Layout',              'fig:ed-layout')
 
-    # End Diaphragm section views (Figures 6.12, 6.13, 6.14) — 3 columns
+    # End Diaphragm section views (Figures 6.12, 6.13, 6.14) - 3 columns
     ed_bracing = _sec_cell(
         fig_paths.get('ed_bracing'),
-        'End Diaphragm -- Bracing Section',
+        'End Diaphragm - Bracing Section',
         'fig:ed-bracing-sec'
     )
 
     ed_top = _sec_cell(
         fig_paths.get('ed_top_chord'),
-        'End Diaphragm -- Top Chord Section',
+        'End Diaphragm - Top Chord Section',
         'fig:ed-top-chord'
     )
 
     ed_bottom = _sec_cell(
         fig_paths.get('ed_bottom_chord'),
-        'End Diaphragm -- Bottom Chord Section',
+        'End Diaphragm - Bottom Chord Section',
         'fig:ed-bottom-chord'
     )
     ed_sections_row = (
@@ -121,6 +113,30 @@ def ch6_drawings(fig_paths):
     + r'\hfill' + '\n'
     + ed_bottom
 )
+
+    has_any_drawing = any(bool(fig_paths.get(k)) for k in (
+        'final_geometry', 'cross_section', 'girder_top', 'girder_3d',
+        'section_preview', 'stiffener_preview', 'cb_diagram', 'cb_bracing',
+        'cb_top_chord', 'cb_bottom_chord', 'ed_diagram', 'ed_bracing',
+        'ed_top_chord', 'ed_bottom_chord'
+    ))
+
+    if not has_any_drawing:
+        return r"""
+\chapter{Drawings and Visualizations}
+\label{ch:drawings}
+
+This section presents CAD-generated views of the designed bridge and its components.
+
+\begin{center}
+\vspace{1.0cm}
+\fbox{\parbox{0.92\textwidth}{\centering\vspace{10pt}
+\textbf{\large 3D CAD Drawings and Visualizations}\\[8pt]
+\small Detailed 3D CAD component geometry, elevation views, and cross-bracing framing plans are rendered via the Osdag 3D graphics module. In batch or headless export environments without a 3D OpenGL display context, refer to the Osdag CAD export files or view the 3D bridge model directly in the Osdag desktop application.
+\vspace{10pt}}}
+\vspace{1.0cm}
+\end{center}
+"""
 
     return (r"""
 \chapter{Drawings and Visualizations}
@@ -136,7 +152,7 @@ This section presents CAD-generated views of the designed bridge and its compone
             + cs + '\n\n'
             + gtop + r"""
 
-\section{Plate Girder --- Detailed Views}
+\section{Plate Girder - Detailed Views}
 \label{sec:girder-views}
 
 """

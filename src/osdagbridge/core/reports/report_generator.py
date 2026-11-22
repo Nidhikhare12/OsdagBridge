@@ -1,5 +1,5 @@
 # =============================================================================
-# OsdagBridge — Report Generator  
+# OsdagBridge - Report Generator  
 # Matches OsdagBridge expected report format:
 #   • Full title page with logo
 #   • Numbered TOC (Executive Summary + Chapters 1-9)
@@ -18,7 +18,7 @@
 # =============================================================================
 
 # =============================================================================
-# GAPS REPORT — keys used in templates with no canonical KEY_ in common.py
+# GAPS REPORT - keys used in templates with no canonical KEY_ in common.py
 # =============================================================================
 # GAP | Template location         | Literal key used             | Notes
 # ─────────────────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@
 #        └──► [template_page.py] CustomWindow.open_report_dialog(cad_generator)
 #                    │
 #                    ├── ReportOptionsDialog(parent=self).exec()
-#                    │         [report_options.py — user fills form]
+#                    │         [report_options.py - user fills form]
 #                    │         └── returns request (ReportRequest dataclass)
 #                    │
 #                    ├── Spawns background thread: _ReportWorker(backend, request, cad_generator)
@@ -108,6 +108,7 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Literal
 
 from osdagbridge.core.utils.common import (
+    KEY_CARRIAGEWAY_WIDTH,
     KEY_DESIGN_MODE,
     KEY_SPAN,
     KEY_TL_BRIDGE_TEMP_MAX,
@@ -115,10 +116,28 @@ from osdagbridge.core.utils.common import (
     KEY_TL_HIGHEST_MAX_TEMP,
     KEY_TL_LOWEST_MIN_TEMP,
     KEY_TL_TEMP_FALL,
-    KEY_TL_TEMP_RISE
+    KEY_TL_TEMP_RISE,
+    KEY_WC_LD_LANE_TABLE_COUNT,
+    KEY_WL_HOURLY_MEAN_WIND,
+    KEY_WL_HOURLY_WIND_PRESSURE,
+    KEY_WL_LONGITUDINAL_WIND_FORCE,
+    KEY_WL_TRANSVERSE_WIND_FORCE,
+    KEY_WL_VERTICAL_WIND_FORCE
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import (
+    DEFAULT_THEME,
+    ReportTheme,
+    get_latex_color_definitions,
+    get_geometry_preamble,
+    get_table_spacing_preamble,
+)
+from osdagbridge.core.reports.charts import (
+    generate_ur_chart,
+    generate_material_takeoff_charts,
+)
+from osdagbridge.core.reports.executive_summary import _max_member_efficiency
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -154,9 +173,12 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     rv = _tex(report_version)
     return r"""
 \documentclass[12pt,a4paper]{report}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[protrusion=true,expansion=false]{microtype}
 
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
+% Centralized geometry setup
+""" + get_geometry_preamble(DEFAULT_THEME) + r"""
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -165,7 +187,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{tabularx}
 \usepackage{float}
 \usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
 \usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
@@ -180,6 +201,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
+\usepackage{hhline}
 \usepackage{longtable}
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
@@ -190,76 +212,82 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{etoolbox}
 \usepackage{needspace}
 
+% Preamble color definitions and table metrics from single source of truth
+""" + get_latex_color_definitions(DEFAULT_THEME) + r"""
+""" + get_table_spacing_preamble(DEFAULT_THEME) + r"""
+
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
+% Prevent tables from overflowing past the page bottom or leaving ghost headers:
+% if fewer than 10 baseline-skips remain, break to the next page first.
+\BeforeBeginEnvironment{table}{\Needspace{6\baselineskip}}
+\BeforeBeginEnvironment{longtable}{\Needspace{10\baselineskip}}
 
 \fancypagestyle{main}{
   \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \fancyhead[L]{\footnotesize\textcolor{OsdagMuted}{\textbf{\color{OsdagPrimary}OsdagBridge} \quad\textbar\quad \textit{""" + (pn if len(pn) <= 32 else pn[:29] + r'\dots') + r"""}}}
+  \fancyhead[R]{\footnotesize\textcolor{OsdagMuted}{Job: \textbf{\color{OsdagPrimary}{""" + (jn if jn else 'N/A') + r"""}} \quad\textbar\quad """ + (rd if rd else '2026') + r"""}}
+  \fancyfoot[L]{\footnotesize\color{OsdagMuted}Osdag \quad\textbar\quad FOSSEE \quad\textbar\quad Indian Institute of Technology Bombay}
+  \fancyfoot[R]{\footnotesize\color{OsdagMuted}Page \textbf{\thepage} of \pageref{LastPage}}
+  \renewcommand{\headrule}{{\color{OsdagGreen}\hrule width\headwidth height 1.0pt}\vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
+      \vspace{-16pt}%
+      \hbox to \headwidth{\textcolor{OsdagMuted}{\footnotesize\textit{* Software default value}}\hfil}%
       \vspace{4pt}%
     }{%
-      \vspace{-8pt}%
+      \vspace{-4pt}%
     }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+    \color{OsdagBorder}\hrule width\headwidth height 0.5pt \vspace{4pt}%
   }
 }
 \fancypagestyle{plain}{
   \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \fancyhead[L]{\footnotesize\textcolor{OsdagMuted}{\textbf{\color{OsdagPrimary}OsdagBridge} \quad\textbar\quad \textit{""" + (pn if len(pn) <= 32 else pn[:29] + r'\dots') + r"""}}}
+  \fancyhead[R]{\footnotesize\textcolor{OsdagMuted}{Job: \textbf{\color{OsdagPrimary}{""" + (jn if jn else 'N/A') + r"""}} \quad\textbar\quad """ + (rd if rd else '2026') + r"""}}
+  \fancyfoot[L]{\footnotesize\color{OsdagMuted}Osdag \quad\textbar\quad FOSSEE \quad\textbar\quad Indian Institute of Technology Bombay}
+  \fancyfoot[R]{\footnotesize\color{OsdagMuted}Page \textbf{\thepage} of \pageref{LastPage}}
+  \renewcommand{\headrule}{{\color{OsdagGreen}\hrule width\headwidth height 1.0pt}\vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
+      \vspace{-16pt}%
+      \hbox to \headwidth{\textcolor{OsdagMuted}{\footnotesize\textit{* Software default value}}\hfil}%
       \vspace{4pt}%
     }{%
-      \vspace{-8pt}%
+      \vspace{-4pt}%
     }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+    \color{OsdagBorder}\hrule width\headwidth height 0.5pt \vspace{4pt}%
   }
 }
 \fancypagestyle{firstpage}{
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
+  \renewcommand{\footrulewidth}{0pt}
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{1.04}
 
-% Custom Commands
-\newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
-\newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
+% Column Types
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 \newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+% Hyperref loaded strictly last with bookmark and navigation metadata
+\usepackage[
+  bookmarks=true,
+  bookmarksnumbered=true,
+  bookmarksopen=true,
+  colorlinks=true,
+  linkcolor=OsdagPrimary,
+  citecolor=OsdagAccent,
+  urlcolor=OsdagAccent,
+  pdftitle={""" + pn + r""" - OsdagBridge Design Report},
+  pdfauthor={OsdagBridge (IIT Bombay / FOSSEE) | Contributor: John Varghese (J0X)},
+  pdfsubject={Bridge Superstructure Structural Design and Verification Report},
+  pdfkeywords={Osdag, OsdagBridge, Bridge Design, Plate Girder, IRC 22:2015, IRC 6:2017, IS 800:2007, FOSSEE, IIT Bombay, Contributor: John Varghese},
+  pdfcreator={OsdagBridge LaTeX Report Generator}
+]{hyperref}
 
 % Software-default asterisk
 \newcommand{\sdstar}{\textsuperscript{*}}
@@ -282,60 +310,103 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def title_page(m, osdag_logo, org_logo):
-    if osdag_logo:
-        lhs = r'\includegraphics[width=\linewidth,keepaspectratio]{' + osdag_logo.replace('\\', '/') + r'}'
-    else:
-        lhs = r'\textit{(Osdag Logo)}'
-
-    if org_logo:
-        rhs = r'\includegraphics[width=\linewidth,height=2.2cm,keepaspectratio]{' + org_logo.replace('\\', '/') + r'}'
-    else:
-        rhs = r''
-
-    logos_tex = r"""\noindent
-\begin{minipage}[c]{0.6\textwidth}
-\raggedright
-""" + lhs + r"""
+    if osdag_logo and org_logo:
+        logos_tex = r"""\noindent
+\begin{minipage}[c]{0.48\textwidth}
+\centering
+\includegraphics[height=1.8cm,keepaspectratio]{""" + osdag_logo.replace('\\', '/') + r"""}
 \end{minipage}%
 \hfill
-\begin{minipage}[c]{0.35\textwidth}
-\raggedleft
-""" + rhs + r"""
+\begin{minipage}[c]{0.04\textwidth}
+\centering
+{\color{OsdagBorder}\vrule height 1.6cm width 0.6pt}
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.46\textwidth}
+\centering
+\includegraphics[height=1.8cm,keepaspectratio]{""" + org_logo.replace('\\', '/') + r"""}
 \end{minipage}
-\\[1cm]
+\\[0.35cm]
 """
+    elif osdag_logo:
+        logos_tex = r"""\noindent
+\begin{center}
+\includegraphics[height=1.9cm,keepaspectratio]{""" + osdag_logo.replace('\\', '/') + r"""}
+\end{center}
+\vspace{0.2cm}
+"""
+    elif org_logo:
+        logos_tex = r"""\noindent
+\begin{center}
+\includegraphics[height=1.9cm,keepaspectratio]{""" + org_logo.replace('\\', '/') + r"""}
+\end{center}
+\vspace{0.2cm}
+"""
+    else:
+        logos_tex = r"""\vspace{0.5cm}"""
 
     return r"""
 \begin{titlepage}
-\thispagestyle{firstpage}
-\centering
-\vspace*{1.5cm}
+\thispagestyle{empty}
+\noindent
+\begin{minipage}[b]{0.64\linewidth}
+{\scriptsize\bfseries\color{OsdagAccent}\textsc{Structural Engineering Design \& Verification Report}}
+\end{minipage}%
+\begin{minipage}[b]{0.36\linewidth}
+\raggedleft
+{\scriptsize\color{OsdagMuted}\textbf{JOB:} """ + _tex(m.job_number) + r""" \quad\textbar\quad """ + _tex(m.report_date) + r"""}
+\end{minipage}\\[3pt]
+{\color{OsdagGreen}\rule{\linewidth}{2.0pt}}\\[0.4cm]
+
 """ + logos_tex + r"""
-{\Huge \textbf{OsdagBridge}}\\[0.3cm]
-{\large Open Source Software for Steel Girder Bridge Design}\\[1.5cm]
-{\Large Design Report}\\[1.5cm]
-\begin{tabular}{|L{4cm}|L{10cm}|}
+\begin{center}
+{\fontsize{21}{25}\selectfont \textbf{\color{OsdagPrimary}""" + _tex(m.project_name if m.project_name else "Plate Girder Highway Bridge") + r"""}}\\[0.2cm]
+{\normalsize\color{OsdagMuted}Open Source Software for Steel Girder Bridge Design}\\[0.15cm]
+{\small\bfseries\color{OsdagGreen}""" + (_tex(m.subtitle) if (m.subtitle and m.subtitle != getattr(m, 'report_version', '')) else "Detailed Structural Design & Verification Report") + r"""}\\[0.4cm]
+\end{center}
+
+\noindent
+\begin{center}
+\renewcommand{\arraystretch}{1.20}
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{|>{\bfseries\color{OsdagPrimary}\raggedright\arraybackslash}m{4.2cm}|>{\raggedright\arraybackslash}m{9.8cm}|}
 \hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
+\rowcolor{OsdagHeaderBg}
+\multicolumn{2}{|l|}{\textbf{\color{OsdagPrimary}PROJECT METADATA \& RECORD}} \\
 \hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
+Project Name & """ + _tex(m.project_name) + r""" \\
 \hline
-\textbf{Author / Designer} & """ + _tex(m.designer) + r""" \\
+\rowcolor{OsdagZebra}
+Project Location & """ + _tex(m.project_location) + r""" \\
 \hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
+Author / Designer & """ + _tex(m.designer) + r""" \\
 \hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
+\rowcolor{OsdagZebra}
+Reviewer & """ + _tex(m.reviewer) + r""" \\
 \hline
-\textbf{Client Name and Organization} & """ + _tex(m.client) + r""" \\
+Organization & """ + _tex(m.company) + r""" \\
 \hline
-\textbf{Job Number} & """ + _tex(m.job_number) + r""" \\
+\rowcolor{OsdagZebra}
+Client & """ + _tex(m.client) + r""" \\
 \hline
-\textbf{Date} & """ + _tex(m.report_date) + r""" \\
+Job Number & """ + _tex(m.job_number) + r""" \\
 \hline
-\textbf{Report Version} & """ + (_tex(m.subtitle) if m.subtitle else '') + r""" \\
+\rowcolor{OsdagZebra}
+Date of Issue & """ + _tex(m.report_date) + r""" \\
+\hline
+Report Version & """ + (_tex(getattr(m, 'report_version', None) or (m.subtitle if m.subtitle and len(m.subtitle) <= 15 else "Rev 1.0"))) + r""" \\
 \hline
 \end{tabular}
+\end{center}
+
+\vfill
+\noindent
+\begin{center}
+{\footnotesize\color{OsdagMuted}Developed by \textbf{\color{OsdagPrimary}Osdag Project} \ \textbar\ \ Supported by \textbf{FOSSEE} \ \textbar\ \ \textbf{Indian Institute of Technology Bombay}}
+\end{center}
+\vspace*{0.2cm}
 \end{titlepage}
+\setcounter{page}{2}
 """
 
 
@@ -346,32 +417,47 @@ def title_page(m, osdag_logo, org_logo):
 def toc_section():
     return r"""
 % Chapter / TOC Formatting
-\titleformat{\chapter}[block]
-  {\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{0pt}{10pt}
+\titleformat{\chapter}[hang]
+  {\normalfont\LARGE\bfseries\color{OsdagPrimary}}
+  {\color{OsdagGreen}\thechapter\quad\textcolor{OsdagBorder}{|}\quad}{0pt}{}
+\titlespacing*{\chapter}{0pt}{16pt}{10pt}
+
+\titleformat{name=\chapter,numberless}[hang]
+  {\normalfont\LARGE\bfseries\color{OsdagPrimary}}{}{0pt}{}
+
+\titleformat{\section}[hang]
+  {\normalfont\Large\bfseries\color{OsdagPrimary}}
+  {\color{OsdagAccent}\thesection\quad}{0pt}{}
+\titlespacing*{\section}{0pt}{10pt}{5pt}
+
+\titleformat{\subsection}[hang]
+  {\normalfont\large\bfseries\color{OsdagAccent}}
+  {\thesubsection\quad}{0pt}{}
+\titlespacing*{\subsection}{0pt}{6pt}{3pt}
+
 \setcounter{tocdepth}{2}
 
 % TOC styling using titletoc
-\titlecontents{chapter}[1.5em]
-  {\normalfont\vspace{2pt}}
-  {\contentslabel{1.5em}}
-  {\hspace*{-1.5em}}
+\titlecontents{chapter}[1.8em]
+  {\normalfont\bfseries\vspace{2pt}\color{OsdagPrimary}}
+  {\contentslabel{1.8em}}
+  {\hspace*{-1.8em}}
   {\hfill\contentspage}
 
-\titlecontents{section}[3.8em]
-  {\normalfont}
-  {\contentslabel{2.3em}}
-  {\hspace*{-2.3em}}
+\titlecontents{section}[4.2em]
+  {\normalfont\color{OsdagMuted}}
+  {\contentslabel{2.4em}}
+  {\hspace*{-2.4em}}
   {\hfill\contentspage}
 
-\titlecontents{subsection}[7.0em]
-  {\normalfont}
-  {\contentslabel{3.2em}}
-  {\hspace*{-3.2em}}
+\titlecontents{subsection}[7.2em]
+  {\normalfont\footnotesize\color{OsdagMuted}}
+  {\contentslabel{3.0em}}
+  {\hspace*{-3.0em}}
   {\hfill\contentspage}
 
 \newpage
-\renewcommand{\contentsname}{\centering\Large\bfseries Table of Contents}
+\renewcommand{\contentsname}{\centering\LARGE\bfseries\color{OsdagPrimary} Table of Contents}
 \tableofcontents
 """
 
@@ -399,6 +485,7 @@ class ReportMetadata:
     logo_path: Optional[str] = None
     report_date: str = ''
     reviewer: str = ''
+    report_version: str = 'Rev 1.0'
 
 @dataclass
 class ReportOptions:
@@ -440,7 +527,7 @@ class ReportPayload:
     figures:          ReportFigures
     log_entries:      List[str] = field(default_factory=list)
     output_dict:      dict = field(default_factory=dict)
-    figure_data:      dict = field(default_factory=dict)  # {attr: bytes} — cleared after writing to tmpdir
+    figure_data:      dict = field(default_factory=dict)  # {attr: bytes} - cleared after writing to tmpdir
 
 
 @dataclass
@@ -578,7 +665,7 @@ class ReportDataBridge:
         return f"{float(val):.3f}" if val is not None else ""
 
     def get_cb_slenderness(self, pair: str, member: str) -> str:
-        """KL/r — same for tension and compression (geometry-based)."""
+        """KL/r - same for tension and compression (geometry-based)."""
         # Prefer compression result (slenderness is more meaningful there)
         for ft in ("compression", "tension"):
             val = self._cb_osdag(pair, member, ft).get("slenderness")
@@ -593,8 +680,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return r"\textbf{\color{OsdagPass}{PASS}}"
+                return r"\textbf{\color{OsdagFail}{FAIL}}"
         except (TypeError, ValueError):
             pass
         return ""
@@ -630,6 +717,157 @@ class ReportDataBridge:
         """Diagonal angle in degrees."""
         try:
             return f"{self.get_cb_geometry().get('alpha_deg', 0):.2f}"
+        except Exception:
+            return ""
+
+    # =====================================================================
+    # CHAPTER 5: END DIAPHRAGM
+    # =====================================================================
+
+    def _ed_forces_dict(self) -> dict:
+        """Internal: return end_diaphragm_forces_dict from output_dict."""
+        return self.output_dict.get("end_diaphragm_forces_dict", {})
+
+    def _ed_pair_designs(self) -> dict:
+        """Internal: return end_diaphragm_design_results from output_dict."""
+        return self.output_dict.get("end_diaphragm_design_results", {})
+
+    def _ed_osdag(self, pair: str, member: str, force_type: str) -> dict:
+        from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+        try:
+            raw = self._ed_pair_designs()[pair][member][force_type]
+            return _extract_osdag_summary(raw or {})
+        except (KeyError, TypeError):
+            return {}
+
+    def get_ed_pairs(self) -> list:
+        try:
+            pairs = list(self._ed_forces_dict().get("pairs", {}).keys())
+            if pairs:
+                return sorted(pairs)
+        except Exception:
+            pass
+        return self.get_cb_pairs()
+
+    def get_ed_geometry(self) -> dict:
+        return self._ed_forces_dict().get("geometry", {})
+
+    def get_ed_brace_type(self) -> str:
+        try:
+            return self._ed_forces_dict().get("brace_type", "X")
+        except Exception:
+            return "X"
+
+    def get_ed_force(self, pair: str, member: str, force_type: str) -> str:
+        try:
+            pairs = self._ed_forces_dict()["pairs"][pair]
+            key = f"diag_{force_type}_kN" if member == "diagonal" else f"chord_{force_type}_kN"
+            val = pairs.get(key)
+            if val is not None:
+                return f"{val:.3f}"
+        except (KeyError, TypeError):
+            pass
+        return ""
+
+    def get_ed_nature(self, pair: str, member: str) -> str:
+        try:
+            pairs = self._ed_forces_dict()["pairs"][pair]
+            t_key = "diag_tension_kN" if member == "diagonal" else "chord_tension_kN"
+            c_key = "diag_compression_kN" if member == "diagonal" else "chord_compression_kN"
+            has_t = pairs.get(t_key) is not None
+            has_c = pairs.get(c_key) is not None
+            if has_t and has_c:
+                return "T / C"
+            if has_t:
+                return "T"
+            if has_c:
+                return "C"
+        except (KeyError, TypeError):
+            pass
+        return ""
+
+    def get_ed_governing_force(self, pair: str, member: str) -> tuple:
+        try:
+            pairs = self._ed_forces_dict()["pairs"][pair]
+            t_key = "diag_tension_kN" if member == "diagonal" else "chord_tension_kN"
+            c_key = "diag_compression_kN" if member == "diagonal" else "chord_compression_kN"
+            t_val = pairs.get(t_key)
+            c_val = pairs.get(c_key)
+            if t_val is not None and c_val is not None:
+                if abs(c_val) >= abs(t_val):
+                    return (f"{c_val:.3f}", "compression")
+                return (f"{t_val:.3f}", "tension")
+            if c_val is not None:
+                return (f"{c_val:.3f}", "compression")
+            if t_val is not None:
+                return (f"{t_val:.3f}", "tension")
+        except (KeyError, TypeError):
+            pass
+        return ("", "compression")
+
+    def get_ed_section(self, pair: str, member: str, force_type: str) -> str:
+        val = self._ed_osdag(pair, member, force_type).get("section")
+        if not val:
+            pair_id = pair.replace("-", "")
+            val = self.output_dict.get(f"member_properties.end_diaphragm_details.{pair_id}.bracing_section_designation")
+        return _tex(val) if val else ""
+
+    def get_ed_capacity(self, pair: str, member: str, force_type: str) -> str:
+        val = self._ed_osdag(pair, member, force_type).get("capacity_kN")
+        return f"{float(val):.3f}" if val is not None else ""
+
+    def get_ed_efficiency(self, pair: str, member: str, force_type: str) -> str:
+        val = self._ed_osdag(pair, member, force_type).get("efficiency")
+        return f"{float(val):.3f}" if val is not None else ""
+
+    def get_ed_slenderness(self, pair: str, member: str) -> str:
+        for ft in ("compression", "tension"):
+            val = self._ed_osdag(pair, member, ft).get("slenderness")
+            if val is not None:
+                return f"{float(val):.1f}"
+        return ""
+
+    def get_ed_status(self, pair: str, member: str, force_type: str) -> str:
+        try:
+            val = self._ed_osdag(pair, member, force_type).get("efficiency")
+            if val is not None:
+                ur = float(val)
+                if ur <= 1.0:
+                    return r"\textbf{\color{OsdagPass}{PASS}}"
+                return r"\textbf{\color{OsdagFail}{FAIL}}"
+        except (TypeError, ValueError):
+            pass
+        return ""
+
+    def get_ed_gov_lc(self, pair: str, member: str, force_type: str) -> str:
+        try:
+            pfx = "diag" if member == "diagonal" else "chord"
+            key = f"{pfx}_{force_type}_gov_lc"
+            val = self._ed_forces_dict()["pairs"][pair].get(key)
+            return _tex(val) if val else ""
+        except (KeyError, TypeError):
+            return ""
+
+    def get_ed_connection(self, pair: str, member: str, force_type: str) -> str:
+        val = self._ed_osdag(pair, member, force_type).get("connection")
+        return str(val) if val else ""
+
+    def get_ed_effective_length(self, member: str) -> str:
+        try:
+            geom = self.get_ed_geometry()
+            if member == "diagonal":
+                L_m = geom.get("diagonal_length_m", 0)
+            else:
+                L_m = geom.get("horiz_proj_m", 0)
+            if L_m:
+                return f"{L_m * 1000:.0f}"
+        except (TypeError, ValueError):
+            pass
+        return ""
+
+    def get_ed_alpha_deg(self) -> str:
+        try:
+            return f"{self.get_ed_geometry().get('alpha_deg', 0):.2f}"
         except Exception:
             return ""
 
@@ -701,47 +939,74 @@ def build_report_payload(request, input_dict, output_dict):
             additional_comments = request.metadata.additional_comments,
             logo_path     = lp,
             report_date   = rd,
-            reviewer      = getattr(request.metadata, 'reviewer', ''))
+            reviewer      = getattr(request.metadata, 'reviewer', ''),
+            report_version = getattr(request.metadata, 'report_version', 'Rev 1.0'))
 
-        # Inject detailed project location and weather data into input_dict dict
+        # Inject detailed project location and weather data into input_dict
         try:
             import ast
-            if isinstance(raw_pl, str) and '{' in raw_pl:
-                pl_dict = ast.literal_eval(raw_pl)
-            elif isinstance(raw_pl, dict):
-                pl_dict = raw_pl
+            pl_source = input_dict.get('project.location')
+            if not pl_source:
+                pl_source = raw_pl
+
+            if isinstance(pl_source, str) and '{' in pl_source:
+                pl_dict = ast.literal_eval(pl_source)
+            elif isinstance(pl_source, dict):
+                pl_dict = pl_source
             else:
                 pl_dict = {}
-                
+
             if pl_dict and isinstance(pl_dict, dict):
-                data = pl_dict.get('data', {})
+                data = pl_dict.get('data', {}) or pl_dict.get('location_data', {})
                 weather = pl_dict.get('weather_data', {})
-                
-                # We prioritize manual inputs if they exist, else we use the DB/map coordinates
+
                 lat_val = data.get('latitude') or weather.get('latitude')
                 lon_val = data.get('longitude') or weather.get('longitude')
-                
-                if 'latitude' not in input_dict and lat_val:
-                    input_dict['latitude'] = lat_val
-                if 'longitude' not in input_dict and lon_val:
-                    input_dict['longitude'] = lon_val
-                    
-                if 'seismic_zone' not in input_dict and weather.get('zone'):
-                    input_dict['seismic_zone'] = weather.get('zone')
-                if 'wind_speed' not in input_dict and weather.get('wind_speed'):
-                    input_dict['wind_speed'] = weather.get('wind_speed')
-                if 'shade_temp_max' not in input_dict and weather.get('max_temp'):
-                    input_dict['shade_temp_max'] = weather.get('max_temp')
-                if 'shade_temp_min' not in input_dict and weather.get('min_temp'):
-                    input_dict['shade_temp_min'] = weather.get('min_temp')
+
+                if (not input_dict.get('latitude')) and lat_val is not None:
+                    input_dict['latitude'] = str(lat_val)
+                if (not input_dict.get('longitude')) and lon_val is not None:
+                    input_dict['longitude'] = str(lon_val)
+
+                if (not input_dict.get('seismic_zone')) and weather.get('zone'):
+                    input_dict['seismic_zone'] = str(weather.get('zone'))
+                if (not input_dict.get('wind_speed')) and weather.get('wind_speed'):
+                    input_dict['wind_speed'] = str(weather.get('wind_speed'))
+                if (not input_dict.get('shade_temp_max')) and weather.get('max_temp'):
+                    input_dict['shade_temp_max'] = str(weather.get('max_temp'))
+                if (not input_dict.get('shade_temp_min')) and weather.get('min_temp'):
+                    input_dict['shade_temp_min'] = str(weather.get('min_temp'))
         except Exception as e:
             logger.warning(f"Failed to parse project location data: {e}")
+
+        # Ensure traffic lanes count is populated (IRC 5 Cl. 104.3.1)
+        if not input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT):
+            cw = input_dict.get(KEY_CARRIAGEWAY_WIDTH)
+            if cw:
+                try:
+                    cw_f = float(cw)
+                    if cw_f < 5.3:
+                        lanes = 1
+                    elif cw_f <= 9.6:
+                        lanes = 2
+                    elif cw_f <= 13.1:
+                        lanes = 3
+                    else:
+                        lanes = max(1, int(cw_f // 3.5))
+                    input_dict[KEY_WC_LD_LANE_TABLE_COUNT] = str(lanes)
+                except (ValueError, TypeError):
+                    input_dict[KEY_WC_LD_LANE_TABLE_COUNT] = "2"
+            else:
+                input_dict[KEY_WC_LD_LANE_TABLE_COUNT] = "2"
 
         # ── Table 3.6 rows 3 & 4: effective bridge temp range and rise/fall ────
         # The computed keys live in output_dict (which is a snapshot of input_dict
         # at design time). Merge them into input_dict if not already present.
         for _tkey in (KEY_TL_BRIDGE_TEMP_MIN, KEY_TL_BRIDGE_TEMP_MAX,
-                      KEY_TL_TEMP_RISE, KEY_TL_TEMP_FALL):
+                      KEY_TL_TEMP_RISE, KEY_TL_TEMP_FALL,
+                      KEY_WL_HOURLY_MEAN_WIND, KEY_WL_HOURLY_WIND_PRESSURE,
+                      KEY_WL_TRANSVERSE_WIND_FORCE, KEY_WL_LONGITUDINAL_WIND_FORCE,
+                      KEY_WL_VERTICAL_WIND_FORCE):
             if not input_dict.get(_tkey) and output_dict.get(_tkey):
                 input_dict[_tkey] = output_dict[_tkey]
 
@@ -874,7 +1139,7 @@ def generate_report(payload, request):
                     with open(p, 'wb') as fh:
                         fh.write(img_bytes)
                     fig_paths[attr] = p.replace('\\', '/')
-            payload.figure_data.clear()  # bytes no longer needed — free RAM now
+            payload.figure_data.clear()  # bytes no longer needed - free RAM now
 
             # ── Write title-page logos into tmp_dir/assets (auto-deleted) ──
             # Nothing is left next to the PDF. Latex paths are relative to tmp_dir.
@@ -898,6 +1163,70 @@ def generate_report(payload, request):
             # Compute and inject quantities for Chapter 7
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
+
+            # Generate Section 5.5 UR Summary Chart
+            _pg = (payload.output_dict.get("design_results", {}) or {}).get("per_girder", {}) or {}
+            girder_max_ur = None
+            for _g, _gd in _pg.items():
+                if str(_g).startswith("EB"):
+                    continue
+                for _chk in (_gd.get("checks") or []):
+                    try:
+                        _d = float(_chk.get("dcr"))
+                        if girder_max_ur is None or _d > girder_max_ur:
+                            girder_max_ur = _d
+                    except (TypeError, ValueError):
+                        pass
+
+            _dd = payload.output_dict.get("deck_design_results", {}) or {}
+            deck_urs = []
+            for _k, _v in _dd.items():
+                if str(_k).startswith("ur_"):
+                    try:
+                        deck_urs.append(float(_v))
+                    except (TypeError, ValueError):
+                        pass
+            deck_max_ur = max(deck_urs) if deck_urs else None
+
+            _cb = payload.output_dict.get("crossbracing_design_results", {}) or {}
+            cb_max_ur = _max_member_efficiency(_cb)
+
+            _ed = payload.output_dict.get("end_diaphragm_design_results", {}) or {}
+            ed_max_ur = _max_member_efficiency(_ed)
+
+            ur_chart_items = [
+                ("Steel Plate Girders", girder_max_ur),
+                ("Concrete Deck Slab", deck_max_ur),
+                ("Cross Bracing", cb_max_ur),
+                ("End Diaphragms", ed_max_ur),
+            ]
+            try:
+                generate_ur_chart(ur_chart_items, os.path.join(tmp_assets, "overall_ur_summary.png"))
+            except Exception as e:
+                logger.warning("Failed to generate overall UR summary chart: %s", e)
+
+            # Generate Chapter 7 Material Take-off Charts
+            def _num(v):
+                try:
+                    return float(str(v).replace(",", ""))
+                except (ValueError, TypeError):
+                    return 0.0
+
+            steel_by_comp = {
+                "Girders": _num(quantities.get("steel_girders_wt_total")),
+                "Cross Bracing": (
+                    _num(quantities.get("bracing_top_wt_total"))
+                    + _num(quantities.get("bracing_bot_wt_total"))
+                    + _num(quantities.get("bracing_diag_wt_total"))
+                ),
+                "Shear Studs": _num(quantities.get("shear_studs_wt_total")),
+            }
+            concrete_vol = _num(quantities.get("concrete_deck_vol_total"))
+            rebar_wt = _num(quantities.get("rebar_deck_wt_total"))
+            try:
+                generate_material_takeoff_charts(steel_by_comp, concrete_vol, rebar_wt, tmp_assets)
+            except Exception as e:
+                logger.warning("Failed to generate material take-off charts: %s", e)
 
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
@@ -953,8 +1282,8 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            # Compile twice for TOC and references
-            for _ in range(2):
+            # Compile three times for TOC, references, and longtable chunk convergence
+            for _ in range(3):
                 try:
                     kwargs = {
                         'cwd': tmp_dir,
@@ -977,6 +1306,13 @@ def generate_report(payload, request):
                 shutil.copy2(tmp_tex, tex_path)
             if os.path.exists(tmp_pdf):
                 shutil.copy2(tmp_pdf, pdf_path)
+
+            assets_src = os.path.join(tmp_dir, "assets")
+            assets_dst = os.path.join(request.output_dir, "assets")
+            if os.path.exists(assets_src):
+                if os.path.exists(assets_dst):
+                    shutil.rmtree(assets_dst)
+                shutil.copytree(assets_src, assets_dst)
 
         if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)

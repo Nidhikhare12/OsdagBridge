@@ -25,7 +25,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         try:
             return f"{float(val):.{nd}f}"
         except (TypeError, ValueError):
-            return r"---"
+            return "-"
 
     def _merged_row(lc, bm_d, rxn_d):
         bm_d  = bm_d  or {}
@@ -33,10 +33,10 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         return (
             _tex(lc)                              + r" & "
             + _fmt(bm_d.get('max_bm'))           + r" & "
-            + _tex(bm_d.get('bm_girder', '---')) + r" & "
+            + _tex(bm_d.get('bm_girder', '-'))   + r" & "
             + _fmt(bm_d.get('bm_location'))      + r" & "
             + _fmt(bm_d.get('max_sf'))           + r" & "
-            + _tex(bm_d.get('sf_girder', '---')) + r" & "
+            + _tex(bm_d.get('sf_girder', '-'))   + r" & "
             + _fmt(bm_d.get('sf_location'))      + r" & "
             + _fmt(rxn_d.get('left_kN'))         + r" & "
             + _fmt(rxn_d.get('right_kN'))        + r" \\[6pt]"
@@ -47,13 +47,20 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     merged_body = ("\n\\hline\n").join(
         _merged_row(lc, lc_summary.get(lc), rxn_summary.get(lc))
         for lc in all_lcs
-    ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \\[6pt]"
+    ) if all_lcs else r"- & - & - & - & - & - & - & - & - \\[6pt]"
+
+    rxn_rows = []
+    for lc, rd in rxn_summary.items():
+        rxn_rows.append(
+            f"{_tex(lc)} & {_fmt(rd.get('left_kN'))} & {_fmt(rd.get('right_kN'))} \\\\[6pt]"
+        )
+    rxn_content = ("\n\\hline\n").join(rxn_rows) if rxn_rows else r"- & - & - \\[6pt]"
 
     _span_m         = float(bridge.input_dict.get(KEY_SPAN, 0) or 0)
     _allow_live_mm  = _span_m * 1000.0 / 800.0
     _allow_total_mm = _span_m * 1000.0 / 600.0
 
-    # Find governing girder — worst (max) deflection across all girders
+    # Find governing girder - worst (max) deflection across all girders
     try:
         n = int(bridge.input_dict.get(KEY_TS_NO_OF_GIRDERS, 1) or 1)
     except (TypeError, ValueError):
@@ -69,97 +76,130 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         if _t is not None:
             _total_mm = max(_total_mm, float(_t)) if _total_mm is not None else float(_t)
 
-    _live_str        = f"{_live_mm:.3f} mm"  if _live_mm  is not None else "---"
-    _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "---"
+    _live_str        = f"{_live_mm:.3f} mm"  if _live_mm  is not None else "-"
+    _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "-"
     _allow_live_str  = f"L/800 = {_allow_live_mm:.1f} mm"
     _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
-    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
-    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
+    _live_status     = (r"\textbf{\color{OsdagPass}{PASS}}" if _live_mm  <= _allow_live_mm  else r"\textbf{\color{OsdagFail}{FAIL}}") if _live_mm  is not None else "-"
+    _total_status    = (r"\textbf{\color{OsdagPass}{PASS}}" if _total_mm <= _allow_total_mm else r"\textbf{\color{OsdagFail}{FAIL}}") if _total_mm is not None else "-"
     return r"""
 \chapter{Analysis Results}
 
-A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements --- longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
+A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements: longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
 
 \vspace{1em}
 \begingroup
 \footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.25}
+\setlength\LTleft{0pt}
+\setlength\LTright\fill
 
 \begin{longtable}{|
->{\centering\arraybackslash}p{3.1cm}|
->{\centering\arraybackslash}p{1.7cm}|
+>{\centering\arraybackslash}p{2.8cm}|
+>{\centering\arraybackslash}p{1.5cm}|
 >{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.7cm}|
+>{\centering\arraybackslash}p{1.1cm}|
+>{\centering\arraybackslash}p{1.5cm}|
 >{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.6cm}|
->{\centering\arraybackslash}p{1.6cm}|}
+>{\centering\arraybackslash}p{1.1cm}|
+>{\centering\arraybackslash}p{1.7cm}|
+>{\centering\arraybackslash}p{1.7cm}|}
 
-\caption{\textbf{Summary of Maximum Demands}}\\
+\caption{\textbf{Summary of Maximum Demands}}\label{tab:max-demands} \\
 \hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
-& \multicolumn{3}{c|}{\textbf{Bending Moment}}
-& \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
-\cline{2-9}
-
-& \makecell{\textbf{Max}\\\textbf{(kNm)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Max}\\\textbf{(kN)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Left}}
-& \makecell{\textbf{Right }}\\
+\rowcolor{OsdagHeaderBg}
+\multirow{2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Bending Moment}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Shear Force}}
+ & \multicolumn{2}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Reaction at Supports}} \\
+\hhline{|~|---|---|--|}
+\rowcolor{OsdagHeaderBg}
+ & \makecell{\textbf{Max}\\\textbf{(kNm)}}
+ & \textbf{Girder}
+ & \makecell{\textbf{Loc.}\\\textbf{(m)}}
+ & \makecell{\textbf{Max}\\\textbf{(kN)}}
+ & \textbf{Girder}
+ & \makecell{\textbf{Loc.}\\\textbf{(m)}}
+ & \textbf{Left}
+ & \textbf{Right} \\
 \hline
 \endfirsthead
 
+\multicolumn{9}{c}{\small\textit{Summary of Maximum Demands (continued from previous page)}} \\[4pt]
 \hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
-& \multicolumn{3}{c|}{\textbf{Bending Moment}}
-& \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
-\cline{2-9}
-
-& \makecell{\textbf{Max}\\\textbf{(kNm)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Max}\\\textbf{(kN)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Left}}
-& \makecell{\textbf{Right}}\\
+\rowcolor{OsdagHeaderBg}
+\multirow{2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Bending Moment}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Shear Force}}
+ & \multicolumn{2}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Reaction at Supports}} \\
+\hhline{|~|---|---|--|}
+\rowcolor{OsdagHeaderBg}
+ & \makecell{\textbf{Max}\\\textbf{(kNm)}}
+ & \textbf{Girder}
+ & \makecell{\textbf{Loc.}\\\textbf{(m)}}
+ & \makecell{\textbf{Max}\\\textbf{(kN)}}
+ & \textbf{Girder}
+ & \makecell{\textbf{Loc.}\\\textbf{(m)}}
+ & \textbf{Left}
+ & \textbf{Right} \\
 \hline
 \endhead
 
-""" + merged_body + r"""
-
 \hline
+\multicolumn{9}{r}{\small\textit{Continued on next page}} \\
+\endfoot
+\hline
+\endlastfoot
+
+""" + merged_body + r"""
 \end{longtable}
 \endgroup
 
 \vspace{1em}
+\needspace{6\baselineskip}
 \begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
+\caption{\textbf{Reactions at Supports}}\label{tab:reactions-at-supports} \\
 \hline
+\rowcolor{OsdagHeaderBg}
 \textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endfirsthead
+\multicolumn{3}{c}{\small\textit{Reactions at Supports (continued from previous page)}} \\[4pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\rowcolor{OsdagHeaderBg}
+\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endhead
+\hline
+\multicolumn{3}{r}{\small\textit{Continued on next page}} \\
+\endfoot
+\hline
+\endlastfoot
+""" + rxn_content + r""" \\
 \hline
 \end{longtable}
 
 \vspace{1em}
+\needspace{6\baselineskip}
 \begin{longtable}{|L{7cm}|p{8.5cm}|}
-\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
+\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}\label{tab:deflection-summary} \\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{OsdagHeaderBg}
+\textbf{Parameter} & \textbf{Value} \\[6pt]
 \hline
+\endfirsthead
+\multicolumn{2}{c}{\small\textit{Deflection Summary (Live Load \& Total Load) (continued from previous page)}} \\[4pt]
+\hline
+\rowcolor{OsdagHeaderBg}
+\textbf{Parameter} & \textbf{Value} \\[6pt]
+\hline
+\endhead
+\hline
+\multicolumn{2}{r}{\small\textit{Continued on next page}} \\
+\endfoot
+\hline
+\endlastfoot
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]

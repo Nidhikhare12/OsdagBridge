@@ -23,15 +23,15 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                 upper = line.upper()
                 if 'WARNING' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
+                        rf'\textbf{{\color{{OsdagAccent}}{{{escaped}}}}}\\')
                 elif 'ERROR' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
+                        rf'\textbf{{\color{{OsdagFail}}{{{escaped}}}}}\\')
                 elif 'INFO' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
+                        rf'\textcolor{{OsdagPrimary}}{{{escaped}}}\\')
                 else:
-                    continue  # skip lines without a known level — Osdag patter
+                    continue  # skip lines without a known level - Osdag pattern
 
     mode = str(input_dict.get(KEY_DESIGN_MODE, 'Optimized')).strip().lower()
     is_custom = mode in {'custom', 'customized'}
@@ -56,48 +56,57 @@ form the basis of all design calculations in this software.
 \vspace{0.5cm}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{4.5pt}
 \begin{table}[H]
-\caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\caption{\textbf{Indian Roads Congress (IRC) Design Codes}}
+\begin{tabular}{|C{2.6cm}|C{1.8cm}|p{11.8cm}|}
 \hline
+\rowcolor{OsdagHeaderBg}
 \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
 IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
 \hline
+\rowcolor{OsdagZebra}
 IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\ 
 \hline
 IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\ 
 \hline
+\rowcolor{OsdagZebra}
 IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\ 
 \hline
 IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\ 
 \hline
+\rowcolor{OsdagZebra}
 IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
 \hline
 \end{tabular}
 \end{table}
+\endgroup
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{4.5pt}
 \begin{table}[H]
-\caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\caption{\textbf{Bureau of Indian Standards (IS) Design Codes}}
+\begin{tabular}{|C{2.6cm}|C{1.8cm}|p{11.8cm}|}
 \hline
+\rowcolor{OsdagHeaderBg}
 \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
 IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\
 \hline
+\rowcolor{OsdagZebra}
 IS 456 & 2000 & Concrete - simplified stress-block for deck moment capacity \\
 \hline
 IS 1786 & 2008 & Reinforcement steel properties \\
 \hline
+\rowcolor{OsdagZebra}
 IS 1893 (Part 3) & 2014 & Earthquake resistant design \\
 \hline
 IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
 \end{tabular}
 \end{table}
+\endgroup
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}
@@ -140,7 +149,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \item $\gamma_{m0}$ (steel yield, ULS) = 1.10
 \item $\gamma_{m1}$ (steel ultimate, ULS) = 1.25
 \item Reinforcement (ULS) = 1.15
-\item Welds -- shop: 1.25; field: 1.50
+\item Welds: shop: 1.25; field: 1.50
 \item Fatigue ($\gamma_{mft}$) = 1.35
 \end{itemize}
 
@@ -150,7 +159,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \item Dead load densities per IRC 6:2017 Cl.203: structural steel $78.5 \ \text{kN/m}^3$, concrete $25.0 \ \text{kN/m}^3$, bituminous wearing course $24.0 \ \text{kN/m}^3$.
 \item Multi-lane live load reduction factors per IRC 6:2017 Cl.204.4 Table 6A: 1st lane = 1.0, 2nd lane = 0.8, 3rd lane onwards = 0.4.
 \item Impact factor (dynamic load allowance) computed from span per IRC 6:2017 Cl.208.2/208.3.
-\item Wind load applied as transverse, longitudinal, and vertical components per IRC 6:2017 Cl.209.3.3--209.3.5.
+\item Wind load applied as transverse, longitudinal, and vertical components per IRC 6:2017 Cl. 209.3.3 to 209.3.5.
 \end{itemize}
 
 \textbf{Serviceability Limits}
