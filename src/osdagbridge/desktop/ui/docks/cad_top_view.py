@@ -6,9 +6,10 @@ Author: Arushi
 from osdagbridge.core.utils.common import *
 import math
 from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize, Signal
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon
 from .cad_cross_section import CrossSectionCADWidget
+from .cad_label_editing import EditableCADLabelsMixin
 
 # ---- CAD Grey Palette ----
 CAD_DARK_GREY   = QColor(90, 90, 90)
@@ -25,8 +26,11 @@ DIM_STACK_GAP = 28         # vertical gap between stacked dimensions
 LEADER_TEXT_OFFSET = 25    # leader label distance
 
 
-class TopViewCADWidget(QWidget):
+class TopViewCADWidget(EditableCADLabelsMixin, QWidget):
     """Widget for drawing bridge top view"""
+
+    # (cad_param, text typed by the user) - emitted by double-click label editing
+    label_value_committed = Signal(str, str)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -34,6 +38,7 @@ class TopViewCADWidget(QWidget):
         self.show_span_values = False
         self.show_carriageway_values = False
         self.setMouseTracking(True)  # enable mouse tracking for hover
+        self._init_label_editing()
         
         # top view hover tracking 
         self.top_view_hover_zones = []  # list of (QRectF, element_type)
@@ -465,6 +470,7 @@ class TopViewCADWidget(QWidget):
     def mouseMoveEvent(self, event):
         """Handle mouse hover for top view"""
         pos = event.position() if hasattr(event, 'position') else event.pos()
+        self._update_label_hover(pos)
         
         # top view hover logic
         new_hovered = None
@@ -480,6 +486,7 @@ class TopViewCADWidget(QWidget):
     def paintEvent(self, event):
         # clear hover zones at start of each paint
         self.top_view_hover_zones = []
+        self._reset_label_regions()
         
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -518,6 +525,7 @@ class TopViewCADWidget(QWidget):
         painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(bg_color))
         painter.drawRect(bg_rect)
+        self._register_label_rect(painter, bg_rect)
 
         # Draw each text line
         painter.setPen(QPen(text_color, 0.8))
@@ -1280,6 +1288,7 @@ class TopViewCADWidget(QWidget):
             x1_brace = bracing_positions[0] + x_offset_last
             x2_brace = bracing_positions[1] + x_offset_last
             
+            self._tag_label('cross_bracing_spacing')
             self.draw_dimension_arrow_with_extensions_up(
                 painter, x1_brace, dim_y1, x2_brace, dim_y1,
                 label_cb, last_girder_y
@@ -1297,6 +1306,7 @@ class TopViewCADWidget(QWidget):
         if self.show_span_values:
             label_span += f" = {span_m:.1f} m"
         
+        self._tag_label('span_length')
         self.draw_dimension_arrow_with_extensions_up(
             painter, x1_span, dim_y2, x2_span, dim_y2,
             label_span, last_girder_y
@@ -1330,6 +1340,7 @@ class TopViewCADWidget(QWidget):
             if self.show_carriageway_values:
                 label_text += f"\n= {gs_m:.2f} m"
 
+            self._tag_label('girder_spacing')
             self.draw_text_with_background(
                 painter, label_x, label_y,
                 label_text,

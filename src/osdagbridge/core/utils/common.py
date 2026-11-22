@@ -132,6 +132,9 @@ KEY_SECTION_OUTPUT_STEELDESIGN = "section.output.superstructure.steeldesign"
 
 # ── Output field keys ─────────────────────────────────────────────────────────
 KEY_ANALYSIS_MEMBER           = "analysis.member"
+# Option in the analysis Member dropdown that plots all transverse members
+# (end diaphragms + intermediate cross bracings) instead of a girder
+VALUE_ANALYSIS_MEMBER_TRANSVERSE = "Transverse Members"
 KEY_ANALYSIS_LOAD_COMBINATION = "analysis.load_combination"
 KEY_ANALYSIS_FORCES           = "analysis.forces"
 KEY_ANALYSIS_DISPLAY_OPTIONS  = "analysis.display_options"
@@ -1433,6 +1436,21 @@ VALUES_RAILING_TYPE = ["IRC 5 - RCC Railing", "IRC 5 - Steel Railing", "Custom"]
 VALUES_CUSTOM_AXLE_TYPE = ["Single", "Bogie"]
 VALUES_FOOTPATH_PRESSURE_MODE = ["Automatic", "User-defined"]
 VALUES_SUPPORT_TYPE = ["Fixed", "Pinned"]
+
+# ── Additional Inputs dialog: Save validation & unsaved-changes guard ──────────
+# Option text that marks a combo / mode selector as user-defined ("Custom").
+# Every Custom-capable field in ADDITIONAL_INPUTS_SCHEMA is detected by comparing
+# against this key, so no parameter names are hard-coded in the validation loop.
+KEY_ADD_CUSTOM_OPTION = "Custom"
+KEY_ADD_MSG_TITLE_ERROR = "Input Error"
+KEY_ADD_MSG_CUSTOM_EMPTY = "Error: The custom value for '{}' cannot be empty."
+KEY_ADD_MSG_TITLE_UNSAVED = "Unsaved Changes"
+KEY_ADD_MSG_UNSAVED_CHANGES = (
+    "You have unsaved changes. Closing this window will discard them. "
+    "Do you want to proceed?"
+)
+KEY_ADD_BTN_DISCARD = "Discard"
+KEY_ADD_BTN_CANCEL = "Cancel"
 
 #Sail thic
 SAIL_APPROVED_THICKNESS_VALUES=[
