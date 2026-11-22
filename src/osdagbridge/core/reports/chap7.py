@@ -1,4 +1,14 @@
-def ch7_quantities(input_dict):
+from osdagbridge.core.reports.report_utils import _fig_or_placeholder
+
+
+def _f(input_dict, key):
+    try:
+        return float(str(input_dict.get(key, "")).replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+
+
+def ch7_quantities(input_dict, chart_dir=None):
     return r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
@@ -34,5 +44,6 @@ def ch7_quantities(input_dict):
 \hline
 \end{longtable}
 """
+
 
 
