@@ -6,6 +6,9 @@ from osdagbridge.core.utils.common import (
     KEY_SD_DEFL_TOTAL,
 )
 from osdagbridge.core.reports.report_utils import _tex, _fig_embed
+from osdagbridge.core.reports.latex.tables import ReportTable, KeyValueTable
+from osdagbridge.core.reports.latex.text import status_fail, vspace
+from osdagbridge.core.reports.theme import get_active_theme
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -27,27 +30,22 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         except (TypeError, ValueError):
             return r"---"
 
-    def _merged_row(lc, bm_d, rxn_d):
+    def _merged_cells(lc, bm_d, rxn_d):
         bm_d  = bm_d  or {}
         rxn_d = rxn_d or {}
-        return (
-            _tex(lc)                              + r" & "
-            + _fmt(bm_d.get('max_bm'))           + r" & "
-            + _tex(bm_d.get('bm_girder', '---')) + r" & "
-            + _fmt(bm_d.get('bm_location'))      + r" & "
-            + _fmt(bm_d.get('max_sf'))           + r" & "
-            + _tex(bm_d.get('sf_girder', '---')) + r" & "
-            + _fmt(bm_d.get('sf_location'))      + r" & "
-            + _fmt(rxn_d.get('left_kN'))         + r" & "
-            + _fmt(rxn_d.get('right_kN'))        + r" \\[6pt]"
-        )
+        return [
+            _tex(lc),
+            _fmt(bm_d.get('max_bm')),
+            _tex(bm_d.get('bm_girder', '---')),
+            _fmt(bm_d.get('bm_location')),
+            _fmt(bm_d.get('max_sf')),
+            _tex(bm_d.get('sf_girder', '---')),
+            _fmt(bm_d.get('sf_location')),
+            _fmt(rxn_d.get('left_kN')),
+            _fmt(rxn_d.get('right_kN')),
+        ]
 
     all_lcs = list(lc_summary.keys()) + [k for k in rxn_summary if k not in lc_summary]
-
-    merged_body = ("\n\\hline\n").join(
-        _merged_row(lc, lc_summary.get(lc), rxn_summary.get(lc))
-        for lc in all_lcs
-    ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \\[6pt]"
 
     _span_m         = float(bridge.input_dict.get(KEY_SPAN, 0) or 0)
     _allow_live_mm  = _span_m * 1000.0 / 800.0
@@ -73,56 +71,16 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "---"
     _allow_live_str  = f"L/800 = {_allow_live_mm:.1f} mm"
     _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
-    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
-    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
-    return r"""
-\chapter{Analysis Results}
+    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else status_fail("FAIL")) if _live_mm  is not None else "---"
+    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else status_fail("FAIL")) if _total_mm is not None else "---"
 
-A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements --- longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
-
-\vspace{1em}
-\begingroup
-\footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
-
-\begin{longtable}{|
->{\centering\arraybackslash}p{3.1cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.6cm}|
->{\centering\arraybackslash}p{1.6cm}|}
-
-\caption{\textbf{Summary of Maximum Demands}}\\
-\hline
+    theme = get_active_theme()
+    header_tex = r"""\hline
 \multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
 & \multicolumn{3}{c|}{\textbf{Bending Moment}}
 & \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
+& \multicolumn{2}{c|}{\makecell{\textbf{Reaction at}\\\textbf{Supports}}}\\
 \cline{2-9}
-
-& \makecell{\textbf{Max}\\\textbf{(kNm)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Max}\\\textbf{(kN)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Left}}
-& \makecell{\textbf{Right }}\\
-\hline
-\endfirsthead
-
-\hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
-& \multicolumn{3}{c|}{\textbf{Bending Moment}}
-& \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
-\cline{2-9}
-
 & \makecell{\textbf{Max}\\\textbf{(kNm)}}
 & \textbf{Girder}
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
@@ -131,53 +89,61 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
 & \makecell{\textbf{Left}}
 & \makecell{\textbf{Right}}\\
-\hline
-\endhead
+\hline"""
 
-""" + merged_body + r"""
+    demands_table = ReportTable(
+        preset=theme.columns.DEMAND_9COL,
+        caption=r"\textbf{Summary of Maximum Demands}",
+        header_tex=header_tex,
+    )
+    if all_lcs:
+        for lc in all_lcs:
+            demands_table.add_row(_merged_cells(lc, lc_summary.get(lc), rxn_summary.get(lc)))
+    else:
+        demands_table.add_row(["---"] * 9)
 
-\hline
-\end{longtable}
-\endgroup
+    rxn_table = ReportTable(
+        columns=theme.columns.CH4_RXN_3COL,
+        caption=r"\textbf{Reactions at Supports}",
+        header_rows=[["Load Case", "Left Support (kN)", "Right Support (kN)"]],
+    )
+    rxn_table.add_row(["", "", ""])
+    rxn_table.add_row(["", "", ""])
+    rxn_table.add_row(["", "", ""])
 
-\vspace{1em}
-\begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
-\hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
-\end{longtable}
+    defl_table = KeyValueTable(
+        caption=r"\textbf{Deflection Summary (Live Load \& Total Load)}",
+        preset=theme.columns.CH4_DEFL_KEY_VALUE,
+        headers=("Parameter", "Value"),
+        rows=[
+            (r"\textnormal{Deflection due to Live Load, $\delta_{LL}$}", _live_str),
+            (r"\textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)}", _allow_live_str),
+            (r"\textnormal{Live Load Deflection Check Status}", _live_status),
+            (r"\textnormal{Deflection due to Total Load, $\delta_{total}$}", _total_str),
+            (r"\textnormal{Allowable Total Deflection ($\Delta_{allow}$)}", _allow_total_str),
+            (r"\textnormal{Total Load Deflection Check Status}", _total_status),
+        ],
+    )
 
-\vspace{1em}
-\begin{longtable}{|L{7cm}|p{8.5cm}|}
-\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
-\textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
-\hline
-\textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]
-\hline
-\textnormal{Live Load Deflection Check Status} & """ + _live_status + r""" \\[6pt]
-\hline
-\textnormal{Deflection due to Total Load, $\delta_{total}$} & """ + _total_str + r""" \\[6pt]
-\hline
-\textnormal{Allowable Total Deflection ($\Delta_{allow}$)} & """ + _allow_total_str + r""" \\[6pt]
-\hline
-\textnormal{Total Load Deflection Check Status} & """ + _total_status + r""" \\[6pt]
-\hline
-\end{longtable}
+    sp = vspace(theme.spacing.space_md)
+    return rf"""
+\chapter{{Analysis Results}}
 
-\vspace{1em}
+A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements --- longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
+
+{sp}
+{demands_table.dumps()}
+
+{sp}
+{rxn_table.dumps()}
+
+{sp}
+{defl_table.dumps()}
+
+{sp}
 \noindent
-""" + _fig_embed(fig_paths.get('bm_envelope'), 'Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).', width=r'0.75\textwidth') + r"""
-""" + _fig_embed(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=r'0.75\textwidth') + r"""
-""" + _fig_embed(fig_paths.get('defl_ll'), 'Vertical Deflection D$_y$ (1.0 LL): Maximum deflection along span. Load Case: 1.0 LL, Combination: $D_y$. Nodes shown. Isometric view.', width=r'0.75\textwidth') + r"""
+{_fig_embed(fig_paths.get('bm_envelope'), 'Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).', width=r'0.75\textwidth')}
+{_fig_embed(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=r'0.75\textwidth')}
+{_fig_embed(fig_paths.get('defl_ll'), 'Vertical Deflection D$_y$ (1.0 LL): Maximum deflection along span. Load Case: 1.0 LL, Combination: $D_y$. Nodes shown. Isometric view.', width=r'0.75\textwidth')}
 """
 

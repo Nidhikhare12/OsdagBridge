@@ -1,38 +1,38 @@
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.latex.tables import SimpleTable
+from osdagbridge.core.reports.theme import get_active_theme
 
 
 def ch1_project_info(m):
-    return r"""
-\chapter{Project Information}
+    theme = get_active_theme()
+    tbl = SimpleTable(
+        col_spec=theme.columns.CH1_KEY_VALUE,
+        rows=[
+            [r"\textbf{Project Name}", _tex(m.project_name)],
+            [r"\textbf{Project Location}", _tex(m.project_location)],
+            [r"\textbf{Designer}", _tex(m.designer)],
+            [r"\textbf{Reviewer}", _tex(m.reviewer)],
+            [r"\textbf{Organization}", _tex(m.company)],
+            [r"\textbf{Client}", _tex(m.client)],
+            [r"\textbf{Software Version}", "OsdagBridge"],
+        ],
+    )
+
+    return rf"""
+\chapter{{Project Information}}
 
 This section records all project metadata as entered by the designer.
 
-\section{Project and Design Team Details}
-\label{sec:project-details}
+\section{{Project and Design Team Details}}
+\label{{sec:project-details}}
 
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
-\hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
-\hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
-\hline
-\textbf{Designer} & """ + _tex(m.designer) + r""" \\
-\hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
-\hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
-\hline
-\textbf{Client} & """ + _tex(m.client) + r""" \\
-\hline
-\textbf{Software Version} & OsdagBridge \\
-\hline
-\end{tabular}
+{tbl.dumps()}
 
 
-\section{Applicable Codes and Standards}
-\label{sec:codes}
+\section{{Applicable Codes and Standards}}
+\label{{sec:codes}}
 
-\begin{itemize}
+\begin{{itemize}}
 \item Indian Roads Congress (IRC) 5: General Features of Design
 \item Indian Roads Congress (IRC) 6: Loads and Load Combinations
 \item Indian Roads Congress (IRC) 22: Composite Construction (Limit State Design)
@@ -42,7 +42,5 @@ This section records all project metadata as entered by the designer.
 \item Indian Standard (IS) 800: General Construction in Steel
 \item Indian Standard (IS) 2062: Hot Rolled Structural Steel Specification
 \item Indian Standard (IS) 6006: Steel Bearings
-\end{itemize}
+\end{{itemize}}
 """
-
-

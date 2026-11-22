@@ -1,18 +1,22 @@
+from __future__ import annotations
+
 import os
 import re
 import datetime
+import tempfile
+from typing import Dict, List, Optional
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit,
     QPushButton, QTextEdit, QTreeWidget, QTreeWidgetItem,
-    QStackedWidget, QWidget, QFileDialog, QLabel, QMessageBox,
-    QGroupBox, QGridLayout,
+    QStackedWidget, QWidget, QFileDialog, QLabel,
+    QGroupBox, QComboBox, QCheckBox, QSizeGrip,
 )
 from PySide6.QtCore import Qt
 from osdagbridge.core.reports.report_generator import (
     ReportMetadata, ReportOptions, ReportRequest
 )
-
-
+from osdagbridge.core.reports.themes import list_themes
 from osdagbridge.desktop.ui.utils.custom_titlebar import CustomTitleBar
 from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
 from osdagbridge.desktop.ui.utils.custom_cursors import pointing_hand_cursor
@@ -28,7 +32,7 @@ class ReportOptionsDialog(QDialog):
     _OSDAG_GREEN_DARK = "#64850c"
 
     def __init__(self, parent=None):
-        super().__init__(None)
+        super().__init__(parent)
         self._main_window = parent
         self.setObjectName("report_options_dialog")
         self.resize(520, 650)
@@ -65,6 +69,7 @@ class ReportOptionsDialog(QDialog):
             QDialog#report_options_dialog {{
                 background-color: #ffffff;
                 border: 1px solid {cls._OSDAG_GREEN};
+                font-family: 'Segoe UI', Arial, sans-serif;
             }}
 
             /* Labels */
@@ -148,7 +153,6 @@ class ReportOptionsDialog(QDialog):
         self.content_widget.setObjectName("contentWidget")
         main_layout.addWidget(self.content_widget, 1)
 
-        from PySide6.QtWidgets import QSizeGrip
         self.size_grip = QSizeGrip(self)
         self.size_grip.setFixedSize(16, 16)
 
@@ -299,6 +303,7 @@ class ReportOptionsDialog(QDialog):
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
         self.tree.setRootIsDecorated(False)
+        self.tree.setMinimumHeight(180)
         layout.addWidget(self.tree)
 
         for label, key, locked in self._REPORT_CHAPTERS:
@@ -312,6 +317,32 @@ class ReportOptionsDialog(QDialog):
                 item.setDisabled(True)
 
         self.tree.expandAll()
+
+        # ── Theme & Visualizations Options ───────────────────────────
+        opt_group = QGroupBox("Theme && Visualization Options")
+        opt_layout = QVBoxLayout()
+        opt_layout.setContentsMargins(10, 10, 10, 10)
+        opt_layout.setSpacing(8)
+
+        theme_layout = QHBoxLayout()
+        theme_lbl = QLabel("Report Theme:")
+        self.theme_combo = QComboBox()
+        for t_name in list_themes():
+            self.theme_combo.addItem(t_name)
+        theme_layout.addWidget(theme_lbl)
+        theme_layout.addWidget(self.theme_combo, 1)
+        opt_layout.addLayout(theme_layout)
+
+        self.chk_utilization = QCheckBox("Include Utilization Ratio (UR) Charts (Section 5.5)")
+        self.chk_utilization.setChecked(True)
+        opt_layout.addWidget(self.chk_utilization)
+
+        self.chk_quantities = QCheckBox("Include Material Quantities Breakdown Charts (Chapter 7)")
+        self.chk_quantities.setChecked(True)
+        opt_layout.addWidget(self.chk_quantities)
+
+        opt_group.setLayout(opt_layout)
+        layout.addWidget(opt_group)
 
         btn_layout = QHBoxLayout()
         preview_btn = QPushButton("Preview PDF")
@@ -459,7 +490,7 @@ class ReportOptionsDialog(QDialog):
             ).exec()
             return
 
-        parsed: dict[str, str] = {}
+        parsed: Dict[str, str] = {}
         for match in self._PROFILE_RE.finditer(content):
             parsed[match.group("key")] = match.group("value")
 
@@ -527,12 +558,18 @@ class ReportOptionsDialog(QDialog):
 
         checked_sections = self.get_checked_leaf_sections()
         include_figures = "drawings" in checked_sections
+        theme_name = self.theme_combo.currentText() if hasattr(self, "theme_combo") else "osdag_classic"
+        include_ur = self.chk_utilization.isChecked() if hasattr(self, "chk_utilization") else True
+        include_qty = self.chk_quantities.isChecked() if hasattr(self, "chk_quantities") else True
 
         options = ReportOptions(
             sections=checked_sections,
             include_figures=include_figures,
             include_toc=True,
-            include_pdf=True
+            include_pdf=True,
+            theme=theme_name,
+            include_utilization_charts=include_ur,
+            include_quantity_charts=include_qty,
         )
 
         return ReportRequest(
@@ -543,7 +580,6 @@ class ReportOptionsDialog(QDialog):
         )
 
     def preview_pdf(self):
-        import tempfile
         tmp_dir = tempfile.mkdtemp(prefix="osdag_preview_")
         path = os.path.join(tmp_dir, "preview_report.pdf")
         self.request = self.build_request(path)

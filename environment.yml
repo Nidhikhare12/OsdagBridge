@@ -18,6 +18,7 @@ dependencies:
   - scipy>=1.10.1
   - pydantic
   - xarray
+  - pylatex>=1.4.2
 
   # development install
   - pip

@@ -1,4 +1,9 @@
+from osdagbridge.core.reports.latex.text import vspace
+from osdagbridge.core.reports.theme import get_active_theme
+
+
 def ch6_drawings(fig_paths):
+    theme = get_active_theme()
     """Chapter 6 – Drawings and Visualizations.
 
     Layout: section heading → figure → small numbered label below.
@@ -28,7 +33,7 @@ def ch6_drawings(fig_paths):
             p = path.replace('\\', '/')
             return (r'\begin{figure}[H]' + '\n'
                     r'\centering' + '\n'
-                    r'\vspace{4pt}' + '\n'
+                    + vspace(theme.spacing.space_xs) + '\n'
                     r'\includegraphics[width=0.85\textwidth]{' + p + '}\n'
                     r'\caption{' + title + '}\n'
                     + label_tex

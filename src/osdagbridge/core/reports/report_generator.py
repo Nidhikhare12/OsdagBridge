@@ -119,6 +119,8 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.latex.text import status_fail
+from osdagbridge.core.reports.latex.document import build_preamble, title_page as doc_title_page, toc_section as doc_toc_section
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -148,232 +150,18 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def preamble(project_name, job_number, report_date, report_version='Rev 0'):
-    pn = _tex(project_name)
-    jn = _tex(job_number)
-    rd = _tex(report_date)
-    rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
+    """Return document preamble via latex.document (Requirement R6)."""
+    return build_preamble(project_name, job_number, report_date, report_version)
 
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{tabularx}
-\usepackage{float}
-\usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
-\usepackage{setspace}
-\usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
-\usepackage{subcaption}
-\usepackage{multirow}
-\usepackage{colortbl}
-\usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
-\usepackage{titlesec}
-\usepackage{titletoc}
-\usepackage{lastpage}
-\usepackage{makecell}
-\usepackage{etoolbox}
-\usepackage{needspace}
-
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
-
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
-
-\fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
-\pagestyle{main}
-\setstretch{1.15}
-
-% Custom Commands
-\newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
-\newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
-
-% Software-default asterisk
-\newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
-
-\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
-\author{}
-\date{}
-
-\begin{document}
-"""
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# TITLE PAGE
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def title_page(m, osdag_logo, org_logo):
-    if osdag_logo:
-        lhs = r'\includegraphics[width=\linewidth,keepaspectratio]{' + osdag_logo.replace('\\', '/') + r'}'
-    else:
-        lhs = r'\textit{(Osdag Logo)}'
+    """Return title page markup via latex.document (Requirement R6)."""
+    return doc_title_page(m, osdag_logo, org_logo)
 
-    if org_logo:
-        rhs = r'\includegraphics[width=\linewidth,height=2.2cm,keepaspectratio]{' + org_logo.replace('\\', '/') + r'}'
-    else:
-        rhs = r''
-
-    logos_tex = r"""\noindent
-\begin{minipage}[c]{0.6\textwidth}
-\raggedright
-""" + lhs + r"""
-\end{minipage}%
-\hfill
-\begin{minipage}[c]{0.35\textwidth}
-\raggedleft
-""" + rhs + r"""
-\end{minipage}
-\\[1cm]
-"""
-
-    return r"""
-\begin{titlepage}
-\thispagestyle{firstpage}
-\centering
-\vspace*{1.5cm}
-""" + logos_tex + r"""
-{\Huge \textbf{OsdagBridge}}\\[0.3cm]
-{\large Open Source Software for Steel Girder Bridge Design}\\[1.5cm]
-{\Large Design Report}\\[1.5cm]
-\begin{tabular}{|L{4cm}|L{10cm}|}
-\hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
-\hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
-\hline
-\textbf{Author / Designer} & """ + _tex(m.designer) + r""" \\
-\hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
-\hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
-\hline
-\textbf{Client Name and Organization} & """ + _tex(m.client) + r""" \\
-\hline
-\textbf{Job Number} & """ + _tex(m.job_number) + r""" \\
-\hline
-\textbf{Date} & """ + _tex(m.report_date) + r""" \\
-\hline
-\textbf{Report Version} & """ + (_tex(m.subtitle) if m.subtitle else '') + r""" \\
-\hline
-\end{tabular}
-\end{titlepage}
-"""
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# TOC
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def toc_section():
-    return r"""
-% Chapter / TOC Formatting
-\titleformat{\chapter}[block]
-  {\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{0pt}{10pt}
-\setcounter{tocdepth}{2}
-
-% TOC styling using titletoc
-\titlecontents{chapter}[1.5em]
-  {\normalfont\vspace{2pt}}
-  {\contentslabel{1.5em}}
-  {\hspace*{-1.5em}}
-  {\hfill\contentspage}
-
-\titlecontents{section}[3.8em]
-  {\normalfont}
-  {\contentslabel{2.3em}}
-  {\hspace*{-2.3em}}
-  {\hfill\contentspage}
-
-\titlecontents{subsection}[7.0em]
-  {\normalfont}
-  {\contentslabel{3.2em}}
-  {\hspace*{-3.2em}}
-  {\hfill\contentspage}
-
-\newpage
-\renewcommand{\contentsname}{\centering\Large\bfseries Table of Contents}
-\tableofcontents
-"""
+    """Return table of contents markup via latex.document (Requirement R6)."""
+    return doc_toc_section()
 
 
 # =============================================================================
@@ -406,6 +194,10 @@ class ReportOptions:
     include_figures: bool
     include_toc: bool
     include_pdf: bool
+    # Added by the report-engine refactor; defaults keep existing callers working.
+    theme: str = "osdag_classic"
+    include_utilization_charts: bool = True
+    include_quantity_charts: bool = True
 
 @dataclass
 class ReportRequest:
@@ -447,6 +239,10 @@ class ReportPayload:
 class ReportResult:
     pdf_path: Optional[str]
     tex_path: Optional[str]
+    log_path: Optional[str] = None
+    passes: int = 0
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
 
 
 class ReportDataBridge:
@@ -458,6 +254,8 @@ class ReportDataBridge:
         self.output_dict = output_dict
         self.input_dict = input_dict
         self.payload = payload
+        self.ur_overall_chart: str | None = None
+        self.ur_girder_chart: str | None = None
 
 
     # =====================================================================
@@ -593,8 +391,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return "PASS"
+                return status_fail("FAIL")
         except (TypeError, ValueError):
             pass
         return ""
@@ -833,10 +631,16 @@ _FIGURE_MAP = [
     ('defl_ll',               'defl_ll.png'),
 ]
 
+class _ChartsDisabled(Exception):
+    """Internal signal: the user switched a chart group off in the report options."""
+
+
 def generate_report(payload, request):
     # type: (ReportPayload, ReportRequest) -> ReportResult
     """Compile the full OsdagBridge Design Report to PDF (+ .tex source)."""
     tex_path = None
+    compile_rep = None
+    log_dest = None
     try:
         # Use OsdagLatexEnv to discover the bundled pdflatex path
         compiler = 'pdflatex'
@@ -846,9 +650,6 @@ def generate_report(payload, request):
             latex_env = getattr(module, 'OsdagLatexEnv')()
             if latex_env.pdflatex:
                 compiler = str(latex_env.pdflatex)
-                # Ensure the bin directory is in PATH so subprocess can find DLLs if needed
-                if latex_env.bin_dir:
-                    os.environ['PATH'] = str(latex_env.bin_dir) + os.pathsep + os.environ.get('PATH', '')
         except Exception as e:
             logger.info("osdag_latex_env not found or failed to load. (%s)", e)
             
@@ -903,12 +704,59 @@ def generate_report(payload, request):
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
+            # Apply the style preset before any builder runs (R6: one source of truth)
+            try:
+                from .theme import set_active_theme
+                set_active_theme(getattr(payload.options, "theme", None) or "osdag_classic")
+            except Exception as exc:
+                logger.warning("Unknown report theme %r, using default: %s", getattr(payload.options, "theme", None), exc)
+
+            _want_ur_charts = payload.options.include_figures and getattr(payload.options, "include_utilization_charts", True)
+            _want_qty_charts = payload.options.include_figures and getattr(payload.options, "include_quantity_charts", True)
+
+            # Generate charts for Chapter 5 (R4)
+            if payload.options.include_figures:
+                try:
+                    if not _want_ur_charts:
+                        raise _ChartsDisabled()
+                    from .data.utilization import collect_utilization
+                    from .charts.utilization_chart import plot_overall_utilization, plot_girder_utilization
+                    ud = collect_utilization(bridge)
+                    ur_overall_file = os.path.join(tmp_assets, 'ur_overall.png')
+                    ur_girder_file = os.path.join(tmp_assets, 'ur_girder.png')
+                    if plot_overall_utilization(ud.records, ur_overall_file):
+                        bridge.ur_overall_chart = 'assets/ur_overall.png'
+                    if plot_girder_utilization(ud.girder_records, ur_girder_file):
+                        bridge.ur_girder_chart = 'assets/ur_girder.png'
+                except _ChartsDisabled:
+                    pass
+                except Exception as exc:
+                    logger.warning("Could not generate utilization charts: %s", exc)
+
+                # Generate charts for Chapter 7 (R5)
+                try:
+                    if not _want_qty_charts:
+                        raise _ChartsDisabled()
+                    from .data.quantities import collect_quantities
+                    from .charts.quantity_charts import plot_steel_quantities, plot_concrete_vs_rebar
+                    qs = collect_quantities(payload.inputs)
+                    steel_chart_file = os.path.join(tmp_assets, 'steel_quantities.png')
+                    conc_chart_file = os.path.join(tmp_assets, 'concrete_vs_rebar.png')
+                    if plot_steel_quantities(qs, steel_chart_file):
+                        payload.inputs['_qty_steel_chart'] = 'assets/steel_quantities.png'
+                    if plot_concrete_vs_rebar(qs, conc_chart_file):
+                        payload.inputs['_qty_concrete_rebar_chart'] = 'assets/concrete_vs_rebar.png'
+                except _ChartsDisabled:
+                    pass
+                except Exception as exc:
+                    logger.warning("Could not generate quantity charts: %s", exc)
+
             doc_parts = []
-            doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
-            doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
+            doc_parts.append(build_preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
+            doc_parts.append(doc_title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
 
             if payload.options.include_toc:
-                doc_parts.append(toc_section())
+                doc_parts.append(doc_toc_section())
 
             # Chapter inclusion is driven by the canonical section keys
             # selected in the report-options dialog (TOC). The first three
@@ -928,15 +776,17 @@ def generate_report(payload, request):
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            if not secs or 'quantities' in secs:
+                doc_parts.append(ch7_quantities(payload.inputs))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
-        
 
-            doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
+            if not secs or 'standards' in secs or 'design_log' in secs or 'design_log_window' in secs:
+                doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
 
-            doc_parts.append(references())
+            if not secs or 'references' in secs:
+                doc_parts.append(references())
             doc_parts.append(r"\end{document}")
 
             full_tex = "\n".join(doc_parts)
@@ -953,25 +803,14 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            # Compile twice for TOC and references
-            for _ in range(2):
-                try:
-                    kwargs = {
-                        'cwd': tmp_dir,
-                        'stdout': subprocess.PIPE,
-                        'stderr': subprocess.PIPE,
-                        'check': False,
-                        'env': os.environ.copy()
-                    }
-                    if os.name == 'nt':
-                        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
-                    res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
-                        **kwargs
-                    )
-                except Exception as exc:
-                    logger.warning(f"pdflatex run failed: {exc}")
+            # Compile with automatic rerun detection (longtable widths, TOC, references)
+            from osdagbridge.core.reports.latex.compile import run_latex
+            compile_rep = run_latex(tmp_tex, max_passes=5)
+
+            tmp_log = os.path.join(tmp_dir, request.file_stem + '.log')
+            log_dest = os.path.join(request.output_dir, request.file_stem + '.log')
+            if os.path.exists(tmp_log):
+                shutil.copy2(tmp_log, log_dest)
 
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)
@@ -979,14 +818,30 @@ def generate_report(payload, request):
                 shutil.copy2(tmp_pdf, pdf_path)
 
         if os.path.exists(pdf_path):
-            logger.info("Report generated: %s", pdf_path)
-            return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
+            logger.info("Report generated: %s (%d LaTeX passes)", pdf_path, compile_rep.passes)
+            for _err in compile_rep.errors[:20]:
+                logger.warning("LaTeX error: %s", _err)
+            return ReportResult(
+                pdf_path=pdf_path,
+                tex_path=tex_path,
+                log_path=log_dest if os.path.exists(log_dest) else None,
+                passes=compile_rep.passes,
+                errors=list(compile_rep.errors),
+                warnings=list(compile_rep.warnings),
+            )
 
         logger.error("pdflatex ran but no PDF was produced.")
-        if 'res' in locals():
-            logger.error("pdflatex STDOUT:\n%s", res.stdout.decode('utf-8', 'ignore'))
-            logger.error("pdflatex STDERR:\n%s", res.stderr.decode('utf-8', 'ignore'))
-        return ReportResult(pdf_path=None, tex_path=tex_path)
+        if compile_rep and compile_rep.errors:
+            for _err in compile_rep.errors[:20]:
+                logger.error("LaTeX error: %s", _err)
+        return ReportResult(
+            pdf_path=None,
+            tex_path=tex_path,
+            log_path=log_dest if (log_dest and os.path.exists(log_dest)) else None,
+            passes=compile_rep.passes if compile_rep else 0,
+            errors=list(compile_rep.errors) if compile_rep else [],
+            warnings=list(compile_rep.warnings) if compile_rep else [],
+        )
 
     except Exception as exc:
         logger.error("generate_report failed: %s", exc, exc_info=True)
