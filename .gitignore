@@ -264,3 +264,6 @@ src/osdag_map_cache/
 temp_plot.html
 *.html
 tools/
+# LaTeX build artifacts for the submission report
+deliverables/*.aux
+deliverables/*.log
