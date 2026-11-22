@@ -6,6 +6,7 @@ Author: Arushi
 from osdagbridge.core.utils.common import *
 import math
 from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
+from osdagbridge.desktop.ui.docks.cad_inline_edit import CadInlineEditMixin
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon
 from .cad_cross_section import CrossSectionCADWidget
@@ -25,11 +26,12 @@ DIM_STACK_GAP = 28         # vertical gap between stacked dimensions
 LEADER_TEXT_OFFSET = 25    # leader label distance
 
 
-class TopViewCADWidget(QWidget):
+class TopViewCADWidget(CadInlineEditMixin, QWidget):
     """Widget for drawing bridge top view"""
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._init_inline_edit()   # Task I: double-click label editing (off until enabled)
         self.show_dimensions = True
         self.show_span_values = False
         self.show_carriageway_values = False
@@ -478,6 +480,7 @@ class TopViewCADWidget(QWidget):
             self.update()
 
     def paintEvent(self, event):
+        self._reset_label_rects()   # Task I: label rects are re-collected every paint
         # clear hover zones at start of each paint
         self.top_view_hover_zones = []
         
@@ -518,6 +521,7 @@ class TopViewCADWidget(QWidget):
         painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(bg_color))
         painter.drawRect(bg_rect)
+        self._register_label(painter, text, bg_rect)   # Task I: remember editable labels
 
         # Draw each text line
         painter.setPen(QPen(text_color, 0.8))
@@ -1293,7 +1297,7 @@ class TopViewCADWidget(QWidget):
         x1_span = last_girder['x1']
         x2_span = last_girder['x2']
         span_m = self.params['span_length'] / 1000
-        label_span = "Span Length"
+        label_span = KEY_DISP_CAD_SPAN_LENGTH
         if self.show_span_values:
             label_span += f" = {span_m:.1f} m"
         
@@ -1326,7 +1330,7 @@ class TopViewCADWidget(QWidget):
             LABEL_OFFSET = 14  # tweak 10–18 if needed
             label_y = (y1 + y2) / 2 + LABEL_OFFSET
 
-            label_text = "Girder\nSpacing"
+            label_text = KEY_DISP_CAD_GIRDER_SPACING.replace(" ", "\n")   # two-line label
             if self.show_carriageway_values:
                 label_text += f"\n= {gs_m:.2f} m"
 

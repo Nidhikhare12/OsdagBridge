@@ -3910,6 +3910,17 @@ class PlateGirderBridge:
         """Return (nodes, members) dicts built from the active openseespy model."""
         return build_nodes_members()
 
+    def get_transverse_member_lines(self, nodes=None, members=None) -> dict:
+        """Task III: {"T1": [elem, ...], ...} transverse lines across the width,
+        identified from the ospgrillage member groups (see results_data)."""
+        from .results_data import get_member_groups, get_transverse_member_lines
+        if nodes is None or members is None:
+            nodes, members = self.get_nodes_members()
+        groups = None
+        if getattr(self.grillage_model, "model", None) is not None:
+            groups = get_member_groups(self.grillage_model.model)
+        return get_transverse_member_lines(nodes, members, groups)
+
     def get_edge_dist(self) -> float:
         """Return the deck overhang distance (0.0 when no overhang)."""
         return self.output_dict.get(KEY_TS_DECK_OVERHANG) or 0.0

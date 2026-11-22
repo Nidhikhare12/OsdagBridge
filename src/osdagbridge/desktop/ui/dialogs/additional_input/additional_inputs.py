@@ -54,6 +54,9 @@ class AdditionalInputs(QDialog):
         # TO tract additional input is opened first time or not.
         # This is required for end connectors
         self.interacted_first = True
+        # Unsaved-changes tracking (Task II): flag + snapshot of last saved values
+        self.is_modified = False
+        self._clean_snapshot = {}
  
         # Store all Compute functions to be called at Design
         self._compute_functions = []
@@ -245,6 +248,8 @@ class AdditionalInputs(QDialog):
             self.interacted_first = False
             from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import END_CONNECTORS
             UIBuilder.wire_end_connectors(END_CONNECTORS, ai=self)
+        # Dialog freshly loaded: nothing modified yet
+        self._mark_clean()
 
     def set_defaults(self) -> None:  # lifecycle: populates all widgets from working_input_dict; called at init time only
         """
@@ -503,10 +508,159 @@ class AdditionalInputs(QDialog):
         for tab_widget in self.findChildren(QTabWidget):
             if hasattr(tab_widget, "refresh_active_tab"):
                 tab_widget.refresh_active_tab()
+        # The dialog recalculates derived values while opening; those are not user
+        # edits, so take the "clean" baseline once that work has finished.
+        QTimer.singleShot(0, self._mark_clean)
 
     # ── Dialog Persistence ───────────────────────────────────────────────────────
 
+    # ── Pre-Save Validation: empty "Custom" fields (Task II) ─────────────────────
+
+    @staticmethod
+    def _clean_label(text) -> str:  # utility: schema label -> plain text ("Width (m):" -> "Width (m)")
+        import re
+        text = re.sub(r"<[^>]+>", "", str(text or ""))       # drop <sub>, <sup>, ...
+        return " ".join(text.replace("\n", " ").split()).rstrip(":").strip()
+
+    def _schema_field_index(self) -> dict:  # utility: field id -> (label, section, field_def), from ADDITIONAL_INPUTS_SCHEMA
+        if getattr(self, "_field_index_cache", None) is not None:
+            return self._field_index_cache
+        index = {}
+
+        def walk(node, section):
+            if isinstance(node, list):
+                for item in node:
+                    walk(item, section)
+                return
+            if not isinstance(node, dict):
+                return
+            if "id" in node and "type" in node:                  # a field definition
+                fid = node["id"]
+                if isinstance(fid, str) and fid not in index:
+                    index[fid] = (self._clean_label(node.get("label")), section, node)
+            else:                                                # a tab / sub-tab / column
+                name = self._clean_label(node.get("label") or node.get("title") or "")
+                if name:
+                    section = name
+            for value in node.values():
+                if isinstance(value, (dict, list)):
+                    walk(value, section)
+
+        walk(ADDITIONAL_INPUTS_SCHEMA, "")
+        self._field_index_cache = index
+        return index
+
+    def _field_display_name(self, field_id: str) -> str:  # utility: "Crash Barrier - Width (m)"
+        label, section, _ = self._schema_field_index().get(field_id, (field_id, "", None))
+        label = label or field_id
+        return f"{section} - {label}" if section and section != label else label
+
+    def _is_active_input(self, widget) -> bool:  # utility: True if the user can currently fill this widget
+        """
+        Enabled, and not hidden on purpose. A widget that is only "hidden" because
+        it sits on a tab page that is not the current one still counts (all active
+        tabs are checked), but a page of an AdaptiveWidget that is not the current
+        mode does not.
+        """
+        if widget is None or not widget.isEnabled():
+            return False
+        from PySide6.QtWidgets import QStackedWidget
+        w = widget
+        while w is not None and w is not self:
+            if w.isHidden():
+                stack = w.parentWidget()
+                tabs = stack.parentWidget() if stack is not None else None
+                is_tab_page = isinstance(stack, QStackedWidget) and isinstance(tabs, QTabWidget)
+                if not (is_tab_page and tabs.isTabEnabled(tabs.indexOf(w))):
+                    return False
+            w = w.parentWidget()
+        return True
+
+    def _find_empty_custom_fields(self) -> list:  # validation: returns [(field_id, widget)] of empty Custom inputs
+        custom = KEY_ADD_CUSTOM_OPTION
+        empty = []
+
+        def check(field_id, line_edit):
+            if (isinstance(line_edit, QLineEdit) and self._is_active_input(line_edit)
+                    and not line_edit.text().strip()):
+                empty.append((field_id, line_edit))
+
+        # 1. Mode + value pairs (TYPE_MODE_LINE): mode dropdown + value line edit
+        for field_id, (_, _, fdef) in self._schema_field_index().items():
+            if fdef.get("type") == TYPE_MODE_LINE and custom in fdef.get("mode_choices", []):
+                mode = self.findChild(QComboBox, field_id + KEY_ADD_MODE_SUFFIX)
+                if mode is not None and mode.currentText() == custom:
+                    check(field_id, self.findChild(QLineEdit, field_id + KEY_ADD_VALUE_SUFFIX))
+
+        # 2. Dropdowns whose "Custom" option unlocks other fields (central map in common.py)
+        for combo_key, dependent_keys in KEY_ADD_CUSTOM_DEPENDENTS.items():
+            combo = self.findChild(QComboBox, combo_key)
+            if combo is not None and combo.currentText() == custom and self._is_active_input(combo):
+                for dep_key in dependent_keys:
+                    check(dep_key, self.findChild(QLineEdit, dep_key))
+
+        # 3. Adaptive fields that become text boxes when their controller is "Custom"
+        for adaptive in self.findChildren(AdaptiveWidget):
+            controller = getattr(adaptive, "_controller_id", "")
+            if str(self.working_input_dict.get(controller) or "") == custom:
+                check(getattr(adaptive, "_field_id", ""), adaptive.currentWidget())
+
+        # Same field listed twice (e.g. found by two rules) -> report once
+        seen, unique = set(), []
+        for field_id, w in empty:
+            if id(w) not in seen:
+                seen.add(id(w))
+                unique.append((field_id, w))
+        return unique
+
+    def _show_tab_of(self, widget) -> None:  # utility: brings the (sub-)tab containing widget to the front
+        chain, w = [], widget
+        while w is not None and w is not self:
+            chain.append(w)
+            w = w.parentWidget()
+        for page in reversed(chain):                 # outermost tab first
+            stack = page.parentWidget()
+            tabs = stack.parentWidget() if stack is not None else None
+            if isinstance(tabs, QTabWidget) and tabs.indexOf(page) >= 0:
+                tabs.setCurrentWidget(page)
+
+    def _set_error_style(self, widget, on: bool) -> None:  # utility: red border on/off
+        try:
+            widget.setProperty("error", on)
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+        except RuntimeError:
+            pass                                         # widget already deleted
+
+    def _validate_custom_fields(self) -> bool:  # validation: halts Save if a "Custom" field is empty
+        for w in getattr(self, "_custom_error_widgets", []):
+            self._set_error_style(w, False)              # clear marks from the last attempt
+        empty = self._find_empty_custom_fields()
+        self._custom_error_widgets = [w for _, w in empty]
+        if not empty:
+            return True
+        lines = [
+            f"Error: The custom value for '{self._field_display_name(fid)}' cannot be empty."
+            for fid, _ in empty
+        ]
+        for _, w in empty:
+            self._set_error_style(w, True)               # red border, same as the input dock
+        first = empty[0][1]
+        self._show_tab_of(first)
+        first.setFocus()
+        CustomMessageBox(
+            title="Error",
+            text="\n".join(lines),
+            buttons=["OK"],
+            dialogType=MessageBoxType.Critical,
+        ).exec()
+        return False
+
     def _save_inputs(self):  # on_change: validates all tabs then commits working_input_dict and emits CAD update signal
+
+        # Task II: stop here if any "Custom" selection has an empty value
+        if not self._validate_custom_fields():
+            return
 
         # Flush the currently-displayed stiffener member's widgets before committing.
         # _save_stiffener_member_data otherwise only runs when switching *away* from a
@@ -522,12 +676,60 @@ class AdditionalInputs(QDialog):
         if cad:
             self.update_template_page_2d_cad.emit(cad.params)
         
+        # Everything is saved now
+        self._mark_clean()
+
         CustomMessageBox(
             title="Saved",
             text="Inputs saved successfully.",
             buttons=["OK"],
             dialogType=MessageBoxType.Success,
         ).exec()
+
+    # ── Unsaved Changes Warning (Task II) ────────────────────────────────────────
+
+    def _mark_clean(self):  # utility: remembers current values as the saved baseline
+        self._clean_snapshot = deepcopy(self.working_input_dict)
+        self.is_modified = False
+
+    def _has_real_changes(self) -> bool:  # utility: True only if values differ from the baseline
+        # A field can report "edited" just from losing focus (e.g. clicking ✕),
+        # so compare the actual values instead of trusting the flag alone.
+        try:
+            return self.working_input_dict != self._clean_snapshot
+        except Exception:
+            return True   # values can't be compared: be safe and warn
+
+    def _confirm_discard(self) -> bool:  # utility: returns True if the dialog may close
+        if self.is_modified and not self._has_real_changes():
+            self.is_modified = False   # only focus changes, no real edit
+        if not self.is_modified:
+            return True
+        choice = CustomMessageBox(
+            title="Warning",
+            text="You have unsaved changes. Closing this window will discard them. "
+                 "Do you want to proceed?",
+            buttons=["Discard", "Cancel"],
+            dialogType=MessageBoxType.Warning,
+        ).exec()
+        if choice != "Discard":
+            return False
+        # Discard: throw away edits, restore the values the dialog had when opened/saved
+        self.working_input_dict = deepcopy(self._clean_snapshot)
+        self.set_defaults()
+        self._mark_clean()
+        return True
+
+    def closeEvent(self, event):  # Qt event: ✕ button — warn before discarding unsaved changes
+        if not self._confirm_discard():
+            event.ignore()             # keep dialog open
+            return
+        super().closeEvent(event)      # QDialog.closeEvent calls reject() to hide
+
+    def reject(self):  # Esc key (and QDialog.closeEvent) end up here
+        if not self._confirm_discard():
+            return
+        super().reject()
 
     def _show_validation_errors(self, errors):  # utility: displays validation error list in a warning popup
         message = "\n\n".join(f"• {err}" for err in errors)
@@ -546,6 +748,7 @@ class AdditionalInputs(QDialog):
         - QComboBox: always valid, skip validation, update dict + CAD.
         - QLineEdit: hard validation — corrects widget + input_dict if invalid, shows popup.
         """
+        self.is_modified = True   # user changed a field
         if isinstance(widget, str):
             self._update_input_dict(key, widget)
             self._update_additional_input_cad()
@@ -584,6 +787,7 @@ class AdditionalInputs(QDialog):
         self._update_additional_input_cad()
 
     def _on_field_editing(self, current_text: str, key: str):  # on_change: soft validation while typing — updates dict/CAD only when valid, no popups
+        self.is_modified = True   # user is typing in a field
         if not current_text.strip():
             self._update_input_dict(key, "")
             self._update_additional_input_cad()
@@ -1391,11 +1595,11 @@ class AdditionalInputs(QDialog):
                     inner_combo = w.findChild(QComboBox)
                     inner_line  = w.findChild(QLineEdit)
                     if inner_combo:
-                        self.working_input_dict[key + suffix + ".mode"] = inner_combo.currentText()
+                        self.working_input_dict[key + suffix + KEY_ADD_MODE_SUFFIX] = inner_combo.currentText()
                     if inner_line:
                         text = inner_line.text().strip()
                         if text:
-                            self.working_input_dict[key + suffix + ".value"] = text
+                            self.working_input_dict[key + suffix + KEY_ADD_VALUE_SUFFIX] = text
                 else:
                     print(f"  [SAVE] {key} — widget not found: {type(w)}")
 
@@ -1447,8 +1651,8 @@ class AdditionalInputs(QDialog):
                 if isinstance(w, QWidget):
                     inner_combo = w.findChild(QComboBox)
                     inner_line  = w.findChild(QLineEdit)
-                    mode_val  = self.working_input_dict.get(key + suffix + ".mode")
-                    value_val = self.working_input_dict.get(key + suffix + ".value")
+                    mode_val  = self.working_input_dict.get(key + suffix + KEY_ADD_MODE_SUFFIX)
+                    value_val = self.working_input_dict.get(key + suffix + KEY_ADD_VALUE_SUFFIX)
                     if inner_combo and mode_val:
                         inner_combo.blockSignals(True)
                         inner_combo.setCurrentText(str(mode_val))
