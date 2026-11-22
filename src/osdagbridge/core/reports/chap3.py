@@ -221,6 +221,24 @@ def ch3_loads(input_dict):
     except Exception:
         pass
 
+    # Footway live load: mirror the Loading tab's mode + value selection
+    # ("As per IRC 6" style modes, or a custom pressure value).
+    _fp_mode = str(input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE) or "").strip()
+    _fp_val = str(input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE) or "").strip()
+    _has_footway = str(input_dict.get(KEY_FOOTPATH, "None")).strip().lower() not in ("", "none")
+    if not _has_footway:
+        footway_display = "Not applicable (no footway)"
+        footway_unit = "---"
+    elif _fp_mode and _fp_mode.lower() not in ("custom", "user", "manual"):
+        footway_display = _fp_mode
+        footway_unit = "---"
+    elif _fp_val:
+        footway_display = _fp_val
+        footway_unit = r"kN/m\textsuperscript{2}"
+    else:
+        footway_display = "N/A"
+        footway_unit = "---"
+
     # --- Table 3.7: Load Combinations (dynamically generated from IRC 6) ---
     _LOAD_LABEL_MAP = {
         'dead_load':         'DL',
