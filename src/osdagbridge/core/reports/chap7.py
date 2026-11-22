@@ -24,7 +24,7 @@ def ch7_quantities(input_dict: dict, steel_chart: Optional[str] = None, concrete
         r"2(a) & Cross Bracing - Top Chord & " + str(input_dict.get("bracing_top_vol_formula", "N.A.")) + r" & " + str(input_dict.get("bracing_top_qty", "N.A.")) + r" & " + str(input_dict.get("bracing_top_vol_total", "N.A.")) + r" & " + str(input_dict.get("bracing_top_wt_single", "N.A.")) + r" & " + str(input_dict.get("bracing_top_wt_total", "N.A.")) + r" \\" + "\n" + r"\hline",
         r"2(b) & Cross Bracing - Bottom Chord & " + str(input_dict.get("bracing_bot_vol_formula", "N.A.")) + r" & " + str(input_dict.get("bracing_bot_qty", "N.A.")) + r" & " + str(input_dict.get("bracing_bot_vol_total", "N.A.")) + r" & " + str(input_dict.get("bracing_bot_wt_single", "N.A.")) + r" & " + str(input_dict.get("bracing_bot_wt_total", "N.A.")) + r" \\" + "\n" + r"\hline",
         r"2(c) & Cross Bracing - Diagonal Chord & " + str(input_dict.get("bracing_diag_vol_formula", "N.A.")) + r" & " + str(input_dict.get("bracing_diag_qty", "N.A.")) + r" & " + str(input_dict.get("bracing_diag_vol_total", "N.A.")) + r" & " + str(input_dict.get("bracing_diag_wt_single", "N.A.")) + r" & " + str(input_dict.get("bracing_diag_wt_total", "N.A.")) + r" \\" + "\n" + r"\hline",
-        r"2(d) & End Diaphragms & $2(n_g{-}1) \times [2s(8.95) + 2L_d(14.90)]\text{ kg}$ & " + str(input_dict.get("steel_ed_qty", "N.A.")) + r" & " + str(input_dict.get("steel_ed_vol_total", "N.A.")) + r" & " + str(input_dict.get("steel_ed_wt_single", "N.A.")) + r" & " + str(input_dict.get("steel_ed_wt_total", "N.A.")) + r" \\" + "\n" + r"\hline",
+        r"2(d) & End Diaphragms & " + str(input_dict.get("steel_ed_vol_formula", r"$2(n_g{-}1) \times [2s(8.95) + 2L_d(14.90)]\text{ kg}$")) + r" & " + str(input_dict.get("steel_ed_qty", "N.A.")) + r" & " + str(input_dict.get("steel_ed_vol_total", "N.A.")) + r" & " + str(input_dict.get("steel_ed_wt_single", "N.A.")) + r" & " + str(input_dict.get("steel_ed_wt_total", "N.A.")) + r" \\" + "\n" + r"\hline",
         r"3 & Concrete (M40) for Deck Slab & " + str(input_dict.get("concrete_deck_vol_formula", "N.A.")) + r" & " + str(input_dict.get("concrete_deck_qty", "N.A.")) + r" & " + str(input_dict.get("concrete_deck_vol_total", "N.A.")) + r" & " + str(input_dict.get("concrete_deck_wt_single", "N.A.")) + r" & " + str(input_dict.get("concrete_deck_wt_total", "N.A.")) + r" \\" + "\n" + r"\hline",
         r"4 & Reinforcement Steel (Fe 500) & " + str(input_dict.get("rebar_deck_vol_formula", "N.A.")) + r" & " + str(input_dict.get("rebar_deck_qty", "N.A.")) + r" & " + str(input_dict.get("rebar_deck_vol_total", "N.A.")) + r" & " + str(input_dict.get("rebar_deck_wt_single", "N.A.")) + r" & " + str(input_dict.get("rebar_deck_wt_total", "N.A.")) + r" \\" + "\n" + r"\hline",
         r"5 & Shear Stud Connectors & " + str(input_dict.get("shear_studs_vol_formula", "N.A.")) + r" & " + str(input_dict.get("shear_studs_qty", "N.A.")) + r" & " + str(input_dict.get("shear_studs_vol_total", "N.A.")) + r" & " + str(input_dict.get("shear_studs_wt_single", "N.A.")) + r" & " + str(input_dict.get("shear_studs_wt_total", "N.A.")) + r" \\" + "\n" + r"\hline",
@@ -41,6 +41,16 @@ def ch7_quantities(input_dict: dict, steel_chart: Optional[str] = None, concrete
     )
 
     chart_block = ""
+    ed_is_assumed = input_dict.get("steel_ed_is_assumed", False)
+    chord_sec = str(input_dict.get("steel_ed_chord_sec", "ISA 75x75x8")).replace("_", r"\_")
+    diag_sec = str(input_dict.get("steel_ed_diag_sec", "ISA 100x100x10")).replace("_", r"\_")
+    chord_m = str(input_dict.get("steel_ed_chord_mass", "8.95"))
+    diag_m = str(input_dict.get("steel_ed_diag_mass", "14.90"))
+    if ed_is_assumed:
+        ed_note_text = rf"* Note on End Diaphragm Quantity: Designed sections not available; assumed chords {chord_sec} (${chord_m}\text{{ kg/m}}\times s$), diagonals {diag_sec} (${diag_m}\text{{ kg/m}}\times \sqrt{{s^2+d_w^2}}$) across 2 support lines ($2(n_g{{-}}1)$ panels). See Table 7.1 Item 2(d)."
+    else:
+        ed_note_text = rf"* Note on End Diaphragm Quantity: Basis $2(n_g{{-}}1)$ panels across 2 support lines; designed chords {chord_sec} (${chord_m}\text{{ kg/m}}\times s$), diagonals {diag_sec} (${diag_m}\text{{ kg/m}}\times \sqrt{{s^2+d_w^2}}$). See Table 7.1 Item 2(d)."
+
     if steel_chart and concrete_chart:
         steel_base = steel_chart.replace(".pdf", "").replace(".png", "").replace("\\", "/")
         conc_base = concrete_chart.replace(".pdf", "").replace(".png", "").replace("\\", "/")
@@ -63,7 +73,7 @@ def ch7_quantities(input_dict: dict, steel_chart: Optional[str] = None, concrete
 \caption{Material Quantity Breakdown}
 \label{fig:material-breakdown}
 \vspace{-2pt}
-{\scriptsize \noindent\textit{* Note on End Diaphragm Quantity: Basis $2(n_g{-}1)$ panels across 2 support lines; chords ISA 75x75x8 ($8.95\text{ kg/m}\times s$), diagonals ISA 100x100x10 ($14.90\text{ kg/m}\times \sqrt{s^2+d_w^2}$). See Table 7.1 Item 2(d).}}
+{\scriptsize \noindent\textit{""" + ed_note_text + r"""}}
 \end{figure}
 """
     elif steel_chart:
@@ -75,6 +85,8 @@ def ch7_quantities(input_dict: dict, steel_chart: Optional[str] = None, concrete
 \IfFileExists{""" + steel_base + r""".pdf}{\includegraphics[width=0.7\textwidth]{""" + steel_base + r""".pdf}}{\includegraphics[width=0.7\textwidth]{""" + steel_base + r""".png}}
 \caption{Structural Steel Weight Breakdown (MT)}
 \label{fig:steel-breakdown}
+\vspace{-2pt}
+{\scriptsize \noindent\textit{""" + ed_note_text + r"""}}
 \end{figure}
 """
 

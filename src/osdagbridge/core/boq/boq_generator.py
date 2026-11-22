@@ -16,6 +16,51 @@ from osdagbridge.core.utils.common import (
 logger = logging.getLogger("osdagbridge.core.boq_generator")
 
 
+def _lookup_section_mass(designation: str) -> float | None:
+    """Look up section mass (kg/m) from Osdag sqlite database or geometry."""
+    if not designation:
+        return None
+    import re
+    import sqlite3
+    from pathlib import Path
+
+    desig = str(designation).strip()
+    if desig.startswith("2-"):
+        desig = desig[2:].strip()
+
+    # Try Intg_osdag.sqlite in core data
+    db_path = Path(__file__).resolve().parents[1] / "data" / "ResourceFiles" / "Intg_osdag.sqlite"
+    if db_path.exists():
+        nums = re.findall(r"\d+(?:\.\d+)?", desig)
+        if nums:
+            pattern = "%" + "%".join(nums) + "%"
+            try:
+                con = sqlite3.connect(db_path)
+                cur = con.cursor()
+                for table in ("EqualAngle", "UnequalAngle", "Beams", "Channels"):
+                    cur.execute(
+                        f"SELECT Mass FROM {table} WHERE Designation LIKE ? ORDER BY LENGTH(Designation) ASC LIMIT 1",
+                        (pattern,),
+                    )
+                    row = cur.fetchone()
+                    if row and row[0] is not None:
+                        con.close()
+                        return float(row[0])
+                con.close()
+            except Exception:
+                pass
+
+    # Fallback to approximate geometric formula for angles (a x b x t)
+    nums = re.findall(r"\d+(?:\.\d+)?", desig)
+    if len(nums) >= 3:
+        try:
+            a, b, t = float(nums[0]), float(nums[1]), float(nums[2])
+            return round((a + b - t) * t * 0.00785, 2)
+        except Exception:
+            pass
+    return None
+
+
 def resolve_girder_value(source: dict, base_key: str, i: int = 0) -> Any:
     """Resolve a girder property from an input/output dict, tolerating both the
     per-girder dynamic key scheme and the legacy scalar key.
@@ -336,7 +381,10 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
 
         # 5d. End Diaphragms (Cu.m) and Weight (MT)
         ed_results = outputs.get("end_diaphragm_design_results", {}) or {}
-        if ed_results and spacing > 0.0:
+        if not ed_results:
+            ed_results = outputs.get("crossbracing_design_results", {}) or {}
+
+        if spacing > 0.0 and n_girders > 1:
             n_ed_panels = 2 * (n_girders - 1)
             dw_val = None
             try:
@@ -346,8 +394,109 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             dw_m = (float(dw_val) / 1000.0) if dw_val else 2.0
             ed_diag_len = (spacing**2 + dw_m**2)**0.5
 
-            chord_mass_pm = 8.95   # ISA 75x75x8
-            diag_mass_pm = 14.90   # ISA 100x100x10
+            # Attempt to extract actual designed sections and masses
+            diag_des = None
+            chord_des = None
+            diag_mass_pm = None
+            chord_mass_pm = None
+
+            # 1. From outputs direct properties
+            for pair_id in ("G1G2", "G1-G2"):
+                for m_key in (
+                    f"transverse_member_design.ed.section_properties.end_diaphragm.{pair_id}.M",
+                    f"transverse_member_design.ed.section_properties.diagonal.{pair_id}.M",
+                    f"transverse_member_design.cb.section_properties.bracing.{pair_id}.M",
+                    f"transverse_member_design.cb.section_properties.diagonal.{pair_id}.M",
+                ):
+                    v = outputs.get(m_key)
+                    if v is not None:
+                        try:
+                            diag_mass_pm = float(v)
+                            break
+                        except (ValueError, TypeError):
+                            pass
+                if diag_mass_pm is not None:
+                    break
+
+            for pair_id in ("G1G2", "G1-G2"):
+                for m_key in (
+                    f"transverse_member_design.ed.section_properties.top_chord.{pair_id}.M",
+                    f"transverse_member_design.ed.section_properties.chord.{pair_id}.M",
+                    f"transverse_member_design.cb.section_properties.top_chord.{pair_id}.M",
+                    f"transverse_member_design.cb.section_properties.chord.{pair_id}.M",
+                ):
+                    v = outputs.get(m_key)
+                    if v is not None:
+                        try:
+                            chord_mass_pm = float(v)
+                            break
+                        except (ValueError, TypeError):
+                            pass
+                if chord_mass_pm is not None:
+                    break
+
+            # 2. Extract section designations from ed_results / inputs
+            if isinstance(ed_results, dict):
+                for p_key, p_data in ed_results.items():
+                    if isinstance(p_data, dict):
+                        d_entry = p_data.get("diagonal") or {}
+                        c_entry = p_data.get("chord") or p_data.get("top_chord") or {}
+                        if isinstance(d_entry, dict):
+                            for sub in ("tension", "compression", "data"):
+                                s = d_entry.get(sub) if isinstance(d_entry.get(sub), dict) else d_entry
+                                d_des = s.get("section_size.designation") or s.get("section") or s.get("designation")
+                                if d_des:
+                                    diag_des = str(d_des)
+                                    break
+                        if isinstance(c_entry, dict):
+                            for sub in ("tension", "compression", "data"):
+                                s = c_entry.get(sub) if isinstance(c_entry.get(sub), dict) else c_entry
+                                c_des = s.get("section_size.designation") or s.get("section") or s.get("designation")
+                                if c_des:
+                                    chord_des = str(c_des)
+                                    break
+                    if diag_des and chord_des:
+                        break
+
+            if not diag_des:
+                diag_des = (
+                    outputs.get("member_properties.end_diaphragm_details.bracing_section_designation.G1G2")
+                    or inputs.get("member_properties.end_diaphragm_details.bracing_section_designation")
+                    or outputs.get("member_properties.cross_bracing_details.bracing_section_designation.G1G2")
+                    or inputs.get("member_properties.cross_bracing_details.bracing_section_designation")
+                )
+
+            if not chord_des:
+                chord_des = (
+                    outputs.get("member_properties.end_diaphragm_details.top_chord_section_designation.G1G2")
+                    or inputs.get("member_properties.end_diaphragm_details.top_chord_section_designation")
+                    or outputs.get("member_properties.cross_bracing_details.top_chord_section_designation.G1G2")
+                    or inputs.get("member_properties.cross_bracing_details.top_chord_section_designation")
+                )
+
+            # Resolve unit mass from designations if not yet resolved
+            if diag_mass_pm is None and diag_des:
+                diag_mass_pm = _lookup_section_mass(diag_des)
+            if chord_mass_pm is None and chord_des:
+                chord_mass_pm = _lookup_section_mass(chord_des)
+
+            # Check if designed vs assumed
+            is_assumed = False
+            if diag_mass_pm is None and chord_mass_pm is None:
+                is_assumed = True
+                chord_mass_pm = 8.95   # ISA 75x75x8
+                diag_mass_pm = 14.90   # ISA 100x100x10
+                chord_des = "ISA 75x75x8"
+                diag_des = "ISA 100x100x10"
+            else:
+                if diag_mass_pm is None:
+                    diag_mass_pm = chord_mass_pm or 14.90
+                if chord_mass_pm is None:
+                    chord_mass_pm = diag_mass_pm or 8.95
+
+            diag_label = str(diag_des) if diag_des else f"{diag_mass_pm:.2f} kg/m"
+            chord_label = str(chord_des) if chord_des else f"{chord_mass_pm:.2f} kg/m"
+
             panel_mass_kg = (2 * spacing * chord_mass_pm) + (2 * ed_diag_len * diag_mass_pm)
             total_ed_mass_kg = n_ed_panels * panel_mass_kg
             ed_wt_mt = total_ed_mass_kg / 1000.0
@@ -355,10 +504,19 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["steel_ed_qty"] = str(n_ed_panels)
             quantities["steel_ed_wt_single"] = f"{(panel_mass_kg / 1000.0):.4f}"
             quantities["steel_ed_wt_total"] = f"{ed_wt_mt:.2f}"
+            quantities["steel_ed_vol_formula"] = (
+                f"$2(n_g{{-}}1) \\times [2s({chord_mass_pm:.2f}) + 2L_d({diag_mass_pm:.2f})]\\text{{ kg}}$"
+            )
+            quantities["steel_ed_is_assumed"] = is_assumed
+            quantities["steel_ed_diag_sec"] = diag_label
+            quantities["steel_ed_chord_sec"] = chord_label
+            quantities["steel_ed_diag_mass"] = f"{diag_mass_pm:.2f}"
+            quantities["steel_ed_chord_mass"] = f"{chord_mass_pm:.2f}"
         else:
             quantities["steel_ed_qty"] = "N.A."
             quantities["steel_ed_wt_single"] = "N.A."
             quantities["steel_ed_wt_total"] = "N.A."
+            quantities["steel_ed_vol_formula"] = "N.A."
 
         # 6. Crash Barrier (Cu.m) and Weight (MT)
         KEY_CB_AREA = "typical_section.crash_barrier.area"
