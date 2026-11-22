@@ -187,45 +187,16 @@ def ch5_design_checks(checks_data, bridge) -> str:
     ]
 
     t51_rows = []
-    split_map = {
-        "Girder 2": 6,
-        "G2": 6,
-        "Girder 4": 4,
-        "G4": 4,
-    } if n_girders == 4 else {}
-
+    p_count = len(props)
     for lbl, _ in girder_entries:
-        split_k = split_map.get(lbl.strip())
-        if split_k and 1 <= split_k < len(props):
-            p1_count = split_k
-            for idx in range(p1_count):
-                p_label, p_key = props[idx]
-                p_val = _render_value(bridge.output_dict, p_key)
-                col1 = (r"\multirow{" + str(p1_count) + r"}{*}{\makecell{" + lbl + r"}}") if idx == 0 else ""
-                if idx < p1_count - 1:
-                    t51_rows.append(col1 + " & " + p_label + " & " + p_val + r" \\*[6pt]" + "\n" + r"\cline{2-3}")
-                else:
-                    t51_rows.append(col1 + " & " + p_label + " & " + p_val + r" \\ \hline \pagebreak")
-
-            p2_count = len(props) - split_k
-            for idx in range(split_k, len(props)):
-                p_label, p_key = props[idx]
-                p_val = _render_value(bridge.output_dict, p_key)
-                col1 = (r"\multirow{" + str(p2_count) + r"}{*}{\makecell{" + lbl + r"\\[2pt]\footnotesize(cont.)}}") if idx == split_k else ""
-                if idx < len(props) - 1:
-                    t51_rows.append(col1 + " & " + p_label + " & " + p_val + r" \\*[6pt]" + "\n" + r"\cline{2-3}")
-                else:
-                    t51_rows.append(col1 + " & " + p_label + " & " + p_val + r" \\[6pt]" + "\n" + r"\hline")
-        else:
-            p_count = len(props)
-            for idx in range(p_count):
-                p_label, p_key = props[idx]
-                p_val = _render_value(bridge.output_dict, p_key)
-                col1 = (r"\multirow{" + str(p_count) + r"}{*}{\makecell{" + lbl + r"}}") if idx == 0 else ""
-                if idx < p_count - 1:
-                    t51_rows.append(col1 + " & " + p_label + " & " + p_val + r" \\*[6pt]" + "\n" + r"\cline{2-3}")
-                else:
-                    t51_rows.append(col1 + " & " + p_label + " & " + p_val + r" \\[6pt]" + "\n" + r"\hline")
+        for idx in range(p_count):
+            p_label, p_key = props[idx]
+            p_val = _render_value(bridge.output_dict, p_key)
+            col1 = (r"\multirow{" + str(p_count) + r"}{*}{\makecell{" + lbl + r"}}") if idx == 0 else ""
+            if idx < p_count - 1:
+                t51_rows.append(col1 + " & " + p_label + " & " + p_val + r" \\*[3pt]")
+            else:
+                t51_rows.append(col1 + " & " + p_label + " & " + p_val + r" \\[3pt]" + "\n\\hline")
 
     t51_content = "\n".join(t51_rows)
 
@@ -233,10 +204,8 @@ def ch5_design_checks(checks_data, bridge) -> str:
     t52_rows = []
     for lbl, _ in girder_entries:
         t52_rows.append(
-            r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Top Flange & """ + _render_value(bridge.output_dict, KEY_SD_FLANGE_SLENDERNESS) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_FLANGE_CLASS_LIMIT) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_CLASS_FLANGE) + r""" \\[6pt]
-\cline{2-5}
- & Web & """ + _render_value(bridge.output_dict, KEY_SD_WEB_SLENDERNESS) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_WEB_CLASS_LIMIT) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_CLASS_WEB) + r""" \\[6pt]
-\cline{2-5}
+            r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Top Flange & """ + _render_value(bridge.output_dict, KEY_SD_FLANGE_SLENDERNESS) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_FLANGE_CLASS_LIMIT) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_CLASS_FLANGE) + r""" \\*[6pt]
+ & Web & """ + _render_value(bridge.output_dict, KEY_SD_WEB_SLENDERNESS) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_WEB_CLASS_LIMIT) + r""" & """ + _render_value(bridge.output_dict, KEY_SD_CLASS_WEB) + r""" \\*[6pt]
  & Overall Section & - & - & """ + _render_value(bridge.output_dict, KEY_SD_SECTION_CLASS) + r""" \\[6pt]
 \hline"""
         )
@@ -255,10 +224,8 @@ def ch5_design_checks(checks_data, bridge) -> str:
     t53_rows = []
     for lbl, _ in girder_entries:
         t53_rows.append(
-            r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Applied Moment, $M_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_MU_APPLIED, " kN-m") + r""" & - \\[6pt]
-\cline{2-5}
- & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & """ + _render_value(bridge.output_dict, KEY_SD_MD_CAPACITY, " kN-m") + r""" & - \\[6pt]
-\cline{2-5}
+            r"\multirow{3}{*}{\makecell{" + lbl + r"""}} & Applied Moment, $M_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_MU_APPLIED, " kN-m") + r""" & - \\*[6pt]
+ & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & """ + _render_value(bridge.output_dict, KEY_SD_MD_CAPACITY, " kN-m") + r""" & - \\*[6pt]
  & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ & """ + _flex_ur_str + r""" & """ + _flex_status + r""" \\[6pt]
 \hline"""
         )
@@ -277,21 +244,13 @@ def ch5_design_checks(checks_data, bridge) -> str:
     t54_rows = []
     for lbl, _ in girder_entries:
         t54_rows.append(
-            r"\needspace{8\baselineskip}" + "\n"
-            + r"\multirow{8}{*}{\makecell{" + lbl + r"""}} & Applied Shear, $V_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_VU, " kN") + r""" & - \\*[6pt]
-\cline{2-5}
+            r"\multirow{8}{*}{\makecell{" + lbl + r"""}} & Applied Shear, $V_u$ & Governing LC (ULS) & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_VU, " kN") + r""" & - \\*[6pt]
  & Shear Area, $A_v$ & $d_w \times t_w$ & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_AV, " mm$^2$") + r""" & - \\*[6pt]
-\cline{2-5}
  & Panel Aspect Ratio, c/d & - & """ + _render_value(bridge.output_dict, KEY_SD_PANEL_CD) + r""" & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Coefficient, $k_v$ & IS 800 Cl. 8.4.2.2 & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_KV) + r""" & - \\*[6pt]
-\cline{2-5}
  & Web Slenderness, $\lambda_w$ & $\sqrt{f_{yw}/(\sqrt{3}\,\tau_{cr})}$ & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_LAMBDA_W) + r""" & - \\*[6pt]
-\cline{2-5}
  & Design Shear Stress, $\tau_b$ & IRC 22 Cl. 603.3.3.2 & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_TAU_B, " MPa") + r""" & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Resistance, $V_{cr}$ & $A_v \times \tau_b$ & """ + _render_value(bridge.output_dict, KEY_SD_SHEAR_VCR, " kN") + r""" & - \\*[6pt]
-\cline{2-5}
  & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ & """ + _shear_ur_str + r""" & """ + _shear_status + r""" \\[6pt]
 \hline"""
         )
@@ -326,13 +285,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
     t55_rows = []
     for lbl, _ in girder_entries:
         t55_rows.append(
-            r"\needspace{5\baselineskip}" + "\n"
-            + r"\multirow{4}{*}{\makecell{" + lbl + r"""}} & High Shear Condition? & $V_u > 0.6\,V_d$ & """ + _render_value(bridge.output_dict, KEY_SD_HIGH_SHEAR) + r""" & - \\*[6pt]
-\cline{2-5}
+            r"\multirow{4}{*}{\makecell{" + lbl + r"""}} & High Shear Condition? & $V_u > 0.6\,V_d$ & """ + _render_value(bridge.output_dict, KEY_SD_HIGH_SHEAR) + r""" & - \\*[6pt]
  & Reduced Moment Capacity, $M_{dv}$ & IRC 22 Cl. 603.3.3.3 & """ + _render_value(bridge.output_dict, KEY_SD_MDV, " kN-m") + r""" & - \\*[6pt]
-\cline{2-5}
  & Interaction Check: $M_u \leq M_{dv}$ & - & """ + _mv_ur_str + r""" & """ + _mv_status + r""" \\*[6pt]
-\cline{2-5}
  & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & """ + _mn_cond + r""" & """ + _mn_val + r""" & """ + _mn_status + r""" \\[6pt]
 \hline"""
         )
@@ -351,13 +306,9 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t56_rows.append(
             r"\multirow{5}{*}{\makecell{" + lbl + r"""}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 & """ + _render_value(bridge.output_dict, KEY_SD_LTB_MCR, " kN-m") + r""" & - \\*[2pt]
-\cline{2-5}
  & Non-dim. Slenderness, $\bar{\lambda}_{LT}$ & $\sqrt{M_p / M_{cr}}$ & """ + _render_value(bridge.output_dict, KEY_SD_LTB_LAMBDA) + r""" & - \\*[2pt]
-\cline{2-5}
  & LTB Reduction Factor, $\chi_{\mathrm{LT}}$ & IS 800 Cl. 8.2.2 & """ + _render_value(bridge.output_dict, KEY_SD_LTB_CHI) + r""" & - \\*[2pt]
-\cline{2-5}
  & LTB Resistance, $M_b$ & $\chi_{\mathrm{LT}}\,M_p / \gamma_{\mathrm{m0}}$ & """ + _render_value(bridge.output_dict, KEY_SD_LTB_MB, " kN-m") + r""" & - \\*[2pt]
-\cline{2-5}
  & $M_u \leq M_b$ & $M_u / M_b$ & """ + _ltb_ur_str + r""" & """ + _ltb_status + r""" \\[2pt]
 \hline"""
         )
@@ -368,15 +319,10 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t57_rows.append(
             r"\multirow{6}{*}{\makecell{" + lbl + r"""}} & \textnormal{Shear Buckling Design Method} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_METHOD) + r""" \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_THICK) + r""" \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Spacing (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_SPACING) + r""" \\*[2pt]
-\cline{2-3}
  & \textnormal{End Panel Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_END_THICK) + r""" \\*[2pt]
-\cline{2-3}
  & \textnormal{No. of End Panel Stiffeners} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_END_COUNT) + r""" \\*[2pt]
-\cline{2-3}
  & \textnormal{Longitudinal Stiffeners} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_LONG) + r""" \\[2pt]
 \hline"""
         )
@@ -396,9 +342,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
     t58_rows = []
     for lbl, _ in girder_entries:
         t58_rows.append(
-            r"\needspace{3\baselineskip}" + "\n"
-            + r"\multirow{2}{*}{\makecell{" + lbl + r"""}} & Min. Moment of Inertia, $I_s$ & """ + _render_value(bridge.output_dict, KEY_SD_IS_IYS_MIN, " mm$^4$") + r""" & """ + _render_value(bridge.output_dict, KEY_SD_IS_IYS_PROV, " mm$^4$") + r""" & """ + _iys_status + r""" \\*[6pt]
-\cline{2-5}
+            r"\multirow{2}{*}{\makecell{" + lbl + r"""}} & Min. Moment of Inertia, $I_s$ & """ + _render_value(bridge.output_dict, KEY_SD_IS_IYS_MIN, " mm$^4$") + r""" & """ + _render_value(bridge.output_dict, KEY_SD_IS_IYS_PROV, " mm$^4$") + r""" & """ + _iys_status + r""" \\*[6pt]
  & Buckling Resistance, $F_{qd} \geq F_q$ & """ + _render_value(bridge.output_dict, KEY_SD_IS_FQ, " kN") + r""" & """ + _render_value(bridge.output_dict, KEY_SD_IS_FQD, " kN") + r""" & """ + _fqd_status + r""" \\[6pt]
 \hline"""
         )
@@ -460,11 +404,8 @@ def ch5_design_checks(checks_data, bridge) -> str:
     for lbl, _ in girder_entries:
         t59_rows.append(
             r"\multirow{4}{*}{\makecell{" + lbl + r"""}} & Web Buckling Resistance & """ + _wb_req + r""" & """ + _wb_prov + r""" & """ + _wb_st + r""" \\*[2pt]
-\cline{2-5}
  & Local Crushing Resistance & """ + _lc_req + r""" & """ + _lc_prov + r""" & """ + _lc_st + r""" \\*[2pt]
-\cline{2-5}
  & Bearing Capacity & """ + _ps_req + r""" & """ + _ps_prov + r""" & """ + _ps_st + r""" \\*[2pt]
-\cline{2-5}
  & Column Buckling Resistance & """ + _cb_req + r""" & """ + _cb_prov + r""" & """ + _cb_st + r""" \\[2pt]
 \hline"""
         )
@@ -514,12 +455,10 @@ def ch5_design_checks(checks_data, bridge) -> str:
         _total_mm = bridge.output_dict.get(f"{KEY_SD_DEFL_TOTAL}.G{_gi}")
 
         t510_rows.append(
-            r"\needspace{4\baselineskip}" + "\n" +
             r"\multirow{2}{*}{\makecell{" + lbl + r"""}} & Live Load Deflection, $\delta_{LL}$ (mm) & """
             + _allow_live_str + r""" & """
             + _dfmt(_live_mm,  nd=3) + r""" & """
             + _defl_status(_live_mm,  _allow_live_mm) + r""" \\*[6pt]
-\cline{2-5}
  & Total Load Deflection, $\delta_{total}$ (mm) & """
             + _allow_total_str + r""" & """
             + _dfmt(_total_mm, nd=3) + r""" & """

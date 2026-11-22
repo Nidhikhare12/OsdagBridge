@@ -201,6 +201,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
+\usepackage{hhline}
 \usepackage{longtable}
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}

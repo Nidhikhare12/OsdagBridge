@@ -379,7 +379,7 @@ def _girder_tables(input_dict, n_girders):
 \setlength\LTright\fill
             
 \vspace{4pt}
-\begin{longtable}{|L{1.8cm}|L{1.8cm}|p{3.2cm}|p{3.6cm}|p{3.6cm}|}
+\begin{longtable}{|C{1.8cm}|C{2.0cm}|C{3.0cm}|C{3.6cm}|C{4.4cm}|}
 \caption{\textbf{Girder General Information}}\label{tab:girder-general-info} \\
 \hline
 \rowcolor{OsdagHeaderBg}
@@ -407,7 +407,7 @@ def _girder_tables(input_dict, n_girders):
 \setlength{\tabcolsep}{4.0pt}
 \setlength\LTleft{0pt}
 \setlength\LTright\fill
-\begin{longtable}{|L{1.6cm}|L{2.4cm}|L{2.0cm}|p{4.2cm}|p{4.2cm}|}
+\begin{longtable}{|C{1.8cm}|C{2.8cm}|C{2.4cm}|C{4.3cm}|C{4.3cm}|}
 \caption{\textbf{Girder Section Dimensions}}\label{tab:girder-section-dimensions} \\
 \hline
 \rowcolor{OsdagHeaderBg}
@@ -434,7 +434,7 @@ def _girder_tables(input_dict, n_girders):
 \setlength{\tabcolsep}{3.5pt}
 \setlength\LTleft{0pt}
 \setlength\LTright\fill
-\begin{longtable}{|C{1.3cm}|L{2.5cm}|L{2.2cm}|L{3.0cm}|L{2.2cm}|L{3.8cm}|}
+\begin{longtable}{|C{1.5cm}|L{2.8cm}|C{2.4cm}|L{3.2cm}|C{2.8cm}|L{3.8cm}|}
 \caption{\textbf{Girder Restraint and Stiffener Details}}\label{tab:girder-restraint-details} \\
 \hline
 \rowcolor{OsdagHeaderBg}

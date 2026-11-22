@@ -140,40 +140,48 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
         n = int(input_dict.get(KEY_TS_NO_OF_GIRDERS, 1))
         labels = [(f"Girder {i}", f"G{i}M1") for i in range(1, n + 1)]
 
-    n_cols = len(labels)
-    col_w = f"{min(8.0 / max(n_cols, 1), 2.2):.1f}cm"
-    col_spec = '|L{4.2cm}|' + '|'.join([f'C{{{col_w}}}'] * n_cols) + '|'
+    sec_clean = str(sec).replace(" x ", r" $\times$ ").replace("x", r" $\times$ ") if sec else "-"
 
-    header_cells = ' & '.join([r'\textbf{' + _tex(lbl) + r'}' for lbl, _ in labels])
-    header_row = r'\textbf{Girder}' + ' & ' + header_cells + r' \\' + '\n'
+    t1_rows = []
+    for g_lbl, m_id in labels:
+        g_gd = per_girder.get(g_lbl) or per_girder.get(m_id) or {}
+        g_gov_name = gov_name
+        g_gov_dcr = gov_dcr
+        if g_gd and g_gd.get("checks"):
+            _worst_chk = max(g_gd["checks"], key=lambda c: float(c.get("dcr") or 0.0), default=None)
+            if _worst_chk and _worst_chk.get("dcr") is not None:
+                g_gov_name = str(_worst_chk.get("name", ""))
+                g_gov_dcr = float(_worst_chk.get("dcr"))
+        g_gov_str = format_check_name(g_gov_name) if g_gov_name not in (None, "", "None") else gov
+        g_ur_str = f"{g_gov_dcr:.2f}" if g_gov_dcr is not None else ur
+        t1_rows.append(
+            f"{_tex(g_lbl)} & {_tex(m_id)} & {sec_clean} & {g_gov_str} & {g_ur_str} \\\\[6pt]\n\\hline"
+        )
+    t1_body = "\n".join(t1_rows)
 
-    mid_cells = ' & '.join([_tex(mid) for _, mid in labels])
-    member_id_row = r'\textbf{Member ID} & ' + mid_cells + r' \\' + '\n'
-
-    sec_cells = ' & '.join([sec] * n_cols)
-    sections = f"\\textbf{{Section Designation}} & {sec_cells} \\\\"
-    gov_cells = ' & '.join([gov] * n_cols)
-    gov_checks = f"\\textbf{{Governing Check}} & {gov_cells} \\\\"
-    ur_cells = ' & '.join([ur] * n_cols)
-    urs = f"\\textbf{{Utilization Ratio}} & {ur_cells} \\\\"
-
-    table1 = (r'\noindent\textbf{Table 1: Final Bridge Geometry (after optimization)}' + '\n\n'
-              r'\vspace{0.4em}' + '\n'
-              r'\noindent' + '\n'
-              r'\begin{tabular}{' + col_spec + '}\n'
-              r'\hline' + '\n'
-              r'\rowcolor{OsdagHeaderBg}' + '\n'
-              + header_row +
-              r'\hline' + '\n'
-              + member_id_row +
-              r'\hline' + '\n'
-              + sections + '\n'
-              r'\hline' + '\n'
-              + gov_checks + '\n'
-              r'\hline' + '\n'
-              + urs + '\n'
-              r'\hline' + '\n'
-              r'\end{tabular}')
+    table1 = (r"""\clearpage
+\Needspace{8\baselineskip}
+\begin{longtable}{|C{1.8cm}|C{2.0cm}|C{4.4cm}|L{6.2cm}|C{2.0cm}|}
+\caption{\textbf{Final Bridge Geometry (after optimization)}}\label{tab:final-bridge-geometry} \\
+\hline
+\rowcolor{OsdagHeaderBg}
+\textbf{Girder} & \textbf{Member ID} & \textbf{Section Designation} & \textbf{Governing Check} & \textbf{Utilization Ratio} \\[6pt]
+\hline
+\endfirsthead
+\multicolumn{5}{c}{\small\textit{Final Bridge Geometry (after optimization) (continued from previous page)}} \\[4pt]
+\hline
+\rowcolor{OsdagHeaderBg}
+\textbf{Girder} & \textbf{Member ID} & \textbf{Section Designation} & \textbf{Governing Check} & \textbf{Utilization Ratio} \\[6pt]
+\hline
+\endhead
+\hline
+\multicolumn{5}{r}{\small\textit{Continued on next page}} \\
+\endfoot
+\hline
+\endlastfoot
+""" + t1_body + r"""
+\end{longtable}
+""")
 
     # Component status lines
     failing_tex = [_tex(f) for f in failing]
@@ -208,7 +216,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
 {\color{OsdagGreen}\rule{\linewidth}{2.0pt}}\\[8pt]
 \centering
 {\large\bfseries\color{OsdagPrimary} EXECUTIVE DESIGN SUMMARY}\\[8pt]
-\begin{tabular}{@{}p{0.54\linewidth}p{0.44\linewidth}@{}}
+\begin{tabular}{@{}p{0.48\linewidth}p{0.50\linewidth}@{}}
 \textbf{Structure:} Plate Girder Highway Bridge & \textbf{Overall Status:} """ + overall_badge + r""" \\[5pt]
 \textbf{Span:} """ + span_str + r""" \quad\textbar\quad \textbf{Carriageway:} """ + cw_str + r""" & \textbf{Controlling UR:} \textbf{""" + overall_utilization_ratio + r"""} \\[5pt]
 \textbf{Girders:} """ + girders_str + r""" \quad\textbar\quad \textbf{Spacing:} """ + spacing_str + r""" & \textbf{Governing Check:} """ + gov + r""" \\[5pt]

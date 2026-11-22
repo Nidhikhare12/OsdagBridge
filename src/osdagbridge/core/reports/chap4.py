@@ -109,40 +109,40 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \caption{\textbf{Summary of Maximum Demands}}\label{tab:max-demands} \\
 \hline
 \rowcolor{OsdagHeaderBg}
- & \multicolumn{3}{c|}{\textbf{Bending Moment}}
- & \multicolumn{3}{c|}{\textbf{Shear Force}}
- & \multicolumn{2}{c|}{\makecell{\textbf{Reaction at Supports}}}\\
-\cline{2-9}
+\multirow{2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Bending Moment}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Shear Force}}
+ & \multicolumn{2}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Reaction at Supports}} \\
+\hhline{|~|---|---|--|}
 \rowcolor{OsdagHeaderBg}
-\multirow{-2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
  & \makecell{\textbf{Max}\\\textbf{(kNm)}}
  & \textbf{Girder}
  & \makecell{\textbf{Loc.}\\\textbf{(m)}}
  & \makecell{\textbf{Max}\\\textbf{(kN)}}
  & \textbf{Girder}
  & \makecell{\textbf{Loc.}\\\textbf{(m)}}
- & \makecell{\textbf{Left}}
- & \makecell{\textbf{Right}}\\
+ & \textbf{Left}
+ & \textbf{Right} \\
 \hline
 \endfirsthead
 
 \multicolumn{9}{c}{\small\textit{Summary of Maximum Demands (continued from previous page)}} \\[4pt]
 \hline
 \rowcolor{OsdagHeaderBg}
- & \multicolumn{3}{c|}{\textbf{Bending Moment}}
- & \multicolumn{3}{c|}{\textbf{Shear Force}}
- & \multicolumn{2}{c|}{\makecell{\textbf{Reaction at Supports}}}\\
-\cline{2-9}
+\multirow{2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Bending Moment}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Shear Force}}
+ & \multicolumn{2}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Reaction at Supports}} \\
+\hhline{|~|---|---|--|}
 \rowcolor{OsdagHeaderBg}
-\multirow{-2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
  & \makecell{\textbf{Max}\\\textbf{(kNm)}}
  & \textbf{Girder}
  & \makecell{\textbf{Loc.}\\\textbf{(m)}}
  & \makecell{\textbf{Max}\\\textbf{(kN)}}
  & \textbf{Girder}
  & \makecell{\textbf{Loc.}\\\textbf{(m)}}
- & \makecell{\textbf{Left}}
- & \makecell{\textbf{Right}}\\
+ & \textbf{Left}
+ & \textbf{Right} \\
 \hline
 \endhead
 

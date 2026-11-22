@@ -29,6 +29,7 @@
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
+\usepackage{hhline}
 \usepackage{longtable}
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
@@ -75,7 +76,7 @@
 \fancypagestyle{main}{
   \fancyhf{}
   \fancyhead[L]{\footnotesize\textcolor{OsdagMuted}{\textbf{\color{OsdagPrimary}OsdagBridge} \quad\textbar\quad \textit{Short Span Steel Girder Bridge}}}
-  \fancyhead[R]{\footnotesize\textcolor{OsdagMuted}{Job: \textbf{\color{OsdagPrimary}{JOB-2026-001}} \quad\textbar\quad 20-11-2026}}
+  \fancyhead[R]{\footnotesize\textcolor{OsdagMuted}{Job: \textbf{\color{OsdagPrimary}{JOB-2026-001}} \quad\textbar\quad 2026-11-22}}
   \fancyfoot[L]{\footnotesize\color{OsdagMuted}Osdag \quad\textbar\quad FOSSEE \quad\textbar\quad Indian Institute of Technology Bombay}
   \fancyfoot[R]{\footnotesize\color{OsdagMuted}Page \textbf{\thepage} of \pageref{LastPage}}
   \renewcommand{\headrule}{{\color{OsdagGreen}\hrule width\headwidth height 1.0pt}\vspace{2pt}}
@@ -93,7 +94,7 @@
 \fancypagestyle{plain}{
   \fancyhf{}
   \fancyhead[L]{\footnotesize\textcolor{OsdagMuted}{\textbf{\color{OsdagPrimary}OsdagBridge} \quad\textbar\quad \textit{Short Span Steel Girder Bridge}}}
-  \fancyhead[R]{\footnotesize\textcolor{OsdagMuted}{Job: \textbf{\color{OsdagPrimary}{JOB-2026-001}} \quad\textbar\quad 20-11-2026}}
+  \fancyhead[R]{\footnotesize\textcolor{OsdagMuted}{Job: \textbf{\color{OsdagPrimary}{JOB-2026-001}} \quad\textbar\quad 2026-11-22}}
   \fancyfoot[L]{\footnotesize\color{OsdagMuted}Osdag \quad\textbar\quad FOSSEE \quad\textbar\quad Indian Institute of Technology Bombay}
   \fancyfoot[R]{\footnotesize\color{OsdagMuted}Page \textbf{\thepage} of \pageref{LastPage}}
   \renewcommand{\headrule}{{\color{OsdagGreen}\hrule width\headwidth height 1.0pt}\vspace{2pt}}
@@ -160,7 +161,7 @@
 \end{minipage}%
 \begin{minipage}[b]{0.36\linewidth}
 \raggedleft
-{\scriptsize\color{OsdagMuted}\textbf{JOB:} JOB-2026-001 \quad\textbar\quad 20-11-2026}
+{\scriptsize\color{OsdagMuted}\textbf{JOB:} JOB-2026-001 \quad\textbar\quad 2026-11-22}
 \end{minipage}\\[3pt]
 {\color{OsdagGreen}\rule{\linewidth}{2.0pt}}\\[0.4cm]
 
@@ -173,7 +174,7 @@
 \begin{center}
 {\fontsize{21}{25}\selectfont \textbf{\color{OsdagPrimary}Short Span Steel Girder Bridge}}\\[0.2cm]
 {\normalsize\color{OsdagMuted}Open Source Software for Steel Girder Bridge Design}\\[0.15cm]
-{\small\bfseries\color{OsdagGreen}Detailed Structural Design and Verification Report}\\[0.4cm]
+{\small\bfseries\color{OsdagGreen}Detailed Structural Design \& Verification Report}\\[0.4cm]
 \end{center}
 
 \noindent
@@ -188,7 +189,7 @@
 Project Name & Short Span Steel Girder Bridge \\
 \hline
 \rowcolor{OsdagZebra}
-Project Location & Mumbai (Colaba), Maharashtra \\
+Project Location & Indore, Madhya Pradesh \\
 \hline
 Author / Designer & Structural Design Engineer \\
 \hline
@@ -203,7 +204,7 @@ Client & IIT Bombay \\
 Job Number & JOB-2026-001 \\
 \hline
 \rowcolor{OsdagZebra}
-Date of Issue & 20-11-2026 \\
+Date of Issue & 2026-11-22 \\
 \hline
 Report Version & Rev 1.0 \\
 \hline
@@ -279,9 +280,9 @@ Report Version & Rev 1.0 \\
 {\color{OsdagGreen}\rule{\linewidth}{2.0pt}}\\[8pt]
 \centering
 {\large\bfseries\color{OsdagPrimary} EXECUTIVE DESIGN SUMMARY}\\[8pt]
-\begin{tabular}{@{}p{0.54\linewidth}p{0.44\linewidth}@{}}
+\begin{tabular}{@{}p{0.48\linewidth}p{0.50\linewidth}@{}}
 \textbf{Structure:} Plate Girder Highway Bridge & \textbf{Overall Status:} \textbf{\color{OsdagFail}{UNSAFE (FAIL)}} \\[5pt]
-\textbf{Span:} 24.0 m \quad\textbar\quad \textbf{Carriageway:} 7.5 m & \textbf{Controlling UR:} \textbf{1.97 (Girder)} \\[5pt]
+\textbf{Span:} 24 m \quad\textbar\quad \textbf{Carriageway:} 7.5 m & \textbf{Controlling UR:} \textbf{1.97 (Girder)} \\[5pt]
 \textbf{Girders:} 4 \quad\textbar\quad \textbf{Spacing:} 2.1 m & \textbf{Governing Check:} Fatigue Normal Stress \\[5pt]
 \textbf{Design Codes:} IRC 5, 6, 22, 24, IS 800 & \textbf{Deck Thickness:} 250.0 mm \\[2pt]
 \end{tabular}
@@ -304,7 +305,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \hline
 \textbf{Design Standards} & IRC 5:2015, IRC 6:2017, IRC 22:2015, IRC 24:2010, IS 800:2007 \\
 \hline
-\textbf{Span (m)} & 24.0 \\
+\textbf{Span (m)} & 24 \\
 \hline
 \textbf{Carriageway Width (m)} & 7.5 \\
 \hline
@@ -323,32 +324,56 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \end{tabular}
 
 \vspace{1em}
-
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{/tmp/tmpo186htwv/images/girder_top.png}
+\caption{\small Overall Bridge Plan}
+\end{figure}
 
 \newpage
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{/tmp/tmpo186htwv/images/cross_section.png}
+\caption{\small Typical Cross-Section (with girder, deck, barriers, footpath)}
+\end{figure}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{/tmp/tmpo186htwv/images/final_geometry.png}
+\caption{\small 3D View of Bridge Superstructure}
+\end{figure}
 
-
-
-\noindent\textbf{Table 1: Final Bridge Geometry (after optimization)}
-
-\vspace{0.4em}
-\noindent
-\begin{tabular}{|L{4.2cm}|C{2.0cm}|C{2.0cm}|C{2.0cm}|C{2.0cm}|}
+\clearpage
+\Needspace{8\baselineskip}
+\begin{longtable}{|C{1.8cm}|C{2.0cm}|C{4.4cm}|L{6.2cm}|C{2.0cm}|}
+\caption{\textbf{Final Bridge Geometry (after optimization)}}\label{tab:final-bridge-geometry} \\
 \hline
 \rowcolor{OsdagHeaderBg}
-\textbf{Girder} & \textbf{G1} & \textbf{G2} & \textbf{G3} & \textbf{G4} \\
+\textbf{Girder} & \textbf{Member ID} & \textbf{Section Designation} & \textbf{Governing Check} & \textbf{Utilization Ratio} \\[6pt]
 \hline
-\textbf{Member ID} & G1M1 & G2M1 & G3M1 & G4M1 \\
+\endfirsthead
+\multicolumn{5}{c}{\small\textit{Final Bridge Geometry (after optimization) (continued from previous page)}} \\[4pt]
 \hline
-\textbf{Section Designation} & 1340 x 410 x 18 x 410 x 18 & 1340 x 410 x 18 x 410 x 18 & 1340 x 410 x 18 x 410 x 18 & 1340 x 410 x 18 x 410 x 18 \\
+\rowcolor{OsdagHeaderBg}
+\textbf{Girder} & \textbf{Member ID} & \textbf{Section Designation} & \textbf{Governing Check} & \textbf{Utilization Ratio} \\[6pt]
 \hline
-\textbf{Governing Check} & Fatigue Normal Stress & Fatigue Normal Stress & Fatigue Normal Stress & Fatigue Normal Stress \\
+\endhead
 \hline
-\textbf{Utilization Ratio} & 1.97 & 1.97 & 1.97 & 1.97 \\
+\multicolumn{5}{r}{\small\textit{Continued on next page}} \\
+\endfoot
 \hline
-\end{tabular}
+\endlastfoot
+G1 & G1M1 & 1340 $\times$ 410 $\times$ 18 $\times$ 410 $\times$ 18 & Fatigue Normal Stress & 1.95 \\[6pt]
+\hline
+G2 & G2M1 & 1340 $\times$ 410 $\times$ 18 $\times$ 410 $\times$ 18 & Fatigue Normal Stress & 1.96 \\[6pt]
+\hline
+G3 & G3M1 & 1340 $\times$ 410 $\times$ 18 $\times$ 410 $\times$ 18 & Fatigue Normal Stress & 1.97 \\[6pt]
+\hline
+G4 & G4M1 & 1340 $\times$ 410 $\times$ 18 $\times$ 410 $\times$ 18 & Fatigue Normal Stress & 1.97 \\[6pt]
+\hline
+\end{longtable}
+
 
 \vspace{0.4em}
 \noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value $\le 1.0$ indicates a passing check.}
@@ -397,7 +422,7 @@ This section records all project metadata as entered by the designer.
 \textnormal{Project Name} & Short Span Steel Girder Bridge \\
 \hline
 \rowcolor{OsdagZebra}
-\textnormal{Project Location} & Mumbai (Colaba), Maharashtra \\
+\textnormal{Project Location} & Indore, Madhya Pradesh \\
 \hline
 \textnormal{Designer} & Structural Design Engineer \\
 \hline
@@ -510,17 +535,17 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 \rowcolor{OsdagHeaderBg}
 \textbf{Parameter} & \textbf{Value} \\
 \hline
-\textnormal{Project Location} & Mumbai (Colaba), Maharashtra \\
+\textnormal{Project Location} & Indore, Madhya Pradesh \\
 \hline
 \rowcolor{OsdagZebra}
-\textnormal{Latitude / Longitude} & 18.9067, 72.8147 \\
+\textnormal{Latitude / Longitude} & 22.7196, 75.8577 \\
 \hline
-\textnormal{Seismic Zone (IRC 6)} & III \\
+\textnormal{Seismic Zone (IRC 6)} & II \\
 \hline
 \rowcolor{OsdagZebra}
-\textnormal{Basic Wind Speed (IRC 6)} & 44 m/s \\
+\textnormal{Basic Wind Speed (IRC 6)} & 39 m/s \\
 \hline
-\textnormal{Shade Temp. Max / Min (IRC 6)} & 40.6 °C / 11.7 °C \\
+\textnormal{Shade Temp. Max / Min (IRC 6)} & 46 °C / -2.8 °C \\
 \hline
 \end{tabular}
 \vspace{0.4cm}
@@ -537,7 +562,7 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 \textnormal{Type of Structure} & Highway Bridge \\
 \hline
 \rowcolor{OsdagZebra}
-\textnormal{Span (m)} & 24.0 m \\
+\textnormal{Span (m)} & 24 m \\
 \hline
 \textnormal{Carriageway Width (m)} & 7.5 m \\
 \hline
@@ -547,7 +572,7 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 \textnormal{Footpath} & None \\
 \hline
 \rowcolor{OsdagZebra}
-\textnormal{Skew Angle (degrees)} & 0.0° (IRC 24 Cl. 504.8 limit: $\pm$15°) \\
+\textnormal{Skew Angle (degrees)} &  (IRC 24 Cl. 504.8 limit: $\pm$15°) \\
 \hline
 \end{tabular}
 \end{table}
@@ -662,7 +687,7 @@ Where the user has modified additional inputs, those values are reported here. W
 \setlength\LTright\fill
             
 \vspace{4pt}
-\begin{longtable}{|L{1.8cm}|L{1.8cm}|p{3.2cm}|p{3.6cm}|p{3.6cm}|}
+\begin{longtable}{|C{1.8cm}|C{2.0cm}|C{3.0cm}|C{3.6cm}|C{4.4cm}|}
 \caption{\textbf{Girder General Information}}\label{tab:girder-general-info} \\
 \hline
 \rowcolor{OsdagHeaderBg}
@@ -696,7 +721,7 @@ G4 & G4M1 & Optimized & Welded & Girder Symmetric \\[8pt]
 \setlength{\tabcolsep}{4.0pt}
 \setlength\LTleft{0pt}
 \setlength\LTright\fill
-\begin{longtable}{|L{1.6cm}|L{2.4cm}|L{2.0cm}|p{4.2cm}|p{4.2cm}|}
+\begin{longtable}{|C{1.8cm}|C{2.8cm}|C{2.4cm}|C{4.3cm}|C{4.3cm}|}
 \caption{\textbf{Girder Section Dimensions}}\label{tab:girder-section-dimensions} \\
 \hline
 \rowcolor{OsdagHeaderBg}
@@ -729,7 +754,7 @@ G4 & 1340 & 8 & 410 $\times$ 18 & 410 $\times$ 18 \\[8pt]
 \setlength{\tabcolsep}{3.5pt}
 \setlength\LTleft{0pt}
 \setlength\LTright\fill
-\begin{longtable}{|C{1.3cm}|L{2.5cm}|L{2.2cm}|L{3.0cm}|L{2.2cm}|L{3.8cm}|}
+\begin{longtable}{|C{1.5cm}|L{2.8cm}|C{2.4cm}|L{3.2cm}|C{2.8cm}|L{3.8cm}|}
 \caption{\textbf{Girder Restraint and Stiffener Details}}\label{tab:girder-restraint-details} \\
 \hline
 \rowcolor{OsdagHeaderBg}
@@ -1109,7 +1134,7 @@ Governing Code \& Clause & IRC 6 Cl. 206 \\[4pt]
 \endfoot
 \hline
 \endlastfoot
-\textnormal{Basic Wind Speed, Vb} & 44 m/s [from Project Location] \\[6pt]
+\textnormal{Basic Wind Speed, Vb} & 39 m/s [from Project Location] \\[6pt]
 \hline
 \textnormal{Terrain Type} & Plain Terrain \\[6pt]
 \hline
@@ -1146,9 +1171,9 @@ Governing Code \& Clause & IRC 6 Cl. 206 \\[4pt]
 \endfoot
 \hline
 \endlastfoot
-\textnormal{Seismic Zone} & III [from Project Location] \\[6pt]
+\textnormal{Seismic Zone} & II [from Project Location] \\[6pt]
 \hline
-\textnormal{Zone Factor, Z} & 0.16 \\[6pt]
+\textnormal{Zone Factor, Z} & 0.1 \\[6pt]
 \hline
 \textnormal{Importance Factor, I} & 1.0 \\[6pt]
 \hline
@@ -1156,9 +1181,9 @@ Governing Code \& Clause & IRC 6 Cl. 206 \\[4pt]
 \hline
 \textnormal{Sa/g} & 2.8 \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Coefficient, Ah} & 0.224 \\[6pt]
+\textnormal{Horizontal Seismic Coefficient, Ah} & 0.14 \\[6pt]
 \hline
-\textnormal{Vertical Seismic Coefficient, Av} & 0.1493 \\[6pt]
+\textnormal{Vertical Seismic Coefficient, Av} & 0.0933 \\[6pt]
 \hline
 \textnormal{Horizontal Seismic Force (longitudinal)} & - \\[6pt]
 \hline
@@ -1186,13 +1211,13 @@ Governing Code \& Clause & IRC 6 Cl. 206 \\[4pt]
 \endfoot
 \hline
 \endlastfoot
-\textnormal{Maximum Shade Temperature} & 40.6 $^\circ$C \\[6pt]
+\textnormal{Maximum Shade Temperature} & 46 $^\circ$C \\[6pt]
 \hline
-\textnormal{Minimum Shade Temperature} & 11.7 $^\circ$C \\[6pt]
+\textnormal{Minimum Shade Temperature} & -2.8 $^\circ$C \\[6pt]
 \hline
-\textnormal{Effective Bridge Temp. Range} & 1.70 to 55.60 $^\circ$C \\[6pt]
+\textnormal{Effective Bridge Temp. Range} & -12.80 to 61.00 $^\circ$C \\[6pt]
 \hline
-\textnormal{Temperature Rise / Fall for Design} & +26.95 $^\circ$C / -26.95 $^\circ$C \\[6pt]
+\textnormal{Temperature Rise / Fall for Design} & +36.90 $^\circ$C / -36.90 $^\circ$C \\[6pt]
 \hline
 \end{longtable}
 
@@ -1276,40 +1301,40 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \caption{\textbf{Summary of Maximum Demands}}\label{tab:max-demands} \\
 \hline
 \rowcolor{OsdagHeaderBg}
- & \multicolumn{3}{c|}{\textbf{Bending Moment}}
- & \multicolumn{3}{c|}{\textbf{Shear Force}}
- & \multicolumn{2}{c|}{\makecell{\textbf{Reaction at Supports}}}\\
-\cline{2-9}
+\multirow{2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Bending Moment}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Shear Force}}
+ & \multicolumn{2}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Reaction at Supports}} \\
+\hhline{|~|---|---|--|}
 \rowcolor{OsdagHeaderBg}
-\multirow{-2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
  & \makecell{\textbf{Max}\\\textbf{(kNm)}}
  & \textbf{Girder}
  & \makecell{\textbf{Loc.}\\\textbf{(m)}}
  & \makecell{\textbf{Max}\\\textbf{(kN)}}
  & \textbf{Girder}
  & \makecell{\textbf{Loc.}\\\textbf{(m)}}
- & \makecell{\textbf{Left}}
- & \makecell{\textbf{Right}}\\
+ & \textbf{Left}
+ & \textbf{Right} \\
 \hline
 \endfirsthead
 
 \multicolumn{9}{c}{\small\textit{Summary of Maximum Demands (continued from previous page)}} \\[4pt]
 \hline
 \rowcolor{OsdagHeaderBg}
- & \multicolumn{3}{c|}{\textbf{Bending Moment}}
- & \multicolumn{3}{c|}{\textbf{Shear Force}}
- & \multicolumn{2}{c|}{\makecell{\textbf{Reaction at Supports}}}\\
-\cline{2-9}
+\multirow{2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Bending Moment}}
+ & \multicolumn{3}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Shear Force}}
+ & \multicolumn{2}{>{\columncolor{OsdagHeaderBg}}c|}{\textbf{Reaction at Supports}} \\
+\hhline{|~|---|---|--|}
 \rowcolor{OsdagHeaderBg}
-\multirow{-2}{*}{\makecell{\textbf{Load Case /}\\\textbf{Comb.}}}
  & \makecell{\textbf{Max}\\\textbf{(kNm)}}
  & \textbf{Girder}
  & \makecell{\textbf{Loc.}\\\textbf{(m)}}
  & \makecell{\textbf{Max}\\\textbf{(kN)}}
  & \textbf{Girder}
  & \makecell{\textbf{Loc.}\\\textbf{(m)}}
- & \makecell{\textbf{Left}}
- & \makecell{\textbf{Right}}\\
+ & \textbf{Left}
+ & \textbf{Right} \\
 \hline
 \endhead
 
@@ -1319,95 +1344,95 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \endlastfoot
 
-SEISMIC\_\allowbreak{}2:\allowbreak{} 1.35DL + 1.75DW + 0.2LL + 0.75EL & 1399.923 & G2 & 12.000 & 278.911 & G1 & 0.000 & -961.383 & 801.368 \\[6pt]
-\hline
-SEISMIC\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.75EL & 1399.923 & G2 & 12.000 & 278.911 & G1 & 0.000 & -961.383 & 801.368 \\[6pt]
-\hline
-EQ\_\allowbreak{}X & 0.000 & - & - & 0.000 & - & - & 0.000 & 0.000 \\[6pt]
-\hline
-SLS\_\allowbreak{}QP\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW & 853.155 & G1 & 12.000 & 178.446 & G1 & 0.000 & -618.759 & 618.759 \\[6pt]
-\hline
-1.0 WL & 70.971 & G1 & 12.000 & 14.569 & G1 & 0.000 & 50.864 & -50.864 \\[6pt]
-\hline
-BASIC\_\allowbreak{}3:\allowbreak{} 1.35DL + 1.75DW + 1.15LL + 0.9WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-WL Longitudinal & 0.000 & - & - & 0.000 & - & - & -0.000 & 0.000 \\[6pt]
-\hline
 SLS\_\allowbreak{}FREQUENT\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.2DW + 0.2LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-Envelope ULS & 1526.502 & G2 & 12.000 & 304.968 & G1 & 0.000 & -1052.357 & 892.342 \\[6pt]
-\hline
-BASIC\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 1.15LL + 1.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-Crash barrier load & 103.850 & G2 & 12.000 & 22.907 & G1 & 22.500 & -68.083 & 72.674 \\[6pt]
-\hline
-ACCIDENTAL\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & 1526.502 & G2 & 12.000 & 304.968 & G1 & 0.000 & -1052.357 & 892.342 \\[6pt]
-\hline
-WL Transverse & 0.000 & - & - & 0.000 & - & - & -0.000 & -0.000 \\[6pt]
-\hline
-1.0 DL & 725.119 & G1 & 12.000 & 151.591 & G1 & 22.500 & -525.795 & 525.795 \\[6pt]
-\hline
-EQ\_\allowbreak{}Z & 0.000 & - & - & 0.000 & - & - & 0.000 & -0.000 \\[6pt]
-\hline
-SW & 84.941 & G1 & 12.000 & 17.316 & G1 & 22.500 & -60.976 & 60.976 \\[6pt]
-\hline
-SEISMIC\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 1.5EL & 1399.923 & G2 & 12.000 & 278.911 & G1 & 0.000 & -961.383 & 801.368 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 1.0WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-1.5 EQ (a) & 57.121 & G1 & 12.000 & 11.726 & G1 & 0.000 & 40.938 & -40.938 \\[6pt]
-\hline
-1.5 EQ (b) & 57.121 & G1 & 12.000 & 11.726 & G1 & 0.000 & 40.938 & -40.938 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 1.0LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 1.0WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-1.0 DW & 128.036 & G1 & 12.000 & 26.855 & G1 & 0.000 & -92.964 & 92.964 \\[6pt]
-\hline
-ACCIDENTAL\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & 1526.502 & G2 & 12.000 & 304.968 & G1 & 0.000 & -1052.357 & 892.342 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 0.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-1.5 EQ (c) & 190.403 & G1 & 12.000 & 39.085 & G1 & 22.500 & 136.461 & -136.461 \\[6pt]
-\hline
-DD & 640.178 & G1 & 12.000 & 134.274 & G1 & 22.500 & -464.819 & 464.819 \\[6pt]
-\hline
-SLS\_\allowbreak{}QP\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.0DW & 853.155 & G1 & 12.000 & 178.446 & G1 & 0.000 & -618.759 & 618.759 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.2DW + 0.2LL + 0.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-BASIC\_\allowbreak{}2:\allowbreak{} 1.35DL + 1.75DW + 1.15LL + 1.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-ACCIDENTAL\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & 1526.502 & G2 & 12.000 & 304.968 & G1 & 0.000 & -1052.357 & 892.342 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-Envelope SLS & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
 \hline
 WL Uplift & 70.971 & G1 & 12.000 & 14.569 & G1 & 22.500 & 50.864 & -50.864 \\[6pt]
 \hline
-BASIC\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 1.5LL + 0.9WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+1.0 DL & 725.119 & G1 & 12.000 & 151.591 & G1 & 22.500 & -525.795 & 525.795 \\[6pt]
 \hline
-SEISMIC\_\allowbreak{}1:\allowbreak{} 1.35DL + 1.75DW + 0.2LL + 1.5EL & 1399.923 & G2 & 12.000 & 278.911 & G1 & 0.000 & -961.383 & 801.368 \\[6pt]
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
 \hline
-EQ\_\allowbreak{}Y & 126.935 & G1 & 12.000 & 26.057 & G1 & 22.500 & 90.974 & -90.974 \\[6pt]
+ACCIDENTAL\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & 1526.502 & G2 & 12.000 & 304.968 & G1 & 0.000 & -1052.357 & 892.342 \\[6pt]
 \hline
-BASIC\_\allowbreak{}1:\allowbreak{} 1.35DL + 1.75DW + 1.5LL + 0.9WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
-\hline
-BASIC\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 1.15LL + 0.9WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+SEISMIC\_\allowbreak{}2:\allowbreak{} 1.35DL + 1.75DW + 0.2LL + 0.75EL & 1447.401 & G2 & 12.000 & 288.685 & G1 & 0.000 & -995.506 & 835.491 \\[6pt]
 \hline
 SLS\_\allowbreak{}RARE\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 1.0LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
 \hline
+SEISMIC\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.75EL & 1447.401 & G2 & 12.000 & 288.685 & G1 & 0.000 & -995.506 & 835.491 \\[6pt]
+\hline
+ACCIDENTAL\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & 1526.502 & G2 & 12.000 & 304.968 & G1 & 0.000 & -1052.357 & 892.342 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 1.0WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}QP\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.0DW & 853.155 & G1 & 12.000 & 178.446 & G1 & 0.000 & -618.759 & 618.759 \\[6pt]
+\hline
+Envelope ULS & 1526.502 & G2 & 12.000 & 304.968 & G1 & 0.000 & -1052.357 & 892.342 \\[6pt]
+\hline
+EQ\_\allowbreak{}Z & 0.000 & - & - & 0.000 & - & - & 0.000 & -0.000 \\[6pt]
+\hline
+DD & 640.178 & G1 & 12.000 & 134.274 & G1 & 22.500 & -464.819 & 464.819 \\[6pt]
+\hline
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+1.0 DW & 128.036 & G1 & 12.000 & 26.855 & G1 & 0.000 & -92.964 & 92.964 \\[6pt]
+\hline
+SEISMIC\_\allowbreak{}1:\allowbreak{} 1.35DL + 1.75DW + 0.2LL + 1.5EL & 1447.401 & G2 & 12.000 & 288.685 & G1 & 0.000 & -995.506 & 835.491 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 1.0WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+Crash barrier load & 103.850 & G2 & 12.000 & 22.907 & G1 & 22.500 & -68.083 & 72.674 \\[6pt]
+\hline
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.2DW + 0.2LL + 0.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 1.0LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+WL Transverse & 0.000 & - & - & 0.000 & - & - & -0.000 & -0.000 \\[6pt]
+\hline
+1.0 WL & 70.971 & G1 & 12.000 & 14.569 & G1 & 0.000 & 50.864 & -50.864 \\[6pt]
+\hline
+EQ\_\allowbreak{}Y & 79.324 & G1 & 12.000 & 16.283 & G1 & 22.500 & 56.851 & -56.851 \\[6pt]
+\hline
+BASIC\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 1.15LL + 0.9WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+BASIC\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 1.5LL + 0.9WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
 1.0 DL + 1.0 LL & 1398.821 & G2 & 12.000 & 278.113 & G1 & 0.000 & -959.393 & 799.378 \\[6pt]
+\hline
+BASIC\_\allowbreak{}1:\allowbreak{} 1.35DL + 1.75DW + 1.5LL + 0.9WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}QP\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW & 853.155 & G1 & 12.000 & 178.446 & G1 & 0.000 & -618.759 & 618.759 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+1.5 EQ (c) & 118.986 & G1 & 12.000 & 24.425 & G1 & 22.500 & 85.276 & -85.276 \\[6pt]
+\hline
+EQ\_\allowbreak{}X & 0.000 & - & - & 0.000 & - & - & 0.000 & 0.000 \\[6pt]
+\hline
+Envelope SLS & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+ACCIDENTAL\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & 1526.502 & G2 & 12.000 & 304.968 & G1 & 0.000 & -1052.357 & 892.342 \\[6pt]
+\hline
+SEISMIC\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 1.5EL & 1447.401 & G2 & 12.000 & 288.685 & G1 & 0.000 & -995.506 & 835.491 \\[6pt]
+\hline
+1.5 EQ (a) & 35.696 & G1 & 12.000 & 7.327 & G1 & 0.000 & 25.583 & -25.583 \\[6pt]
+\hline
+SW & 84.941 & G1 & 12.000 & 17.316 & G1 & 22.500 & -60.976 & 60.976 \\[6pt]
+\hline
+BASIC\_\allowbreak{}2:\allowbreak{} 1.35DL + 1.75DW + 1.15LL + 1.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 0.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+1.5 EQ (b) & 35.696 & G1 & 12.000 & 7.327 & G1 & 0.000 & 25.583 & -25.583 \\[6pt]
+\hline
+WL Longitudinal & 0.000 & - & - & 0.000 & - & - & -0.000 & 0.000 \\[6pt]
+\hline
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+BASIC\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 1.15LL + 1.5WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 0.6WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
+\hline
+BASIC\_\allowbreak{}3:\allowbreak{} 1.35DL + 1.75DW + 1.15LL + 0.9WL & 1455.730 & G2 & 12.000 & 290.399 & G1 & 0.000 & -1001.493 & 841.478 \\[6pt]
 \end{longtable}
 \endgroup
 
@@ -1431,95 +1456,95 @@ SLS\_\allowbreak{}RARE\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 1.0LL + 0.6
 \endfoot
 \hline
 \endlastfoot
-SEISMIC\_\allowbreak{}2:\allowbreak{} 1.35DL + 1.75DW + 0.2LL + 0.75EL & -961.383 & 801.368 \\[6pt]
-\hline
-SEISMIC\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.75EL & -961.383 & 801.368 \\[6pt]
-\hline
-EQ\_\allowbreak{}X & 0.000 & 0.000 \\[6pt]
-\hline
-SLS\_\allowbreak{}QP\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW & -618.759 & 618.759 \\[6pt]
-\hline
-1.0 WL & 50.864 & -50.864 \\[6pt]
-\hline
-BASIC\_\allowbreak{}3:\allowbreak{} 1.35DL + 1.75DW + 1.15LL + 0.9WL & -1001.493 & 841.478 \\[6pt]
-\hline
-WL Longitudinal & -0.000 & 0.000 \\[6pt]
-\hline
 SLS\_\allowbreak{}FREQUENT\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.2DW + 0.2LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
-\hline
-Envelope ULS & -1052.357 & 892.342 \\[6pt]
-\hline
-BASIC\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 1.15LL + 1.5WL & -1001.493 & 841.478 \\[6pt]
-\hline
-Crash barrier load & -68.083 & 72.674 \\[6pt]
-\hline
-ACCIDENTAL\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & -1052.357 & 892.342 \\[6pt]
-\hline
-WL Transverse & -0.000 & -0.000 \\[6pt]
-\hline
-1.0 DL & -525.795 & 525.795 \\[6pt]
-\hline
-EQ\_\allowbreak{}Z & 0.000 & -0.000 \\[6pt]
-\hline
-SW & -60.976 & 60.976 \\[6pt]
-\hline
-SEISMIC\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 1.5EL & -961.383 & 801.368 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 1.0WL & -1001.493 & 841.478 \\[6pt]
-\hline
-1.5 EQ (a) & 40.938 & -40.938 \\[6pt]
-\hline
-1.5 EQ (b) & 40.938 & -40.938 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 1.0LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 1.0WL & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}RARE\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
-\hline
-1.0 DW & -92.964 & 92.964 \\[6pt]
-\hline
-ACCIDENTAL\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & -1052.357 & 892.342 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 0.5WL & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.5WL & -1001.493 & 841.478 \\[6pt]
-\hline
-1.5 EQ (c) & 136.461 & -136.461 \\[6pt]
-\hline
-DD & -464.819 & 464.819 \\[6pt]
-\hline
-SLS\_\allowbreak{}QP\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.0DW & -618.759 & 618.759 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.2DW + 0.2LL + 0.5WL & -1001.493 & 841.478 \\[6pt]
-\hline
-BASIC\_\allowbreak{}2:\allowbreak{} 1.35DL + 1.75DW + 1.15LL + 1.5WL & -1001.493 & 841.478 \\[6pt]
-\hline
-ACCIDENTAL\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & -1052.357 & 892.342 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.5WL & -1001.493 & 841.478 \\[6pt]
-\hline
-SLS\_\allowbreak{}FREQUENT\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
-\hline
-Envelope SLS & -1001.493 & 841.478 \\[6pt]
 \hline
 WL Uplift & 50.864 & -50.864 \\[6pt]
 \hline
-BASIC\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 1.5LL + 0.9WL & -1001.493 & 841.478 \\[6pt]
+1.0 DL & -525.795 & 525.795 \\[6pt]
 \hline
-SEISMIC\_\allowbreak{}1:\allowbreak{} 1.35DL + 1.75DW + 0.2LL + 1.5EL & -961.383 & 801.368 \\[6pt]
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.5WL & -1001.493 & 841.478 \\[6pt]
 \hline
-EQ\_\allowbreak{}Y & 90.974 & -90.974 \\[6pt]
+ACCIDENTAL\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & -1052.357 & 892.342 \\[6pt]
 \hline
-BASIC\_\allowbreak{}1:\allowbreak{} 1.35DL + 1.75DW + 1.5LL + 0.9WL & -1001.493 & 841.478 \\[6pt]
-\hline
-BASIC\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 1.15LL + 0.9WL & -1001.493 & 841.478 \\[6pt]
+SEISMIC\_\allowbreak{}2:\allowbreak{} 1.35DL + 1.75DW + 0.2LL + 0.75EL & -995.506 & 835.491 \\[6pt]
 \hline
 SLS\_\allowbreak{}RARE\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 1.0LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
 \hline
-1.0 DL + 1.0 LL & -959.393 & 799.378 \\[6pt] \\
+SEISMIC\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.75EL & -995.506 & 835.491 \\[6pt]
+\hline
+ACCIDENTAL\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & -1052.357 & 892.342 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 1.0WL & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}QP\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.0DW & -618.759 & 618.759 \\[6pt]
+\hline
+Envelope ULS & -1052.357 & 892.342 \\[6pt]
+\hline
+EQ\_\allowbreak{}Z & 0.000 & -0.000 \\[6pt]
+\hline
+DD & -464.819 & 464.819 \\[6pt]
+\hline
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.5WL & -1001.493 & 841.478 \\[6pt]
+\hline
+1.0 DW & -92.964 & 92.964 \\[6pt]
+\hline
+SEISMIC\_\allowbreak{}1:\allowbreak{} 1.35DL + 1.75DW + 0.2LL + 1.5EL & -995.506 & 835.491 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 1.0WL & -1001.493 & 841.478 \\[6pt]
+\hline
+Crash barrier load & -68.083 & 72.674 \\[6pt]
+\hline
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.2DW + 0.2LL + 0.5WL & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 1.0LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
+\hline
+WL Transverse & -0.000 & -0.000 \\[6pt]
+\hline
+1.0 WL & 50.864 & -50.864 \\[6pt]
+\hline
+EQ\_\allowbreak{}Y & 56.851 & -56.851 \\[6pt]
+\hline
+BASIC\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 1.15LL + 0.9WL & -1001.493 & 841.478 \\[6pt]
+\hline
+BASIC\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 1.5LL + 0.9WL & -1001.493 & 841.478 \\[6pt]
+\hline
+1.0 DL + 1.0 LL & -959.393 & 799.378 \\[6pt]
+\hline
+BASIC\_\allowbreak{}1:\allowbreak{} 1.35DL + 1.75DW + 1.5LL + 0.9WL & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}QP\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW & -618.759 & 618.759 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
+\hline
+1.5 EQ (c) & 85.276 & -85.276 \\[6pt]
+\hline
+EQ\_\allowbreak{}X & 0.000 & 0.000 \\[6pt]
+\hline
+Envelope SLS & -1001.493 & 841.478 \\[6pt]
+\hline
+ACCIDENTAL\_\allowbreak{}2:\allowbreak{} 1.0DL + 1.0DW + 0.75LL & -1052.357 & 892.342 \\[6pt]
+\hline
+SEISMIC\_\allowbreak{}3:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 1.5EL & -995.506 & 835.491 \\[6pt]
+\hline
+1.5 EQ (a) & 25.583 & -25.583 \\[6pt]
+\hline
+SW & -60.976 & 60.976 \\[6pt]
+\hline
+BASIC\_\allowbreak{}2:\allowbreak{} 1.35DL + 1.75DW + 1.15LL + 1.5WL & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 0.5WL & -1001.493 & 841.478 \\[6pt]
+\hline
+1.5 EQ (b) & 25.583 & -25.583 \\[6pt]
+\hline
+WL Longitudinal & -0.000 & 0.000 \\[6pt]
+\hline
+SLS\_\allowbreak{}FREQUENT\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 0.2LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
+\hline
+BASIC\_\allowbreak{}5:\allowbreak{} 1.0DL + 1.0DW + 1.15LL + 1.5WL & -1001.493 & 841.478 \\[6pt]
+\hline
+SLS\_\allowbreak{}RARE\_\allowbreak{}6:\allowbreak{} 1.0DL + 1.0DW + 0.75LL + 0.6WL & -1001.493 & 841.478 \\[6pt]
+\hline
+BASIC\_\allowbreak{}3:\allowbreak{} 1.35DL + 1.75DW + 1.15LL + 0.9WL & -1001.493 & 841.478 \\[6pt] \\
 \hline
 \end{longtable}
 
@@ -1559,9 +1584,30 @@ SLS\_\allowbreak{}RARE\_\allowbreak{}4:\allowbreak{} 1.0DL + 1.0DW + 1.0LL + 0.6
 
 \vspace{1em}
 \noindent
-
-
-
+\begin{figure}[H]
+\vspace{-0.5em}
+\centering
+\includegraphics[width=0.75\textwidth]{/tmp/tmpo186htwv/images/bm_envelope.png}
+\vspace{0.5em}
+\caption{\small Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).}
+\vspace{-0.5em}
+\end{figure}
+\begin{figure}[H]
+\vspace{-0.5em}
+\centering
+\includegraphics[width=0.75\textwidth]{/tmp/tmpo186htwv/images/sf_envelope.png}
+\vspace{0.5em}
+\caption{\small Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).}
+\vspace{-0.5em}
+\end{figure}
+\begin{figure}[H]
+\vspace{-0.5em}
+\centering
+\includegraphics[width=0.75\textwidth]{/tmp/tmpo186htwv/images/defl_ll.png}
+\vspace{0.5em}
+\caption{\small Vertical Deflection D$_y$ (1.0 LL): Maximum deflection along span. Load Case: 1.0 LL, Combination: $D_y$. Nodes shown. Isometric view.}
+\vspace{-0.5em}
+\end{figure}
 
 
 \chapter{Design Checks}
@@ -1590,107 +1636,61 @@ This section presents all structural design checks performed by OsdagBridge. For
 \endfoot
 \hline
 \endlastfoot
-\multirow{13}{*}{\makecell{G1}} & \textnormal{Depth, D (mm)} & 1340.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Top Flange Width, $b_f$ (mm)} & 410.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Bottom Flange Width, $b_f$ (mm)} & 410.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Top Flange Thickness, $t_f$ (mm)} & 18.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} & 18.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Web Thickness, $t_w$ (mm)} & 8.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Gross Area, A (cm$^2$)} & 251.92 \\*[6pt]
-\cline{2-3}
- & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} & 792758.08 \\*[6pt]
-\cline{2-3}
- & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} & 11832.21 \\*[6pt]
-\cline{2-3}
- & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} & 13157.19 \\*[6pt]
-\cline{2-3}
- & \textnormal{Effective Slab Width, $b_{\mathrm{eff}}$ (mm)} & 2100.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Transformed Composite $I_z$ (cm$^4$)} & 2000048.17 \\*[6pt]
-\cline{2-3}
- & \textnormal{Depth to Plastic Neutral Axis (mm)} & 252.0 \\[6pt]
+\multirow{13}{*}{\makecell{G1}} & \textnormal{Depth, D (mm)} & 1340.0 \\*[3pt]
+ & \textnormal{Top Flange Width, $b_f$ (mm)} & 410.0 \\*[3pt]
+ & \textnormal{Bottom Flange Width, $b_f$ (mm)} & 410.0 \\*[3pt]
+ & \textnormal{Top Flange Thickness, $t_f$ (mm)} & 18.0 \\*[3pt]
+ & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} & 18.0 \\*[3pt]
+ & \textnormal{Web Thickness, $t_w$ (mm)} & 8.0 \\*[3pt]
+ & \textnormal{Gross Area, A (cm$^2$)} & 251.92 \\*[3pt]
+ & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} & 792758.08 \\*[3pt]
+ & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} & 11832.21 \\*[3pt]
+ & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} & 13157.19 \\*[3pt]
+ & \textnormal{Effective Slab Width, $b_{\mathrm{eff}}$ (mm)} & 2100.0 \\*[3pt]
+ & \textnormal{Transformed Composite $I_z$ (cm$^4$)} & 2000048.17 \\*[3pt]
+ & \textnormal{Depth to Plastic Neutral Axis (mm)} & 252.0 \\[3pt]
 \hline
-\multirow{6}{*}{\makecell{G2}} & \textnormal{Depth, D (mm)} & 1340.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Top Flange Width, $b_f$ (mm)} & 410.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Bottom Flange Width, $b_f$ (mm)} & 410.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Top Flange Thickness, $t_f$ (mm)} & 18.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} & 18.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Web Thickness, $t_w$ (mm)} & 8.0 \\ \hline \pagebreak
-\multirow{7}{*}{\makecell{G2\\[2pt]\footnotesize(cont.)}} & \textnormal{Gross Area, A (cm$^2$)} & 251.92 \\*[6pt]
-\cline{2-3}
- & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} & 792758.08 \\*[6pt]
-\cline{2-3}
- & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} & 11832.21 \\*[6pt]
-\cline{2-3}
- & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} & 13157.19 \\*[6pt]
-\cline{2-3}
- & \textnormal{Effective Slab Width, $b_{\mathrm{eff}}$ (mm)} & 2100.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Transformed Composite $I_z$ (cm$^4$)} & 2000048.17 \\*[6pt]
-\cline{2-3}
- & \textnormal{Depth to Plastic Neutral Axis (mm)} & 252.0 \\[6pt]
+\multirow{13}{*}{\makecell{G2}} & \textnormal{Depth, D (mm)} & 1340.0 \\*[3pt]
+ & \textnormal{Top Flange Width, $b_f$ (mm)} & 410.0 \\*[3pt]
+ & \textnormal{Bottom Flange Width, $b_f$ (mm)} & 410.0 \\*[3pt]
+ & \textnormal{Top Flange Thickness, $t_f$ (mm)} & 18.0 \\*[3pt]
+ & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} & 18.0 \\*[3pt]
+ & \textnormal{Web Thickness, $t_w$ (mm)} & 8.0 \\*[3pt]
+ & \textnormal{Gross Area, A (cm$^2$)} & 251.92 \\*[3pt]
+ & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} & 792758.08 \\*[3pt]
+ & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} & 11832.21 \\*[3pt]
+ & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} & 13157.19 \\*[3pt]
+ & \textnormal{Effective Slab Width, $b_{\mathrm{eff}}$ (mm)} & 2100.0 \\*[3pt]
+ & \textnormal{Transformed Composite $I_z$ (cm$^4$)} & 2000048.17 \\*[3pt]
+ & \textnormal{Depth to Plastic Neutral Axis (mm)} & 252.0 \\[3pt]
 \hline
-\multirow{13}{*}{\makecell{G3}} & \textnormal{Depth, D (mm)} & 1340.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Top Flange Width, $b_f$ (mm)} & 410.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Bottom Flange Width, $b_f$ (mm)} & 410.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Top Flange Thickness, $t_f$ (mm)} & 18.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} & 18.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Web Thickness, $t_w$ (mm)} & 8.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Gross Area, A (cm$^2$)} & 251.92 \\*[6pt]
-\cline{2-3}
- & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} & 792758.08 \\*[6pt]
-\cline{2-3}
- & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} & 11832.21 \\*[6pt]
-\cline{2-3}
- & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} & 13157.19 \\*[6pt]
-\cline{2-3}
- & \textnormal{Effective Slab Width, $b_{\mathrm{eff}}$ (mm)} & 2100.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Transformed Composite $I_z$ (cm$^4$)} & 2000048.17 \\*[6pt]
-\cline{2-3}
- & \textnormal{Depth to Plastic Neutral Axis (mm)} & 252.0 \\[6pt]
+\multirow{13}{*}{\makecell{G3}} & \textnormal{Depth, D (mm)} & 1340.0 \\*[3pt]
+ & \textnormal{Top Flange Width, $b_f$ (mm)} & 410.0 \\*[3pt]
+ & \textnormal{Bottom Flange Width, $b_f$ (mm)} & 410.0 \\*[3pt]
+ & \textnormal{Top Flange Thickness, $t_f$ (mm)} & 18.0 \\*[3pt]
+ & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} & 18.0 \\*[3pt]
+ & \textnormal{Web Thickness, $t_w$ (mm)} & 8.0 \\*[3pt]
+ & \textnormal{Gross Area, A (cm$^2$)} & 251.92 \\*[3pt]
+ & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} & 792758.08 \\*[3pt]
+ & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} & 11832.21 \\*[3pt]
+ & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} & 13157.19 \\*[3pt]
+ & \textnormal{Effective Slab Width, $b_{\mathrm{eff}}$ (mm)} & 2100.0 \\*[3pt]
+ & \textnormal{Transformed Composite $I_z$ (cm$^4$)} & 2000048.17 \\*[3pt]
+ & \textnormal{Depth to Plastic Neutral Axis (mm)} & 252.0 \\[3pt]
 \hline
-\multirow{4}{*}{\makecell{G4}} & \textnormal{Depth, D (mm)} & 1340.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Top Flange Width, $b_f$ (mm)} & 410.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Bottom Flange Width, $b_f$ (mm)} & 410.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Top Flange Thickness, $t_f$ (mm)} & 18.0 \\ \hline \pagebreak
-\multirow{9}{*}{\makecell{G4\\[2pt]\footnotesize(cont.)}} & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} & 18.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Web Thickness, $t_w$ (mm)} & 8.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Gross Area, A (cm$^2$)} & 251.92 \\*[6pt]
-\cline{2-3}
- & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} & 792758.08 \\*[6pt]
-\cline{2-3}
- & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} & 11832.21 \\*[6pt]
-\cline{2-3}
- & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} & 13157.19 \\*[6pt]
-\cline{2-3}
- & \textnormal{Effective Slab Width, $b_{\mathrm{eff}}$ (mm)} & 2100.0 \\*[6pt]
-\cline{2-3}
- & \textnormal{Transformed Composite $I_z$ (cm$^4$)} & 2000048.17 \\*[6pt]
-\cline{2-3}
- & \textnormal{Depth to Plastic Neutral Axis (mm)} & 252.0 \\[6pt]
+\multirow{13}{*}{\makecell{G4}} & \textnormal{Depth, D (mm)} & 1340.0 \\*[3pt]
+ & \textnormal{Top Flange Width, $b_f$ (mm)} & 410.0 \\*[3pt]
+ & \textnormal{Bottom Flange Width, $b_f$ (mm)} & 410.0 \\*[3pt]
+ & \textnormal{Top Flange Thickness, $t_f$ (mm)} & 18.0 \\*[3pt]
+ & \textnormal{Bottom Flange Thickness, $t_f$ (mm)} & 18.0 \\*[3pt]
+ & \textnormal{Web Thickness, $t_w$ (mm)} & 8.0 \\*[3pt]
+ & \textnormal{Gross Area, A (cm$^2$)} & 251.92 \\*[3pt]
+ & \textnormal{Moment of Inertia, $I_z$ (cm$^4$)} & 792758.08 \\*[3pt]
+ & \textnormal{Elastic Section Modulus, $Z_{ez}$ (cm$^3$)} & 11832.21 \\*[3pt]
+ & \textnormal{Plastic Section Modulus, $Z_{pz}$ (cm$^3$)} & 13157.19 \\*[3pt]
+ & \textnormal{Effective Slab Width, $b_{\mathrm{eff}}$ (mm)} & 2100.0 \\*[3pt]
+ & \textnormal{Transformed Composite $I_z$ (cm$^4$)} & 2000048.17 \\*[3pt]
+ & \textnormal{Depth to Plastic Neutral Axis (mm)} & 252.0 \\[3pt]
 \hline
 \end{longtable}
 
@@ -1713,28 +1713,20 @@ This section presents all structural design checks performed by OsdagBridge. For
 \endfoot
 \hline
 \endlastfoot
-\multirow{3}{*}{\makecell{G1}} & Top Flange & 11.17 & 11.49 & Semi-Compact \\[6pt]
-\cline{2-5}
- & Web & 163.0 & 106.49 & Slender \\[6pt]
-\cline{2-5}
+\multirow{3}{*}{\makecell{G1}} & Top Flange & 11.17 & 11.49 & Semi-Compact \\*[6pt]
+ & Web & 163.0 & 106.49 & Slender \\*[6pt]
  & Overall Section & - & - & Slender \\[6pt]
 \hline
-\multirow{3}{*}{\makecell{G2}} & Top Flange & 11.17 & 11.49 & Semi-Compact \\[6pt]
-\cline{2-5}
- & Web & 163.0 & 106.49 & Slender \\[6pt]
-\cline{2-5}
+\multirow{3}{*}{\makecell{G2}} & Top Flange & 11.17 & 11.49 & Semi-Compact \\*[6pt]
+ & Web & 163.0 & 106.49 & Slender \\*[6pt]
  & Overall Section & - & - & Slender \\[6pt]
 \hline
-\multirow{3}{*}{\makecell{G3}} & Top Flange & 11.17 & 11.49 & Semi-Compact \\[6pt]
-\cline{2-5}
- & Web & 163.0 & 106.49 & Slender \\[6pt]
-\cline{2-5}
+\multirow{3}{*}{\makecell{G3}} & Top Flange & 11.17 & 11.49 & Semi-Compact \\*[6pt]
+ & Web & 163.0 & 106.49 & Slender \\*[6pt]
  & Overall Section & - & - & Slender \\[6pt]
 \hline
-\multirow{3}{*}{\makecell{G4}} & Top Flange & 11.17 & 11.49 & Semi-Compact \\[6pt]
-\cline{2-5}
- & Web & 163.0 & 106.49 & Slender \\[6pt]
-\cline{2-5}
+\multirow{3}{*}{\makecell{G4}} & Top Flange & 11.17 & 11.49 & Semi-Compact \\*[6pt]
+ & Web & 163.0 & 106.49 & Slender \\*[6pt]
  & Overall Section & - & - & Slender \\[6pt]
 \hline
 \end{longtable}
@@ -1759,28 +1751,20 @@ This section presents all structural design checks performed by OsdagBridge. For
 \endfoot
 \hline
 \endlastfoot
-\multirow{3}{*}{\makecell{G1}} & Applied Moment, $M_u$ & Governing LC (ULS) & 1526.5 kN-m & - \\[6pt]
-\cline{2-5}
- & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & 6495.57 kN-m & - \\[6pt]
-\cline{2-5}
+\multirow{3}{*}{\makecell{G1}} & Applied Moment, $M_u$ & Governing LC (ULS) & 1526.5 kN-m & - \\*[6pt]
+ & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & 6495.57 kN-m & - \\*[6pt]
  & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ & 0.23 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
-\multirow{3}{*}{\makecell{G2}} & Applied Moment, $M_u$ & Governing LC (ULS) & 1526.5 kN-m & - \\[6pt]
-\cline{2-5}
- & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & 6495.57 kN-m & - \\[6pt]
-\cline{2-5}
+\multirow{3}{*}{\makecell{G2}} & Applied Moment, $M_u$ & Governing LC (ULS) & 1526.5 kN-m & - \\*[6pt]
+ & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & 6495.57 kN-m & - \\*[6pt]
  & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ & 0.23 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
-\multirow{3}{*}{\makecell{G3}} & Applied Moment, $M_u$ & Governing LC (ULS) & 1526.5 kN-m & - \\[6pt]
-\cline{2-5}
- & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & 6495.57 kN-m & - \\[6pt]
-\cline{2-5}
+\multirow{3}{*}{\makecell{G3}} & Applied Moment, $M_u$ & Governing LC (ULS) & 1526.5 kN-m & - \\*[6pt]
+ & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & 6495.57 kN-m & - \\*[6pt]
  & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ & 0.23 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
-\multirow{3}{*}{\makecell{G4}} & Applied Moment, $M_u$ & Governing LC (ULS) & 1526.5 kN-m & - \\[6pt]
-\cline{2-5}
- & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & 6495.57 kN-m & - \\[6pt]
-\cline{2-5}
+\multirow{3}{*}{\makecell{G4}} & Applied Moment, $M_u$ & Governing LC (ULS) & 1526.5 kN-m & - \\*[6pt]
+ & Design Moment Capacity, $M_d$ & IRC 22 Cl. 603.3.1 & 6495.57 kN-m & - \\*[6pt]
  & Utilization Ratio, $M_u / M_d$ & $M_u / M_d$ & 0.23 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
 \end{longtable}
@@ -1805,72 +1789,40 @@ This section presents all structural design checks performed by OsdagBridge. For
 \endfoot
 \hline
 \endlastfoot
-\needspace{8\baselineskip}
 \multirow{8}{*}{\makecell{G1}} & Applied Shear, $V_u$ & Governing LC (ULS) & 226.14 kN & - \\*[6pt]
-\cline{2-5}
  & Shear Area, $A_v$ & $d_w \times t_w$ & 10432.0 mm$^2$ & - \\*[6pt]
-\cline{2-5}
  & Panel Aspect Ratio, c/d & - & 1.499 & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Coefficient, $k_v$ & IS 800 Cl. 8.4.2.2 & 7.13 & - \\*[6pt]
-\cline{2-5}
  & Web Slenderness, $\lambda_w$ & $\sqrt{f_{yw}/(\sqrt{3}\,\tau_{cr})}$ & 2.041 & - \\*[6pt]
-\cline{2-5}
  & Design Shear Stress, $\tau_b$ & IRC 22 Cl. 603.3.3.2 & 48.51 MPa & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Resistance, $V_{cr}$ & $A_v \times \tau_b$ & 460.01 kN & - \\*[6pt]
-\cline{2-5}
  & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ & 0.49 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
-\needspace{8\baselineskip}
 \multirow{8}{*}{\makecell{G2}} & Applied Shear, $V_u$ & Governing LC (ULS) & 226.14 kN & - \\*[6pt]
-\cline{2-5}
  & Shear Area, $A_v$ & $d_w \times t_w$ & 10432.0 mm$^2$ & - \\*[6pt]
-\cline{2-5}
  & Panel Aspect Ratio, c/d & - & 1.499 & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Coefficient, $k_v$ & IS 800 Cl. 8.4.2.2 & 7.13 & - \\*[6pt]
-\cline{2-5}
  & Web Slenderness, $\lambda_w$ & $\sqrt{f_{yw}/(\sqrt{3}\,\tau_{cr})}$ & 2.041 & - \\*[6pt]
-\cline{2-5}
  & Design Shear Stress, $\tau_b$ & IRC 22 Cl. 603.3.3.2 & 48.51 MPa & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Resistance, $V_{cr}$ & $A_v \times \tau_b$ & 460.01 kN & - \\*[6pt]
-\cline{2-5}
  & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ & 0.49 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
-\needspace{8\baselineskip}
 \multirow{8}{*}{\makecell{G3}} & Applied Shear, $V_u$ & Governing LC (ULS) & 226.14 kN & - \\*[6pt]
-\cline{2-5}
  & Shear Area, $A_v$ & $d_w \times t_w$ & 10432.0 mm$^2$ & - \\*[6pt]
-\cline{2-5}
  & Panel Aspect Ratio, c/d & - & 1.499 & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Coefficient, $k_v$ & IS 800 Cl. 8.4.2.2 & 7.13 & - \\*[6pt]
-\cline{2-5}
  & Web Slenderness, $\lambda_w$ & $\sqrt{f_{yw}/(\sqrt{3}\,\tau_{cr})}$ & 2.041 & - \\*[6pt]
-\cline{2-5}
  & Design Shear Stress, $\tau_b$ & IRC 22 Cl. 603.3.3.2 & 48.51 MPa & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Resistance, $V_{cr}$ & $A_v \times \tau_b$ & 460.01 kN & - \\*[6pt]
-\cline{2-5}
  & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ & 0.49 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
-\needspace{8\baselineskip}
 \multirow{8}{*}{\makecell{G4}} & Applied Shear, $V_u$ & Governing LC (ULS) & 226.14 kN & - \\*[6pt]
-\cline{2-5}
  & Shear Area, $A_v$ & $d_w \times t_w$ & 10432.0 mm$^2$ & - \\*[6pt]
-\cline{2-5}
  & Panel Aspect Ratio, c/d & - & 1.499 & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Coefficient, $k_v$ & IS 800 Cl. 8.4.2.2 & 7.13 & - \\*[6pt]
-\cline{2-5}
  & Web Slenderness, $\lambda_w$ & $\sqrt{f_{yw}/(\sqrt{3}\,\tau_{cr})}$ & 2.041 & - \\*[6pt]
-\cline{2-5}
  & Design Shear Stress, $\tau_b$ & IRC 22 Cl. 603.3.3.2 & 48.51 MPa & - \\*[6pt]
-\cline{2-5}
  & Shear Buckling Resistance, $V_{cr}$ & $A_v \times \tau_b$ & 460.01 kN & - \\*[6pt]
-\cline{2-5}
  & Utilization Ratio, $V_u / V_d$ & $V_u / V_d$ & 0.49 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
 \end{longtable}
@@ -1895,41 +1847,25 @@ This section presents all structural design checks performed by OsdagBridge. For
 \endfoot
 \hline
 \endlastfoot
-\needspace{5\baselineskip}
 \multirow{4}{*}{\makecell{G1}} & High Shear Condition? & $V_u > 0.6\,V_d$ & No & - \\*[6pt]
-\cline{2-5}
  & Reduced Moment Capacity, $M_{dv}$ & IRC 22 Cl. 603.3.3.3 & 6495.57 kN-m & - \\*[6pt]
-\cline{2-5}
  & Interaction Check: $M_u \leq M_{dv}$ & - & 0.24 & \textbf{\color{OsdagPass}{PASS}} \\*[6pt]
-\cline{2-5}
- & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & 0.000 + 0.240 = 0.238 & 0.238 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
+ & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & 0.000 + 0.240 = 0.237 & 0.237 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
-\needspace{5\baselineskip}
 \multirow{4}{*}{\makecell{G2}} & High Shear Condition? & $V_u > 0.6\,V_d$ & No & - \\*[6pt]
-\cline{2-5}
  & Reduced Moment Capacity, $M_{dv}$ & IRC 22 Cl. 603.3.3.3 & 6495.57 kN-m & - \\*[6pt]
-\cline{2-5}
  & Interaction Check: $M_u \leq M_{dv}$ & - & 0.24 & \textbf{\color{OsdagPass}{PASS}} \\*[6pt]
-\cline{2-5}
- & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & 0.000 + 0.240 = 0.238 & 0.238 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
+ & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & 0.000 + 0.240 = 0.237 & 0.237 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
-\needspace{5\baselineskip}
 \multirow{4}{*}{\makecell{G3}} & High Shear Condition? & $V_u > 0.6\,V_d$ & No & - \\*[6pt]
-\cline{2-5}
  & Reduced Moment Capacity, $M_{dv}$ & IRC 22 Cl. 603.3.3.3 & 6495.57 kN-m & - \\*[6pt]
-\cline{2-5}
  & Interaction Check: $M_u \leq M_{dv}$ & - & 0.24 & \textbf{\color{OsdagPass}{PASS}} \\*[6pt]
-\cline{2-5}
- & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & 0.000 + 0.240 = 0.238 & 0.238 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
+ & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & 0.000 + 0.240 = 0.237 & 0.237 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
-\needspace{5\baselineskip}
 \multirow{4}{*}{\makecell{G4}} & High Shear Condition? & $V_u > 0.6\,V_d$ & No & - \\*[6pt]
-\cline{2-5}
  & Reduced Moment Capacity, $M_{dv}$ & IRC 22 Cl. 603.3.3.3 & 6495.57 kN-m & - \\*[6pt]
-\cline{2-5}
  & Interaction Check: $M_u \leq M_{dv}$ & - & 0.24 & \textbf{\color{OsdagPass}{PASS}} \\*[6pt]
-\cline{2-5}
- & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & 0.000 + 0.240 = 0.238 & 0.238 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
+ & Interaction Check: $N_u/N_{Rd} + M_u/M_{dv} \leq 1.0$ & 0.000 + 0.240 = 0.237 & 0.237 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]
 \hline
 \end{longtable}
 \noindent\textit{Note: IRC 22 Cl. 603.3.3.3}
@@ -1955,43 +1891,27 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \endlastfoot
 \multirow{5}{*}{\makecell{G1}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 & 30084.69 kN-m & - \\*[2pt]
-\cline{2-5}
  & Non-dim. Slenderness, $\bar{\lambda}_{LT}$ & $\sqrt{M_p / M_{cr}}$ & 0.371 & - \\*[2pt]
-\cline{2-5}
  & LTB Reduction Factor, $\chi_{\mathrm{LT}}$ & IS 800 Cl. 8.2.2 & 1.0 & - \\*[2pt]
-\cline{2-5}
  & LTB Resistance, $M_b$ & $\chi_{\mathrm{LT}}\,M_p / \gamma_{\mathrm{m0}}$ & 4186.38 kN-m & - \\*[2pt]
-\cline{2-5}
  & $M_u \leq M_b$ & $M_u / M_b$ & 0.18 & \textbf{\color{OsdagPass}{PASS}} \\[2pt]
 \hline
 \multirow{5}{*}{\makecell{G2}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 & 30084.69 kN-m & - \\*[2pt]
-\cline{2-5}
  & Non-dim. Slenderness, $\bar{\lambda}_{LT}$ & $\sqrt{M_p / M_{cr}}$ & 0.371 & - \\*[2pt]
-\cline{2-5}
  & LTB Reduction Factor, $\chi_{\mathrm{LT}}$ & IS 800 Cl. 8.2.2 & 1.0 & - \\*[2pt]
-\cline{2-5}
  & LTB Resistance, $M_b$ & $\chi_{\mathrm{LT}}\,M_p / \gamma_{\mathrm{m0}}$ & 4186.38 kN-m & - \\*[2pt]
-\cline{2-5}
  & $M_u \leq M_b$ & $M_u / M_b$ & 0.18 & \textbf{\color{OsdagPass}{PASS}} \\[2pt]
 \hline
 \multirow{5}{*}{\makecell{G3}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 & 30084.69 kN-m & - \\*[2pt]
-\cline{2-5}
  & Non-dim. Slenderness, $\bar{\lambda}_{LT}$ & $\sqrt{M_p / M_{cr}}$ & 0.371 & - \\*[2pt]
-\cline{2-5}
  & LTB Reduction Factor, $\chi_{\mathrm{LT}}$ & IS 800 Cl. 8.2.2 & 1.0 & - \\*[2pt]
-\cline{2-5}
  & LTB Resistance, $M_b$ & $\chi_{\mathrm{LT}}\,M_p / \gamma_{\mathrm{m0}}$ & 4186.38 kN-m & - \\*[2pt]
-\cline{2-5}
  & $M_u \leq M_b$ & $M_u / M_b$ & 0.18 & \textbf{\color{OsdagPass}{PASS}} \\[2pt]
 \hline
 \multirow{5}{*}{\makecell{G4}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 & 30084.69 kN-m & - \\*[2pt]
-\cline{2-5}
  & Non-dim. Slenderness, $\bar{\lambda}_{LT}$ & $\sqrt{M_p / M_{cr}}$ & 0.371 & - \\*[2pt]
-\cline{2-5}
  & LTB Reduction Factor, $\chi_{\mathrm{LT}}$ & IS 800 Cl. 8.2.2 & 1.0 & - \\*[2pt]
-\cline{2-5}
  & LTB Resistance, $M_b$ & $\chi_{\mathrm{LT}}\,M_p / \gamma_{\mathrm{m0}}$ & 4186.38 kN-m & - \\*[2pt]
-\cline{2-5}
  & $M_u \leq M_b$ & $M_u / M_b$ & 0.18 & \textbf{\color{OsdagPass}{PASS}} \\[2pt]
 \hline
 \end{longtable}
@@ -2019,51 +1939,31 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \endlastfoot
 \multirow{6}{*}{\makecell{G1}} & \textnormal{Shear Buckling Design Method} & post\_\allowbreak{}critical \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Thickness (mm)} & 17.0 \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Spacing (mm)} &  \\*[2pt]
-\cline{2-3}
  & \textnormal{End Panel Stiffener Thickness (mm)} & 1.2 \\*[2pt]
-\cline{2-3}
  & \textnormal{No. of End Panel Stiffeners} & 4 \\*[2pt]
-\cline{2-3}
  & \textnormal{Longitudinal Stiffeners} & None \\[2pt]
 \hline
 \multirow{6}{*}{\makecell{G2}} & \textnormal{Shear Buckling Design Method} & post\_\allowbreak{}critical \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Thickness (mm)} & 17.0 \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Spacing (mm)} &  \\*[2pt]
-\cline{2-3}
  & \textnormal{End Panel Stiffener Thickness (mm)} & 1.2 \\*[2pt]
-\cline{2-3}
  & \textnormal{No. of End Panel Stiffeners} & 4 \\*[2pt]
-\cline{2-3}
  & \textnormal{Longitudinal Stiffeners} & None \\[2pt]
 \hline
 \multirow{6}{*}{\makecell{G3}} & \textnormal{Shear Buckling Design Method} & post\_\allowbreak{}critical \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Thickness (mm)} & 17.0 \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Spacing (mm)} &  \\*[2pt]
-\cline{2-3}
  & \textnormal{End Panel Stiffener Thickness (mm)} & 1.2 \\*[2pt]
-\cline{2-3}
  & \textnormal{No. of End Panel Stiffeners} & 4 \\*[2pt]
-\cline{2-3}
  & \textnormal{Longitudinal Stiffeners} & None \\[2pt]
 \hline
 \multirow{6}{*}{\makecell{G4}} & \textnormal{Shear Buckling Design Method} & post\_\allowbreak{}critical \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Thickness (mm)} & 17.0 \\*[2pt]
-\cline{2-3}
  & \textnormal{Intermediate Stiffener Spacing (mm)} &  \\*[2pt]
-\cline{2-3}
  & \textnormal{End Panel Stiffener Thickness (mm)} & 1.2 \\*[2pt]
-\cline{2-3}
  & \textnormal{No. of End Panel Stiffeners} & 4 \\*[2pt]
-\cline{2-3}
  & \textnormal{Longitudinal Stiffeners} & None \\[2pt]
 \hline
 \end{longtable}
@@ -2091,35 +1991,23 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 \endlastfoot
 \multirow{4}{*}{\makecell{G1}} & Web Buckling Resistance & 304.97 kN & 134083.23 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Local Crushing Resistance & 304.97 kN & 373.7 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Bearing Capacity & 304.97 kN & 2545.45 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Column Buckling Resistance & 304.97 kN & 2087.27 kN & \textbf{\color{OsdagPass}{PASS}} \\[2pt]
 \hline
 \multirow{4}{*}{\makecell{G2}} & Web Buckling Resistance & 304.97 kN & 134083.23 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Local Crushing Resistance & 304.97 kN & 373.7 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Bearing Capacity & 304.97 kN & 2545.45 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Column Buckling Resistance & 304.97 kN & 2087.27 kN & \textbf{\color{OsdagPass}{PASS}} \\[2pt]
 \hline
 \multirow{4}{*}{\makecell{G3}} & Web Buckling Resistance & 304.97 kN & 134083.23 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Local Crushing Resistance & 304.97 kN & 373.7 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Bearing Capacity & 304.97 kN & 2545.45 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Column Buckling Resistance & 304.97 kN & 2087.27 kN & \textbf{\color{OsdagPass}{PASS}} \\[2pt]
 \hline
 \multirow{4}{*}{\makecell{G4}} & Web Buckling Resistance & 304.97 kN & 134083.23 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Local Crushing Resistance & 304.97 kN & 373.7 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Bearing Capacity & 304.97 kN & 2545.45 kN & \textbf{\color{OsdagPass}{PASS}} \\*[2pt]
-\cline{2-5}
  & Column Buckling Resistance & 304.97 kN & 2087.27 kN & \textbf{\color{OsdagPass}{PASS}} \\[2pt]
 \hline
 \end{longtable}
@@ -2145,24 +2033,16 @@ This section presents all structural design checks performed by OsdagBridge. For
 \endfoot
 \hline
 \endlastfoot
-\needspace{4\baselineskip}
 \multirow{2}{*}{\makecell{G1}} & Live Load Deflection, $\delta_{LL}$ (mm) & L/800 = 30.0 mm & 25.781 & \textbf{\color{OsdagPass}{PASS}} \\*[6pt]
-\cline{2-5}
  & Total Load Deflection, $\delta_{total}$ (mm) & L/600 = 40.0 mm & 55.406 & \textbf{\color{OsdagFail}{FAIL}} \\[6pt]
 \hline
-\needspace{4\baselineskip}
 \multirow{2}{*}{\makecell{G2}} & Live Load Deflection, $\delta_{LL}$ (mm) & L/800 = 30.0 mm & 26.153 & \textbf{\color{OsdagPass}{PASS}} \\*[6pt]
-\cline{2-5}
  & Total Load Deflection, $\delta_{total}$ (mm) & L/600 = 40.0 mm & 55.885 & \textbf{\color{OsdagFail}{FAIL}} \\[6pt]
 \hline
-\needspace{4\baselineskip}
 \multirow{2}{*}{\makecell{G3}} & Live Load Deflection, $\delta_{LL}$ (mm) & L/800 = 30.0 mm & 26.153 & \textbf{\color{OsdagPass}{PASS}} \\*[6pt]
-\cline{2-5}
  & Total Load Deflection, $\delta_{total}$ (mm) & L/600 = 40.0 mm & 55.885 & \textbf{\color{OsdagFail}{FAIL}} \\[6pt]
 \hline
-\needspace{4\baselineskip}
 \multirow{2}{*}{\makecell{G4}} & Live Load Deflection, $\delta_{LL}$ (mm) & L/800 = 30.0 mm & 25.781 & \textbf{\color{OsdagPass}{PASS}} \\*[6pt]
-\cline{2-5}
  & Total Load Deflection, $\delta_{total}$ (mm) & L/600 = 40.0 mm & 55.406 & \textbf{\color{OsdagFail}{FAIL}} \\[6pt]
 \hline
 \end{longtable}
@@ -2732,14 +2612,14 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \endfoot
 \hline
 \endlastfoot
-\multirow{2}{*}{\makecell{G1-G2}} & Diagonal & 40 x 40 x 3 & 1.5 EQ (b) & 6.055 & 18.400 & 0.560 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
- & Chord & 40 x 40 x 3 & 1.5 EQ (b) & 5.323 & 22.140 & 0.490 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
+\multirow{2}{*}{\makecell{G1-G2}} & Diagonal & 40 x 40 x 3 & 1.5 EQ (b) & 3.784 & 18.400 & 0.350 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
+ & Chord & 40 x 40 x 3 & 1.5 EQ (b) & 3.327 & 22.140 & 0.310 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
 \hline
-\multirow{2}{*}{\makecell{G2-G3}} & Diagonal & 40 x 40 x 3 & 1.5 EQ (a) & 3.854 & 45.000 & 0.090 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
- & Chord & 40 x 40 x 3 & 1.5 EQ (a) & 3.388 & 45.000 & 0.080 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
+\multirow{2}{*}{\makecell{G2-G3}} & Diagonal & 40 x 40 x 3 & 1.5 EQ (a) & 2.409 & 45.000 & 0.050 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
+ & Chord & 40 x 40 x 3 & 1.5 EQ (a) & 2.117 & 45.000 & 0.050 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
 \hline
-\multirow{2}{*}{\makecell{G3-G4}} & Diagonal & 40 x 40 x 3 & 1.5 EQ (b) & 6.738 & 45.000 & 0.150 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
- & Chord & 40 x 40 x 3 & 1.5 EQ (b) & 5.923 & 45.000 & 0.130 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
+\multirow{2}{*}{\makecell{G3-G4}} & Diagonal & 40 x 40 x 3 & 1.5 EQ (b) & 4.211 & 45.000 & 0.090 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
+ & Chord & 40 x 40 x 3 & 1.5 EQ (b) & 3.702 & 45.000 & 0.080 & \textbf{\color{OsdagPass}{PASS}} \\[6pt]\cline{2-8}
 \hline
 \end{longtable}
 \noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
@@ -2930,9 +2810,9 @@ Deck - Punching Shear & Basic ULS: 1.35DL + 1.5LL & 0.19 MPa & 0.55 MPa & 0.34 \
 \hline
 Deck - One-Way Shear & Basic ULS: 1.35DL + 1.5LL & 89.24 kN/m & 107.58 kN/m & 0.83 \\[6pt]
 \hline
-Cross Bracing - Compression & 1.5 EQ (b) & 10.30 kN & 18.400 kN & 0.56 \\[6pt]
+Cross Bracing - Compression & 1.5 EQ (b) & 6.44 kN & 18.400 kN & 0.35 \\[6pt]
 \hline
-Cross Bracing - Tension & 1.5 EQ (b) & 6.75 kN & 45.000 kN & 0.15 \\[6pt]
+Cross Bracing - Tension & 1.5 EQ (b) & 4.05 kN & 45.000 kN & 0.09 \\[6pt]
 \hline
 Cross Bracing - Slenderness & - & 126.2 & 250 & 0.50 \\[6pt]
 \hline
@@ -2948,16 +2828,137 @@ End Diaphragm - Tension & - & - & - & - \\[6pt]
 \chapter{Drawings and Visualizations}
 \label{ch:drawings}
 
-This section presents CAD-generated views of the designed bridge and its components.
+This section presents CAD-generated views of the designed bridge and its components. All views are generated automatically by OsdagBridge using pythonOCC.
 
-\begin{center}
-\vspace{1.0cm}
-\fbox{\parbox{0.92\textwidth}{\centering\vspace{10pt}
-\textbf{\large 3D CAD Drawings and Visualizations}\\[8pt]
-\small Detailed 3D CAD component geometry, elevation views, and cross-bracing framing plans are rendered via the Osdag 3D graphics module. In batch or headless export environments without a 3D OpenGL display context, refer to the Osdag CAD export files or view the 3D bridge model directly in the Osdag desktop application.
-\vspace{10pt}}}
-\vspace{1.0cm}
-\end{center}
+\section{Bridge Configuration and Layout}
+\label{sec:bridge-layout}
+
+\begin{figure}[H]
+\centering
+\vspace{4pt}
+\includegraphics[width=0.85\textwidth]{/tmp/tmpo186htwv/images/final_geometry.png}
+\caption{Overall 3D Bridge Superstructure}
+\label{fig:bridge-3d}
+\end{figure}
+
+
+\begin{figure}[H]
+\centering
+\vspace{4pt}
+\includegraphics[width=0.85\textwidth]{/tmp/tmpo186htwv/images/cross_section.png}
+\caption{Typical Cross Section}
+\label{fig:cross-section}
+\end{figure}
+
+
+\begin{figure}[H]
+\centering
+\vspace{4pt}
+\includegraphics[width=0.85\textwidth]{/tmp/tmpo186htwv/images/girder_top.png}
+\caption{Top View}
+\label{fig:top-view}
+\end{figure}
+
+
+\section{Plate Girder - Detailed Views}
+\label{sec:girder-views}
+
+\begin{figure}[H]
+\centering
+\vspace{4pt}
+\includegraphics[width=0.85\textwidth]{/tmp/tmpo186htwv/images/girder_3d.png}
+\caption{3D View of Plate Girders}
+\label{fig:girder-3d}
+\end{figure}
+
+
+\begin{figure}[H]
+\centering
+\vspace{4pt}
+\includegraphics[width=0.85\textwidth]{/tmp/tmpo186htwv/images/section_preview.png}
+\caption{Cross Section of Plate Girder}
+\label{fig:girder-xsec}
+\end{figure}
+
+
+\begin{figure}[H]
+\centering
+\vspace{4pt}
+\includegraphics[width=0.85\textwidth]{/tmp/tmpo186htwv/images/stiffener_preview.png}
+\caption{Side View of Girder}
+\label{fig:girder-side}
+\end{figure}
+
+
+\section{Cross Bracing Detail}
+\label{sec:bracing-detail}
+
+\begin{figure}[H]
+\centering
+\vspace{4pt}
+\includegraphics[width=0.85\textwidth]{/tmp/tmpo186htwv/images/cb_diagram.png}
+\caption{Cross Bracing Layout}
+\label{fig:cb-layout}
+\end{figure}
+
+
+\noindent
+\begin{minipage}[t]{0.31\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/tmp/tmpo186htwv/images/cb_bracing.png}
+\captionof{figure}{Cross Bracing - Bracing Section}
+\label{fig:cb-bracing-sec}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.31\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/tmp/tmpo186htwv/images/cb_top_chord.png}
+\captionof{figure}{Cross Bracing - Top Chord Section}
+\label{fig:cb-top-chord}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.31\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/tmp/tmpo186htwv/images/cb_bottom_chord.png}
+\captionof{figure}{Cross Bracing - Bottom Chord Section}
+\label{fig:cb-bottom-chord}
+\end{minipage}
+            
+
+\section{End Diaphragm Detail}
+\label{sec:diaphragm-detail}
+
+\begin{figure}[H]
+\centering
+\vspace{4pt}
+\includegraphics[width=0.85\textwidth]{/tmp/tmpo186htwv/images/ed_diagram.png}
+\caption{End Diaphragm Layout}
+\label{fig:ed-layout}
+\end{figure}
+
+
+\noindent
+\begin{minipage}[t]{0.31\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/tmp/tmpo186htwv/images/ed_bracing.png}
+\captionof{figure}{End Diaphragm - Bracing Section}
+\label{fig:ed-bracing-sec}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.31\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/tmp/tmpo186htwv/images/ed_top_chord.png}
+\captionof{figure}{End Diaphragm - Top Chord Section}
+\label{fig:ed-top-chord}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.31\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/tmp/tmpo186htwv/images/ed_bottom_chord.png}
+\captionof{figure}{End Diaphragm - Bottom Chord Section}
+\label{fig:ed-bottom-chord}
+\end{minipage}
+
 
 
 \chapter{Material Take-off \& Quantity Summary}
