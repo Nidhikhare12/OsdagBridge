@@ -22,6 +22,9 @@ from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builde
 from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import ADDITIONAL_INPUTS_SCHEMA
 from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder._load_combination_widget import LoadCombinationWidget
 from osdagbridge.desktop.ui.dialogs.additional_input.ui_builder.common_ui_builder import AdaptiveWidget
+from osdagbridge.desktop.ui.dialogs.additional_input.custom_input_validation import (
+    build_custom_rules, find_empty_custom_fields, format_missing_message,
+)
 
 # =================================================================================
 #   MAIN IMPLEMENTATION
@@ -57,6 +60,16 @@ class AdditionalInputs(QDialog):
  
         # Store all Compute functions to be called at Design
         self._compute_functions = []
+
+        # Unsaved-changes tracking. is_modified is set by every user edit and
+        # cleared on Save / Discard. _track_changes stays False while the dialog
+        # is being populated programmatically, so loading values never counts
+        # as a user modification.
+        self.is_modified = False
+        self._track_changes = False
+
+        # Schema-derived list of every "Custom"-capable field (no hard-coded names)
+        self._custom_rules = build_custom_rules(ADDITIONAL_INPUTS_SCHEMA)
 
         self.setObjectName("AdditionalInputs")
         self.setMinimumSize(900, 520)
@@ -229,6 +242,9 @@ class AdditionalInputs(QDialog):
         return super().eventFilter(obj, event)
 
     def set_input_dictionary(self, input_dict: dict):  # lifecycle: sets default/working dicts and wires END_CONNECTORS on first open
+        # Re-opening always starts from the committed dict, so a fresh session has no changes
+        self._track_changes = False
+        self.is_modified = False
         self.default_input_dict = input_dict
         self.working_input_dict = deepcopy(input_dict)
 
@@ -452,6 +468,7 @@ class AdditionalInputs(QDialog):
         active_tab = self.tabs.currentWidget()
         if active_tab is None:
             return
+        self._mark_modified()
 
         if hasattr(active_tab, "reset_active_tab_defaults"):
             active_tab.reset_active_tab_defaults()
@@ -503,10 +520,60 @@ class AdditionalInputs(QDialog):
         for tab_widget in self.findChildren(QTabWidget):
             if hasattr(tab_widget, "refresh_active_tab"):
                 tab_widget.refresh_active_tab()
+        if not event.spontaneous():
+            # Start tracking only after all queued population/refresh work has run
+            QTimer.singleShot(0, self._start_change_tracking)
+
+    def _start_change_tracking(self):  # lifecycle: from here on every input change marks the dialog as modified
+        self._track_changes = True
+
+    def _mark_modified(self):  # utility: records an unsaved user change
+        if self._track_changes:
+            self.is_modified = True
+
+    # ── Unsaved-changes guard ────────────────────────────────────────────────────
+
+    def _confirm_discard(self) -> bool:  # utility: True if the dialog may close (no changes, or user chose Discard)
+        if not self.is_modified:
+            return True
+        answer = CustomMessageBox(
+            title=KEY_ADD_MSG_TITLE_UNSAVED,
+            text=KEY_ADD_MSG_UNSAVED_CHANGES,
+            buttons=[KEY_ADD_BTN_DISCARD, KEY_ADD_BTN_CANCEL],
+            dialogType=MessageBoxType.Warning,
+        ).exec()
+        if answer == KEY_ADD_BTN_DISCARD:
+            # Working copy is rebuilt from the committed dict on next open, so nothing leaks
+            self.is_modified = False
+            self._track_changes = False
+            return True
+        return False
+
+    def closeEvent(self, event):  # Qt event: title-bar close / Alt+F4 — warn before discarding unsaved edits
+        if self._confirm_discard():
+            super().closeEvent(event)
+        else:
+            event.ignore()
+
+    def reject(self):  # Qt slot: Esc key — same guard as closeEvent
+        if self._confirm_discard():
+            super().reject()
 
     # ── Dialog Persistence ───────────────────────────────────────────────────────
 
     def _save_inputs(self):  # on_change: validates all tabs then commits working_input_dict and emits CAD update signal
+
+        # Pre-save validation: any parameter set to "Custom" must carry a value.
+        # Iterates every active tab via the schema-derived rules (keys from common.py).
+        missing = find_empty_custom_fields(self, self._custom_rules)
+        if missing:
+            CustomMessageBox(
+                title=KEY_ADD_MSG_TITLE_ERROR,
+                text=format_missing_message(missing),
+                buttons=["OK"],
+                dialogType=MessageBoxType.Critical,
+            ).exec()
+            return  # halt: nothing is committed
 
         # Flush the currently-displayed stiffener member's widgets before committing.
         # _save_stiffener_member_data otherwise only runs when switching *away* from a
@@ -521,7 +588,9 @@ class AdditionalInputs(QDialog):
         cad = self.findChild(CrossSectionCADWidget, KEY_TS_CAD_PREVIEW)
         if cad:
             self.update_template_page_2d_cad.emit(cad.params)
-        
+
+        self.is_modified = False
+
         CustomMessageBox(
             title="Saved",
             text="Inputs saved successfully.",
@@ -546,6 +615,7 @@ class AdditionalInputs(QDialog):
         - QComboBox: always valid, skip validation, update dict + CAD.
         - QLineEdit: hard validation — corrects widget + input_dict if invalid, shows popup.
         """
+        self._mark_modified()
         if isinstance(widget, str):
             self._update_input_dict(key, widget)
             self._update_additional_input_cad()
@@ -584,6 +654,7 @@ class AdditionalInputs(QDialog):
         self._update_additional_input_cad()
 
     def _on_field_editing(self, current_text: str, key: str):  # on_change: soft validation while typing — updates dict/CAD only when valid, no popups
+        self._mark_modified()
         if not current_text.strip():
             self._update_input_dict(key, "")
             self._update_additional_input_cad()
@@ -1464,12 +1535,14 @@ class AdditionalInputs(QDialog):
         self._on_symmetry_changed()
 
     def _on_bounds_accepted(self, field_id: str, result: dict) -> None:  # on_change: stores BoundsButton result under the current member's dynamic key
+        self._mark_modified()
         gi, mi = self._get_current_girder_member_indices()
         suffix = f".G{gi}.M{mi}"
         self.working_input_dict[field_id + suffix] = result
         print(f"[BOUNDS_ACCEPTED] {field_id + suffix} = {result}")
 
     def _on_all_custom_selected(self, field_id: str, chosen: list) -> None:  # on_change: stores TYPE_ALL_CUSTOM selection list under the current member's dynamic key
+        self._mark_modified()
         gi, mi = self._get_current_girder_member_indices()
         suffix = f".G{gi}.M{mi}"
         self.working_input_dict[field_id + ".selected" + suffix] = chosen

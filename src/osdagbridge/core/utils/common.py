@@ -1434,6 +1434,21 @@ VALUES_CUSTOM_AXLE_TYPE = ["Single", "Bogie"]
 VALUES_FOOTPATH_PRESSURE_MODE = ["Automatic", "User-defined"]
 VALUES_SUPPORT_TYPE = ["Fixed", "Pinned"]
 
+# ── Additional Inputs dialog: Save validation & unsaved-changes guard ──────────
+# Option text that marks a combo / mode selector as user-defined ("Custom").
+# Every Custom-capable field in ADDITIONAL_INPUTS_SCHEMA is detected by comparing
+# against this key, so no parameter names are hard-coded in the validation loop.
+KEY_ADD_CUSTOM_OPTION = "Custom"
+KEY_ADD_MSG_TITLE_ERROR = "Input Error"
+KEY_ADD_MSG_CUSTOM_EMPTY = "Error: The custom value for '{}' cannot be empty."
+KEY_ADD_MSG_TITLE_UNSAVED = "Unsaved Changes"
+KEY_ADD_MSG_UNSAVED_CHANGES = (
+    "You have unsaved changes. Closing this window will discard them. "
+    "Do you want to proceed?"
+)
+KEY_ADD_BTN_DISCARD = "Discard"
+KEY_ADD_BTN_CANCEL = "Cancel"
+
 #Sail thic
 SAIL_APPROVED_THICKNESS_VALUES=[
         "8", "10", "12", "14", "16", "18", "20", "22", "25", "28", "32", "36",
