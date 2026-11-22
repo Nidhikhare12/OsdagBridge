@@ -214,25 +214,72 @@ schedule quantities.
 
 The pythonOCC code targets **pythonocc-core** as provided by the conda
 environment in `environment.yml` (OCC 7.x, `OCC.Core.*` modules) — the exact
-API surface used by the existing superstructure builders. It cannot run under
-the plain-pip sandbox used for development; every file passes
+API surface used by the existing superstructure builders. It was validated at
+runtime in that environment (pythonocc-core 7.9.3, Python 3.12); see §7. A
+plain-pip sandbox cannot import OCC, so every file also passes
 `python -m py_compile` and every OCC class used was cross-checked against a
 pre-existing, known-working builder (see commit history / task report).
 
-## 7. Verification performed (no OCC/ifcopenshell in sandbox)
+## 7. Verification performed
+
+### 7.1 Static and pure-Python checks
 
 * `python -m py_compile` on **every** created/modified file — zero errors.
-* Pure-Python placement/quantity modules (`geometry.py`, `properties.py`,
-  `dto.py`) were imported and numerically validated:
-  16 pier bars @ 141 mm ≤ 150 nominal, 16 ties @ 194.7 mm ≤ 200,
-  9 main bars @ 140 mm ≤ 150, 12 transverse bars @ 192.7 mm ≤ 200,
-  2×2 pile grid at ±300 mm, concrete/steel volumes computed
-  (pier 1.508 m³ concrete / 0.0112 m³ steel ≈ 88 kg per cage).
-* Winding checks: pier-cap trapezoid shoelace area +1 260 000 mm² (CCW),
-  same |area| as `(a+b)/2·h`; cover to the outermost rebar surface = 40 mm
-  exactly on the pier ring and the pile-cap mat.
 * OCC API cross-check (automated against the pre-task commit): all OCC
   imports used in new/modified files already appear, with identical import
   paths, in the pre-existing code — 0 exceptions (incl. `BRepAlgoAPI_Cut`,
   which the untouched `railing/builder.py` already uses).
-* Runtime GUI/IFC validation must be done in the conda env (see §4–5).
+* Placement/quantity modules (`geometry.py`, `properties.py`, `dto.py`)
+  were imported and numerically validated (all lengths in mm):
+  16 pier bars — 138.2 mm actual spacing on the bar centreline
+  (141.4 mm on the cover line) ≤ 150 nominal; 16 ties at 194.7 mm ≤ 200;
+  9 pile-cap main bars @ 140 mm ≤ 150; 12 transverse bars @ 192.7 mm ≤ 200;
+  2×2 pile grid at ±300 mm (600 c/c); pier quantities 1.508 m³ concrete /
+  0.0112 m³ steel ≈ 87.7 kg per cage.
+* Winding checks: pier-cap trapezoid shoelace area +1 260 000 mm² (CCW),
+  same |area| as `(a+b)/2·h`; cover to the outermost rebar surface = 40 mm
+  exactly on the pier ring and the pile-cap mat.
+
+### 7.2 Runtime checks in the conda environment
+
+Executed with `conda activate osdagbridge-env` (pythonocc-core 7.9.3,
+ifcopenshell 0.8.5, Python 3.12):
+
+* A primitive OCC solid (`BRepPrimAPI_MakeBox`) is valid
+  (`BRepCheck_Analyzer(...).IsValid() == True`) with volume 6.0 for 1×2×3.
+* Builders return the expected shape counts:
+  `build_pier()` → `{concrete: 1, rebar_longitudinal: 16,
+  rebar_transverse: 16}`; `build_pier_cap()` → 1 concrete solid;
+  `build_pile_cap()` → `{concrete: 1, rebar_longitudinal: 9,
+  rebar_transverse: 12}`; `build_pile_group()` → 4 concrete piles at
+  4 grid positions.
+* `PlateGirderCADGenerator.generate()` assembles the substructure at both
+  support lines: 2 piers, 2 pier caps, 2 pile caps, 8 piles and the rebar
+  compounds in `model_data`.
+* `PlateGirderIfcExportHandler(...).export()` writes an IFC4 file that was
+  reopened with `ifcopenshell.open()` and checked:
+  1 `IfcProject`, 1 `IfcSite`, 1 `IfcBuilding`,
+  2 `IfcBuildingStorey` (`Superstructure`, `Substructure`),
+  2 `IfcColumn` (piers), 2 `IfcBeam` (pier caps), 2 `IfcFooting` (pile caps),
+  8 `IfcPile` (`BORED`), 7 `IfcBuildingElementProxy` (rebar cages) and
+  797 `IfcPropertySet` objects carrying the BOQ data.
+* A headless GUI smoke test initialised `V3d_Viewer`,
+  `AIS_InteractiveContext` and the Mesa OpenGL backend successfully. An
+  interactive visual pass (semi-transparent concrete at opacity 0.35 with
+  visible rebar) is still recommended for the demonstration video.
+
+### 7.3 Quick reproduction
+
+```python
+from osdagbridge.core.bridge_components.sub_structure.pier.builder import build_pier
+out = build_pier()
+assert len(out["concrete"]) == 1 and len(out["rebar_longitudinal"]) == 16
+print("pier OK:", {k: len(v) for k, v in out.items()})
+
+import ifcopenshell
+f = ifcopenshell.open("bridge.ifc")
+print(len(f.by_type("IfcColumn")), "piers;",
+      len(f.by_type("IfcPile")), "piles;",
+      len(f.by_type("IfcFooting")), "pile caps")
+# expected: 2 piers, 8 piles, 2 pile caps (plus 2 pier caps)
+```
