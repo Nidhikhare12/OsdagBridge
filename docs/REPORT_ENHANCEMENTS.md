@@ -206,6 +206,13 @@ figures are now built as detached `matplotlib.figure.Figure` objects and
 rendered through `FigureCanvasAgg`, so they are safe to create on a worker
 thread.
 
+Additional formatting polish: table header rows are now shaded
+(`tableHead`) with softened green rules, captions use a consistent
+period-separated style, and section/subsection headings use the Osdag green
+palette.  Compilation speed was improved with a draft-mode first pdflatex pass
+and faster Agg chart rendering; see `docs/BENCHMARK.md` for measurements and
+cross-application PDF verification (MuPDF, LibreOffice, Poppler, pypdf).
+
 A full real-solver verification is also included:
 
 ```bash

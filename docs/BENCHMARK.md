@@ -7,7 +7,11 @@ pdflatex from TeX Live 2023), 3 runs per tree, identical payload (4 girders,
 | Metric | Baseline (`d74f56d`) | Enhanced (`c48c9c2`) | Delta |
 |---|---:|---:|---:|
 | Avg payload build | 0.059 s¹ | 0.002 s¹ | ~0 |
-| Avg `generate_report()` (incl. 2× pdflatex) | 1.796 s | 2.484 s | +0.688 s (+38 %) |
+| Avg `generate_report()` (incl. 2× pdflatex) | 1.796 s | 2.250 s | +0.454 s (+25 %) |
+
+The enhanced number includes: draft-mode first pdflatex pass, Agg-only chart
+rendering at 150 dpi (0.442 s for both charts, down from 0.555 s), global
+header/formatting post-processing, and three extra report pages.
 | PDF pages | 44 | 47 | +3 |
 | PDF size | 390,476 B | 493,220 B | +102,744 B (+26 %) |
 | `\endhead` (repeating headers) | 2 | 50 | +48 |
@@ -40,6 +44,17 @@ the extra pdflatex work for three more pages. For a PDF that now carries 48
 repeating table headers, two analytical charts and 26 % more content, this is a
 reasonable cost. The styling post-processor is a pure string pass over a
 ~80 kB LaTeX document and is not a bottleneck; OpenSees dominates total runtime.
+
+## Interoperability verification
+The enhanced PDF was opened / parsed by independent applications:
+
+| Tool | Result |
+|---|---|
+| MuPDF (`mutool clean -gggg`) | exit 0, 553 kB rewritten PDF |
+| LibreOffice Draw (`--convert-to pdf`) | imported and re-exported, **47 pages**, identical page-11 text length |
+| Poppler (`pdffonts`) | all Type 1 fonts embedded + subset |
+| `pypdf` / PyMuPDF | 47 pages parsed, text extraction works |
+| `pdftotext` / `pdftoppm` | correct text and page rendering |
 
 ## Reproduce
 

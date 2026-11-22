@@ -42,12 +42,30 @@ COLOR_REBAR = "#8D6E63"
 COLOR_TEXT = "#222222"
 COLOR_GRID = "#DDDDDD"
 COLOR_AXIS = "#666666"
+COLOR_TABLE_HEAD_HEX = "EAF2D6"
+COLOR_RULE_HEX = "B7C9A0"
 
 LATEX_COLOR_DEFINITIONS = (
     r"\definecolor{osdagGreen}{HTML}{" + COLOR_OSDAG_GREEN_HEX + "}" "\n"
     r"\definecolor{urPass}{HTML}{2E7D32}" "\n"
     r"\definecolor{urFail}{HTML}{C62828}" "\n"
-    r"\definecolor{thresholdRed}{HTML}{C00000}"
+    r"\definecolor{thresholdRed}{HTML}{C00000}" "\n"
+    r"\definecolor{tableHead}{HTML}{" + COLOR_TABLE_HEAD_HEX + "}" "\n"
+    r"\definecolor{tableRule}{HTML}{" + COLOR_RULE_HEX + "}"
+)
+
+LATEX_CAPTION_SETTINGS = (
+    r"\captionsetup{font=small,labelfont=bf,labelsep=period,skip=6pt,"
+    r"justification=raggedright,singlelinecheck=false}"
+)
+
+LATEX_SECTION_SETTINGS = (
+    r"\titleformat{\section}{\Large\bfseries\color{osdagGreen}}"
+    r"{\thesection}{1em}{}" "\n"
+    r"\titlespacing*{\section}{0pt}{12pt}{6pt}" "\n"
+    r"\titleformat{\subsection}{\large\bfseries\color{osdagGreen}}"
+    r"{\thesubsection}{1em}{}" "\n"
+    r"\titlespacing*{\subsection}{0pt}{8pt}{4pt}"
 )
 
 # ---------------------------------------------------------------------------
@@ -69,7 +87,8 @@ LATEX_TABLE_SETTINGS = (
     r"\setlength{\LTpre}{" + LT_PRE + "}" "\n"
     r"\setlength{\LTpost}{" + LT_POST + "}" "\n"
     r"\setlength{\arrayrulewidth}{" + ARRAY_RULE_WIDTH + "}" "\n"
-    r"\setlength{\extrarowheight}{" + EXTRA_ROW_HEIGHT + "}"
+    r"\setlength{\extrarowheight}{" + EXTRA_ROW_HEIGHT + "}" "\n"
+    r"\arrayrulecolor{tableRule}"
 )
 
 # Header/footer theme shared by every page style in report_generator.preamble.
@@ -166,9 +185,28 @@ def _repeat_longtable_headers(tex: str) -> str:
             header.append(lines[i])
             i += 1
 
-        repeat = "".join(header)
+        # Shade the header row (both first page and continuation) without
+        # touching multi-line \makecell arguments or rule lines.
+        def _shade(header_lines):
+            shaded = []
+            for line in header_lines:
+                stripped = line.rstrip()
+                if (_HEADER_END_RE.search(stripped)
+                        and r"\rowcolor" not in line
+                        and r"\makecell" not in line
+                        and r"\caption" not in line
+                        and line.count("{") == line.count("}")):
+                    indent = line[:len(line) - len(line.lstrip())]
+                    line = (indent + r"\rowcolor{tableHead} "
+                            + line[len(indent):])
+                shaded.append(line)
+            return shaded
+
+        first_header = "".join(_shade(header))
+        repeat = "".join(_shade(header))
         fixed_body = (
-            "".join(lines[:i])
+            "".join(lines[:first_rule])
+            + first_header
             + r"\endfirsthead" + "\n"
             + repeat
             + r"\endhead" + "\n"

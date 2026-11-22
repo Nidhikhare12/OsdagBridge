@@ -178,6 +178,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     singlelinecheck=false,
     format=plain
 }
+""" + styles.LATEX_CAPTION_SETTINGS + r"""
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
@@ -185,6 +186,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
 \usepackage{titlesec}
+""" + styles.LATEX_SECTION_SETTINGS + r"""
 \usepackage{titletoc}
 \usepackage{lastpage}
 \usepackage{makecell}
@@ -957,7 +959,7 @@ def generate_report(payload, request):
                 old_inputs = compile_env.get('TEXINPUTS', '')
                 compile_env['TEXINPUTS'] = bundled_sty + os.pathsep + old_inputs
 
-            for _ in range(2):
+            for pass_no in (1, 2):
                 try:
                     kwargs = {
                         'cwd': tmp_dir,
@@ -968,11 +970,17 @@ def generate_report(payload, request):
                     }
                     if os.name == 'nt':
                         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
-                    res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
-                        **kwargs
-                    )
+
+                    # Pass 1 only resolves aux/TOC/labels, so skip PDF output.
+                    # Pass 2 writes the final PDF.  This is materially faster
+                    # than producing the PDF twice.
+                    args = [compiler, '-interaction=nonstopmode',
+                            '-no-shell-escape']
+                    if pass_no == 1:
+                        args.append('-draftmode')
+                    args.append(request.file_stem + '.tex')
+
+                    res = subprocess.run(args, **kwargs)
                 except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
 

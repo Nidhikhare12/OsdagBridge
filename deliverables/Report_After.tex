@@ -22,6 +22,7 @@
     singlelinecheck=false,
     format=plain
 }
+\captionsetup{font=small,labelfont=bf,labelsep=period,skip=6pt,justification=raggedright,singlelinecheck=false}
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
@@ -29,6 +30,10 @@
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
 \usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{osdagGreen}}{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+\titleformat{\subsection}{\large\bfseries\color{osdagGreen}}{\thesubsection}{1em}{}
+\titlespacing*{\subsection}{0pt}{8pt}{4pt}
 \usepackage{titletoc}
 \usepackage{lastpage}
 \usepackage{makecell}
@@ -44,6 +49,7 @@
 \setlength{\LTpost}{6pt}
 \setlength{\arrayrulewidth}{0.5pt}
 \setlength{\extrarowheight}{0.6pt}
+\arrayrulecolor{tableRule}
 
 % Prevent tables from overflowing into the footer box.  The threshold is
 % defined once in styles.PAGE_BOTTOM_THRESHOLD_LINES.
@@ -54,6 +60,8 @@
 \definecolor{urPass}{HTML}{2E7D32}
 \definecolor{urFail}{HTML}{C62828}
 \definecolor{thresholdRed}{HTML}{C00000}
+\definecolor{tableHead}{HTML}{EAF2D6}
+\definecolor{tableRule}{HTML}{B7C9A0}
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -446,11 +454,11 @@ Where the user has modified additional inputs, those values are reported here. W
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Typical Section Details}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{Overall Bridge Width (m)} & 12.0 \\[6pt]
@@ -474,11 +482,11 @@ Where the user has modified additional inputs, those values are reported here. W
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Components Details}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{Crash Barrier Type} &  \\[6pt]
@@ -506,11 +514,11 @@ Where the user has modified additional inputs, those values are reported here. W
 \begin{longtable}{|L{2.2cm}|L{1.8cm}|p{3.8cm}|p{3.8cm}|p{3.8cm}|}
 \caption{\textbf{Girder General Information}}
 \hline
-\textbf{Girder} & \textbf{Member ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
+\rowcolor{tableHead} \textbf{Girder} & \textbf{Member ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Girder} & \textbf{Member ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
+\rowcolor{tableHead} \textbf{Girder} & \textbf{Member ID} & \textbf{Design Mode} & \textbf{Girder Type} & \textbf{Girder Symmetry} \\[6pt]
 \hline
 \endhead
  &  & Optimized &  &  \\[8pt]
@@ -529,11 +537,11 @@ Where the user has modified additional inputs, those values are reported here. W
 \begin{longtable}{|L{1.8cm}|L{2.3cm}|L{1.8cm}|p{4.8cm}|p{4.8cm}|}
 \caption{\textbf{Girder Section Dimensions}}
 \hline
-\textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]
+\rowcolor{tableHead} \textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]
+\rowcolor{tableHead} \textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]
 \hline
 \endhead
  &  &  & ,  & ,  \\[8pt]
@@ -579,11 +587,11 @@ Where the user has modified additional inputs, those values are reported here. W
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
 \caption{\textbf{Member Properties: Cross Bracing Details}}
 \hline
-\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
+\rowcolor{tableHead} \textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
 \hline
 \endfirsthead
 \hline
-\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
+\rowcolor{tableHead} \textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
 \hline
 \endhead
  &  &  &  &  \\[6pt]
@@ -603,11 +611,11 @@ Where the user has modified additional inputs, those values are reported here. W
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
 \caption{\textbf{Member Properties: End Diaphragm Details}}
 \hline
-\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
+\rowcolor{tableHead} \textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
 \hline
 \endfirsthead
 \hline
-\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
+\rowcolor{tableHead} \textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
 \hline
 \endhead
  &  &  &  \\[6pt]
@@ -628,11 +636,11 @@ Where the user has modified additional inputs, those values are reported here. W
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Shear Connector Details}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{Stud Diameter (mm)} &  \\[6pt]
@@ -660,11 +668,11 @@ Where the user has modified additional inputs, those values are reported here. W
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Partial Safety Factors}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{$\gamma_{M0}$ (Yielding / Buckling)} &  \\[6pt]
@@ -693,11 +701,11 @@ This section summarizes all loads applied to the bridge and the load combination
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Dead Load -- Self Weight}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{Steel Self-Weight Applied} & 78.5 kN/m\textsuperscript{3} \\[6pt]
@@ -712,11 +720,11 @@ This section summarizes all loads applied to the bridge and the load combination
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Dead Load for Surfacing (DW)}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{Wearing Course Load} &  x  \\[6pt]
@@ -731,11 +739,11 @@ This section summarizes all loads applied to the bridge and the load combination
 \begin{longtable}{|L{4.3cm}|C{2.2cm}|C{2.8cm}|C{3.0cm}|L{2.5cm}|}
 \caption{\textbf{Vehicle Live Loads (LL) --- as selected in the Loading tab}}
 \hline
-\textbf{Vehicle Class} & \textbf{Impact Factor} & \textbf{Braking Load (kN)} & \textbf{Centrifugal Force} & \textbf{Reference} \\[6pt]
+\rowcolor{tableHead} \textbf{Vehicle Class} & \textbf{Impact Factor} & \textbf{Braking Load (kN)} & \textbf{Centrifugal Force} & \textbf{Reference} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Vehicle Class} & \textbf{Impact Factor} & \textbf{Braking Load (kN)} & \textbf{Centrifugal Force} & \textbf{Reference} \\[6pt]
+\rowcolor{tableHead} \textbf{Vehicle Class} & \textbf{Impact Factor} & \textbf{Braking Load (kN)} & \textbf{Centrifugal Force} & \textbf{Reference} \\[6pt]
 \hline
 \endhead
 
@@ -751,11 +759,11 @@ Additional Inputs tab are listed. Impact factors follow IRC 6 Cl.\ 208.}
 \begin{longtable}{|L{5.5cm}|C{3.0cm}|C{2.5cm}|L{4.0cm}|}
 \caption{\textbf{Footway Live Load}}
 \hline
-\textbf{Parameter} & \textbf{Value} & \textbf{Unit} & \textbf{Reference} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Value} & \textbf{Unit} & \textbf{Reference} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Parameter} & \textbf{Value} & \textbf{Unit} & \textbf{Reference} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Value} & \textbf{Unit} & \textbf{Reference} \\[6pt]
 \hline
 \endhead
 
@@ -770,11 +778,11 @@ Additional Inputs tab are listed. Impact factors follow IRC 6 Cl.\ 208.}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Wind Load (WL) --- per IRC 6}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{Basic Wind Speed, Vb} & 40 m/s [from Project Location] \\[6pt]
@@ -799,11 +807,11 @@ Additional Inputs tab are listed. Impact factors follow IRC 6 Cl.\ 208.}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Earthquake Load (EL) --- per IRC 6}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{Seismic Zone} & III [from Project Location] \\[6pt]
@@ -830,11 +838,11 @@ Additional Inputs tab are listed. Impact factors follow IRC 6 Cl.\ 208.}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Temperature Load (TL) --- per IRC 6}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{Maximum Shade Temperature} & 45 $^\circ$C \\[6pt]
@@ -851,11 +859,11 @@ Additional Inputs tab are listed. Impact factors follow IRC 6 Cl.\ 208.}
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}
 \caption{\textbf{Load Combinations}}
 \hline
-\textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
+\rowcolor{tableHead} \textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
+\rowcolor{tableHead} \textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
 \hline
 \endhead
 ULS-01 & DL(1.35/1.00) + SIDL(1.75/1.00) + LL(1.50) + WL(0.90) + TL(0.90) \\[6pt]
@@ -962,11 +970,11 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
 \caption{\textbf{Reactions at Supports}}
 \hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
+\rowcolor{tableHead} \textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
+\rowcolor{tableHead} \textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
 \endhead
  &  &  \\[6pt]
@@ -981,11 +989,11 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \begin{longtable}{|L{7cm}|p{8.5cm}|}
 \caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\rowcolor{tableHead} \textbf{parameter} & \textbf{value} \\
 \hline
 \endhead
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & --- \\[6pt]
@@ -1028,11 +1036,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{8.0cm}|>{\centering\arraybackslash}p{5.0cm}|}
 \caption{\textbf{Girder Section Properties (Final Optimized / User-selected)}}
 \hline
-\textbf{Girder} & \textbf{Property} & \textbf{Value} \\[6pt]
+\rowcolor{tableHead} \textbf{Girder} & \textbf{Property} & \textbf{Value} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Girder} & \textbf{Property} & \textbf{Value} \\[6pt]
+\rowcolor{tableHead} \textbf{Girder} & \textbf{Property} & \textbf{Value} \\[6pt]
 \hline
 \endhead
 \multirow{13}{*}{\makecell{}} & \textnormal{Depth, D (mm)} &  \\[6pt]
@@ -1145,11 +1153,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3cm}|C{3.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{4.0cm}|}
 \caption{\textbf{Girder Section Classification}}
 \hline
-\textbf{} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[6pt]
 \hline
 \endhead
 \multirow{3}{*}{\makecell{}} & Top Flange &  &  &  \\[6pt]
@@ -1183,11 +1191,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{\textbf{Moment Capacity Check}}
 \hline
-\textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \multirow{3}{*}{\makecell{}} & Applied Moment, $M_u$ & Governing LC (ULS) &  & --- \\[6pt]
@@ -1221,11 +1229,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{\textbf{Shear Capacity Check}}
 \hline
-\textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \multirow{8}{*}{\makecell{}} & Applied Shear, $V_u$ & Governing LC (ULS) &  & --- \\[6pt]
@@ -1299,11 +1307,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{\textbf{Interaction Checks (M-V and M-N)}}
 \hline
-\textbf{} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \multirow{4}{*}{\makecell{}} & High Shear Condition? & $V_u > 0.6\,V_d$ &  & --- \\[6pt]
@@ -1345,11 +1353,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{\textbf{Lateral Torsional Buckling Check -- Construction Stage}}
 \hline
-\textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \multirow{5}{*}{\makecell{}} & Elastic Critical Moment, $M_{cr}$ & IRC 22 Cl. 603.3.3.1 &  & --- \\[6pt]
@@ -1458,11 +1466,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{\textbf{End Panel Stiffener Checks}}
 \hline
-\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \multirow{4}{*}{\makecell{}} & Web Buckling Resistance & N/A & N/A & N/A \\[6pt]
@@ -1504,11 +1512,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.5cm}|}
 \caption{\textbf{Serviceability -- Deflection Checks}}
 \hline
-\textbf{} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \multirow{2}{*}{\makecell{}} & Live Load Deflection, $\delta_{LL}$ (mm) & L/800 = 37.5 mm &  & --- \\[6pt]
@@ -1534,11 +1542,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.5cm}|}
 \caption{\textbf{Serviceability -- Maximum Stress Limitation}}
 \hline
-\textbf{} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \makecell{} & Structural Steel ($0.9\,f_y$) &  &  & --- \\[6pt]
@@ -1555,11 +1563,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.5cm}|}
 \caption{\textbf{Serviceability -- Fatigue Assessment}}
 \hline
-\textbf{} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \makecell{} &  &  &  & --- \\[6pt]
@@ -1578,11 +1586,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{1.6cm}|>{\centering\arraybackslash}p{3.6cm}|C{2.4cm}|C{2.0cm}|C{2.1cm}|C{1.7cm}|C{1.5cm}|}
 \caption{\textbf{Girder Design Summary (DCR / Utilization Ratio)}}
 \hline
-\textbf{Girder} & \textbf{Controlling LC / Combination} & \textbf{Controlling Check} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Girder} & \textbf{Controlling LC / Combination} & \textbf{Controlling Check} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Girder} & \textbf{Controlling LC / Combination} & \textbf{Controlling Check} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Girder} & \textbf{Controlling LC / Combination} & \textbf{Controlling Check} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
 \endhead
  &  &  & 18000.00 kNm & 25000.00 kNm & 0.720 & --- \\[6pt]
@@ -1601,11 +1609,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|L{3.6cm}|C{5.6cm}|>{\centering\arraybackslash}p{2.6cm}|L{3.0cm}|}
 \caption{\textbf{Shear Connector Capacity}}
 \hline
-\textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Reference} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Reference} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Reference} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Reference} \\[6pt]
 \hline
 \endhead
 Design Resistance, $Q_u$ & \footnotesize\makecell{$Q_u=\min(Q_{u,s},\,Q_{u,c})$\\[3pt]$Q_{u,s}=\dfrac{0.8\,f_u\,(\pi d^2/4)}{\gamma_v}$\\[3pt]$Q_{u,c}=\dfrac{0.29\,\alpha\,d^2\sqrt{f_{ck}\,E_{cm}}}{\gamma_v}$} &  & IRC 22 Cl. 606.3.1 (Eq. 6.1) \\[6pt]
@@ -1622,11 +1630,11 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) &  & IRC 2
 \begin{longtable}{|L{3.2cm}|>{\centering\arraybackslash}p{4.3cm}|>{\centering\arraybackslash}p{4.3cm}|C{2.0cm}|}
 \caption{\textbf{Shear Connector Spacing}}
 \hline
-\textbf{Criterion} & \textbf{Governing Spacing} & \textbf{Actual Spacing Provided} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Criterion} & \textbf{Governing Spacing} & \textbf{Actual Spacing Provided} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Criterion} & \textbf{Governing Spacing} & \textbf{Actual Spacing Provided} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Criterion} & \textbf{Governing Spacing} & \textbf{Actual Spacing Provided} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 ULS Shear (SL1) &  &  & --- \\[6pt]
@@ -1644,11 +1652,11 @@ Max Spacing Limit (IRC 22) &  &  & --- \\[6pt]
 \begin{longtable}{|L{5.3cm}|>{\arraybackslash}p{7.2cm}|C{2.0cm}|}
 \caption{\textbf{Transverse Shear and Detailing Checks}}
 \hline
-\textbf{Check} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Check} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Check} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Check} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \textnormal{Longitudinal Shear per unit length, $V_L$} &  & --- \\[6pt]
@@ -1678,11 +1686,11 @@ The reinforced concrete deck slab is designed per IRC~112:2011 (flexure, shear, 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Deck Slab --- Loading and Geometry}}
 \hline
-\textnormal{Effective Span of Deck Slab, $l_{eff}$} & \placeholder{---} mm (girder spacing, c/c) \\[6pt]
+\rowcolor{tableHead} \textnormal{Effective Span of Deck Slab, $l_{eff}$} & \placeholder{---} mm (girder spacing, c/c) \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textnormal{Effective Span of Deck Slab, $l_{eff}$} & \placeholder{---} mm (girder spacing, c/c) \\[6pt]
+\rowcolor{tableHead} \textnormal{Effective Span of Deck Slab, $l_{eff}$} & \placeholder{---} mm (girder spacing, c/c) \\[6pt]
 \hline
 \endhead
 \textnormal{Deck Thickness, $t_s$} & 0.25 mm \\[6pt]
@@ -1709,11 +1717,11 @@ The reinforced concrete deck slab is designed per IRC~112:2011 (flexure, shear, 
 \begin{longtable}{|C{3.0cm}|C{3.5cm}|C{3.0cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{\textbf{Deck Slab --- Flexure Check: Interior Panel (Pigeaud's Method)}}
 \hline
-\textbf{Location} & \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Location} & \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Location} & \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Location} & \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \multirow{5}{*}{\makecell{At Midspan\\(Sagging)}} & Transverse BM (DL), $M_{T,DL}$ & $w_{DL}\,l_{eff}^2/10$ & \placeholder{---} kN-m/m & --- \\[6pt]
@@ -1739,11 +1747,11 @@ The reinforced concrete deck slab is designed per IRC~112:2011 (flexure, shear, 
 \begin{longtable}{|L{5.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.5cm}|C{2cm}|}
 \caption{\textbf{Deck Slab --- Cantilever Overhang Flexure Check}}
 \hline
-\textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Formula} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 Overhang Length, $l_{oh}$ & --- &  & --- \\[6pt]
@@ -1765,11 +1773,11 @@ Moment Capacity (top steel), $M_{Rd,oh}$ & IRC 112 Cl. 12.2 & \placeholder{---} 
 \begin{longtable}{|L{5.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.5cm}|C{2cm}|}
 \caption{\textbf{Deck Slab --- Punching Shear Check (IRC~112 Cl.~10.4.6)}}
 \hline
-\textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 Design Wheel Load (ULS), $V_{Ed}$ & $\gamma_Q\,(1+IF)\,P_w$ & \placeholder{---} kN & --- \\[6pt]
@@ -1794,11 +1802,11 @@ Punching Shear Check & $v_{Ed} \leq v_{Rd,c}$ & \placeholder{---} & --- \\[6pt]
 \begin{longtable}{|L{7cm}|>{\arraybackslash}p{8.5cm}|}
 \caption{\textbf{Crack Width Check (Deck Slab)}}
 \hline
-\textbf{Parameter} & \textbf{Value / Reference} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Value / Reference} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Parameter} & \textbf{Value / Reference} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Value / Reference} \\[6pt]
 \hline
 \endhead
 \textnormal{Min. Reinforcement for Crack Control, $A_{s,min}$} & \placeholder{---} mm²/m [IRC 112 Cl. 16.5.1] \\[6pt]
@@ -1817,11 +1825,11 @@ Punching Shear Check & $v_{Ed} \leq v_{Rd,c}$ & \placeholder{---} & --- \\[6pt]
 \begin{longtable}{|L{5.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.5cm}|C{2cm}|}
 \caption{\textbf{One-Way (Beam) Shear Check (Deck Slab)}}
 \hline
-\textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 Design Shear per unit width, $V_{Ed}$ & $\gamma_{DL} V_{DL} + \gamma_{LL}(1{+}IF)V_{LL}$ & \placeholder{---} kN/m & --- \\[6pt]
@@ -1843,11 +1851,11 @@ One-Way Shear Check & $V_{Ed} \leq V_{Rd,c}$ & \placeholder{---} & --- \\[6pt]
 \begin{longtable}{|L{5.5cm}|>{\centering\arraybackslash}p{4.1cm}|>{\centering\arraybackslash}p{4.1cm}|C{1.8cm}|}
 \caption{\textbf{Reinforcement Detailing Summary (Deck Slab)}}
 \hline
-\textbf{Parameter} & \textbf{Required / Limit} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Required / Limit} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Parameter} & \textbf{Required / Limit} & \textbf{Provided} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Parameter} & \textbf{Required / Limit} & \textbf{Provided} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 \multicolumn{4}{|l|}{\textbf{Main Reinforcement --- Bottom (Transverse)}} \\[6pt]
@@ -1894,11 +1902,11 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \begin{longtable}{|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|}
 \caption{\textbf{Cross Bracing --- Connection and Section Properties}}
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
 \hline
 \endhead
 Between Girders & Diagonal &  &  &  &  \\[6pt]
@@ -1910,11 +1918,11 @@ Between Girders & Diagonal &  &  &  &  \\[6pt]
 \begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
 \caption{\textbf{Cross Bracing --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
 \hline
 \endhead
 Between Girders & Diagonal & C &  &  &  ---  \\[6pt]
@@ -1926,11 +1934,11 @@ Between Girders & Diagonal & C &  &  &  ---  \\[6pt]
 \begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
 \caption{\textbf{Cross Bracing Design --- Capacity Summary}}
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 
@@ -1956,11 +1964,11 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \begin{longtable}{|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|}
 \caption{\textbf{End Diaphragm --- Connection and Section Properties}}
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
 \hline
 \endhead
 Between Girders & Diagonal &  &  &  &  \\[6pt]
@@ -1972,11 +1980,11 @@ Between Girders & Diagonal &  &  &  &  \\[6pt]
 \begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
 \caption{\textbf{End Diaphragm --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
 \hline
 \endhead
 Between Girders & Diagonal & C &  &  &  ---  \\[6pt]
@@ -1989,11 +1997,11 @@ Between Girders & Diagonal & C &  &  &  ---  \\[6pt]
 \begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
 \caption{\textbf{End Diaphragm Design --- Capacity Summary}}
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
+\rowcolor{tableHead} \textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
 \hline
 \endhead
 
@@ -2010,11 +2018,11 @@ Between Girders & Diagonal & C &  &  &  ---  \\[6pt]
 \begin{longtable}{|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|}
 \caption{\textbf{Overall Design Check Summary --- All Members}}
 \hline
-\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\rowcolor{tableHead} \textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
 \hline
 \endfirsthead
 \hline
-\textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
+\rowcolor{tableHead} \textbf{Member / Check} & \textbf{Governing Load Combo} & \textbf{Demand} & \textbf{Capacity} & \textbf{UR} \\[6pt]
 \hline
 \endhead
 Girder --- Moment & --- & 20500.00 kNm & 25000.00 kNm & 0.82 \\[6pt]
@@ -2058,7 +2066,7 @@ End Diaphragm --- Shear & \multicolumn{4}{c|}{Rolled / Welded section --- design
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\linewidth]{/tmp/tmppt3cqrpy/images/ur_summary.png}
+\includegraphics[width=0.92\linewidth]{/tmp/tmp2ndm0hgr/images/ur_summary.png}
 \caption{Utilization Ratio (UR) of primary bridge elements. Bars above the red dashed line ($\mathrm{UR}>1.0$) fail the check.}
 \label{fig:ur-summary}
 \end{figure}
@@ -2223,11 +2231,11 @@ This section presents CAD-generated views of the designed bridge and its compone
 \setlength{\tabcolsep}{3.5pt}
 \begin{longtable}{|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
 \hline
-\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
+\rowcolor{tableHead} \textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
 \hline
 \endfirsthead
 \hline
-\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
+\rowcolor{tableHead} \textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
 \hline
 \endhead
 1 & Structural Steel (IS 2062) for Girders & $0.09000\text{ m}^2 \times 30.00\text{ m} = 2.70000\text{ m}^3$ & 4 & 10.80 & 21.20 & 84.78 \\
@@ -2252,7 +2260,7 @@ This section presents CAD-generated views of the designed bridge and its compone
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\linewidth]{/tmp/tmppt3cqrpy/images/material_quantities.png}
+\includegraphics[width=0.92\linewidth]{/tmp/tmp2ndm0hgr/images/material_quantities.png}
 \caption{Material quantity summary from the Bill of Materials: structural steel tonnage by component, concrete volume and reinforcement weight.}
 \label{fig:material-quantities}
 \end{figure}

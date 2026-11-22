@@ -23,7 +23,7 @@ def _save(fig: Figure, asset_dir: str, name: str) -> str:
     os.makedirs(asset_dir, exist_ok=True)
     path = os.path.join(asset_dir, name)
     FigureCanvasAgg(fig)
-    fig.savefig(path, dpi=200, bbox_inches="tight", facecolor="white")
+    fig.savefig(path, dpi=150, facecolor="white")
     fig.clear()
     return path
 
