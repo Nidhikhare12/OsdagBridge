@@ -9,6 +9,7 @@
 | `Report_Real_Design.pdf` | Full report from a **real OpenSees analysis + design** (4 girders, 30 m span) via `scripts/run_full_design_test.py`. Used to verify the Page 30 / G4 footer-overlap case. |
 | `Technical_Report.pdf` | 8-page submission report: requirements, files changed, style architecture, verification evidence and reproduction commands. |
 | `report_assets/` | Page renders used as figures in the technical report. |
+| `../docs/BENCHMARK.md` | Baseline vs enhanced timing/size benchmark and full-solver run metrics. |
 
 Both PDFs were generated from the **same representative payload** with
 `scripts/generate_sample_reports.py`; no GUI or OpenSees analysis is required.
