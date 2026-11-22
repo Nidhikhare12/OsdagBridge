@@ -10,6 +10,7 @@
 | `Technical_Report.pdf` | 8-page submission report: requirements, files changed, style architecture, verification evidence and reproduction commands. |
 | `report_assets/` | Page renders used as figures in the technical report. |
 | `../docs/BENCHMARK.md` | Baseline vs enhanced timing/size benchmark and full-solver run metrics. |
+| `gui_window.png` | Screenshot of the real OsdagBridge desktop window (PySide6), captured during the visible GUI test. |
 
 Both PDFs were generated from the **same representative payload** with
 `scripts/generate_sample_reports.py`; no GUI or OpenSees analysis is required.

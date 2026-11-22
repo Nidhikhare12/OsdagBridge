@@ -21,7 +21,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+if os.environ.get("GUI_VISIBLE") != "1":
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 # Force Matplotlib's Qt backend onto the installed PyQt5 binding.
 os.environ.setdefault("QT_API", "pyqt5")
 
@@ -292,6 +293,9 @@ def main() -> int:
     app.processEvents()
     print(f"Main window created: {window.windowTitle()!r}")
     print(f"Main window visible: {window.isVisible()}")
+    shot = ROOT / "deliverables" / "gui_window.png"
+    window.grab().save(str(shot))
+    print(f"Window screenshot: {shot}")
 
     # The report dialog is the GUI entry point exercised by the enhanced
     # report generator.  Instantiate it directly to verify it builds.
