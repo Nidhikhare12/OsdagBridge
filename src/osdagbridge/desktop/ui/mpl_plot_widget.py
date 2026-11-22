@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QFrame, QLabel, QCheckBox, QScrollArea, QApplication, QRubberBand
 )
 from PySide6.QtCore import Qt, QEvent, QTimer
+from osdagbridge.core.utils.common import VALUE_ANALYSIS_MEMBER_TRANSVERSE
 
 from navcube import NavCubeOverlay, NavCubeStyle
 from osdagbridge.desktop.ui.utils.mpl_widget_navcube_sync import MatplotlibNavCubeSync
@@ -22,6 +23,7 @@ from osdagbridge.core.bridge_types.plate_girder.plot_generator import (
     build_figure_bmd,
     build_figure_deflection,
     build_figure_grillage,
+    build_figure_transverse,
     _add_node_number_labels,
     _add_element_number_labels,
     FORCE_MAP,
@@ -136,13 +138,13 @@ class SummaryOverlay(QFrame):
         self.text_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         layout.addWidget(self.text_label)
 
-    def update_data(self, summary_data, unit=""):
+    def update_data(self, summary_data, unit="", row_header="Girder"):
         title = "Extreme Values Summary"
         if unit:
             title += f" ({unit})"
         hud_text = f"<b>{title}</b><br>" + "-" * 38 + "<br>"
 
-        h_girder = "Girder".ljust(8).replace(" ", "&nbsp;")
+        h_girder = row_header.ljust(8).replace(" ", "&nbsp;")
         h_max = "Max".rjust(10).replace(" ", "&nbsp;")
         h_min = "Min".rjust(12).replace(" ", "&nbsp;")
         
@@ -525,7 +527,12 @@ class MplPlotWidget(QWidget):
         ds = self._ds_all.sel(Loadcase=loadcase)
         
         old_elev, old_azim = None, None
-        if hasattr(self, '_fig') and self._fig and self._fig.axes:
+        # Keep the user's camera only while staying in the same plot family:
+        # girder diagrams and transverse-member diagrams use different default views.
+        is_transverse_now = sel_girder == VALUE_ANALYSIS_MEMBER_TRANSVERSE
+        same_family = getattr(self, "_last_plot_transverse", is_transverse_now) == is_transverse_now
+        self._last_plot_transverse = is_transverse_now
+        if same_family and hasattr(self, '_fig') and self._fig and self._fig.axes:
             old_ax = self._fig.axes[0]
             if hasattr(old_ax, 'elev'):
                 old_elev = old_ax.elev
@@ -538,7 +545,14 @@ class MplPlotWidget(QWidget):
 
         # (Your existing if/elif/else block to build the new figures)
         eng_scale = self._eng_scale
-        if force_key in _SFD_KEYS:
+        is_transverse = sel_girder == VALUE_ANALYSIS_MEMBER_TRANSVERSE
+        if is_transverse:
+            # End diaphragms + intermediate cross bracings, any force / displacement
+            self._fig, self._summary_data = build_figure_transverse(
+                ds, force_key, self._nodes, self._members,
+                edge_dist=self._edge_dist, eng_scale=eng_scale,
+            )
+        elif force_key in _SFD_KEYS:
             self._fig, self._summary_data = build_figure_sfd(
                 ds, force_key, self._nodes, self._members,
                 edge_dist=self._edge_dist, eng_scale=eng_scale,
@@ -574,6 +588,7 @@ class MplPlotWidget(QWidget):
             self._summary_overlay.update_data(
                 self._summary_data,
                 unit=self._value_unit_for_force_key(force_key),
+                row_header="Member" if is_transverse else "Girder",
             )
             if self._is_summary_checked:
                 self._summary_overlay.show()
@@ -716,6 +731,8 @@ class MplPlotWidget(QWidget):
                 old_azim = self._fig.axes[0].azim
             plt.close(self._fig)
             sel_girder = self._current_member()
+            if sel_girder == VALUE_ANALYSIS_MEMBER_TRANSVERSE:
+                sel_girder = "All"   # grillage view: show the whole mesh incl. transverse lines
             self._fig = build_figure_grillage(self._nodes, self._members, edge_dist=self._edge_dist, selected_girder=sel_girder)
             self._attach_figure(self._fig)
             if self._fig.axes and old_elev is not None and old_azim is not None:

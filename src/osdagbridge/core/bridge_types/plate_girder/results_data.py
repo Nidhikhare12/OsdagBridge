@@ -10,6 +10,7 @@ bridge-wrapper dependency.
 
 from __future__ import annotations
 import json
+import math
 from collections import OrderedDict
 from collections.abc import Mapping
 from pathlib import Path
@@ -79,6 +80,244 @@ class LazyLoadcaseResults(Mapping):
         return len(self._keys)
 
 _TOOLS_DIR = Path(__file__).resolve().parents[5] / "tools"
+
+
+# =============================================================================
+# MEMBER CLASSIFICATION & TRANSVERSE-MEMBER RESULTS
+# =============================================================================
+# Plot keys (as chosen in the output dock) -> result components in the dataset.
+# Forces: (i-end, j-end) element end-force components; displacements: nodal dof.
+FORCE_COMPONENT_MAP = {
+    "Fx": ("Vx_i", "Vx_j"),
+    "Fy": ("Vy_i", "Vy_j"),
+    "Fz": ("Vz_i", "Vz_j"),
+    "Mx": ("Mx_i", "Mx_j"),
+    "My": ("My_i", "My_j"),
+    "Mz": ("Mz_i", "Mz_j"),
+}
+DISP_COMPONENT_MAP = {"Dx": "x", "Dy": "y", "Dz": "z"}
+
+TRANSVERSE_KIND_END_DIAPHRAGM = "end_diaphragm"
+TRANSVERSE_KIND_CROSS_BRACING = "cross_bracing"
+
+_COORD_TOL = 1e-3
+
+
+def split_longitudinal_transverse(nodes: dict, members: dict, tol: float = _COORD_TOL):
+    """
+    Split OpenSees element tags into longitudinal and transverse members.
+
+    Longitudinal: both end nodes share the same Y and Z (the element runs along
+    the span, global X). Everything else spans across the deck: end diaphragms
+    (``start_edge`` / ``end_edge``) and intermediate cross bracings
+    (``transverse_slab``). Works for skewed (oblique) meshes because only the
+    lateral coordinate is tested, never X.
+    """
+    longitudinal, transverse = [], []
+    for tag, (n1, n2) in members.items():
+        if n1 not in nodes or n2 not in nodes:
+            continue
+        if (abs(nodes[n1][2] - nodes[n2][2]) < tol and
+                abs(nodes[n1][1] - nodes[n2][1]) < tol):
+            longitudinal.append(tag)
+        else:
+            transverse.append(tag)
+    return longitudinal, transverse
+
+
+def _main_girder_nodes(nodes: dict, members: dict, longitudinal: list, edge_dist: float) -> set:
+    """Nodes lying on main-girder lines (edge-beam lines excluded when an overhang exists)."""
+    lines: dict = {}
+    for tag in longitudinal:
+        n1, n2 = members[tag]
+        lines.setdefault(round(nodes[n1][2], 3), set()).update((n1, n2))
+    ordered = [lines[z] for z in sorted(lines)]
+    if edge_dist > 0 and len(ordered) > 2:
+        ordered = ordered[1:-1]          # outermost lines are edge beams, not girders
+    return set().union(*ordered) if ordered else set()
+
+
+def classify_transverse_lines(nodes: dict, members: dict, edge_dist: float = 0.0) -> list[dict]:
+    """
+    Group transverse elements into lines across the deck.
+
+    Only elements connecting two main-girder nodes are kept: these are the
+    diaphragm / cross-bracing elements. Overhang pieces between an edge beam and
+    the exterior girder are deck slab cantilevers and are excluded (same rule as
+    ``results_data_post_processing.build_crossbracings``).
+
+    Returns lines sorted along the span. The first and last line sit on the
+    supports and are end diaphragms; the rest are intermediate cross bracings::
+
+        [{"name": "ED1", "kind": "end_diaphragm", "elements": [...], "nodes": [...]}, ...]
+
+    Elements inside a line are ordered from G1 towards Gn.
+    """
+    nodes = {int(k): v for k, v in nodes.items()}
+    members = {int(k): [int(n) for n in v] for k, v in members.items()}
+    longitudinal, transverse = split_longitudinal_transverse(nodes, members)
+    girder_nodes = _main_girder_nodes(nodes, members, longitudinal, edge_dist)
+
+    elems = [e for e in transverse if all(n in girder_nodes for n in members[e])]
+
+    # Connected components of the transverse-element graph = one line each
+    node_to_elems: dict = {}
+    for e in elems:
+        for n in members[e]:
+            node_to_elems.setdefault(n, []).append(e)
+    seen, groups = set(), []
+    for e in elems:
+        if e in seen:
+            continue
+        stack, comp = [e], []
+        seen.add(e)
+        while stack:
+            cur = stack.pop()
+            comp.append(cur)
+            for n in members[cur]:
+                for nxt in node_to_elems.get(n, []):
+                    if nxt not in seen:
+                        seen.add(nxt)
+                        stack.append(nxt)
+        groups.append(comp)
+
+    def _mid(e, axis):
+        n1, n2 = members[e]
+        return 0.5 * (nodes[n1][axis] + nodes[n2][axis])
+
+    lines = []
+    for comp in groups:
+        comp.sort(key=lambda e: _mid(e, 2))                      # G1 -> Gn
+        line_nodes = sorted({n for e in comp for n in members[e]}, key=lambda n: nodes[n][2])
+        x_mid = sum(_mid(e, 0) for e in comp) / len(comp)
+        lines.append({"elements": comp, "nodes": line_nodes, "x": x_mid})
+    lines.sort(key=lambda ln: ln["x"])
+
+    n_cb = 0
+    for idx, ln in enumerate(lines):
+        if idx == 0 or idx == len(lines) - 1:
+            ln["kind"] = TRANSVERSE_KIND_END_DIAPHRAGM
+            ln["name"] = "ED1" if idx == 0 else "ED2"
+        else:
+            n_cb += 1
+            ln["kind"] = TRANSVERSE_KIND_CROSS_BRACING
+            ln["name"] = f"CB{n_cb}"
+    return lines
+
+
+def _component_lookup(ds, var: str, wanted: str):
+    """Case-insensitive component match in ds[var] (ospgrillage names vary)."""
+    for c in ds[var].coords["Component"].values:
+        if str(c).lower() == wanted.lower():
+            return c
+    return None
+
+
+def _local_axes(p_start, p_end):
+    """Member axes: e1 along the member, e2 vertical (global Y), e3 = e1 x e2.
+    For a girder along +X this is the global frame; for a transverse member it
+    gives axial along the member, Vy/My about the vertical, Mz in-plane bending."""
+    d = [p_end[k] - p_start[k] for k in range(3)]
+    L = math.sqrt(sum(c * c for c in d)) or 1.0
+    e1 = [c / L for c in d]
+    up = (0.0, 1.0, 0.0)
+    e3 = [e1[1] * up[2] - e1[2] * up[1], e1[2] * up[0] - e1[0] * up[2], e1[0] * up[1] - e1[1] * up[0]]
+    n3 = math.sqrt(sum(c * c for c in e3)) or 1.0
+    e3 = [c / n3 for c in e3]
+    e2 = [e3[1] * e1[2] - e3[2] * e1[1], e3[2] * e1[0] - e3[0] * e1[2], e3[0] * e1[1] - e3[1] * e1[0]]
+    return e1, e2, e3
+
+
+_GLOBAL_END_COMPONENTS = ("Vx", "Vy", "Vz", "Mx", "My", "Mz")
+# plot key -> (vector: "V" force / "M" moment, local axis index)
+_LOCAL_COMPONENT = {"Fx": ("V", 0), "Fy": ("V", 1), "Fz": ("V", 2),
+                    "Mx": ("M", 0), "My": ("M", 1), "Mz": ("M", 2)}
+
+
+def extract_transverse_member_results(ds, nodes: dict, members: dict,
+                                      plot_key: str, edge_dist: float = 0.0) -> list[dict]:
+    """
+    Pull one result component for every transverse line, for a single load case.
+
+    Parameters
+    ----------
+    ds        : xarray.Dataset already reduced to one load case (``ds_all.sel(Loadcase=lc)``)
+    plot_key  : "Fx", "Fy", "Fz", "Mx", "My", "Mz" (Fx, Vy, Vz, Tx, My, Mz in the UI)
+                or "Dx", "Dy", "Dz"
+
+    Returns
+    -------
+    list of lines (see classify_transverse_lines) with an added ``segments`` list::
+
+        {"elem": tag, "nodes": (n1, n2), "x": (x1, x2), "z": (z1, z2), "v": (v1, v2)}
+
+    plus ``max`` / ``min`` over the line.
+
+    Forces (kN, kNm) are reported in each member's own axes, so the labels mean
+    the same thing as on the girders: Fx axial, Vy vertical shear, Vz horizontal
+    shear, Tx torsion, My bending about the vertical axis, Mz bending in the
+    vertical plane. ospgrillage returns element end forces in global axes; for
+    a member running across the deck (global Z) the raw global Mx would actually
+    be its bending moment, hence the rotation. Members are read from the G1 side
+    to the Gn side; the value at the start node is the start-end force and at the
+    far node the negated far-end force (same convention as the girder diagrams).
+    Displacements (mm) are nodal and stay in global axes, with the same vertical
+    sign flip as the girder deflection plot.
+    """
+    nodes = {int(k): v for k, v in nodes.items()}
+    members = {int(k): [int(n) for n in v] for k, v in members.items()}
+    lines = classify_transverse_lines(nodes, members, edge_dist)
+
+    is_disp = plot_key in DISP_COMPONENT_MAP
+    if is_disp:
+        comp = _component_lookup(ds, "displacements", DISP_COMPONENT_MAP[plot_key])
+        if comp is None:
+            return []
+        da = ds["displacements"].sel(Component=comp)
+        disp = {int(n): float(v) for n, v in zip(da.coords["Node"].values, da.values)}
+        sign = -1.0 if DISP_COMPONENT_MAP[plot_key] in ("y", "z") else 1.0   # same as deflection plot
+    else:
+        names = [f"{c}_{end}" for end in ("i", "j") for c in _GLOBAL_END_COMPONENTS]
+        comps = [_component_lookup(ds, "forces", n) for n in names]
+        if any(c is None for c in comps):
+            return []
+        wanted = [e for ln in lines for e in ln["elements"]]
+        sub = ds["forces"].sel(Element=wanted, Component=comps).values
+        end_forces = {}
+        for e, row in zip(wanted, sub):
+            row = [float(v) for v in row]
+            end_forces[e] = {"i": {"V": row[0:3], "M": row[3:6]},
+                             "j": {"V": row[6:9], "M": row[9:12]}}
+        vec_kind, axis = _LOCAL_COMPONENT[plot_key]
+
+    for ln in lines:
+        segs = []
+        for e in ln["elements"]:
+            n1, n2 = members[e]
+            ends = ("i", "j")
+            # Always run G1 -> Gn so lines read left-to-right on the plot
+            if nodes[n1][2] > nodes[n2][2]:
+                n1, n2, ends = n2, n1, ("j", "i")
+            if is_disp:
+                v1 = sign * disp.get(n1, 0.0) * 1000.0
+                v2 = sign * disp.get(n2, 0.0) * 1000.0
+            else:
+                ax_vec = _local_axes(nodes[n1], nodes[n2])[axis]
+                f_start = end_forces[e][ends[0]][vec_kind]
+                f_end = end_forces[e][ends[1]][vec_kind]
+                v1 = sum(a * b for a, b in zip(f_start, ax_vec)) / 1000.0      # N -> kN, N.m -> kNm
+                v2 = -sum(a * b for a, b in zip(f_end, ax_vec)) / 1000.0
+            segs.append({
+                "elem": e, "nodes": (n1, n2),
+                "x": (nodes[n1][0], nodes[n2][0]),
+                "z": (nodes[n1][2], nodes[n2][2]),
+                "v": (round(v1, 4), round(v2, 4)),
+            })
+        ln["segments"] = segs
+        vals = [v for s in segs for v in s["v"]]
+        ln["max"] = max(vals) if vals else 0.0
+        ln["min"] = min(vals) if vals else 0.0
+    return lines
 
 
 def _build_nodes_members() -> tuple[dict, dict]:
@@ -409,17 +648,7 @@ def _build_full_data(model, edge_dist: float = 0.0, dataset=None, lazy: bool = F
         c) for c in ds0["displacements"].coords["Component"].values] if "displacements" in ds0.data_vars else []
 
     # Classify members: longitudinal = both nodes share same Z and same Y
-    _z_tol = 1e-3
-    longitudinal_members = []
-    transverse_members = []
-    for tag, (n1, n2) in members.items():
-        if n1 not in nodes or n2 not in nodes:
-            continue
-        if (abs(nodes[n1][2] - nodes[n2][2]) < _z_tol and
-                abs(nodes[n1][1] - nodes[n2][1]) < _z_tol):
-            longitudinal_members.append(tag)
-        else:
-            transverse_members.append(tag)
+    longitudinal_members, transverse_members = split_longitudinal_transverse(nodes, members)
 
     data: dict = {
         "nodes": {str(k): list(v) for k, v in nodes.items()},
