@@ -31,7 +31,25 @@ def _max_member_efficiency(pair_designs):
     """Maximum Osdag 'efficiency' (utilization ratio) over a cross-bracing or
     end-diaphragm result dump (nested pair -> member -> force_type -> raw).
     Reads already-computed results only; nothing is recalculated here."""
-    from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+    try:
+        from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+    except (ImportError, ModuleNotFoundError):
+        def _extract_osdag_summary(result: dict) -> dict:
+            if not result:
+                return {}
+            def _first(*keys):
+                for k in keys:
+                    v = result.get(k)
+                    if v is not None:
+                        return v
+                return None
+            return {
+                "section":     _first("section_size.designation", "Optimum.Designation"),
+                "capacity_kN": _first("Member.tension_capacity",  "Design.Strength"),
+                "efficiency":  _first("Member.efficiency",        "Optimum.UR"),
+                "slenderness": result.get("Member.Slenderness"),
+                "connection":  "Welded" if "Weld.Type" in result else "Bolted",
+            }
     if not isinstance(pair_designs, dict):
         return None
     best = None
@@ -160,9 +178,10 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     ur_cells = ' & '.join([ur] * n_cols)
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
-    table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
+    table1 = (r'{\centering\textbf{Table 1 -- Final Bridge Geometry (after optimization)}\par}' + '\n\n'
               r'\vspace{0.4em}' + '\n'
-              r'\noindent' + '\n'
+              r'{\centering' + '\n'
+              r'\renewcommand{\arraystretch}{1.2}' + '\n'
               r'\begin{tabular}{' + col_spec + '}\n'
               r'\hline' + '\n'
               + header_row +
@@ -175,7 +194,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
               r'\hline' + '\n'
               + urs + '\n'
               r'\hline' + '\n'
-              r'\end{tabular}')
+              r'\end{tabular}\par}')
 
     return r"""
 \newpage
@@ -189,7 +208,8 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \addcontentsline{toc}{section}{Project Overview}
 \label{sec:project-overview}
 
-
+{\centering
+\renewcommand{\arraystretch}{1.2}
 \begin{tabular}{|L{5.5cm}|L{8.5cm}|}
 \hline
 \textbf{Bridge Type} & """ + (_render_value(input_dict, KEY_STRUCTURE_TYPE)) + r""" \\
@@ -212,7 +232,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \hline
 \textbf{Overall Utilization Ratio (max)} & """ + ur + r""" \\
 \hline
-\end{tabular}
+\end{tabular}\par}
 
 
 """ + plan_fig + r"""

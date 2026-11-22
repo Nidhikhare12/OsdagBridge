@@ -119,6 +119,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import STYLE
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -156,7 +157,9 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[
+""" + STYLE.page_geometry_tex() + r"""
+]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -169,20 +172,15 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
+\setlist{noitemsep, topsep=4pt, parsep=2pt, partopsep=0pt}
 \usepackage{caption}
 
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
+""" + STYLE.caption_setup_tex() + r"""
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
 \usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
+""" + STYLE.lt_centered_tex() + r"""
 \usepackage{titlesec}
 \usepackage{titletoc}
 \usepackage{lastpage}
@@ -192,37 +190,29 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+% Table layout and spacing — controlled via styles.py
+""" + STYLE.table_global_tex() + r"""
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+% Prevent tables and headings from overflowing past the page bottom:
+% NOTE: Do NOT attach \needspace to longtable via \BeforeBeginEnvironment;
+% longtable's internal output routine conflicts with needspace at environment entry,
+% which causes stray duplicate continuation headers (\endhead) above the initial caption.
+""" + STYLE.needspace_preamble_tex() + r"""
 
-\definecolor{osdagGreen}{HTML}{91B014}
+""" + STYLE.tex_color_def() + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{""" + STYLE.HF.footer_org + r"""}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
+      \vspace{2pt}%
+    }{}%
     \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
   }
 }
@@ -230,29 +220,26 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{""" + STYLE.HF.footer_org + r"""}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
+      \vspace{2pt}%
+    }{}%
     \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
   }
 }
 \fancypagestyle{firstpage}{
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{""" + STYLE.HF.footer_org + r"""}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
+  \renewcommand{\footrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{""" + str(STYLE.TYPO.line_stretch) + r"""}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
@@ -593,8 +580,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return STYLE.tex_pass()
+                return STYLE.tex_fail()
         except (TypeError, ValueError):
             pass
         return ""
@@ -903,6 +890,27 @@ def generate_report(payload, request):
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
+            # Generate UR Summary Chart for Section 5.5
+            if 'ur_summary' not in fig_paths:
+                ur_chart_path = os.path.join(tmp_images, 'ur_summary.png')
+                try:
+                    from osdagbridge.core.reports.ur_charts import generate_ur_summary_chart
+                    generate_ur_summary_chart(bridge, ur_chart_path)
+                    fig_paths['ur_summary'] = ur_chart_path.replace('\\', '/')
+                except Exception as exc:
+                    logger.warning("Failed to generate UR summary chart: %s", exc)
+
+            # Generate Material Quantity Summary Charts for Chapter 7
+            if 'boq_summary' not in fig_paths:
+                try:
+                    from osdagbridge.core.reports.boq_charts import generate_boq_summary_charts
+                    boq_res = generate_boq_summary_charts(payload.inputs, tmp_images, payload.output_dict)
+                    fig_paths['boq_summary'] = boq_res['summary'].replace('\\', '/')
+                    fig_paths['boq_steel_tonnage'] = boq_res['steel'].replace('\\', '/')
+                    fig_paths['boq_concrete_rebar'] = boq_res['concrete_rebar'].replace('\\', '/')
+                except Exception as exc:
+                    logger.warning("Failed to generate BOQ summary charts: %s", exc)
+
             doc_parts = []
             doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
             doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
@@ -924,11 +932,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, fig_paths))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, fig_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}

@@ -891,16 +891,23 @@ class IRC6_2017:
         Returns:
             float: Braking force in t (rounded to 3 decimal places)
         """
-        for lane in range(1, design_lanes + 1):
+        # In keyfile.py, 1 tonne is defined as t = kN * g = 1000 * 9.81 = 9810 N.
+        # wheel_loads lists in cl_204_1_* use * t, so sum(wheel_loads) is in Newtons.
+        # Dividing by 9810.0 (i.e. 9.81 * 1000.0) converts Newtons to tonnes:
+        # Class A: 543474 N / 9810 = 55.4 t; Class 70R: 981000 N / 9810 = 100.0 t.
+        class_a_tonnes = sum(IRC6_2017.cl_204_1_ClassA_vehicle()['wheel_loads']) / (9.81 * 1000.0)
+        class_70r_tonnes = sum(IRC6_2017.cl_204_1_Class70R_vehicle_wheel()['wheel_loads']) / (9.81 * 1000.0)
+
+        total_braking_t = 0.0
+        for lane in range(1, int(design_lanes) + 1):
             if lane == 1 or lane == 2:
-                wheel_load = IRC6_2017.cl_204_1_ClassA_vehicle()['wheel_loads']
-                braking_force_1 = 0.20 * sum(wheel_load)  # t
-            if lane > 2:
-                wheel_load = IRC6_2017.cl_204_1_Class70R_vehicle_wheel()['wheel_loads']
-                braking_force_2 = 0.05 * sum(wheel_load)  # t
-            
-            total_braking_force = braking_force_1 + braking_force_2
-        return round(total_braking_force, 3)
+                # 20% for lane 1 and 20% for lane 2 (IRC 6 Cl. 211.2)
+                total_braking_t += 0.20 * class_a_tonnes
+            else:
+                # 5% for each subsequent lane beyond the first two
+                total_braking_t += 0.05 * class_70r_tonnes
+
+        return round(total_braking_t, 3)
     
     @staticmethod
     def cl_211_3_braking_force_location():

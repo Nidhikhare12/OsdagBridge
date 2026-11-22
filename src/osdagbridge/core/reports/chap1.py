@@ -10,8 +10,15 @@ This section records all project metadata as entered by the designer.
 \section{Project and Design Team Details}
 \label{sec:project-details}
 
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\begin{longtable}{|L{5.5cm}|L{8.5cm}|}
 \hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
 \textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
 \hline
 \textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
@@ -26,7 +33,7 @@ This section records all project metadata as entered by the designer.
 \hline
 \textbf{Software Version} & OsdagBridge \\
 \hline
-\end{tabular}
+\end{longtable}
 
 
 \section{Applicable Codes and Standards}
