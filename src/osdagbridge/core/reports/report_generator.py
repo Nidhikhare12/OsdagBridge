@@ -917,7 +917,7 @@ def generate_report(payload, request):
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, chart_dir=tmp_images))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
