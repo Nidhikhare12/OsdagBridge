@@ -981,6 +981,208 @@ def build_forces_summary(result_handler, load_effects_cache: dict) -> dict:
     return {"load_cases": lc_summary, "reactions": rxn_summary}
 
 
+# =============================================================================
+# TRANSVERSE MEMBERS (Task III - plotting transverse members)
+# =============================================================================
+# The grillage has longitudinal girders plus transverse members that run across
+# the bridge width: the end diaphragms ("start_edge", "end_edge") and the
+# intermediate slab strips / cross members ("transverse_slab"). For plotting,
+# they are all treated as one component: "Transverse Members".
+#
+# A *transverse line* is one chain of transverse elements running across the
+# width (left edge -> right edge) at one position along the span.
+
+TRANSVERSE_MEMBER_GROUPS = ("start_edge", "transverse_slab", "end_edge")
+
+
+def get_member_groups(model) -> dict:
+    """Return {group_name: [element tags]} for the ospgrillage member groups."""
+    groups = {}
+    for group_name in ("edge_beam", "exterior_main_beam_1", "exterior_main_beam_2",
+                       "interior_main_beam") + TRANSVERSE_MEMBER_GROUPS:
+        try:
+            groups[group_name] = [int(e) for e in model.get_element(
+                member=group_name, options="elements")]
+        except Exception:
+            groups[group_name] = []
+    return groups
+
+
+def _is_transverse_by_geometry(n1, n2, nodes, tol=1e-6) -> bool:
+    """Fallback test: element mostly runs across the width (|dz| > |dx|)."""
+    (x1, _, z1), (x2, _, z2) = nodes[n1], nodes[n2]
+    return abs(z2 - z1) > tol and abs(z2 - z1) > abs(x2 - x1)
+
+
+def get_transverse_member_lines(nodes: dict, members: dict, groups: dict | None = None):
+    """
+    Group transverse elements into lines across the bridge width.
+
+    Parameters
+    ----------
+    nodes   : {node_tag: [x, y, z]}   (x = along span, z = across width)
+    members : {elem_tag: [n_i, n_j]}
+    groups  : optional {group_name: [elem tags]} from get_member_groups().
+              When given, the ospgrillage groups decide which elements are
+              transverse; otherwise the element direction is used.
+
+    Returns
+    -------
+    OrderedDict {"T1": [elem, ...], "T2": [...], ...}
+        Lines are numbered from the start of the span (smallest x). Elements in
+        each line are ordered from the left edge (smallest z) to the right edge.
+    """
+    tags = []
+    if groups:
+        tags = [t for g in TRANSVERSE_MEMBER_GROUPS for t in groups.get(g, []) if t in members]
+    if not tags:
+        tags = [t for t, (n1, n2) in members.items()
+                if n1 in nodes and n2 in nodes and _is_transverse_by_geometry(n1, n2, nodes)]
+    tags = list(dict.fromkeys(tags))     # unique, keep order
+
+    # Connected chains: transverse elements that share nodes form one line.
+    node_to_elems: dict[int, list[int]] = {}
+    for t in tags:
+        for n in members[t]:
+            node_to_elems.setdefault(n, []).append(t)
+
+    lines, seen = [], set()
+    for start in tags:
+        if start in seen:
+            continue
+        stack, chain = [start], []
+        while stack:
+            e = stack.pop()
+            if e in seen:
+                continue
+            seen.add(e)
+            chain.append(e)
+            for n in members[e]:
+                stack.extend(x for x in node_to_elems[n] if x not in seen)
+        lines.append(chain)
+
+    def _min_z(e):
+        return min(nodes[n][2] for n in members[e])
+
+    def _split_if_branched(chain):
+        # A simple line has every node shared by at most 2 of its elements.
+        degree: dict[int, int] = {}
+        for e in chain:
+            for n in members[e]:
+                degree[n] = degree.get(n, 0) + 1
+        if all(d <= 2 for d in degree.values()):
+            return [chain]
+        # Rare (e.g. irregular skew meshes): split by position along the span.
+        by_x: dict[float, list[int]] = {}
+        for e in chain:
+            mx = round(sum(nodes[n][0] for n in members[e]) / 2.0, 3)
+            by_x.setdefault(mx, []).append(e)
+        return list(by_x.values())
+
+    ordered = []
+    for chain in lines:
+        for part in _split_if_branched(chain):
+            part.sort(key=_min_z)
+            mean_x = sum(nodes[n][0] for e in part for n in members[e]) / (2.0 * len(part))
+            ordered.append((mean_x, part))
+    ordered.sort(key=lambda item: item[0])
+
+    return OrderedDict((f"T{i + 1}", part) for i, (_, part) in enumerate(ordered))
+
+
+def _line_node_sequence(elems, members, nodes):
+    """
+    Walk a transverse line from the left edge to the right edge.
+    Returns [(elem, near_node, far_node, reversed_flag), ...].
+    reversed_flag is True when the element's i-node is on the far (right) side.
+    """
+    steps = []
+    first = elems[0]
+    n_i, n_j = members[first]
+    current = n_i if nodes[n_i][2] <= nodes[n_j][2] else n_j
+    for e in elems:
+        n_i, n_j = members[e]
+        if n_i == current:
+            steps.append((e, n_i, n_j, False))
+            current = n_j
+        elif n_j == current:
+            steps.append((e, n_j, n_i, True))
+            current = n_i
+        else:                                    # not connected as expected: use own order
+            rev = nodes[n_i][2] > nodes[n_j][2]
+            near, far = (n_j, n_i) if rev else (n_i, n_j)
+            steps.append((e, near, far, rev))
+            current = far
+    return steps
+
+
+def get_transverse_line_values(ds, elems, nodes, members, value_key: str) -> dict:
+    """
+    Extract the values to plot for ONE transverse line and ONE load case.
+
+    Parameters
+    ----------
+    ds        : xarray Dataset already reduced to one load case (ds_all.sel(Loadcase=lc))
+    elems     : element tags of the line, left -> right (from get_transverse_member_lines)
+    value_key : "Fx", "Fy", "Fz", "Mx", "My", "Mz" (forces) or "Dx", "Dy", "Dz" (displacements)
+
+    Returns
+    -------
+    dict with numpy arrays "xs", "zs", "vals" (one entry per node, left -> right),
+    "node_ids" (list) and "unit" ("kN", "kNm" or "mm").
+
+    Conventions match the girder plots in plot_generator so both read the same way:
+      * forces  : node k takes the i-end force of the element starting there; the
+                  last node takes the j-end force (sign flipped for shear "F" keys,
+                  exactly as build_figure_sfd does). N -> kN, N·m -> kN·m.
+      * displacements : node value in mm; vertical (y) and lateral (z) components
+                  sign-flipped like build_figure_deflection (sag shown downward).
+    """
+    import numpy as np
+    from .plot_generator import FORCE_MAP, DISP_MAP
+
+    steps = _line_node_sequence(elems, members, nodes)
+    node_ids = [steps[0][1]] + [s[2] for s in steps]
+    xs = np.array([nodes[n][0] for n in node_ids], dtype=float)
+    zs = np.array([nodes[n][2] for n in node_ids], dtype=float)
+
+    if value_key in DISP_MAP:
+        target = {"dx": "x", "dy": "y", "dz": "z"}.get(DISP_MAP[value_key].lower(), DISP_MAP[value_key])
+        comps = {str(c).lower(): str(c) for c in ds["displacements"].coords["Component"].values}
+        comp = comps.get(target)
+        vals = []
+        for n in node_ids:
+            v = float(ds["displacements"].sel(Node=n, Component=comp).values) if comp else 0.0
+            if target in ("y", "z"):
+                v = -v
+            vals.append(round(v * 1000.0, 3))     # m -> mm
+        return {"xs": xs, "zs": zs, "vals": np.array(vals), "node_ids": node_ids, "unit": "mm"}
+
+    if value_key not in FORCE_MAP:
+        raise KeyError(f"Unknown plot component '{value_key}'")
+    comps = {str(c).lower(): str(c) for c in ds["forces"].coords["Component"].values}
+    comp_i = comps[FORCE_MAP[value_key][0].lower()]
+    comp_j = comps[FORCE_MAP[value_key][1].lower()]
+    forces = ds["forces"]
+
+    def force(elem, comp):
+        return float(forces.sel(Element=elem, Component=comp).values) / 1000.0
+
+    vals = []
+    for elem, _near, _far, rev in steps:
+        # For a reversed element the near node is its j-end: take the j value
+        # and flip it, so it reads like an i-end value of a left->right element.
+        vals.append(-force(elem, comp_j) if rev else force(elem, comp_i))
+    last_elem, _, _, last_rev = steps[-1]
+    last = -force(last_elem, comp_i) if last_rev else force(last_elem, comp_j)
+    if value_key.startswith("F"):
+        last = -last                              # same as build_figure_sfd: Vy[-1] = -Vy[-1]
+    vals.append(last)
+
+    unit = "kN" if value_key.startswith("F") else "kNm"
+    return {"xs": xs, "zs": zs, "vals": np.round(np.array(vals), 3), "node_ids": node_ids, "unit": unit}
+
+
 def _dump(data: dict, filename: str = "bridge_plot_data.json") -> None:
     """Write data to tools/<filename>."""
     _TOOLS_DIR.mkdir(exist_ok=True)

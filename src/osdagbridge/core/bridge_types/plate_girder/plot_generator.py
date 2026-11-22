@@ -1552,6 +1552,173 @@ def build_figure_deflection(ds, disp_key, nodes, members, edge_dist=0.0, eng_sca
     return fig, summary_data
 
 
+# =============================================================================
+# TRANSVERSE MEMBERS PLOT (Task III)
+# =============================================================================
+
+def build_figure_transverse(ds, value_key, nodes, members, transverse_lines,
+                            edge_dist=0.0, eng_scale=1.0):
+    """
+    3-D diagram of one force / displacement component for ALL transverse members
+    (end diaphragms + intermediate cross members), for one load case.
+
+    Each transverse line is drawn across the bridge width at its position along
+    the span. Data comes from results_data.get_transverse_line_values(); this
+    function only draws.
+
+    Parameters
+    ----------
+    ds               : xarray Dataset for one load case
+    value_key        : "Fx" "Fy" "Fz" "Mx" "My" "Mz" "Dx" "Dy" "Dz"
+    transverse_lines : {"T1": [elem, ...], ...} from results_data.get_transverse_member_lines()
+
+    Returns
+    -------
+    (fig, summary_data)  summary_data = {"T1": {"max": .., "min": ..}, ...}
+    """
+    from .results_data import get_transverse_line_values
+
+    v_scale = _value_plot_scale(eng_scale)
+    is_disp = value_key in DISP_MAP
+    is_shear = (not is_disp) and value_key.startswith("F")
+    is_moment = (not is_disp) and value_key.startswith("M")
+    disp_label = (DISP_DISPLAY if is_disp else FORCE_DISPLAY).get(value_key, value_key)
+    unit = "mm" if is_disp else ("kN" if is_shear else "kNm")
+
+    line_color = "#6A1B9A" if is_disp else ("#1565C0" if is_shear else "#C62828")
+    fill_color = "#CE93D8" if is_disp else ("#90CAF9" if is_shear else "#EF9A9A")
+    standard_gray = "#455A64"
+
+    fig = Figure(figsize=(14, 6), dpi=110, facecolor="white")
+    ax = fig.add_subplot(111, projection="3d", facecolor="white")
+
+    all_xs = [c[0] for c in nodes.values()]
+    all_zs = [c[2] for c in nodes.values()]
+    x_min, x_max = min(all_xs), max(all_xs)
+    z_min, z_max = min(all_zs), max(all_zs)
+    x_range = (x_max - x_min) or 1.0
+    z_range = (z_max - z_min) or 1.0
+    x_pad = x_range * 0.05
+    z_pad = z_range * 0.05
+    ax.set_xlim(x_min - x_pad, x_max + x_pad)
+    ax.set_ylim(z_min - z_pad, z_max + z_pad)
+
+    # Light grillage underneath so the user sees where the cross members sit
+    _add_grillage_background(ax, nodes, members, show_transverse=True,
+                             include_edge_longitudinals=False,
+                             include_end_transverse=True, show_inner_nodes=False)
+
+    line_nodes, line_members = {}, {}
+    _scatter_objs, _scatter_data = [], {}
+    summary_data = {}
+    global_vmin = global_vmax = 0.0
+    overall_max = overall_min = None      # (value, x, z, y_geom, line name)
+
+    for i, (name, elems) in enumerate(transverse_lines.items()):
+        if not elems:
+            continue
+        data = get_transverse_line_values(ds, elems, nodes, members, value_key)
+        xs, zs, vals, node_ids = data["xs"], data["zs"], data["vals"], data["node_ids"]
+        for e in elems:
+            line_members[e] = members[e]
+        for n in node_ids:
+            line_nodes[n] = nodes[n]
+
+        # Positive moment plotted downward, same as build_figure_bmd
+        y_geom = (-vals if is_moment else vals) * v_scale
+        if y_geom.size:
+            global_vmin = min(global_vmin, float(np.min(y_geom)))
+            global_vmax = max(global_vmax, float(np.max(y_geom)))
+
+        ax.scatter(xs, zs, np.zeros_like(xs), color="#388E3C", s=5, zorder=4,
+                   depthshade=False, alpha=0.4)
+        ax.text(xs[0], zs[0] - z_range * 0.04, 0, name, color="black", fontsize=8,
+                ha="center", va="top", zorder=100 - i, gid="girder_labels")
+
+        if is_shear:
+            # Constant shear along each element -> step diagram (like build_figure_sfd)
+            p_x = np.repeat(xs, 2)[1:-1]
+            p_z = np.repeat(zs, 2)[1:-1]
+            p_y = np.repeat(y_geom[:-1], 2)
+        else:
+            p_x, p_z, p_y = xs, zs, y_geom
+
+        if not is_disp:
+            ax.plot_surface(np.vstack([p_x, p_x]), np.vstack([p_z, p_z]),
+                            np.vstack([np.zeros_like(p_y), p_y]),
+                            color=fill_color, alpha=0.25, linewidth=0,
+                            antialiased=False, zorder=2)
+        ax.plot(p_x, p_z, p_y, color=line_color, linewidth=1.8, zorder=4)
+
+        sc = ax.scatter(xs, zs, y_geom, color=line_color, s=18, zorder=5, depthshade=False)
+        _scatter_objs.append(sc)
+        _scatter_data[id(sc)] = (node_ids, zs, vals, name)
+
+        if len(vals):
+            idx_max, idx_min = int(np.argmax(vals)), int(np.argmin(vals))
+            summary_data[name] = {"max": float(vals[idx_max]), "min": float(vals[idx_min])}
+            # Overall extremes across all transverse lines (labelled once, below)
+            if overall_max is None or vals[idx_max] > overall_max[0]:
+                overall_max = (float(vals[idx_max]), xs[idx_max], zs[idx_max], y_geom[idx_max], name)
+            if overall_min is None or vals[idx_min] < overall_min[0]:
+                overall_min = (float(vals[idx_min]), xs[idx_min], zs[idx_min], y_geom[idx_min], name)
+            for j in range(len(vals)):
+                if abs(vals[j]) <= 1e-4:
+                    continue
+                ax.text(xs[j], zs[j], y_geom[j], f" {vals[j]:.3f}", color=standard_gray,
+                        fontsize=6, zorder=6, gid="all_vals",
+                        bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                                  alpha=0.7, edgecolor="none"))
+
+    # Label only the overall max / min (per-line values: Summary box + hover)
+    for ext, gid, va, tag in ((overall_max, "max_line", "bottom", "Max"),
+                              (overall_min, "min_line", "top", "Min")):
+        if ext is None:
+            continue
+        val, xe, ze, ye, lname = ext
+        ax.plot([xe], [ze], [ye], marker="o", markersize=9, color="black",
+                markeredgecolor="white", markeredgewidth=1.5, linestyle="None",
+                zorder=10, gid=gid)
+        ax.text(xe, ze, ye, f" {tag} {val:.3f} {unit} ({lname})", color="black",
+                fontsize=8, fontweight="bold", va=va, zorder=11, gid=gid,
+                bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
+                          alpha=0.85, edgecolor="none"))
+
+    if _MPLCURSORS and _scatter_objs:
+        cursor = mplcursors.cursor(_scatter_objs, hover=True)
+        fig._custom_cursor = cursor   # keep a reference (garbage-collection fix)
+
+        @cursor.connect("add")
+        def on_add(sel, _data=_scatter_data, _lbl=disp_label, _u=unit):
+            nids, zs_l, vals_l, lname = _data[id(sel.artist)]
+            k = sel.index
+            sel.annotation.set_text(
+                f"{lname}  Node {nids[k]}\nZ: {zs_l[k]:.2f} m\n{_lbl}: {vals_l[k]:.3f} {_u}")
+            sel.annotation.get_bbox_patch().set(fc="white", alpha=0.9, edgecolor="#BBBBBB")
+
+    _add_supports(ax, nodes, members, edge_dist=edge_dist, selected_girder="All")
+    _add_node_number_labels(ax, line_nodes)
+    _add_element_number_labels(ax, line_nodes, line_members)   # hidden; toggled by toolbar
+
+    ax.set_xlabel("Span Length (m)", fontsize=10, labelpad=8)
+    ax.set_ylabel("Bridge Width (m)", fontsize=10, labelpad=8)
+    ax.set_zlabel(f"{disp_label} ({unit})", fontsize=10, labelpad=8)
+    _set_value_axis_tick_formatter(ax, v_scale, value_sign=-1.0 if is_moment else 1.0)
+    zmin, zmax = min(0.0, global_vmin), max(0.0, global_vmax)
+    pad = max(1e-6, 0.05 * max(1e-9, zmax - zmin))
+    ax.set_zlim(zmin - pad, zmax + pad)
+    ax.set_box_aspect([x_range, z_range, (x_range * 0.30) * max(v_scale, 1e-6)])
+    kind = "Displacement" if is_disp else ("Shear / Axial Force" if is_shear else "Moment")
+    ax.set_title(f"Transverse Members {kind}  —  {disp_label} ({unit})",
+                 fontsize=12, fontweight="bold", pad=12)
+    fig._eng_scale = v_scale
+    ax.view_init(elev=DEFAULT_ELEV + 15, azim=DEFAULT_AZIM + 30)
+    ax.grid(True, linestyle="--", linewidth=0.4, alpha=0.5)
+    _add_coordinate_triad(ax, nodes, eng_scale=v_scale)
+    ax.set_axis_off()
+    return fig, summary_data
+
+
 def figure_to_bytes(fig, fmt="png", dpi=150):
     """Convenience helper — render a matplotlib figure to raw bytes."""
     buf = io.BytesIO()

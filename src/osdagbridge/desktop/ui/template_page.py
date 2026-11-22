@@ -748,7 +748,9 @@ class CustomWindow(QWidget):
                     loadcases = self.backend.get_available_loadcases()
                     nodes, members = self.backend.get_nodes_members()
                     edge_dist = self.backend.get_edge_dist()
-                    self.plots_widget.setup(ds_all, loadcases, nodes, members, edge_dist=edge_dist)
+                    transverse_lines = self.backend.get_transverse_member_lines(nodes, members)  # Task III
+                    self.plots_widget.setup(ds_all, loadcases, nodes, members, edge_dist=edge_dist,
+                                            transverse_lines=transverse_lines)
                     self.plots_widget.link_output_dock(self.output_dock)
 
                     # Render 3D cad using the parameters from Backend
@@ -787,7 +789,11 @@ class CustomWindow(QWidget):
         # Connect to input dock's value changed signals
         # This will update the CAD whenever any input field changes
         if hasattr(self.input_dock, 'input_value_changed'):
-            self.input_dock.input_value_changed.connect(self.update_cad_from_inputs)        
+            self.input_dock.input_value_changed.connect(self.update_cad_from_inputs)
+
+        # Task I: values typed into CAD labels (double-click) come back here
+        self.cad_comp_widget.param_edited.connect(self._on_cad_param_edited)
+        self.cad_comp_widget.can_edit_callback = self._can_edit_from_cad
             
     # Function for saving input dictionary into an OSI file
     def saveOSI_inputs(self):
@@ -901,6 +907,139 @@ class CustomWindow(QWidget):
 
         # Apply state to CAD UI & Update Cad-State
         self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
+
+    #---------------------------------CAD-Inline-Editing-START (Task I)----------------------------------------------
+
+    def _can_edit_from_cad(self) -> bool:
+        """Block CAD label editing while the inputs are locked (after Design)."""
+        if self.input_dock and getattr(self.input_dock, "is_locked", False):
+            CustomMessageBox(
+                title="Inputs Locked",
+                text="Inputs are locked. Unlock them to edit values from the 2D CAD.",
+                dialogType=MessageBoxType.Information,
+            ).exec()
+            return False
+        return True
+
+    def _solve_layout_for_cad(self, changed_field: str) -> None:
+        """
+        Re-solve girder layout (overall width, spacing, overhang, no. of girders)
+        from the current input_dict, keeping the user's other inputs.
+        changed_field: "spacing" (spacing fixed, overhang adjusts) or
+                       "girders" (girder count fixed, spacing + overhang adjust).
+        Raises ValueError if the layout is not possible.
+        """
+        from osdagbridge.core.bridge_types.plate_girder.initial_sizing import BridgeConfigurationSolver
+        d = self.input_dict
+
+        def _num(key, default=0.0):
+            try:
+                v = d.get(key)
+                return float(v) if v not in (None, "") else default
+            except (TypeError, ValueError):
+                return default
+
+        footpath_str = str(d.get(KEY_FOOTPATH, "None")).strip()
+        n_footpaths = 2 if "Both" in footpath_str else (0 if footpath_str in ("None", "") else 1)
+        rl = _num(KEY_RL_WIDTH, 0.0)
+
+        solver = BridgeConfigurationSolver(
+            carriageway_width=_num(KEY_CARRIAGEWAY_WIDTH),
+            crash_barrier_width=_num(KEY_CB_WIDTH, DEFAULT_CRASH_BARRIER_WIDTH),
+            footpath_width=_num(KEY_TS_FOOTPATH_WIDTH, 0.0) if n_footpaths else 0.0,
+            railing_width=(rl / 1000.0 if rl > 10 else rl) if n_footpaths else 0.0,
+            median_width=_num(KEY_MD_WIDTH, 0.0),
+            n_footpaths=n_footpaths,
+        )
+        result = solver._solve_layout(
+            no_of_girders=int(_num(KEY_TS_NO_OF_GIRDERS, 2)),
+            girder_spacing=_num(KEY_TS_GIRDER_SPACING, DEFAULT_GIRDER_SPACING),
+            deck_overhang=_num(KEY_TS_DECK_OVERHANG, 0.0),
+            changed_field=changed_field,
+        )
+        d.update({
+            KEY_TS_OVERALL_WIDTH:  result.overall_width,
+            KEY_TS_NO_OF_GIRDERS:  result.no_of_girders,
+            KEY_TS_GIRDER_SPACING: result.girder_spacing,
+            KEY_TS_DECK_OVERHANG:  result.deck_overhang,
+        })
+
+    def _on_cad_param_edited(self, key: str, value: float) -> None:
+        """
+        Task I: a value was typed into a CAD label (double-click).
+        1. validate  2. write to input_dict (basic + additional inputs share it)
+        3. re-derive locked values (overhang, overall width)  4. sync UI  5. redraw CAD.
+        """
+        d = self.input_dict
+        validator = self.input_dock.validator
+        basic_keys = (KEY_SPAN, KEY_CARRIAGEWAY_WIDTH)
+
+        def _warn(message):
+            CustomMessageBox(title="Input Error", text=message,
+                             dialogType=MessageBoxType.Warning).exec()
+
+        # Girder spacing / deck thickness need the derived layout to exist first
+        layout_missing = d.get(KEY_TS_OVERALL_WIDTH) in (None, "")
+        if key not in basic_keys and (layout_missing or self.input_dock.is_require_field_changed):
+            if d.get(KEY_CARRIAGEWAY_WIDTH) in (None, ""):
+                _warn(f"Please enter the {KEY_DISP_CAD_CARRIAGEWAY_WIDTH} first.")
+                return
+            solve_extend_basic_input_dict(d)
+            self.input_dock.is_require_field_changed = False
+
+        # 1. Validate on a trial copy so nothing changes if the value is rejected
+        trial = dict(d)
+        trial[key] = value
+        if key in basic_keys:
+            result = validator.validate_basic_inputs(key, trial)
+        else:
+            result = validator.validate_additional_inputs(key, trial)
+        if result is not None:
+            _warn(result[1])
+            return
+
+        backup = dict(d)
+        try:
+            # 2. Store the value
+            if key in basic_keys:
+                # Same path as typing into the input dock (keeps the dock's formats)
+                self.input_dock._update_input_dict(key, f"{value:g}")
+            else:
+                d[key] = value
+
+            # 3. Re-derive the locked values
+            if key == KEY_CARRIAGEWAY_WIDTH:
+                if layout_missing or self.input_dock.is_require_field_changed:
+                    solve_extend_basic_input_dict(d)      # first solve: fill all defaults
+                    self.input_dock.is_require_field_changed = False
+                else:
+                    self._solve_layout_for_cad("girders")  
+            elif key == KEY_TS_GIRDER_SPACING:
+                self._solve_layout_for_cad("spacing")      
+        except ValueError as exc:
+            d.clear()
+            d.update(backup)                               
+            _warn(str(exc))
+            return
+
+        # 4. Show the new value in the input dock (basic inputs)
+        if key in basic_keys and self.input_dock.input_widget is not None:
+            field = self.input_dock.input_widget.findChild(QLineEdit, key)
+            if field is not None:
+                field.blockSignals(True)
+                field.setText(f"{value:g}")
+                field.setProperty("error", False)
+                field.style().unpolish(field)
+                field.style().polish(field)
+                field.blockSignals(False)
+        # The Additional Inputs dialog reads self.input_dict every time it opens
+        # (set_input_dictionary), so it picks up girder spacing / deck thickness.
+
+        # 5. Redraw the CAD (locked labels update from the re-solved layout)
+        self.cad_comp_widget.update_from_osdag_inputs(d)
+        print(f"[CAD EDIT] {key} = {value}")
+
+    #---------------------------------CAD-Inline-Editing-END---------------------------------------------------------
 
     #---------------------------------Docking-Icons-Functionality-START----------------------------------------------
 

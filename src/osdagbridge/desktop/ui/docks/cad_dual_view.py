@@ -5,7 +5,7 @@ Author: Arushi
 """
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QScrollArea, QHBoxLayout, QPushButton, QLabel
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Signal
 from .cad_cross_section import CrossSectionCADWidget
 from .cad_top_view import TopViewCADWidget
 from osdagbridge.core.utils.common import *
@@ -17,7 +17,11 @@ from osdagbridge.desktop.cad.irc5_geometry import (
 
 class BridgeDualCADWidget(QWidget):
     """Split view widget showing both cross-section and top view with individual controls"""
-    
+
+    # Task I: emitted when the user edits a dimension label on the CAD.
+    # Args: (input dictionary key, value in input-dictionary units)
+    param_edited = Signal(str, float)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.cross_zoom_level = 1.0
@@ -70,6 +74,13 @@ class BridgeDualCADWidget(QWidget):
         self.top_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         
         self.splitter.addWidget(self.top_scroll)
+
+        # Task I: enable double-click label editing on both main CAD views
+        self.can_edit_callback = None    # set by the template page (e.g. blocks edits while locked)
+        for view in (self.cross_section_widget, self.top_view_widget):
+            view.inline_edit_enabled = True
+            view.on_param_edited = self.param_edited.emit
+            view.can_edit_callback = self._can_edit
         
         # Set equal sizes for both views
         self.splitter.setStretchFactor(0, 1)
@@ -77,6 +88,9 @@ class BridgeDualCADWidget(QWidget):
         
         layout.addWidget(self.splitter)
     
+    def _can_edit(self) -> bool:  # Task I: asks the owner whether CAD editing is allowed now
+        return self.can_edit_callback() if callable(self.can_edit_callback) else True
+
     def set_cross_section_visible(self, visible):
         self.cross_visible = visible
         self.cross_scroll.setVisible(visible)

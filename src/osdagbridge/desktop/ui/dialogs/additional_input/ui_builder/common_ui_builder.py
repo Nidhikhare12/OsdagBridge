@@ -1192,7 +1192,7 @@ class UIBuilder(QWidget):
         mode_combo = QComboBox()
         mode_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         mode_combo.addItems(choices)
-        mode_combo.setObjectName(field_id + ".mode")
+        mode_combo.setObjectName(field_id + KEY_ADD_MODE_SUFFIX)
         if hasattr(owner, "style_input_field"):
             owner.style_input_field(mode_combo)
         else:
@@ -1201,7 +1201,7 @@ class UIBuilder(QWidget):
 
         value_input = QLineEdit()
         value_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        value_input.setObjectName(field_id + ".value")
+        value_input.setObjectName(field_id + KEY_ADD_VALUE_SUFFIX)
         value_input.setEnabled(False)
         if hasattr(owner, "style_input_field"):
             owner.style_input_field(value_input)
@@ -1233,10 +1233,10 @@ class UIBuilder(QWidget):
 
         if ai and field_id:
             mode_combo.currentTextChanged.connect(
-                lambda text, k=field_id + ".mode": ai._on_field_edited(k, text)
+                lambda text, k=field_id + KEY_ADD_MODE_SUFFIX: ai._on_field_edited(k, text)
             )
             value_input.editingFinished.connect(
-                lambda k=field_id + ".value", w=value_input: ai._on_field_edited(k, w)
+                lambda k=field_id + KEY_ADD_VALUE_SUFFIX, w=value_input: ai._on_field_edited(k, w)
             )
 
         # ── on_change_compute wiring ───────────────────────────────────────
@@ -1247,7 +1247,7 @@ class UIBuilder(QWidget):
                 def _trigger_compute(_val, _ai=ai, _fn=func_name, _root=self, _vi=value_input, _fid=field_id):
                     # Sync current value_input text into working_input_dict before computing
                     if _vi.isVisible() and _vi.isEnabled():
-                        _ai._on_field_editing(_vi.text(), _fid + ".value")
+                        _ai._on_field_editing(_vi.text(), _fid + KEY_ADD_VALUE_SUFFIX)
                     result = getattr(_ai, _fn)(_ai.working_input_dict)
                     if not isinstance(result, dict):
                         return
@@ -1314,7 +1314,7 @@ class UIBuilder(QWidget):
         mode_combo = QComboBox()
         mode_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         mode_combo.addItems(mode_choices)
-        mode_combo.setObjectName(field_id + ".mode")
+        mode_combo.setObjectName(field_id + KEY_ADD_MODE_SUFFIX)
         if hasattr(owner, "style_input_field"):
             owner.style_input_field(mode_combo)
         else:
@@ -1324,7 +1324,7 @@ class UIBuilder(QWidget):
         value_combo = QComboBox()
         value_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         value_combo.addItems(value_choices)
-        value_combo.setObjectName(field_id + ".value")
+        value_combo.setObjectName(field_id + KEY_ADD_VALUE_SUFFIX)
         value_combo.setEnabled(False)
         if hasattr(owner, "style_input_field"):
             owner.style_input_field(value_combo)
@@ -1356,10 +1356,10 @@ class UIBuilder(QWidget):
 
         if ai and field_id:
             mode_combo.currentTextChanged.connect(
-                lambda text, k=field_id + ".mode": ai._on_field_edited(k, text)
+                lambda text, k=field_id + KEY_ADD_MODE_SUFFIX: ai._on_field_edited(k, text)
             )
             value_combo.currentTextChanged.connect(
-                lambda text, k=field_id + ".value": ai._on_field_edited(k, text)
+                lambda text, k=field_id + KEY_ADD_VALUE_SUFFIX: ai._on_field_edited(k, text)
             )
 
         # ── on_change_compute wiring ───────────────────────────────────────

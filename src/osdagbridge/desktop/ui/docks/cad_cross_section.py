@@ -6,6 +6,7 @@ Author: Arushi
 
 import math
 from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
+from osdagbridge.desktop.ui.docks.cad_inline_edit import CadInlineEditMixin
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon, QPixmap
 from osdagbridge.core.utils.common import *
@@ -16,7 +17,7 @@ from osdagbridge.desktop.cad.irc5_geometry import (
 )
 
 
-class CrossSectionCADWidget(QWidget):
+class CrossSectionCADWidget(CadInlineEditMixin, QWidget):
     """Widget for drawing bridge cross-section view"""
     # ===== SHARED CAD COLORS =====
     GIRDER_COLOR = QColor(179, 180, 160) 
@@ -35,6 +36,7 @@ class CrossSectionCADWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._init_inline_edit()   
         self.show_dimensions = True
         self.show_span_values = False
         self.show_carriageway_values = False
@@ -722,6 +724,7 @@ class CrossSectionCADWidget(QWidget):
 
         
     def paintEvent(self, event):
+        self._reset_label_rects()   # Task I: label rects are re-collected every paint
         # Position buttons on first paint if not done yet
         if hasattr(self, 'zoom_in_btn') and not hasattr(self, '_buttons_positioned'):
             self._position_zoom_buttons()
@@ -770,6 +773,7 @@ class CrossSectionCADWidget(QWidget):
         painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(bg_color))
         painter.drawRect(bg_rect)
+        self._register_label(painter, text, bg_rect)   # Task I: remember editable labels
 
         # Draw each text line
         painter.setPen(QPen(text_color, 0.8))
@@ -2117,7 +2121,7 @@ class CrossSectionCADWidget(QWidget):
             cw_m = self.params['carriageway_width'] / 1000
             
             # Left carriageway - starts exactly at left barrier visual end
-            label_cw = "Carriageway Width"
+            label_cw = KEY_DISP_CAD_CARRIAGEWAY_WIDTH
             if self.show_carriageway_values:
                 label_cw += f" = {cw_m:.2f} m"
             
@@ -2146,7 +2150,7 @@ class CrossSectionCADWidget(QWidget):
             # Single carriageway
             cw_m = self.params['carriageway_width'] / 1000
             # From left barrier visual end to right barrier visual start
-            label_cw = "Carriageway Width"
+            label_cw = KEY_DISP_CAD_CARRIAGEWAY_WIDTH
             if self.show_carriageway_values:
                 label_cw += f" = {cw_m:.2f} m"
             
@@ -2201,7 +2205,7 @@ class CrossSectionCADWidget(QWidget):
                 x_right = positions[1]
                 
             gs_m = self.params['girder_spacing'] / 1000
-            label_gs = "Girder Spacing"
+            label_gs = KEY_DISP_CAD_GIRDER_SPACING
             if self.show_carriageway_values:
                 label_gs += f" = {gs_m:.2f} m"
                 
@@ -2275,7 +2279,7 @@ class CrossSectionCADWidget(QWidget):
                             QPointF(deck_center_x + tick_len, deck_bottom_y))
             
             # Renamed to "Deck Thickness"
-            text = "Deck Thickness"
+            text = KEY_DISP_CAD_DECK_THICKNESS
             if self.show_carriageway_values:
                 text += f" = {deck_t_mm:.0f} mm"
             font = QFont('Arial', 9, QFont.Normal)

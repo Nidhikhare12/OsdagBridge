@@ -132,6 +132,17 @@ KEY_SECTION_OUTPUT_STEELDESIGN = "section.output.superstructure.steeldesign"
 
 # ── Output field keys ─────────────────────────────────────────────────────────
 KEY_ANALYSIS_MEMBER           = "analysis.member"
+# Option in the analysis Member dropdown that plots all transverse members
+# (end diaphragms + intermediate cross members) as one component.
+KEY_DISP_TRANSVERSE_MEMBERS   = "Transverse Members"
+
+# 2D CAD dimension labels that can be edited by double-click (Task I).
+# The CAD draws these texts AND the double-click handler recognises them by
+# the same constants, so a label can never be renamed in only one place.
+KEY_DISP_CAD_CARRIAGEWAY_WIDTH = "Carriageway Width"
+KEY_DISP_CAD_GIRDER_SPACING    = "Girder Spacing"
+KEY_DISP_CAD_DECK_THICKNESS    = "Deck Thickness"
+KEY_DISP_CAD_SPAN_LENGTH       = "Span Length"
 KEY_ANALYSIS_LOAD_COMBINATION = "analysis.load_combination"
 KEY_ANALYSIS_FORCES           = "analysis.forces"
 KEY_ANALYSIS_DISPLAY_OPTIONS  = "analysis.display_options"
@@ -452,6 +463,24 @@ KEY_WC_TAB = "typical_section.wearing_course.tab"
 KEY_WC_MATERIAL = "typical_section.wearing_course.material"
 KEY_WC_DENSITY = "typical_section.wearing_course.density"
 KEY_WC_THICKNESS = "typical_section.wearing_course.thickness"
+
+# Additional Inputs - "Custom" selection validation (pre-save check)
+# Dropdown value that means "the user supplies the value(s)".
+KEY_ADD_CUSTOM_OPTION = "Custom"
+# Object-name suffixes of the two widgets of a mode + value field (TYPE_MODE_LINE):
+# '<field key>.mode' (dropdown) and '<field key>.value' (line edit).
+KEY_ADD_MODE_SUFFIX  = ".mode"
+KEY_ADD_VALUE_SUFFIX = ".value"
+# Dropdown key -> input fields the user must fill when that dropdown is "Custom".
+# (Mode + value pairs (TYPE_MODE_LINE) and Custom-mode adaptive fields are read
+#  from the schema automatically and need no entry here.)
+KEY_ADD_CUSTOM_DEPENDENTS = {
+    KEY_CB_TYPE:      [KEY_CB_DENSITY, KEY_CB_WIDTH, KEY_CB_HEIGHT, KEY_CB_AREA, KEY_CB_LOAD],
+    KEY_MD_TYPE:      [KEY_MD_DENSITY, KEY_MD_WIDTH, KEY_MD_HEIGHT, KEY_MD_AREA, KEY_MD_LOAD],
+    KEY_RL_TYPE:      [KEY_RL_WIDTH, KEY_RL_HEIGHT],
+    KEY_RL_LOAD_MODE: [KEY_RL_LOAD_VALUE],
+    KEY_WC_MATERIAL:  [KEY_WC_DENSITY],
+}
 
 # Typical Section - primary fields (above subtab bar)
 KEY_TS_TAB                = "typical_section.tab"
