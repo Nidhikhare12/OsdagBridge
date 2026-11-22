@@ -1297,6 +1297,18 @@ class CustomWindow(QWidget):
 
     # ── Report Generation ─────────────────────────────────────────────────────
 
+    def create_design_report(self):
+        """File → Create Design Report.
+
+        Uses the same path as the Output dock's "Generate Report" button, so the
+        3D views and analysis plots are captured before the dialog opens. Calling
+        open_report_dialog() directly would leave every drawing as a placeholder.
+        """
+        if self.output_dock is not None:
+            self.output_dock.generate_report()
+        else:
+            self.open_report_dialog()
+
     def open_report_dialog(self, cad_generator=None):
         """
         Show the report options dialog and trigger report
@@ -1759,7 +1771,7 @@ class CustomWindow(QWidget):
 
         create_report_action = QAction("Create Design Report", self)
         create_report_action.setShortcut(QKeySequence("Alt+C"))
-        create_report_action.triggered.connect(lambda _: self.open_report_dialog())
+        create_report_action.triggered.connect(lambda _: self.create_design_report())
         file_menu.addAction(create_report_action)
 
         file_menu.addSeparator()

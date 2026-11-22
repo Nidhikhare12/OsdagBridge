@@ -28,32 +28,13 @@ def _max_float(values):
 
 
 def _max_member_efficiency(pair_designs):
-    """Maximum Osdag 'efficiency' (utilization ratio) over a cross-bracing or
-    end-diaphragm result dump (nested pair -> member -> force_type -> raw).
-    Reads already-computed results only; nothing is recalculated here."""
-    from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
-    if not isinstance(pair_designs, dict):
-        return None
-    best = None
-    for members in pair_designs.values():
-        if not isinstance(members, dict):
-            continue
-        for force_types in members.values():
-            if not isinstance(force_types, dict):
-                continue
-            for raw in force_types.values():
-                try:
-                    val = _extract_osdag_summary(raw or {}).get("efficiency")
-                    if val is None:
-                        continue
-                    f = float(val)
-                except (TypeError, ValueError, AttributeError):
-                    continue
-                if best is None or f > best:
-                    best = f
-    return best
+    from .plots import member_ur
+    return member_ur(pair_designs)
 
 
+from .styles import report_section
+
+@report_section
 def executive_summary(input_dict, output_dict, fig_paths) -> str:
     plan_fig = _fig_or_placeholder(fig_paths.get('girder_top'), 'Figure 1 -- Overall Bridge Plan')
     cs_fig = _fig_or_placeholder(fig_paths.get('cross_section'),
@@ -161,12 +142,14 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
     table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
-              r'\vspace{0.4em}' + '\n'
+              r'\ReportMinorGap' + '\n'
               r'\noindent' + '\n'
-              r'\begin{tabular}{' + col_spec + '}\n'
+              r'\begin{longtable}{' + col_spec + '}\n'
               r'\hline' + '\n'
               + header_row +
-              r'\hline' + '\n'
+              r'\hline' + '\n' + r'\endfirsthead' + '\n'
+              + r'\hline' + '\n' + header_row + r'\hline' + '\n'
+              + r'\endhead' + '\n'
               + member_id_row +
               r'\hline' + '\n'
               + sections + '\n'
@@ -175,13 +158,13 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
               r'\hline' + '\n'
               + urs + '\n'
               r'\hline' + '\n'
-              r'\end{tabular}')
+              r'\end{longtable}')
 
     return r"""
 \newpage
-{\centering\Large\bfseries Executive Summary\par}
+{\centering\ReportHeadingFont\bfseries Executive Summary\par}
 \addcontentsline{toc}{chapter}{Executive Summary}
-\vspace{0.8em}
+\ReportTableGap
 
 This section provides a concise summary of the bridge design, key inputs, governing loads, and final design outcomes.
 
@@ -190,8 +173,15 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \label{sec:project-overview}
 
 
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\begin{longtable}{|L{5.5cm}|L{8.5cm}|}
 \hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+\endhead
 \textbf{Bridge Type} & """ + (_render_value(input_dict, KEY_STRUCTURE_TYPE)) + r""" \\
 \hline
 \textbf{Design Standard} & IRC 5, IRC 6, IRC 22, IRC 24, IS 800 \\
@@ -212,7 +202,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \hline
 \textbf{Overall Utilization Ratio (max)} & """ + ur + r""" \\
 \hline
-\end{tabular}
+\end{longtable}
 
 
 """ + plan_fig + r"""
@@ -221,10 +211,10 @@ This section provides a concise summary of the bridge design, key inputs, govern
 
 """ + cs_fig + '\n\n' + geom_fig + '\n\n' + table1 + r"""
 
-\vspace{0.4em}
+\ReportMinorGap
 \noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value $< 1.0$ indicates a passing check.}
 
-\vspace{1em}
+\ReportTableGap
 
 \section*{Key Design Outcomes Summary}
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
@@ -247,6 +237,6 @@ Deck design pass
 \end{itemize}
 
 % Restore numbered chapter format
-\titleformat{\chapter}[block]{\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
+\titleformat{\chapter}[block]{\normalfont\ReportHeadingFont\bfseries\centering}{\thechapter}{1em}{}
 \titlespacing*{\chapter}{0pt}{-30pt}{10pt}
 """

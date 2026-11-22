@@ -596,6 +596,10 @@ class OutputDock(QWidget):
             return False
         return True
 
+    def generate_report(self):
+        """Public entry point (also used by File → Create Design Report)."""
+        self._on_report_clicked()
+
     def _on_report_clicked(self):
         """
         Resolve Qt-side objects then delegate entirely to
