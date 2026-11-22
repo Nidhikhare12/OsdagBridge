@@ -62,6 +62,29 @@ PREAMBLE_TABLE_LAYOUT = (
     "\\BeforeBeginEnvironment{longtable}{\\needspace{" + TABLE_MIN_SPACE + "}}"
 )
 
+#: Preamble block: \nbcline, a page-break-safe replacement for \cline inside
+#: \multirow blocks. A \cline rule is an alignment row followed by a negative
+#: \vskip, and that skip is a legal page-break point that \\* cannot guard, so
+#: a longtable can still split a \multirow block at a \cline and leave the
+#: label floating into the footer area. \nbcline draws the same partial rule
+#: but shields the skip with a penalty, keeping each block on one page.
+PREAMBLE_NBCLINE = (
+    r"\makeatletter" "\n"
+    r"\def\@nbcline#1-#2\@nil{%" "\n"
+    r"  \omit" "\n"
+    r"  \@multicnt#1\relax" "\n"
+    r"  \advance\@multispan\m@ne" "\n"
+    r"  \ifnum\@multicnt=\@ne\@firstofone{&\omit}\fi" "\n"
+    r"  \@multicnt#2\relax" "\n"
+    r"  \advance\@multicnt-#1\relax" "\n"
+    r"  \advance\@multispan\@ne" "\n"
+    r"  \leaders\hrule\@height\arrayrulewidth\hfill" "\n"
+    r"  \cr" "\n"
+    r"  \noalign{\penalty\@M\vskip-\arrayrulewidth}}" "\n"
+    r"\newcommand{\nbcline}[1]{\@nbcline#1\@nil}" "\n"
+    r"\makeatother"
+)
+
 #: Preamble block: caption formatting shared by all figures and tables.
 PREAMBLE_CAPTIONS = (
     "\\captionsetup{\n"
