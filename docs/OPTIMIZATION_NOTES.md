@@ -37,7 +37,7 @@ same report costs only two small file writes.
 - The output folder receives only the requested `.pdf` and `.tex` plus the
   deliverables; no image assets are left behind.
 - Videos: the primary demo is ~10 MB (1920×1080, 75 s); the raw real-time X11
-  clip is ~7.5 MB for 45 s. Both are well within typical upload limits.
+  clip is ~7.5 MB for 34 s. Both are well within typical upload limits.
 
 ## 4. 1080p video and real X11 capture
 
@@ -52,7 +52,7 @@ DISPLAY=:99 ffmpeg -f x11grab -video_size 1920x1080 -framerate 15 \
   -i :99.0 -c:v libopenh264 -b:v 2500k -pix_fmt yuv420p demo.mp4
 ```
 
-`Demo_Live_X11_1080p.mp4` is a 45 s real-time capture from that display,
+`Demo_Live_X11_1080p.mp4` is a 34 s real-time capture from that display,
 showing the actual OsdagBridge UI and the live analysis log (Stage 9/14).
 `Demo_Video.mp4` / `Demo_Video_1080p.mp4` is the polished 1920×1080
 captioned slideshow built from real screenshots by `scripts/make_demo_video.py`.

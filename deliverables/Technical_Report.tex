@@ -73,7 +73,7 @@ Real solver run & Real OpenSees analysis + IRC 22 design, 4 girders / 30\,m, 997
 Page 30 / G4 & G4 rows end well clear of the footer; continued header repeated. \\
 Cross-app opens & MuPDF clean exit 0; LibreOffice Draw round-trip 47 pages with identical page-11 text; pypdf/PyMuPDF parse all pages. \\
 Live preview & After generation, page 1 is rendered with \texttt{pdftoppm} and shown instantly in an in-app Qt dialog; widget grab saved as \path{live\_preview.png} and visually verified. \\
-Video & Polished \textbf{1920×1080} 75\,s demo plus a 45\,s real-time 1920×1080 X11/Xvfb capture showing the live analysis log. \\
+Video & Polished \textbf{1920×1080} 75\,s demo plus a 34\,s real-time 1920×1080 X11/Xvfb capture (black lead-in trimmed) showing the live OpenSees grillage analysis: dead/live/wind/thermal/seismic load cases, ULS/SLS combinations and design checks — which is why it takes ~40\,s. \\
 \bottomrule
 \end{longtable}
 
@@ -139,7 +139,7 @@ Code quality & Single style module consumed by all chapters; dead code removed; 
 Verification depth & Unit tests, sample PDFs, visible GUI, real UI buttons, full OpenSees design, all tests re-run in the real conda env, cross-app reads, colour/image checks and a demo video. \\
 Performance & 2.180\,s mean; TeX-bound; no GPU path exists; optimisations applied where they matter. \\
 Dependencies & The full conda environment (\path{environment.yml}) is installed; \texttt{OCC}, \texttt{osdag\_core}, \texttt{fiona} and PySide6 are real packages, and the GUI/report tests were re-run inside \texttt{osdagbridge-env} with no stubs. \\
-Video & \path{Demo\_Video.mp4}/\path{Demo\_Video\_1080p.mp4}: silent 1920×1080, 75\,s captioned demo. \path{Demo\_Live\_X11\_1080p.mp4}: 45\,s real-time Xvfb/x11grab recording of the live GUI and analysis log. \\
+Video & \path{Demo\_Video.mp4}/\path{Demo\_Video\_1080p.mp4}: silent 1920×1080, 75\,s captioned demo. \path{Demo\_Live\_X11\_1080p.mp4}: 34\,s real-time Xvfb/x11grab recording of the live GUI and analysis log. \\
 Refinement history & A final review loop caught and restored two regressions (style imports and centrifugal computation) and removed dead load-table code; all checks re-passed afterwards. \\
 \bottomrule
 \end{longtable}

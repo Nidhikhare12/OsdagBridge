@@ -16,7 +16,7 @@
 | `live_preview.png` | Qt widget grab proving the live in-app PDF preview renders page 1 of the freshly generated report. |
 | `gui_after_design.png`, `gui_after_report.png` | GUI screenshots after the Design click and after report generation. |
 | `Demo_Video.mp4`, `Demo_Video_1080p.mp4` | Polished **1920×1080**, 75 s silent captioned demo (real UI, load tables, charts, G4/footer page). |
-| `Demo_Live_X11_1080p.mp4` | 45 s **real-time Xvfb/X11 capture** showing the actual GUI and live analysis log. |
+| `Demo_Live_X11_1080p.mp4` | 34 s **real-time Xvfb/X11 capture** showing the actual GUI and live analysis log. |
 | Speed / caching | First export **1.90 s**; identical repeat export / preview **0.0002 s** (SHA-256 payload cache). See `docs/OPTIMIZATION_NOTES.md`. |
 | Conda verification | All tests re-run in `osdagbridge-env` (created from `environment.yml`) with **real** OCC, osdag_core, fiona and PySide6 — no stubs. |
 

@@ -34,11 +34,16 @@ logo, so the direct export is the higher-fidelity master.
 | Captions | White title + subtitle bar on every content slide |
 | Source | Real screenshots from the conda-env GUI tests and rendered report pages |
 | Reproducible | `python scripts/make_demo_video.py` (Pillow + ffmpeg) |
-| Real-time capture | `Demo_Live_X11_1080p.mp4` — 45 s 1920×1080 Xvfb/x11grab recording of the live GUI and analysis log |
+| Real-time capture | `Demo_Live_X11_1080p.mp4` — 34 s 1920×1080 Xvfb/x11grab recording of the live GUI and analysis log |
 
 Frame extraction at 2 s and 30 s confirms the title card and captioned report
 slides render correctly — not a black screen (the earlier raw X11 capture was
 black because the display is Wayland/Xwayland).
+
+Frame-by-frame audit (15 samples across the main video and 9 across the live
+clip) confirms: no black lead-in in either video, no one-frame title flash at
+the end, chronological slide order, readable captions, and a live clip that
+starts on the visible GUI and ends on "Analysis Completed Successfully".
 
 **Judgement:** the video satisfies “a short video showcasing the functionality;
 a simple screengrab is sufficient; the video can be silent”. It is ready to be

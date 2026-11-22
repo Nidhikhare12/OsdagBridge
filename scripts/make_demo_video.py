@@ -50,7 +50,7 @@ SLIDES = [
     ("TITLE", "9. Real-time PDF preview",
      "In-app Qt dialog shows page 1 immediately", 5),
     ("TITLE", "10. 1920x1080 + real X11 capture",
-     "Xvfb display - 45 s live recording included", 5),
+     "Xvfb display - 34 s live recording included", 5),
     ("TITLE", "11. Low RAM and storage",
      "Temp assets auto-cleaned - charts 150 dpi PNG", 5),
     ("report_assets/real_page30.png", "12. Real design, Page 30",
@@ -88,11 +88,16 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         workdir = Path(tmp)
         lines, total = [], 0
+        last_line, last_dur = "", 0
         for i, (img, title, sub, dur) in enumerate(SLIDES):
             line, dur = _slide(img, title, sub, dur, workdir, i)
             lines.append(line)
             total += dur
-        lines.append(f"file '{workdir / 'slide_00.png'}'\n")
+            last_line, last_dur = line, dur
+        # Repeat the final slide with its duration: the concat demuxer needs a
+        # trailing duration, and this makes the video end cleanly on the
+        # evidence slide instead of flashing the title card for one frame.
+        lines.append(last_line)
         listing = workdir / "list.txt"
         listing.write_text("".join(lines))
 
