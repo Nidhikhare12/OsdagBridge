@@ -1971,7 +1971,22 @@ class AdditionalInputs(QDialog):
                 value = w.text()
             else:
                 continue
-            self.working_input_dict[f"{key}{suffix}"] = value
+            stored_key = f"{key}{suffix}"
+            precision_keys = {
+                KEY_MP_STIFFENER_SPACING,
+                KEY_MP_STIFFENER_BEARING_OUTSTAND,
+                KEY_MP_STIFFENER_INTERMEDIATE_SPACING,
+            }
+
+            if key in precision_keys and isinstance(w, QLineEdit):
+                original = self.working_input_dict.get(stored_key)
+                try:
+                    if original is not None and float(value) == round(float(original), 2):
+                        value = original
+                except (ValueError, TypeError):
+                    pass
+
+            self.working_input_dict[stored_key] = value
 
     def _save_stiffener_field_connector(self, origin_key: str, target_widget: QWidget) -> None:  # END_CONNECTOR: saves all stiffener fields for the current member on any input change
         self._save_stiffener_member_data()
@@ -1998,7 +2013,25 @@ class AdditionalInputs(QDialog):
                 w.blockSignals(False)
             elif isinstance(w, QLineEdit):
                 w.blockSignals(True)
-                w.setText(str(stored))
+                precision_keys = {
+                    KEY_MP_STIFFENER_SPACING,
+                    KEY_MP_STIFFENER_BEARING_OUTSTAND,
+                    KEY_MP_STIFFENER_INTERMEDIATE_SPACING,
+                }
+
+                display_value = stored
+                if key in precision_keys:
+                    member_key = f"{key}{suffix}"
+
+                    if self.working_input_dict.get(member_key) is None:
+                        self.working_input_dict[member_key] = stored
+
+                    try:
+                        display_value = f"{float(stored):.2f}"
+                    except (ValueError, TypeError):
+                        pass
+
+                w.setText(str(display_value))
                 w.blockSignals(False)
 
     def _update_stiffener_cad(self) -> None:  # compute: pushes current working_input_dict and active member ID to the Stiffener Details CAD widget
