@@ -5,6 +5,7 @@
 
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,
+    KEY_FOOTPATH,
     KEY_LL_CUSTOM_VEHICLES,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
@@ -130,9 +131,15 @@ def ch3_loads(input_dict):
     else:
         braking_force_str = "N/A"
 
-    fp_mode  = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "")
+    fp_selected = str(input_dict.get(KEY_FOOTPATH, "None")).strip().lower()
+
+    fp_mode = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "")
     fp_value = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE, "")
-    if str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
+
+    if fp_selected in ("", "none", "no", "false"):
+        fp_mode = "N/A"
+        fp_str = "N/A"
+    elif str(fp_mode).strip().lower() in ("as per irc 6", "as per irc6", "automatic"):
         try:
             fp_str = f"{IRC6_2017.cl_206_1_footway_load():.3f} kN/m² (IRC 6 Cl. 206.1)"
         except Exception:
@@ -273,10 +280,24 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Dead Load -- Self Weight}}
+\caption{\textbf{Dead Load -- Self Weight}}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} \\
 \hline
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ -- continued from previous page}\\
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\hline
+\endlastfoot
 \textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
 \hline
 \textnormal{Concrete Deck Weight} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
@@ -287,10 +308,24 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Dead Load for Surfacing (DW)}}
+\caption{\textbf{Dead Load for Surfacing (DW)}}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} \\
 \hline
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ -- continued from previous page}\\
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\hline
+\endlastfoot
 \textnormal{Wearing Course Load} & """ + (_render_value(input_dict, KEY_WC_MATERIAL)) + r""" x """ + (_render_value(input_dict, KEY_WC_THICKNESS)) + r""" \\[6pt]
 \hline
 \textnormal{Additional SIDL (Crash Barrier)} & """ + (_render_value(input_dict, KEY_CB_LOAD)) + r""" kN/m per barrier \\[6pt]
@@ -301,26 +336,78 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}
+\caption{\textbf{Live Loads (LL)}}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} \\
 \hline
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ -- continued from previous page}\\
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\hline
+\endlastfoot
 \textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
 \hline
 \textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
 \hline
 \textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
 \hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
+\end{longtable}
+
+\vspace{1em}
+\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\caption{\textbf{Footway Load (FL) --- per IRC 6 Cl. 206.1}}\\
+\hline
+\textbf{Parameter} & \textbf{Value} \\[6pt]
+\hline
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ -- continued from previous page}\\
+\hline
+\textbf{Parameter} & \textbf{Value} \\[6pt]
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\hline
+\endlastfoot
+\textnormal{Footpath Pressure Mode} & """ + _tex(str(fp_mode)) + r""" \\[6pt]
+\hline
+\textnormal{Footpath Live Load} & """ + fp_str + r""" \\[6pt]
 \hline
 \end{longtable}
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Wind Load (WL) --- per IRC 6}}
+\caption{\textbf{Wind Load (WL) --- per IRC 6}}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} \\
 \hline
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ -- continued from previous page}\\
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\hline
+\endlastfoot
 \textnormal{Basic Wind Speed, Vb} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" [from Project Location] \\[6pt]
 \hline
 \textnormal{Terrain Type} & """ + (_render_value(input_dict, KEY_WL_TERRAIN_TYPE)) + r""" \\[6pt]
@@ -341,10 +428,24 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Earthquake Load (EL) --- per IRC 6}}
+\caption{\textbf{Earthquake Load (EL) --- per IRC 6}}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} \\
 \hline
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ -- continued from previous page}\\
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\hline
+\endlastfoot
 \textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone')) + r""" [from Project Location] \\[6pt]
 \hline
 \textnormal{Zone Factor, Z} & """ + (_render_value(input_dict, KEY_SL_ZONE_FACTOR)) + r""" \\[6pt]
@@ -367,10 +468,24 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Temperature Load (TL) --- per IRC 6}}
+\caption{\textbf{Temperature Load (TL) --- per IRC 6}}\\
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} \\
 \hline
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ -- continued from previous page}\\
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\hline
+\endlastfoot
 \textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[6pt]
 \hline
 \textnormal{Minimum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_min')) + r""" $^\circ$C \\[6pt]
@@ -383,10 +498,24 @@ This section summarizes all loads applied to the bridge and the load combination
 
 \vspace{1em}
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}
-\caption{\textbf{Load Combinations}}
+\caption{\textbf{Load Combinations}}\\
 \hline
 \textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
 \hline
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ -- continued from previous page}\\
+\hline
+\textbf{Combination ID} & \textbf{Load Cases} \\[6pt]
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\hline
+\endlastfoot
 """ + lc_rows_str + r"""
 \end{longtable}
 
