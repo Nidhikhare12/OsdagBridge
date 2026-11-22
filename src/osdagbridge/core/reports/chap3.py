@@ -16,6 +16,7 @@ from osdagbridge.core.utils.common import (
     KEY_LL_IRC_CLASS_A,
     KEY_LL_IRC_CLASS_FATIGUE,
     KEY_LL_IRC_CLASS_SV,
+    KEY_FOOTPATH,
     KEY_MATERIAL_DECK_DENSITY,
     KEY_MATERIAL_GIRDER_DENSITY,
     KEY_PL_SELF_WEIGHT_FACTOR,
@@ -119,11 +120,13 @@ def ch3_loads(input_dict):
 
     lanes = input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT)
     braking_force_str = ""
+    braking_force_val = ""
     if lanes not in (None, ""):
         try:
             lanes_int = int(lanes)
             braking_force_t = IRC6_2017.cl_211_2_braking_force(lanes_int)
             braking_force_kN = braking_force_t * 9.81
+            braking_force_val = f"{braking_force_kN:.2f}"
             braking_force_str = f"{braking_force_kN:.2f} kN ({braking_force_t:.2f} tonnes)"
         except Exception:
             braking_force_str = "N/A"
