@@ -1,0 +1,18 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /home/usharani/miniconda3/envs/osdagbridge-env/bin/python
+cachedir: .pytest_cache
+rootdir: /home/usharani/OsdagBridge
+configfile: pyproject.toml
+collecting ... collected 9 items
+
+tests/integration/test_api_plate_girder.py::test_api_placeholder PASSED  [ 11%]
+tests/integration/test_cli_plate_girder.py::test_cli_placeholder PASSED  [ 22%]
+tests/unit/test_analyser.py::test_placeholder_analyser PASSED            [ 33%]
+tests/unit/test_designer.py::test_placeholder_designer PASSED            [ 44%]
+tests/unit/test_io.py::test_placeholder_io PASSED                        [ 55%]
+tests/unit/test_osi_validator.py::test_valid_osi_inputs_are_accepted PASSED [ 66%]
+tests/unit/test_osi_validator.py::test_non_numeric_span_is_rejected PASSED [ 77%]
+tests/unit/test_osi_validator.py::test_nested_osi_inputs_are_accepted PASSED [ 88%]
+tests/unit/test_osi_validator.py::test_empty_osi_input_is_rejected PASSED [100%]
+
+============================== 9 passed in 0.67s ===============================
