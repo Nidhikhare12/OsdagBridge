@@ -254,6 +254,8 @@ class ReportDataBridge:
         self.output_dict = output_dict
         self.input_dict = input_dict
         self.payload = payload
+        self.ur_overall_chart: str | None = None
+        self.ur_girder_chart: str | None = None
 
 
     # =====================================================================

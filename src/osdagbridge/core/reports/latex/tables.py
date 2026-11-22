@@ -287,10 +287,10 @@ class SimpleTable:
         theme: Theme | None = None,
     ):
         self.theme = theme or get_active_theme()
-        if isinstance(col_spec, (list, tuple)):
-            base_spec = "|" + "|".join(f"L{{{w}}}" for w in col_spec) + "|"
-        else:
+        if isinstance(col_spec, str):
             base_spec = col_spec
+        else:
+            base_spec = "|" + "|".join(f"L{{{w}}}" for w in col_spec) + "|"
 
         ncols = _count_cols(base_spec)
         self.col_spec, self.is_dense = _fit_col_spec(base_spec, ncols, self.theme)
