@@ -181,9 +181,11 @@ PYTHONPATH=src python -m pytest tests/unit/test_report_styles.py -q
 ```
 
 An offscreen GUI smoke test is also provided.  It creates the real
-`CustomWindow` and `ReportOptionsDialog`; on machines without PySide6 it
-installs a thin PyQt5 compatibility shim and inert stubs for OCC/OpenSees
-(which are not exercised by the report path):
+`CustomWindow` and `ReportOptionsDialog` **and drives the full GUI report
+path**: the dialog's request goes through the QThread worker into
+`generate_design_report()`, producing `deliverables/Report_From_GUI.pdf`.
+On machines without PySide6 it installs a thin PyQt5 compatibility shim and
+inert stubs for OCC/OpenSees (not exercised by the report path):
 
 ```bash
 QT_QPA_PLATFORM=offscreen PYTHONPATH=src python scripts/gui_smoke_test.py

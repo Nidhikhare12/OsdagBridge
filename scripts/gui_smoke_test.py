@@ -273,6 +273,11 @@ def main() -> int:
         PlateGirderBridge,
     )
 
+    from osdagbridge.desktop.ui.cad_3d import CAD3DWindow
+    # The 3-D driver is irrelevant to report generation and unavailable with
+    # the OCC stub, so skip that deferred initialization cleanly.
+    CAD3DWindow._complete_cad_init = lambda self: None
+
     app = QApplication.instance() or QApplication(sys.argv)
     window = CustomWindow("OsdagBridge", PlateGirderBridge)
     window.show()
@@ -286,8 +291,55 @@ def main() -> int:
     dialog = ReportOptionsDialog(parent=window)
     app.processEvents()
     print(f"Report options dialog created: {dialog.windowTitle()!r}")
-
     dialog.close()
+
+    # Drive the real GUI report path: dialog -> QThread worker ->
+    # backend.generate_design_report -> generate_report -> PDF.  The dialog's
+    # modal exec() and the success message box are stubbed so this runs
+    # headlessly; every other step is the production code path.
+    import time
+    from PySide6.QtWidgets import QDialog
+    from osdagbridge.desktop.ui.dialogs import report_options as ro
+    from osdagbridge.desktop.ui.dialogs import custom_messagebox as cmb
+    from generate_sample_reports import (
+        request_for, sample_inputs, sample_outputs,
+    )
+    from osdagbridge.core.reports.report_generator import (
+        build_report_payload, generate_report,
+    )
+
+    out_dir = str(ROOT / "deliverables")
+    stem = "Report_From_GUI"
+    pdf_path = os.path.join(out_dir, stem + ".pdf")
+
+    def _accepted_exec(self):
+        self.request = request_for(out_dir, stem)
+        self.is_preview = False
+        return QDialog.DialogCode.Accepted
+
+    ro.ReportOptionsDialog.exec = _accepted_exec
+    cmb.CustomMessageBox.exec = lambda self, *a, **k: 0
+
+    class _Backend:
+        def generate_design_report(self, request, cad_generator, is_preview=False):
+            payload = build_report_payload(
+                request, sample_inputs(), sample_outputs())
+            return generate_report(payload, request)
+
+    window.backend = _Backend()
+    window.open_report_dialog()
+
+    deadline = time.time() + 120
+    while time.time() < deadline and not os.path.exists(pdf_path):
+        app.processEvents()
+        time.sleep(0.05)
+
+    if not os.path.exists(pdf_path):
+        print("GUI report path FAILED: no PDF produced")
+        window.close()
+        return 1
+    print(f"GUI report path PASSED: {pdf_path}")
+
     window.close()
     app.processEvents()
     print("GUI smoke test PASSED")
