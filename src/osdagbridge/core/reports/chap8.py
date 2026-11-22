@@ -3,6 +3,14 @@ from typing import List
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE
 )
+from osdagbridge.core.reports.styles import (
+    TABCOLSEP_COMPACT,
+    VSPACE_TABLE,
+    log_line_tex,
+    lt_begin,
+    lt_end,
+    table_group,
+)
 
 
 def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
@@ -21,17 +29,11 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                     .replace('&', r'\&')
                     .replace('#', r'\#'))
                 upper = line.upper()
-                if 'WARNING' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
-                elif 'ERROR' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
-                elif 'INFO' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
+                colored = log_line_tex(escaped, upper)
+                if colored:
+                    lines_tex.append(colored)
                 else:
-                    continue  # skip lines without a known level — Osdag patter
+                    continue  # skip lines without a known level — Osdag pattern
 
     mode = str(input_dict.get(KEY_DESIGN_MODE, 'Optimized')).strip().lower()
     is_custom = mode in {'custom', 'customized'}
@@ -53,51 +55,10 @@ design modules, and notes the limitations of the current software version.
 The following Indian Road Congress (IRC) codes and Indian Standards (IS) 
 form the basis of all design calculations in this software.
 
-\vspace{0.5cm}
-
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
-\hline
-\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
-\hline
-IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
-\hline
-IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\ 
-\hline
-IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\ 
-\hline
-IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\ 
-\hline
-IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\ 
-\hline
-IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
-\hline
-\end{tabular}
-\end{table}
-
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
-\hline
-\textbf{Code} & \textbf{Year} & \textbf{Scope} \\
-\hline
-IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\
-\hline
-IS 456 & 2000 & Concrete - simplified stress-block for deck moment capacity \\
-\hline
-IS 1786 & 2008 & Reinforcement steel properties \\
-\hline
-IS 1893 (Part 3) & 2014 & Earthquake resistant design \\
-\hline
-IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
-\hline
-\end{tabular}
-\end{table}
+"""
+        + VSPACE_TABLE + "\n"
+        + _irc_is_tables()
+        + r"""
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}
@@ -191,5 +152,41 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 """)
 
     return "\n".join(assumptions)
+
+
+def _irc_is_tables():
+    grp_open, grp_close = table_group(tabcolsep=TABCOLSEP_COMPACT)
+    irc = (
+        grp_open
+        + lt_begin(
+            r"|c|c|p{13cm}|",
+            "IRC Codes",
+            r"\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\",
+        )
+        + "IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\\\\n\\hline\n"
+        + "IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\\\\n\\hline\n"
+        + "IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\\\\n\\hline\n"
+        + "IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\\\\n\\hline\n"
+        + "IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\\\\n\\hline\n"
+        + "IRC SP 114 & 2018 & Seismic Design of Road Bridges \\\\\n"
+        + lt_end() + "\n"
+        + grp_close
+    )
+    is_codes = (
+        grp_open
+        + lt_begin(
+            r"|c|c|p{13cm}|",
+            "IS Codes",
+            r"\textbf{Code} & \textbf{Year} & \textbf{Scope} \\",
+        )
+        + "IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\\\\n\\hline\n"
+        + "IS 456 & 2000 & Concrete - simplified stress-block for deck moment capacity \\\\\n\\hline\n"
+        + "IS 1786 & 2008 & Reinforcement steel properties \\\\\n\\hline\n"
+        + "IS 1893 (Part 3) & 2014 & Earthquake resistant design \\\\\n\\hline\n"
+        + "IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\\\\n"
+        + lt_end() + "\n"
+        + grp_close
+    )
+    return irc + "\n" + is_codes
 
 
