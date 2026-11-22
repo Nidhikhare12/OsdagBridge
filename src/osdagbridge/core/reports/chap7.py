@@ -45,5 +45,41 @@ def ch7_quantities(input_dict, chart_dir=None):
 \end{longtable}
 """
 
+def _ch7_chart_block(input_dict, chart_dir):
+    """Material bar charts for chapter 7: steel tonnage by component, and
+    deck concrete volume against reinforcement weight."""
+    if not chart_dir:
+        return ""
+    import os
+    from .ur_charts import render_bar_chart
 
+    steel = [
+        ("Girders", _f(input_dict, "steel_girders_wt_total")),
+        ("Bracing Top", _f(input_dict, "bracing_top_wt_total")),
+        ("Bracing Bottom", _f(input_dict, "bracing_bot_wt_total")),
+        ("Bracing Diagonal", _f(input_dict, "bracing_diag_wt_total")),
+        ("Shear Studs", _f(input_dict, "shear_studs_wt_total")),
+    ]
+    concrete_vs_rebar = [
+        ("Concrete (m3)", _f(input_dict, "concrete_deck_vol_total")),
+        ("Reinforcement (MT)", _f(input_dict, "rebar_deck_wt_total")),
+    ]
+    figs = []
+    specs = [
+        ("Structural Steel Tonnage by Component", steel, "Weight (MT)", "qty_steel"),
+        ("Deck Concrete Volume vs Reinforcement Weight", concrete_vs_rebar,
+         "Quantity", "qty_concrete_rebar"),
+    ]
+    for title, points, ylabel, stem in specs:
+        png = os.path.join(chart_dir, stem + ".png")
+        try:
+            ok = render_bar_chart(title, points, ylabel, png)
+        except Exception:
+            ok = False
+        figs.append(_fig_or_placeholder("images/" + stem + ".png" if ok else None, title))
+    return (
+        r"\vspace{1em}" + "\n"
+        + r"\noindent\textbf{Material Quantity Charts}" + "\n"
+        + "\n".join(figs) + "\n"
+    )
 
