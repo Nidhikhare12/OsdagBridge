@@ -1,3 +1,4 @@
+from osdagbridge.core.reports.styles import STYLE
 # Chapter 2: Input Parameters — exact LaTeX template match
 
 
@@ -86,8 +87,7 @@ def ch2_input_parameters(m, input_dict, output_dict=None):
     return r"""
 \chapter{Input Parameters}
 
-\setlength{\abovecaptionskip}{2pt}
-\setlength{\belowcaptionskip}{2pt}
+""" + STYLE.caption_spacing_tex() + r"""
 
 This section documents all inputs provided to OsdagBridge. User-provided inputs are clearly distinguished from software-assumed defaults. Where the user did not supply a value, the software has applied the IRC/IS code default or an empirical guideline; these are annotated with an asterisk (\sdstar{}).
 
@@ -413,9 +413,7 @@ def _bracing_tables(input_dict, n_girders):
 \newpage
 
 \vspace{0.4em}
-\setlength{\tabcolsep}{4pt}
-\setlength\LTleft{0pt}
-\setlength\LTright{\fill}
+""" + STYLE.table_wide_tex() + "\n" + STYLE.lt_full_width_tex() + r"""
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
 \caption{\textbf{Member Properties: Cross Bracing Details}}\\
@@ -433,9 +431,7 @@ def _bracing_tables(input_dict, n_girders):
 
 \vspace{0.4em}
 \noindent
-\setlength{\tabcolsep}{4pt}
-\setlength\LTleft{0pt}
-\setlength\LTright{\fill}
+""" + STYLE.table_wide_tex() + "\n" + STYLE.lt_full_width_tex() + r"""
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
 \caption{\textbf{Member Properties: End Diaphragm Details}}\\

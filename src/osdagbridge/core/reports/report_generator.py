@@ -119,6 +119,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import STYLE
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -157,14 +158,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 % Packages
 \usepackage[
-  a4paper,
-  top=25mm,
-  bottom=32mm,
-  left=20mm,
-  right=20mm,
-  headheight=16pt,
-  headsep=12pt,
-  footskip=16mm
+""" + STYLE.page_geometry_tex() + r"""
 ]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
@@ -190,8 +184,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{multirow}
 \usepackage{colortbl}
 \usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
+""" + STYLE.lt_centered_tex() + r"""
 \usepackage{titlesec}
 \usepackage{titletoc}
 \usepackage{lastpage}
@@ -201,31 +194,22 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{5pt}
-\renewcommand{\arraystretch}{1.10}
-\setlength{\LTpre}{4pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.5pt}
+% Table layout and spacing — controlled via styles.py
+""" + STYLE.table_global_tex() + r"""
 
 % Prevent tables and headings from overflowing past the page bottom:
-% Require sufficient buffer space before beginning standard floats or section headings.
 % NOTE: Do NOT attach \needspace to longtable via \BeforeBeginEnvironment;
 % longtable's internal output routine conflicts with needspace at environment entry,
 % which causes stray duplicate continuation headers (\endhead) above the initial caption.
-\BeforeBeginEnvironment{table}{\needspace{8\baselineskip}}
-\pretocmd{\section}{\needspace{6\baselineskip}}{}{}
-\pretocmd{\subsection}{\needspace{5\baselineskip}}{}{}
+""" + STYLE.needspace_preamble_tex() + r"""
 
-\definecolor{osdagGreen}{HTML}{91B014}
+""" + STYLE.tex_color_def() + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{""" + STYLE.HF.footer_org + r"""}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
@@ -240,7 +224,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{""" + STYLE.HF.footer_org + r"""}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
@@ -254,12 +238,12 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \fancypagestyle{firstpage}{
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[L]{""" + STYLE.HF.footer_org + r"""}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\footrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{""" + str(STYLE.TYPO.line_stretch) + r"""}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
@@ -600,8 +584,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return STYLE.tex_pass()
+                return STYLE.tex_fail()
         except (TypeError, ValueError):
             pass
         return ""

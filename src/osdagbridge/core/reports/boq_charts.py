@@ -9,6 +9,8 @@ import math
 import logging
 from typing import Dict, List, Tuple, Optional, Any
 
+from osdagbridge.core.reports.styles import STYLE
+
 from osdagbridge.core.utils.common import (
     KEY_SPAN,
     KEY_TS_NO_OF_GIRDERS,
@@ -142,19 +144,19 @@ def _render_with_matplotlib(data: Dict[str, Any], summary_path: str, steel_path:
     # ─────────────────────────────────────────────────────────────────────────
     # 1. Combined 2-Panel Summary Figure
     # ─────────────────────────────────────────────────────────────────────────
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13.5, 5.5), dpi=300)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=STYLE.MPL.FIGSIZE_1x2, dpi=STYLE.MPL.DPI_HIGH)
 
     # Left: Structural Steel Tonnage
     names1 = [item[0] for item in steel_items]
     vals1 = [item[1] for item in steel_items]
-    colors1 = ["#1976D2", "#00897B", "#FB8C00"]
-    edgecolors1 = ["#0D47A1", "#004D40", "#E65100"]
+    colors1 = [STYLE.CLR.STEEL_GIRDER, STYLE.CLR.STEEL_CB, STYLE.CLR.STEEL_ED]
+    edgecolors1 = [STYLE.CLR.STEEL_GIRDER_E, STYLE.CLR.STEEL_CB_E, STYLE.CLR.STEEL_ED_E]
 
     y_max1 = max(vals1) * 1.25 if vals1 and max(vals1) > 0 else 10.0
     bars1 = ax1.bar(names1, vals1, color=colors1, edgecolor=edgecolors1, linewidth=1.5, width=0.55, zorder=3)
     ax1.set_ylim(0, y_max1)
-    ax1.set_ylabel("Weight (Metric Tonnes - MT)", fontsize=11, fontweight="bold", color="#222222")
-    ax1.set_title("Structural Steel Tonnage Breakdown", fontsize=13, fontweight="bold", pad=12, color="#1A237E")
+    ax1.set_ylabel("Weight (Metric Tonnes - MT)", fontsize=STYLE.MPL.FONT_TITLE_SM, fontweight="bold", color=STYLE.CLR.TEXT_MID)
+    ax1.set_title("Structural Steel Tonnage Breakdown", fontsize=STYLE.MPL.FONT_TITLE_LG, fontweight="bold", pad=12, color=STYLE.CLR.TITLE_DARK)
     ax1.grid(axis="y", linestyle="--", alpha=0.5, zorder=0)
     ax1.set_axisbelow(True)
 
@@ -168,9 +170,9 @@ def _render_with_matplotlib(data: Dict[str, Any], summary_path: str, steel_path:
             textcoords="offset points",
             ha="center",
             va="bottom",
-            fontsize=10.5,
+            fontsize=STYLE.MPL.FONT_ANNOT_LG,
             fontweight="bold",
-            color="#111111",
+            color=STYLE.CLR.TEXT_DARK,
         )
 
     # Total steel banner badge
@@ -178,23 +180,23 @@ def _render_with_matplotlib(data: Dict[str, Any], summary_path: str, steel_path:
         0.03, 0.94,
         f"Total Steel: {total_steel:.2f} MT",
         transform=ax1.transAxes,
-        fontsize=10.5,
+        fontsize=STYLE.MPL.FONT_ANNOT_LG,
         fontweight="bold",
         verticalalignment="top",
-        bbox=dict(boxstyle="round,pad=0.5", facecolor="#E3F2FD", edgecolor="#1976D2", alpha=0.9),
+        bbox=dict(boxstyle="round,pad=0.5", facecolor=STYLE.CLR.BADGE_STEEL_BG, edgecolor=STYLE.CLR.BADGE_STEEL_BD, alpha=0.9),
     )
 
     # Right: Concrete Volume vs. Reinforcement Steel
     names2 = ["Concrete Volume\n(m³)", "Reinforcement\n(MT)"]
     vals2 = [conc_vol, rebar_wt]
-    colors2 = ["#546E7A", "#D32F2F"]
-    edgecolors2 = ["#263238", "#B71C1C"]
+    colors2 = [STYLE.CLR.CONCRETE_BAR, STYLE.CLR.REBAR_BAR]
+    edgecolors2 = [STYLE.CLR.CONCRETE_EDGE, STYLE.CLR.REBAR_EDGE]
 
     y_max2 = max(vals2) * 1.25 if vals2 and max(vals2) > 0 else 10.0
     bars2 = ax2.bar(names2, vals2, color=colors2, edgecolor=edgecolors2, linewidth=1.5, width=0.48, zorder=3)
     ax2.set_ylim(0, y_max2)
-    ax2.set_ylabel("Quantity (m³ / MT)", fontsize=11, fontweight="bold", color="#222222")
-    ax2.set_title("Concrete Volume vs. Reinforcement Steel", fontsize=13, fontweight="bold", pad=12, color="#1A237E")
+    ax2.set_ylabel("Quantity (m³ / MT)", fontsize=STYLE.MPL.FONT_TITLE_SM, fontweight="bold", color=STYLE.CLR.TEXT_MID)
+    ax2.set_title("Concrete Volume vs. Reinforcement Steel", fontsize=STYLE.MPL.FONT_TITLE_LG, fontweight="bold", pad=12, color=STYLE.CLR.TITLE_DARK)
     ax2.grid(axis="y", linestyle="--", alpha=0.5, zorder=0)
     ax2.set_axisbelow(True)
 
@@ -209,9 +211,9 @@ def _render_with_matplotlib(data: Dict[str, Any], summary_path: str, steel_path:
             textcoords="offset points",
             ha="center",
             va="bottom",
-            fontsize=10.5,
+            fontsize=STYLE.MPL.FONT_ANNOT_LG,
             fontweight="bold",
-            color="#111111",
+            color=STYLE.CLR.TEXT_DARK,
         )
 
     # Rebar ratio badge
@@ -219,14 +221,14 @@ def _render_with_matplotlib(data: Dict[str, Any], summary_path: str, steel_path:
         0.03, 0.94,
         f"Rebar Ratio: {rebar_ratio:.1f} kg/m³",
         transform=ax2.transAxes,
-        fontsize=10.5,
+        fontsize=STYLE.MPL.FONT_ANNOT_LG,
         fontweight="bold",
         verticalalignment="top",
-        bbox=dict(boxstyle="round,pad=0.5", facecolor="#FFEBEE", edgecolor="#D32F2F", alpha=0.9),
+        bbox=dict(boxstyle="round,pad=0.5", facecolor=STYLE.CLR.BADGE_REBAR_BG, edgecolor=STYLE.CLR.BADGE_REBAR_BD, alpha=0.9),
     )
 
     plt.tight_layout(pad=2.5)
-    fig.savefig(summary_path, dpi=300, bbox_inches="tight")
+    fig.savefig(summary_path, dpi=STYLE.MPL.DPI_HIGH, bbox_inches="tight")
     plt.close(fig)
     logger.info("Generated combined BOQ summary chart using matplotlib: %s", summary_path)
 
@@ -234,33 +236,33 @@ def _render_with_matplotlib(data: Dict[str, Any], summary_path: str, steel_path:
     # 2. Individual Figures (if paths provided)
     # ─────────────────────────────────────────────────────────────────────────
     if steel_path:
-        fig_s, ax_s = plt.subplots(figsize=(7, 5), dpi=300)
+        fig_s, ax_s = plt.subplots(figsize=STYLE.MPL.FIGSIZE_1x1, dpi=STYLE.MPL.DPI_HIGH)
         bars_s = ax_s.bar(names1, vals1, color=colors1, edgecolor=edgecolors1, linewidth=1.5, width=0.55, zorder=3)
         ax_s.set_ylim(0, y_max1)
-        ax_s.set_ylabel("Weight (Metric Tonnes - MT)", fontsize=11, fontweight="bold")
-        ax_s.set_title("Structural Steel Tonnage Breakdown", fontsize=12, fontweight="bold", pad=12)
+        ax_s.set_ylabel("Weight (Metric Tonnes - MT)", fontsize=STYLE.MPL.FONT_TITLE_SM, fontweight="bold")
+        ax_s.set_title("Structural Steel Tonnage Breakdown", fontsize=STYLE.MPL.FONT_TITLE_SM, fontweight="bold", pad=12)
         ax_s.grid(axis="y", linestyle="--", alpha=0.5, zorder=0)
         ax_s.set_axisbelow(True)
         for b in bars_s:
             h = b.get_height()
-            ax_s.annotate(f"{h:.2f} MT", xy=(b.get_x() + b.get_width() / 2, h), xytext=(0, 5), textcoords="offset points", ha="center", va="bottom", fontsize=10, fontweight="bold")
+            ax_s.annotate(f"{h:.2f} MT", xy=(b.get_x() + b.get_width() / 2, h), xytext=(0, 5), textcoords="offset points", ha="center", va="bottom", fontsize=STYLE.MPL.FONT_LEGEND, fontweight="bold")
         plt.tight_layout()
-        fig_s.savefig(steel_path, dpi=300, bbox_inches="tight")
+        fig_s.savefig(steel_path, dpi=STYLE.MPL.DPI_HIGH, bbox_inches="tight")
         plt.close(fig_s)
 
     if conc_rebar_path:
-        fig_c, ax_c = plt.subplots(figsize=(6, 5), dpi=300)
+        fig_c, ax_c = plt.subplots(figsize=(6, 5), dpi=STYLE.MPL.DPI_HIGH)
         bars_c = ax_c.bar(names2, vals2, color=colors2, edgecolor=edgecolors2, linewidth=1.5, width=0.48, zorder=3)
         ax_c.set_ylim(0, y_max2)
-        ax_c.set_ylabel("Quantity (m³ / MT)", fontsize=11, fontweight="bold")
-        ax_c.set_title("Concrete Volume vs. Reinforcement Steel", fontsize=12, fontweight="bold", pad=12)
+        ax_c.set_ylabel("Quantity (m³ / MT)", fontsize=STYLE.MPL.FONT_TITLE_SM, fontweight="bold")
+        ax_c.set_title("Concrete Volume vs. Reinforcement Steel", fontsize=STYLE.MPL.FONT_TITLE_SM, fontweight="bold", pad=12)
         ax_c.grid(axis="y", linestyle="--", alpha=0.5, zorder=0)
         ax_c.set_axisbelow(True)
         for idx, b in enumerate(bars_c):
             h = b.get_height()
-            ax_c.annotate(f"{h:.2f} {units[idx]}", xy=(b.get_x() + b.get_width() / 2, h), xytext=(0, 5), textcoords="offset points", ha="center", va="bottom", fontsize=10, fontweight="bold")
+            ax_c.annotate(f"{h:.2f} {units[idx]}", xy=(b.get_x() + b.get_width() / 2, h), xytext=(0, 5), textcoords="offset points", ha="center", va="bottom", fontsize=STYLE.MPL.FONT_LEGEND, fontweight="bold")
         plt.tight_layout()
-        fig_c.savefig(conc_rebar_path, dpi=300, bbox_inches="tight")
+        fig_c.savefig(conc_rebar_path, dpi=STYLE.MPL.DPI_HIGH, bbox_inches="tight")
         plt.close(fig_c)
 
 
@@ -268,18 +270,20 @@ def _render_with_pillow(data: Dict[str, Any], summary_path: str, steel_path: Opt
     """Fallback renderer using pure Pillow when matplotlib is not installed."""
     from PIL import Image, ImageDraw, ImageFont
 
-    width, height = 1500, 620
+    width, height = STYLE.PIL.CANVAS_BOQ_W, STYLE.PIL.CANVAS_BOQ_H
     img = Image.new("RGB", (width, height), color="white")
     draw = ImageDraw.Draw(img)
 
     # Fonts
     try:
-        font_title = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf", 20)
-        font_sub = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf", 16)
-        font_label = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf", 14)
-        font_val = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf", 15)
-        font_badge = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf", 13)
+        _pil_fonts = STYLE.pil_load_fonts()
+        font_title = _pil_fonts["title"]
+        font_sub   = _pil_fonts["sub"]
+        font_label = _pil_fonts["label"]
+        font_val   = _pil_fonts["val"]
+        font_badge = _pil_fonts["label"]   # badge uses label size
     except Exception:
+        from PIL import ImageFont
         font_title = font_sub = font_label = font_val = font_badge = ImageFont.load_default()
 
     steel_items = data["steel_breakdown"]
@@ -292,18 +296,18 @@ def _render_with_pillow(data: Dict[str, Any], summary_path: str, steel_path: Opt
     # Panel 1: Left (Structural Steel Tonnage)
     # ─────────────────────────────────────────────────────────────────────────
     p1_x1, p1_y1, p1_x2, p1_y2 = 60, 40, 710, 560
-    draw.rectangle([p1_x1, p1_y1, p1_x2, p1_y2], outline="#E0E0E0", width=1)
-    draw.text((p1_x1 + 25, p1_y1 + 18), "Structural Steel Tonnage Breakdown", fill="#1A237E", font=font_title)
+    draw.rectangle([p1_x1, p1_y1, p1_x2, p1_y2], outline=STYLE.CLR.PANEL_BORDER, width=1)
+    draw.text((p1_x1 + 25, p1_y1 + 18), "Structural Steel Tonnage Breakdown", fill=STYLE.CLR.TITLE_DARK, font=font_title)
 
     # Total steel badge
     badge_text1 = f"Total Steel: {total_steel:.2f} MT"
-    draw.rectangle([p1_x2 - 210, p1_y1 + 16, p1_x2 - 25, p1_y1 + 42], fill="#E3F2FD", outline="#1976D2", width=1)
-    draw.text((p1_x2 - 200, p1_y1 + 21), badge_text1, fill="#0D47A1", font=font_badge)
+    draw.rectangle([p1_x2 - 210, p1_y1 + 16, p1_x2 - 25, p1_y1 + 42], fill=STYLE.CLR.BADGE_STEEL_BG, outline=STYLE.CLR.BADGE_STEEL_BD, width=1)
+    draw.text((p1_x2 - 200, p1_y1 + 21), badge_text1, fill=STYLE.CLR.STEEL_GIRDER_E, font=font_badge)
 
     # Plot axes area
     ax1_x1, ax1_y1, ax1_x2, ax1_y2 = p1_x1 + 75, p1_y1 + 75, p1_x2 - 35, p1_y2 - 60
-    draw.line([ax1_x1, ax1_y1, ax1_x1, ax1_y2], fill="#444444", width=2)
-    draw.line([ax1_x1, ax1_y2, ax1_x2, ax1_y2], fill="#444444", width=2)
+    draw.line([ax1_x1, ax1_y1, ax1_x1, ax1_y2], fill=STYLE.CLR.AXIS_LINE, width=2)
+    draw.line([ax1_x1, ax1_y2, ax1_x2, ax1_y2], fill=STYLE.CLR.AXIS_LINE, width=2)
 
     s_vals = [item[1] for item in steel_items]
     max_val1 = max(s_vals) * 1.25 if s_vals and max(s_vals) > 0 else 10.0
@@ -313,15 +317,15 @@ def _render_with_pillow(data: Dict[str, Any], summary_path: str, steel_path: Opt
         frac = i / 4.0
         val = frac * max_val1
         y = ax1_y2 - int(frac * (ax1_y2 - ax1_y1))
-        draw.line([ax1_x1, y, ax1_x2, y], fill="#F0F0F0", width=1)
-        draw.text((p1_x1 + 15, y - 8), f"{val:.1f}", fill="#555555", font=font_label)
+        draw.line([ax1_x1, y, ax1_x2, y], fill=STYLE.CLR.GRID_LINE, width=1)
+        draw.text((p1_x1 + 15, y - 8), f"{val:.1f}", fill=STYLE.CLR.TICK_LABEL, font=font_label)
 
     # Draw bars
     bar_w1 = 80
     n_bars1 = len(steel_items)
     gap1 = (ax1_x2 - ax1_x1 - n_bars1 * bar_w1) // (n_bars1 + 1)
-    colors1 = ["#1976D2", "#00897B", "#FB8C00"]
-    outlines1 = ["#0D47A1", "#004D40", "#E65100"]
+    colors1 = [STYLE.CLR.STEEL_GIRDER, STYLE.CLR.STEEL_CB, STYLE.CLR.STEEL_ED]
+    outlines1 = [STYLE.CLR.STEEL_GIRDER_E, STYLE.CLR.STEEL_CB_E, STYLE.CLR.STEEL_ED_E]
 
     for idx, (name, val) in enumerate(steel_items):
         bx = ax1_x1 + gap1 + idx * (bar_w1 + gap1)
@@ -329,26 +333,26 @@ def _render_with_pillow(data: Dict[str, Any], summary_path: str, steel_path: Opt
         by = ax1_y2 - h_px
         draw.rectangle([bx, by, bx + bar_w1, ax1_y2], fill=colors1[idx % len(colors1)], outline=outlines1[idx % len(outlines1)], width=2)
         # Value on top
-        draw.text((bx + bar_w1 // 2 - 28, by - 24), f"{val:.2f} MT", fill="#111111", font=font_val)
+        draw.text((bx + bar_w1 // 2 - 28, by - 24), f"{val:.2f} MT", fill=STYLE.CLR.TEXT_DARK, font=font_val)
         # Label below
-        draw.text((bx + bar_w1 // 2 - 32, ax1_y2 + 12), name, fill="#222222", font=font_label)
+        draw.text((bx + bar_w1 // 2 - 32, ax1_y2 + 12), name, fill=STYLE.CLR.TEXT_MID, font=font_label)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Panel 2: Right (Concrete Volume vs Reinforcement Steel)
     # ─────────────────────────────────────────────────────────────────────────
     p2_x1, p2_y1, p2_x2, p2_y2 = 780, 40, 1430, 560
-    draw.rectangle([p2_x1, p2_y1, p2_x2, p2_y2], outline="#E0E0E0", width=1)
-    draw.text((p2_x1 + 25, p2_y1 + 18), "Concrete Volume vs. Reinforcement", fill="#1A237E", font=font_title)
+    draw.rectangle([p2_x1, p2_y1, p2_x2, p2_y2], outline=STYLE.CLR.PANEL_BORDER, width=1)
+    draw.text((p2_x1 + 25, p2_y1 + 18), "Concrete Volume vs. Reinforcement", fill=STYLE.CLR.TITLE_DARK, font=font_title)
 
     # Rebar ratio badge
     badge_text2 = f"Rebar Ratio: {rebar_ratio:.1f} kg/m³"
-    draw.rectangle([p2_x2 - 225, p2_y1 + 16, p2_x2 - 25, p2_y1 + 42], fill="#FFEBEE", outline="#D32F2F", width=1)
-    draw.text((p2_x2 - 215, p2_y1 + 21), badge_text2, fill="#B71C1C", font=font_badge)
+    draw.rectangle([p2_x2 - 225, p2_y1 + 16, p2_x2 - 25, p2_y1 + 42], fill=STYLE.CLR.BADGE_REBAR_BG, outline=STYLE.CLR.BADGE_REBAR_BD, width=1)
+    draw.text((p2_x2 - 215, p2_y1 + 21), badge_text2, fill=STYLE.CLR.REBAR_EDGE, font=font_badge)
 
     # Plot axes area
     ax2_x1, ax2_y1, ax2_x2, ax2_y2 = p2_x1 + 75, p2_y1 + 75, p2_x2 - 35, p2_y2 - 60
-    draw.line([ax2_x1, ax2_y1, ax2_x1, ax2_y2], fill="#444444", width=2)
-    draw.line([ax2_x1, ax2_y2, ax2_x2, ax2_y2], fill="#444444", width=2)
+    draw.line([ax2_x1, ax2_y1, ax2_x1, ax2_y2], fill=STYLE.CLR.AXIS_LINE, width=2)
+    draw.line([ax2_x1, ax2_y2, ax2_x2, ax2_y2], fill=STYLE.CLR.AXIS_LINE, width=2)
 
     c_vals = [conc_vol, rebar_wt]
     max_val2 = max(c_vals) * 1.25 if c_vals and max(c_vals) > 0 else 10.0
@@ -358,15 +362,15 @@ def _render_with_pillow(data: Dict[str, Any], summary_path: str, steel_path: Opt
         frac = i / 4.0
         val = frac * max_val2
         y = ax2_y2 - int(frac * (ax2_y2 - ax2_y1))
-        draw.line([ax2_x1, y, ax2_x2, y], fill="#F0F0F0", width=1)
-        draw.text((p2_x1 + 15, y - 8), f"{val:.1f}", fill="#555555", font=font_label)
+        draw.line([ax2_x1, y, ax2_x2, y], fill=STYLE.CLR.GRID_LINE, width=1)
+        draw.text((p2_x1 + 15, y - 8), f"{val:.1f}", fill=STYLE.CLR.TICK_LABEL, font=font_label)
 
     # Draw bars
     bar_w2 = 110
     n_bars2 = 2
     gap2 = (ax2_x2 - ax2_x1 - n_bars2 * bar_w2) // (n_bars2 + 1)
-    colors2 = ["#546E7A", "#D32F2F"]
-    outlines2 = ["#263238", "#B71C1C"]
+    colors2 = [STYLE.CLR.CONCRETE_BAR, STYLE.CLR.REBAR_BAR]
+    outlines2 = [STYLE.CLR.CONCRETE_EDGE, STYLE.CLR.REBAR_EDGE]
     c_labels = ["Concrete (m³)", "Rebar (MT)"]
     c_units = ["m³", "MT"]
 
@@ -376,9 +380,9 @@ def _render_with_pillow(data: Dict[str, Any], summary_path: str, steel_path: Opt
         by = ax2_y2 - h_px
         draw.rectangle([bx, by, bx + bar_w2, ax2_y2], fill=colors2[idx], outline=outlines2[idx], width=2)
         # Value on top
-        draw.text((bx + bar_w2 // 2 - 32, by - 24), f"{val:.2f} {c_units[idx]}", fill="#111111", font=font_val)
+        draw.text((bx + bar_w2 // 2 - 32, by - 24), f"{val:.2f} {c_units[idx]}", fill=STYLE.CLR.TEXT_DARK, font=font_val)
         # Label below
-        draw.text((bx + bar_w2 // 2 - 40, ax2_y2 + 12), label, fill="#222222", font=font_label)
+        draw.text((bx + bar_w2 // 2 - 40, ax2_y2 + 12), label, fill=STYLE.CLR.TEXT_MID, font=font_label)
 
     # Save summary
     img.save(summary_path, "PNG")

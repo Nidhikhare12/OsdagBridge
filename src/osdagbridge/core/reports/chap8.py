@@ -3,6 +3,7 @@ from typing import List
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE
 )
+from osdagbridge.core.reports.styles import STYLE
 
 
 def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
@@ -56,7 +57,7 @@ form the basis of all design calculations in this software.
 \vspace{0.5cm}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+""" + STYLE.table_narrow_tex() + r"""
 \begin{longtable}{|c|c|p{13cm}|}
 \caption{\textbf{IRC Codes}}\\
 \hline
@@ -83,7 +84,7 @@ IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \endgroup
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+""" + STYLE.table_narrow_tex() + r"""
 \begin{longtable}{|c|c|p{13cm}|}
 \caption{\textbf{IS Codes}}\\
 \hline

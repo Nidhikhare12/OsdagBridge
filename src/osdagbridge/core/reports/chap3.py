@@ -1,3 +1,4 @@
+from osdagbridge.core.reports.styles import STYLE
 # =============================================================================
 # Chapter 3: Loads and Load Combinations
 # Extracted from report_generator.py — DO NOT add business logic here.
@@ -332,7 +333,7 @@ def ch3_loads(input_dict):
 
 This section summarizes all loads applied to the bridge and the load combinations considered for analysis and design.
 
-\vspace{1em}
+""" + STYLE.lt_needspace_tex() + r"""
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Dead Load -- Self Weight}}\\
 \hline
@@ -351,7 +352,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \end{longtable}
 
-\vspace{1em}
+""" + STYLE.lt_needspace_tex() + r"""
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Dead Load for Surfacing (DW)}}\\
 \hline
@@ -370,7 +371,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \end{longtable}
 
-\vspace{1em}
+""" + STYLE.lt_needspace_tex() + r"""
 \begin{longtable}{|L{3.2cm}|C{2.5cm}|C{2.2cm}|C{2.0cm}|C{2.2cm}|L{3.3cm}|}
 \caption{\textbf{Vehicle Live Loads (LL) --- per IRC 6}}\\
 \hline
@@ -389,7 +390,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 \noindent\textit{Note: Centrifugal forces are zero for straight bridge alignment (IRC 6 Cl.~212). Impact factors per IRC 6 Cl.~208. Braking force acts 1.2\,m above road level (IRC 6 Cl.~211.3). Span\,=\,} """ + (f"{span_m:.1f}" if span_m is not None else "N/A") + r"""\,m.
 
-\vspace{1em}
+""" + STYLE.lt_needspace_tex() + r"""
 \begin{longtable}{|L{5.5cm}|C{3.5cm}|p{5.5cm}|}
 \caption{\textbf{Footpath / Footway Live Load --- per IRC 6}}\\
 \hline
@@ -406,7 +407,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \end{longtable}
 
-\vspace{1em}
+""" + STYLE.lt_needspace_tex() + r"""
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Wind Load (WL) --- per IRC 6}}\\
 \hline
@@ -435,7 +436,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \end{longtable}
 
-\vspace{1em}
+""" + STYLE.lt_needspace_tex() + r"""
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Earthquake Load (EL) --- per IRC 6}}\\
 \hline
@@ -466,7 +467,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \end{longtable}
 
-\vspace{1em}
+""" + STYLE.lt_needspace_tex() + r"""
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Temperature Load (TL) --- per IRC 6}}\\
 \hline
@@ -487,7 +488,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \end{longtable}
 
-\vspace{1em}
+""" + STYLE.lt_needspace_tex() + r"""
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}
 \caption{\textbf{Load Combinations}}\\
 \hline

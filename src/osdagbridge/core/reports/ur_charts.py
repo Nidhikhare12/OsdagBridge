@@ -7,6 +7,8 @@ import math
 import logging
 from typing import Dict, List, Tuple, Optional
 
+from osdagbridge.core.reports.styles import STYLE
+
 from osdagbridge.core.utils.common import (
     KEY_UTIL_FLEXURE,
     KEY_UTIL_SHEAR,
@@ -235,10 +237,10 @@ def _render_with_matplotlib(data: Dict[str, List[Tuple[str, float]]], output_pat
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(2, 2, figsize=(11, 8.5), dpi=200)
+    fig, axes = plt.subplots(2, 2, figsize=STYLE.MPL.FIGSIZE_2x2, dpi=STYLE.MPL.DPI_STANDARD)
     fig.suptitle(
         "Overall Design Check Summary — Utilization Ratio (Demand / Capacity)",
-        fontsize=13,
+        fontsize=STYLE.MPL.FONT_TITLE_LG,
         fontweight="bold",
         y=0.98,
     )
@@ -253,14 +255,14 @@ def _render_with_matplotlib(data: Dict[str, List[Tuple[str, float]]], output_pat
         values = [float(item[1]) for item in checks]
 
         # Colors: Green for <= 1.0 (Pass), Red for > 1.0 (Fail)
-        colors = ["#2E7D32" if v <= 1.0 else "#C62828" for v in values]
+        colors = [STYLE.CLR.PASS_BAR if v <= 1.0 else STYLE.CLR.FAIL_BAR for v in values]
 
         bars = ax.bar(
             range(len(labels)),
             values,
             color=colors,
             width=0.52,
-            edgecolor="#222222",
+            edgecolor=STYLE.CLR.TEXT_MID,
             linewidth=0.8,
             zorder=3,
         )
@@ -274,15 +276,15 @@ def _render_with_matplotlib(data: Dict[str, List[Tuple[str, float]]], output_pat
                 f"{val:.2f}",
                 ha="center",
                 va="bottom",
-                fontsize=8.5,
+                fontsize=STYLE.MPL.FONT_TICK,
                 fontweight="bold",
-                color="#C62828" if val > 1.0 else "#1B5E20",
+                color=STYLE.CLR.FAIL_BAR if val > 1.0 else STYLE.CLR.PASS_DARK,
             )
 
         # Red dashed threshold line at UR = 1.0
         ax.axhline(
             1.0,
-            color="#D32F2F",
+            color=STYLE.CLR.THRESHOLD_LINE,
             linestyle="--",
             linewidth=1.5,
             zorder=4,
@@ -290,10 +292,10 @@ def _render_with_matplotlib(data: Dict[str, List[Tuple[str, float]]], output_pat
         )
 
         # Formatting
-        ax.set_title(element_name, fontsize=11, fontweight="bold", pad=8, color="#1A237E")
+        ax.set_title(element_name, fontsize=STYLE.MPL.FONT_TITLE_SM, fontweight="bold", pad=8, color=STYLE.CLR.TITLE_DARK)
         ax.set_ylabel("Utilization Ratio (UR)", fontsize=9, fontweight="bold")
         ax.set_xticks(range(len(labels)))
-        ax.set_xticklabels(labels, rotation=18, ha="right", fontsize=8.5)
+        ax.set_xticklabels(labels, rotation=18, ha="right", fontsize=STYLE.MPL.FONT_TICK)
 
         max_val = max(values or [1.0])
         ax.set_ylim(0, max(1.28, max_val * 1.25))
@@ -303,10 +305,10 @@ def _render_with_matplotlib(data: Dict[str, List[Tuple[str, float]]], output_pat
 
         # Subtle legend on first subplot
         if idx == 0:
-            ax.legend(loc="upper right", fontsize=8, framealpha=0.9)
+            ax.legend(loc="upper right", fontsize=STYLE.MPL.FONT_LEGEND, framealpha=0.9)
 
     plt.tight_layout(rect=[0, 0.02, 1, 0.95])
-    fig.savefig(output_path, dpi=200, bbox_inches="tight")
+    fig.savefig(output_path, dpi=STYLE.MPL.DPI_STANDARD, bbox_inches="tight")
     plt.close(fig)
     logger.info("Generated UR summary chart using matplotlib: %s", output_path)
 
@@ -315,25 +317,27 @@ def _render_with_pillow(data: Dict[str, List[Tuple[str, float]]], output_path: s
     """Fallback renderer using pure Pillow when matplotlib is not installed."""
     from PIL import Image, ImageDraw, ImageFont
 
-    width, height = 1800, 1350
+    width, height = STYLE.PIL.CANVAS_UR_W, STYLE.PIL.CANVAS_UR_H
     img = Image.new("RGB", (width, height), color="white")
     draw = ImageDraw.Draw(img)
 
     # Load default font
     try:
-        font_title = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf", 26)
-        font_sub = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf", 20)
-        font_label = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf", 15)
-        font_val = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf", 16)
-        font_legend = ImageFont.truetype("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf", 16)
+        _pil_fonts = STYLE.pil_load_fonts()
+        font_title  = _pil_fonts["title"]
+        font_sub    = _pil_fonts["sub"]
+        font_label  = _pil_fonts["label"]
+        font_val    = _pil_fonts["val"]
+        font_legend = _pil_fonts["legend"]
     except Exception:
+        from PIL import ImageFont
         font_title = font_sub = font_label = font_val = font_legend = ImageFont.load_default()
 
     # Main Title
     draw.text(
         (width // 2 - 400, 30),
         "Overall Design Check Summary — Utilization Ratio (Demand / Capacity)",
-        fill="#111111",
+        fill=STYLE.CLR.TEXT_DARK,
         font=font_title,
     )
 
@@ -351,10 +355,10 @@ def _render_with_pillow(data: Dict[str, List[Tuple[str, float]]], output_path: s
         x1, y1, x2, y2 = quadrants[idx]
 
         # Draw panel border and background
-        draw.rectangle([x1, y1, x2, y2], outline="#E0E0E0", width=1)
+        draw.rectangle([x1, y1, x2, y2], outline=STYLE.CLR.PANEL_BORDER, width=1)
 
         # Subplot Title
-        draw.text((x1 + 25, y1 + 18), element_name, fill="#1A237E", font=font_sub)
+        draw.text((x1 + 25, y1 + 18), element_name, fill=STYLE.CLR.TITLE_DARK, font=font_sub)
 
         # Plot area
         px1 = x1 + 80
@@ -363,8 +367,8 @@ def _render_with_pillow(data: Dict[str, List[Tuple[str, float]]], output_path: s
         py2 = y2 - 75
 
         # Draw Y-axis line & X-axis baseline
-        draw.line([px1, py1, px1, py2], fill="#444444", width=2)
-        draw.line([px1, py2, px2, py2], fill="#444444", width=2)
+        draw.line([px1, py1, px1, py2], fill=STYLE.CLR.AXIS_LINE, width=2)
+        draw.line([px1, py2, px2, py2], fill=STYLE.CLR.AXIS_LINE, width=2)
 
         # Y scale: 0.0 to y_max
         vals = [c[1] for c in checks]
@@ -378,18 +382,18 @@ def _render_with_pillow(data: Dict[str, List[Tuple[str, float]]], output_path: s
         for tick in [0.0, 0.5, 1.0, 1.5]:
             if tick <= y_max:
                 ty = to_y(tick)
-                draw.line([px1 - 6, ty, px1, ty], fill="#444444", width=1)
-                draw.line([px1, ty, px2, ty], fill="#F0F0F0", width=1)
-                draw.text((px1 - 42, ty - 8), f"{tick:.1f}", fill="#555555", font=font_label)
+                draw.line([px1 - 6, ty, px1, ty], fill=STYLE.CLR.AXIS_LINE, width=1)
+                draw.line([px1, ty, px2, ty], fill=STYLE.CLR.GRID_LINE, width=1)
+                draw.text((px1 - 42, ty - 8), f"{tick:.1f}", fill=STYLE.CLR.TICK_LABEL, font=font_label)
 
         # Threshold Line at UR = 1.0 (Red Dashed)
         thresh_y = to_y(1.0)
         dash_len = 10
         cur_x = px1
         while cur_x < px2:
-            draw.line([cur_x, thresh_y, min(cur_x + dash_len, px2), thresh_y], fill="#D32F2F", width=2)
+            draw.line([cur_x, thresh_y, min(cur_x + dash_len, px2), thresh_y], fill=STYLE.CLR.THRESHOLD_LINE, width=2)
             cur_x += dash_len * 2
-        draw.text((px2 - 165, thresh_y - 18), "Threshold (UR=1.0)", fill="#D32F2F", font=font_label)
+        draw.text((px2 - 165, thresh_y - 18), "Threshold (UR=1.0)", fill=STYLE.CLR.THRESHOLD_LINE, font=font_label)
 
         # Draw bars
         n_bars = len(checks)
@@ -400,10 +404,10 @@ def _render_with_pillow(data: Dict[str, List[Tuple[str, float]]], output_path: s
         for b_idx, (chk_name, val) in enumerate(checks):
             bx = px1 + spacing + b_idx * (bar_w + spacing)
             by = to_y(val)
-            color = "#2E7D32" if val <= 1.0 else "#C62828"
+            color = STYLE.CLR.PASS_BAR if val <= 1.0 else STYLE.CLR.FAIL_BAR
 
             # Draw bar
-            draw.rectangle([bx, by, bx + bar_w, py2], fill=color, outline="#1B5E20" if val <= 1.0 else "#851A1A", width=1)
+            draw.rectangle([bx, by, bx + bar_w, py2], fill=color, outline=STYLE.CLR.PASS_DARK if val <= 1.0 else STYLE.CLR.FAIL_DARK, width=1)
 
             # Value label on top
             val_str = f"{val:.2f}"
@@ -415,22 +419,22 @@ def _render_with_pillow(data: Dict[str, List[Tuple[str, float]]], output_path: s
             if len(parts) > 1 and len(chk_name) > 10:
                 l1 = parts[0]
                 l2 = " ".join(parts[1:])
-                draw.text((bx - 10, py2 + 8), l1, fill="#333333", font=font_label)
-                draw.text((bx - 10, py2 + 26), l2, fill="#333333", font=font_label)
+                draw.text((bx - 10, py2 + 8), l1, fill=STYLE.CLR.BAR_LABEL, font=font_label)
+                draw.text((bx - 10, py2 + 26), l2, fill=STYLE.CLR.BAR_LABEL, font=font_label)
             else:
-                draw.text((bx - 10, py2 + 8), chk_name, fill="#333333", font=font_label)
+                draw.text((bx - 10, py2 + 8), chk_name, fill=STYLE.CLR.BAR_LABEL, font=font_label)
 
     # Bottom Legend
     leg_y = height - 40
     # Green Pass
-    draw.rectangle([width // 2 - 250, leg_y, width // 2 - 230, leg_y + 16], fill="#2E7D32")
-    draw.text((width // 2 - 222, leg_y - 1), "Passing (UR ≤ 1.0)", fill="#222222", font=font_legend)
+    draw.rectangle([width // 2 - 250, leg_y, width // 2 - 230, leg_y + 16], fill=STYLE.CLR.PASS_BAR)
+    draw.text((width // 2 - 222, leg_y - 1), "Passing (UR ≤ 1.0)", fill=STYLE.CLR.TEXT_MID, font=font_legend)
     # Red Fail
-    draw.rectangle([width // 2 - 30, leg_y, width // 2 - 10, leg_y + 16], fill="#C62828")
-    draw.text((width // 2 - 2, leg_y - 1), "Failing (UR > 1.0)", fill="#222222", font=font_legend)
+    draw.rectangle([width // 2 - 30, leg_y, width // 2 - 10, leg_y + 16], fill=STYLE.CLR.FAIL_BAR)
+    draw.text((width // 2 - 2, leg_y - 1), "Failing (UR > 1.0)", fill=STYLE.CLR.TEXT_MID, font=font_legend)
     # Red Dashed Line
-    draw.line([width // 2 + 180, leg_y + 8, width // 2 + 220, leg_y + 8], fill="#D32F2F", width=2)
-    draw.text((width // 2 + 228, leg_y - 1), "Design Threshold (UR = 1.0)", fill="#D32F2F", font=font_legend)
+    draw.line([width // 2 + 180, leg_y + 8, width // 2 + 220, leg_y + 8], fill=STYLE.CLR.THRESHOLD_LINE, width=2)
+    draw.text((width // 2 + 228, leg_y - 1), "Design Threshold (UR = 1.0)", fill=STYLE.CLR.THRESHOLD_LINE, font=font_legend)
 
     img.save(output_path, "PNG")
     logger.info("Generated UR summary chart using Pillow: %s", output_path)
