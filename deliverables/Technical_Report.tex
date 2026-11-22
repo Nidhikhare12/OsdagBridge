@@ -8,6 +8,7 @@
 \usepackage{caption}
 \usepackage{array}
 \definecolor{osdaggreen}{HTML}{91B014}
+\definecolor{tablehead}{HTML}{EAF2D6}
 \title{\textbf{OsdagBridge LaTeX Report Generator}\\[2mm]
 \large Refactoring \& Enhancements --- Technical Report}
 \author{FOSSEE Winter Internship Screening Task}
@@ -17,16 +18,16 @@
 
 \section{Overview}
 The report generator assembles a multi-chapter LaTeX document from Python modules under
-\path{src/osdagbridge/core/reports/}. The original implementation scattered formatting constants across the preamble and chapters, lost table headers at page breaks, allowed content to approach the footer, merged vehicle and footway loads, and contained no data visualisation. All six requested improvements were implemented and verified against a real OpenSees analysis.
+\path{src/osdagbridge/core/reports/}. The original implementation scattered formatting constants across the preamble and chapters, lost table headers at page breaks, allowed content to approach the footer, merged vehicle and footway loads, and contained no data visualisation. All six requested improvements were implemented, then verified through unit tests, a real GUI session, a full OpenSees design run and independent PDF applications.
 
 \section{Requirement status}
-\begin{longtable}{p{0.32\linewidth}p{0.60\linewidth}}
+\begin{longtable}{p{0.31\linewidth}p{0.61\linewidth}}
 \toprule
 \textbf{Requirement} & \textbf{Implementation and evidence} \\
 \midrule
 Repeating table headers &
 Central post-processor inserts \textbackslash endfirsthead / \textbackslash endhead into every longtable.
-Count: \textbf{2 (before) $\rightarrow$ 50 (after)}. Verified on Table 5.22 continuation pages. \\
+Count: \textbf{2 (before) $\rightarrow$ 50 (after)}. Verified on continuation pages of Tables 5.8, 5.9 and 5.22. \\
 Layout / footer / spacing &
 Central 8-line page-bottom threshold, \textbackslash needspace before tables and headings, central table padding/rules, fixed ``Page X of ??'' footer. \\
 Load table refactoring &
@@ -43,64 +44,83 @@ New \path{styles.py} owns geometry, palette, padding, header/footer theme, Matpl
 \section{Files changed}
 \begin{itemize}
 \item \path{src/osdagbridge/core/reports/styles.py} (new) --- single source of truth.
-\item \path{src/osdagbridge/core/reports/charts.py} (new) --- Matplotlib chart generation.
+\item \path{src/osdagbridge/core/reports/charts.py} (new) --- thread-safe Agg chart generation.
 \item \path{report\_generator.py}, \path{chap1.py}--\path{chap9.py}, \path{executive\_summary.py} --- consume styles; new charts in Chapters 3, 5, 7.
 \item \path{src/osdagbridge/core/utils/common.py} --- new centrifugal-load keys.
 \item \path{src/osdagbridge/core/utils/codes/irc6\_2017.py} --- fixed braking-force helper.
-\item \path{scripts/generate\_sample\_reports.py}, \path{scripts/gui\_smoke\_test.py}, \path{scripts/run\_full\_design\_test.py} (new).
-\item \path{scripts/tex/lastpage.sty}, \path{scripts/tex/makecell.sty} (new) --- minimal TeX compatibility stubs.
-\item \path{tests/unit/test\_report\_styles.py} (new) --- 3 regression tests.
+\item Test/verification scripts: \path{generate\_sample\_reports.py}, \path{gui\_smoke\_test.py}, \path{gui\_real\_ui\_test.py}, \path{run\_full\_design\_test.py}, \path{benchmark\_report.py}, \path{benchmark\_detailed.py}.
+\item \path{scripts/tex/lastpage.sty}, \path{scripts/tex/makecell.sty} --- minimal TeX compatibility stubs.
+\item \path{tests/unit/test\_report\_styles.py} --- 3 regression tests.
+\item Documentation: \path{docs/REPORT\_ENHANCEMENTS.md}, \path{docs/BENCHMARK.md}, \path{docs/PERFORMANCE\_DETAIL.md}.
 \end{itemize}
 
 \section{Centralized style architecture}
-\path{styles.py} exposes: document settings (\texttt{PAGE\_MARGIN}, \texttt{DOCUMENT\_STRETCH}); colour palette (\texttt{COLOR\_OSDAG\_GREEN\_HEX}, \texttt{COLOR\_UR\_PASS}, \texttt{COLOR\_UR\_FAIL}); table layout (\texttt{TAB\_COLSEP}, \texttt{ARRAY\_STRETCH}, \texttt{PAGE\_BOTTOM\_THRESHOLD\_LINES}, \texttt{table\_header\_row()}); spacing constants (\texttt{SECTION\_SKIP}, \texttt{TABLE\_TOP\_SKIP}, \texttt{FIGURE\_SKIP}); chart theming (\texttt{matplotlib\_rc()}, \texttt{figure\_block()}); and the global pass \texttt{apply\_global\_styles()} which repeats longtable headers and protects headings from the footer.
+\path{styles.py} exposes: document settings (\texttt{PAGE\_MARGIN}, \texttt{DOCUMENT\_STRETCH}); colour palette (\texttt{COLOR\_OSDAG\_GREEN\_HEX}, \texttt{COLOR\_UR\_PASS}, \texttt{COLOR\_UR\_FAIL}); table layout (\texttt{TAB\_COLSEP}, \texttt{ARRAY\_STRETCH}, \texttt{PAGE\_BOTTOM\_THRESHOLD\_LINES}, \texttt{table\_header\_row()}); spacing constants (\texttt{SECTION\_SKIP}, \texttt{TABLE\_TOP\_SKIP}, \texttt{FIGURE\_SKIP}); caption/section settings; chart theming (\texttt{matplotlib\_rc()}, \texttt{figure\_block()}); and the global pass \texttt{apply\_global\_styles()} which repeats longtable headers, shades header rows and protects headings from the footer.
 
 \section{Verification performed}
-\begin{longtable}{p{0.30\linewidth}p{0.62\linewidth}}
+\begin{longtable}{p{0.29\linewidth}p{0.63\linewidth}}
 \toprule
 \textbf{Test} & \textbf{Result} \\
 \midrule
 Unit tests & 3 passed (styles post-processor). \\
-Sample PDF build & \path{Report\_Before.pdf} 42 pages; \path{Report\_After.pdf} 43 pages; no LaTeX errors. \\
-GUI report path & Real dialog $\rightarrow$ QThread worker $\rightarrow$ \texttt{generate\_design\_report}; \path{Report\_From\_GUI.pdf} produced. \\
+Sample PDF build & \path{Report\_Before.pdf} 42 pages; \path{Report\_After.pdf} 47 pages; no LaTeX errors. \\
+GUI report path & Real PySide6 dialog $\rightarrow$ QThread worker $\rightarrow$ \texttt{generate\_design\_report}; \path{Report\_From\_GUI.pdf} produced. \\
+Real UI buttons & \path{gui\_real\_ui\_test.py} clicks the actual Design and Generate Report buttons; 1001 design keys; \path{Report\_Real\_UI.pdf} (60 pages); 54.86\,s; no errors. \\
 Real solver run & Real OpenSees analysis + IRC 22 design, 4 girders / 30\,m, 997 output keys; \path{Report\_Real\_Design.pdf} (53 pages). \\
 Page 30 / G4 & G4 rows end well clear of the footer; continued header repeated. \\
+Cross-app opens & MuPDF clean exit 0; LibreOffice Draw round-trip 47 pages with identical page-11 text; pypdf/PyMuPDF parse all pages. \\
 \bottomrule
 \end{longtable}
 
+\section{Performance and GPU assessment}
+Detailed 4-run stage timings (mean): payload 0.001\,s, UR chart 0.143\,s, material chart 0.247\,s, style post-processor 0.002\,s, pdflatex draft pass 0.710\,s, pdflatex final pass 0.873\,s, total \textbf{2.180\,s}. TeX compilation is 73\% of runtime, charts 18\%, styling under 2\%.
+There is no NVIDIA GPU/CUDA; the Mesa render node exists but TeX and Matplotlib Agg are CPU-bound. Chrome headless with GPU default 0.638\,s vs \texttt{--disable-gpu} 0.646\,s confirms no gain. Speed was improved with a draft-mode first pdflatex pass, \texttt{-no-shell-escape}, and Agg-only 150\,dpi charts (0.555\,s $\rightarrow$ 0.390\,s for both charts).
+
+\section{Cross-application and colour verification}
+\begin{longtable}{p{0.28\linewidth}p{0.20\linewidth}p{0.21\linewidth}p{0.21\linewidth}}
+\toprule
+\textbf{PDF} & \textbf{Pages} & \textbf{Shaded-header px} & \textbf{Green px} \\
+\midrule
+OsdagBridge (ours) & 47 & 41,704 & 7 \\
+MuPDF cleaned & 47 & 41,704 & 7 \\
+LibreOffice re-export & 47 & 40,429 & 100 \\
+\bottomrule
+\end{longtable}
+All fonts are embedded and subset. Our cover logo stays lossless RGB; the LibreOffice re-export recompresses it to JPEG, so the direct export is higher fidelity. Other engines: LibreOffice round-trip 5.195\,s, WeasyPrint 1.104\,s, Chrome headless 0.638\,s, MuPDF rewrite 0.023\,s, PyMuPDF 47-page render 0.222\,s.
+
 \section{Visual evidence}
-\begin{figure}[htbp]
-\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=0.78\linewidth]{report_assets/before_loads}
 \caption{Baseline: merged Live Loads table.}
 \end{figure}
-\begin{figure}[htbp]
-\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=0.78\linewidth]{report_assets/after_loads}
-\caption{Enhanced: separate vehicle and footway tables with unit columns.}
+\caption{Enhanced: separate tables, shaded headers, unit columns.}
 \end{figure}
-\begin{figure}[htbp]
-\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=0.78\linewidth]{report_assets/ur_chart}
 \caption{Utilization Ratio chart with UR=1.0 threshold (Section 5.5).}
 \end{figure}
-\begin{figure}[htbp]
-\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=0.78\linewidth]{report_assets/material_chart}
 \caption{Material quantity chart (Chapter 7).}
 \end{figure}
-\begin{figure}[htbp]
-\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=0.78\linewidth]{report_assets/real_page30}
 \caption{Real-design report, Page 30: G4 rows clear of footer, header repeated.}
+\end{figure}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.78\linewidth]{gui_window}
+\caption{Real OsdagBridge desktop window used for the UI tests.}
 \end{figure}
 
 \section{Reproduction}
 \begin{verbatim}
 PYTHONPATH=src python -m pytest tests/unit/test_report_styles.py -q
 python scripts/generate_sample_reports.py deliverables Report_After
-QT_QPA_PLATFORM=offscreen PYTHONPATH=src python scripts/gui_smoke_test.py
+GUI_VISIBLE=1 PYTHONPATH=src python scripts/gui_real_ui_test.py
 PYTHONPATH=src python scripts/run_full_design_test.py
+PYTHONPATH=src python scripts/benchmark_detailed.py 4
 \end{verbatim}
 
 \section{Scope review: remaining internship tasks}
