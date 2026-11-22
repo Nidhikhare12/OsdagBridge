@@ -621,8 +621,19 @@ def _dump_crossbracing(data: dict) -> None:
 
 
 def _extract_osdag_summary(result: dict) -> dict:
-    if not result:
+    if result is None:
         return {}
+    if isinstance(result, (int, float)):
+        return {
+            "section":     "",
+            "capacity_kN": None,
+            "efficiency":  result,
+            "slenderness": None,
+            "connection":  "Bolted",
+        }
+    if not isinstance(result, dict):
+        return {}
+
     def _first(*keys):
         for k in keys:
             v = result.get(k)
@@ -631,11 +642,11 @@ def _extract_osdag_summary(result: dict) -> dict:
         return None
 
     return {
-        "section":     _first("section_size.designation", "Optimum.Designation"),
-        "capacity_kN": _first("Member.tension_capacity",  "Design.Strength"),
-        "efficiency":  _first("Member.efficiency",        "Optimum.UR"),
-        "slenderness": result.get("Member.Slenderness"),
-        "connection":  "Welded" if "Weld.Type" in result else "Bolted",
+        "section":     _first("section_size.designation", "Optimum.Designation", "section", "designation"),
+        "capacity_kN": _first("Member.tension_capacity",  "Design.Strength", "capacity_kN", "capacity", "Capacity"),
+        "efficiency":  _first("Member.efficiency",        "Optimum.UR", "efficiency", "UR", "ur"),
+        "slenderness": _first("Member.Slenderness",       "Member.slenderness", "slenderness", "Slenderness"),
+        "connection":  "Welded" if ("Weld.Type" in result or str(result.get("connection", "")).lower() == "welded") else "Bolted",
     }
 
 

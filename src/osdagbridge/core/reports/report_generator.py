@@ -497,23 +497,69 @@ class ReportDataBridge:
 
     def _ed_pair_designs(self) -> dict:
         """Internal: return end_diaphragm_design_results from output_dict."""
-        return self.output_dict.get("end_diaphragm_design_results", {})
+        designs = self.output_dict.get("end_diaphragm_design_results")
+        if designs and isinstance(designs, dict) and any(designs.values()):
+            return designs
+        # When configured as Cross Bracing (or if ed designs are empty),
+        # fall back to crossbracing_design_results so data is available.
+        from osdagbridge.core.utils.common import KEY_MP_ED_TYPE
+        ed_type = ""
+        for k, v in self.input_dict.items():
+            if str(k).startswith(KEY_MP_ED_TYPE) and v:
+                ed_type = str(v)
+                break
+        if not ed_type or "brac" in ed_type.strip().lower():
+            cb_designs = self._cb_pair_designs()
+            if cb_designs:
+                return cb_designs
+        return designs or {}
 
     def _ed_osdag(self, pair: str, member: str, force_type: str) -> dict:
         """Extract the _extract_osdag_summary dict for one end diaphragm member."""
         from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
-        try:
-            raw = self._ed_pair_designs()[pair][member][force_type]
-            return _extract_osdag_summary(raw or {})
-        except (KeyError, TypeError):
-            return {}
+        designs = self._ed_pair_designs()
+        if not designs or not isinstance(designs, dict):
+            return self._cb_osdag(pair, member, force_type)
+
+        # Try various pair key formats (e.g. "G1-G2", "G1G2", "G1_G2")
+        pair_candidates = [pair, pair.replace("-", ""), pair.replace("-", "_")]
+        if "-" not in pair and len(pair) >= 4 and pair.startswith("G"):
+            pair_candidates.append(f"{pair[:2]}-{pair[2:]}")
+
+        p_dict = None
+        for p in pair_candidates:
+            if p in designs and isinstance(designs[p], dict):
+                p_dict = designs[p]
+                break
+
+        if isinstance(p_dict, dict):
+            # Try member candidates (e.g. "chord", "top_chord", "bottom_chord")
+            mem_candidates = [member]
+            if member == "chord":
+                mem_candidates.extend(["top_chord", "bottom_chord"])
+            elif member in ("top_chord", "bottom_chord"):
+                mem_candidates.append("chord")
+
+            for m in mem_candidates:
+                if m in p_dict and isinstance(p_dict[m], dict):
+                    raw = p_dict[m].get(force_type)
+                    if raw is not None:
+                        summary = _extract_osdag_summary(raw)
+                        if summary:
+                            return summary
+
+        # Fallback to cross bracing if available
+        return self._cb_osdag(pair, member, force_type)
 
     def get_ed_pairs(self) -> list:
         """Return sorted list of girder pair keys for end diaphragms."""
         try:
-            return sorted(self._ed_pair_designs().keys())
+            pairs = sorted(self._ed_pair_designs().keys())
+            if pairs:
+                return pairs
         except Exception:
-            return []
+            pass
+        return self.get_cb_pairs()
 
     def get_ed_capacity(self, pair: str, member: str, force_type: str) -> str:
         """Capacity in kN."""
@@ -529,8 +575,14 @@ class ReportDataBridge:
         """KL/r — same for tension and compression (geometry-based)."""
         for ft in ("compression", "tension"):
             val = self._ed_osdag(pair, member, ft).get("slenderness")
-            if val is not None:
-                return f"{float(val):.1f}"
+            if val is not None and str(val).strip():
+                try:
+                    return f"{float(val):.1f}"
+                except (ValueError, TypeError):
+                    return str(val)
+        cb_sl = self.get_cb_slenderness(pair, member)
+        if cb_sl:
+            return cb_sl
         return ""
 
     def get_cb_effective_length(self, member: str) -> str:
