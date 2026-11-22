@@ -447,7 +447,7 @@ def ch5_design_checks(checks_data, bridge, image_dir=None) -> str:
         """Format a numeric value to nd decimal places; empty string when None."""
         try:
             return f"{float(v):.{nd}f}"
-            
+
         except (TypeError, ValueError):
             return ""
 
@@ -725,10 +725,10 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                 area_cm2 = bridge.output_dict.get(f"{pfx}.A")
                 rv_cm = bridge.output_dict.get(f"{pfx}.rv")
 
-                # Convert Area: cm² -> mm²
+                # Convert Area: cm² -> mm² and radius: cm -> mm
                 area_str = f"{float(area_cm2) * 100:.1f}" if area_cm2 is not None else ""
-                # Convert rv: cm -> mm
                 rmin_str = f"{float(rv_cm) * 10:.1f}" if rv_cm is not None else ""
+
                 cb_forces_rows.append(
                     r"\multirow{2}{*}{\makecell{" + _tex(pair) + r"}} & "
                     + label + r" & " + conn_type + r" & " + section
@@ -756,27 +756,27 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             kl_diag = bridge.get_cb_effective_length("diagonal")
             slnd_diag = bridge.get_cb_slenderness(pair, "diagonal")
             status_diag = get_status_str(slnd_diag, 250)
-            
+
             kl_tc = bridge.get_cb_effective_length("chord")
             slnd_tc = bridge.get_cb_slenderness(pair, "chord")
             status_tc = get_status_str(slnd_tc, 250)
-            
+
             kl_bc = bridge.get_cb_effective_length("chord")
             slnd_bc = bridge.get_cb_slenderness(pair, "chord")
             status_bc = get_status_str(slnd_bc, 400)
-            
+
             top_chord_enabled = bridge.output_dict.get("member_properties.cross_bracing_details.top_chord", True)
             bottom_chord_enabled = bridge.output_dict.get("member_properties.cross_bracing_details.bottom_chord", True)
-            
+
             num_rows = 1 + int(top_chord_enabled) + int(bottom_chord_enabled)
             row_tex = r"\multirow{" + str(num_rows) + r"}{*}{\makecell{" + _tex(pair) + r"}}"
             row_tex += f" & Diagonal & C & {kl_diag} & {slnd_diag} & 250 --- {status_diag} \\\\[6pt]"
-            
+
             if top_chord_enabled:
                 row_tex += f"\n\\cline{{2-6}}\n & Top chord & C & {kl_tc} & {slnd_tc} & 250 --- {status_tc} \\\\[6pt]"
             if bottom_chord_enabled:
                 row_tex += f"\n\\cline{{2-6}}\n & Bottom chord & T & {kl_bc} & {slnd_bc} & 400 --- {status_bc} \\\\[6pt]"
-                
+
             row_tex += "\n\\hline"
             cb_slenderness_rows.append(row_tex)
     cb_slenderness_content = "\n".join(cb_slenderness_rows)
@@ -822,11 +822,41 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             if not section:
                 section = bridge.get_ed_section(pair, member, "tension")
 
+            area = None
+            rv = None
+
+            pair_id = pair.replace("-", "")
+            base = "transverse_member_design.ed.section_properties"
+
+            if member == "diagonal":
+                pfx = f"{base}.end_diaphragm.{pair_id}"
+            else:
+                top_pfx = f"{base}.top_chord.{pair_id}"
+                bottom_pfx = f"{base}.bottom_chord.{pair_id}"
+
+                top_area = bridge.output_dict.get(f"{top_pfx}.A")
+                bottom_area = bridge.output_dict.get(f"{bottom_pfx}.A")
+
+                if top_area is not None and bottom_area is None:
+                    pfx = top_pfx
+                elif bottom_area is not None and top_area is None:
+                    pfx = bottom_pfx
+                else:
+                    pfx = top_pfx if top_area is not None else bottom_pfx
+
+            if pfx is not None:
+                area = bridge.output_dict.get(f"{pfx}.A")
+                rv = bridge.output_dict.get(f"{pfx}.rv")
+
+            area_str = f"{float(area) * 100:.1f}" if area is not None else ""
+            rmin_str = f"{float(rv) * 10:.1f}" if rv is not None else ""
+
             ed_forces_rows.append(
                 r"\textbf{" + _tex(pair) + r"} & " + label
                 + r" & " + _tex(conn_type)
                 + r" & " + section
-                + r" &  & "
+                + r" & " + area_str
+                + r" & " + rmin_str
                 + r" \\[6pt]\hline"
             )
 
@@ -1327,7 +1357,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
              (_dkv(KEY_DD_SHEAR_VED) / _dkv(KEY_DD_SHEAR_VRDC)
               if _dk_has and _dkv(KEY_DD_SHEAR_VRDC) > 0 else None)]
         )
-       
+
         def _cb_slenderness_ur():
             ratios = []
 
