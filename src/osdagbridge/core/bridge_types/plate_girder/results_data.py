@@ -408,6 +408,15 @@ def _build_full_data(model, edge_dist: float = 0.0, dataset=None, lazy: bool = F
     disp_components = [str(
         c) for c in ds0["displacements"].coords["Component"].values] if "displacements" in ds0.data_vars else []
 
+    # Explicit element IDs used by the transverse-member results plot.
+    # Do not classify every non-longitudinal element as transverse:
+    # that would incorrectly include shell and slab elements.
+    transverse_plot_members = sorted({
+        int(tag)
+        for group_name in ("transverse_slab", "start_edge", "end_edge")
+        for tag in groups.get(group_name, [])
+    })
+
     # Classify members: longitudinal = both nodes share same Z and same Y
     _z_tol = 1e-3
     longitudinal_members = []
@@ -427,6 +436,7 @@ def _build_full_data(model, edge_dist: float = 0.0, dataset=None, lazy: bool = F
         "groups": groups,
         "longitudinal_members": longitudinal_members,
         "transverse_members": transverse_members,
+        "transverse_plot_members": transverse_plot_members,
         "edge_dist": float(edge_dist),
         "loadcases": list(loadcases),
         "force_components": force_components,

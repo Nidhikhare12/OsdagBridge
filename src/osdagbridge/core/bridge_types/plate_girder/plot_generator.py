@@ -1552,6 +1552,227 @@ def build_figure_deflection(ds, disp_key, nodes, members, edge_dist=0.0, eng_sca
     return fig, summary_data
 
 
+
+
+def build_figure_transverse(ds, result_key, nodes, members,
+                            transverse_members, eng_scale=1.0):
+    """
+    Plot forces or displacements for explicitly identified transverse elements.
+
+    Element IDs come from results_data.py. Each element is plotted using its
+    actual OpenSees node connectivity; no geometric girder classification is
+    applied to transverse members.
+    """
+    fig = Figure(figsize=(14, 6), dpi=110, facecolor="white")
+    ax = fig.add_subplot(111, projection="3d", facecolor="white")
+
+    tags = sorted({
+        int(tag) for tag in (transverse_members or [])
+        if int(tag) in members
+    })
+
+    is_displacement = result_key in DISP_MAP
+    scale = _value_plot_scale(eng_scale)
+    values_for_summary = []
+    plotted = 0
+
+    if not tags:
+        ax.text2D(
+            0.5, 0.5,
+            "No transverse member elements are available for plotting.",
+            transform=ax.transAxes, ha="center", va="center",
+        )
+        ax.set_title("Transverse Members", fontsize=12, fontweight="bold")
+        return fig, {}
+
+    def find_component(dataset, requested):
+        try:
+            available = dataset.coords["Component"].values
+        except Exception:
+            return None
+        for component in available:
+            if str(component).lower() == str(requested).lower():
+                return component
+        return None
+
+    if is_displacement:
+        dataset = ds.get("displacements")
+        if dataset is None:
+            ax.text2D(
+                0.5, 0.5, "Displacement results are unavailable.",
+                transform=ax.transAxes, ha="center", va="center",
+            )
+            return fig, {}
+
+        requested = DISP_MAP[result_key]
+        component_map = {"dx": "x", "dy": "y", "dz": "z"}
+        target = component_map.get(str(requested).lower(), str(requested))
+        actual_component = find_component(dataset, target)
+
+        if actual_component is None:
+            ax.text2D(
+                0.5, 0.5,
+                f"Displacement component {target} is unavailable.",
+                transform=ax.transAxes, ha="center", va="center",
+            )
+            return fig, {}
+
+        node_values = {}
+        try:
+            for node_id in dataset.coords["Node"].values:
+                value = float(
+                    dataset.sel(Node=node_id, Component=actual_component).values
+                )
+                if str(actual_component).lower() in ("y", "z"):
+                    value = -value
+                node_values[int(node_id)] = value * 1000.0
+        except Exception as exc:
+            ax.text2D(
+                0.5, 0.5, f"Could not extract displacement results: {exc}",
+                transform=ax.transAxes, ha="center", va="center",
+            )
+            return fig, {}
+
+        label = DISP_DISPLAY.get(result_key, result_key)
+        unit = "mm"
+        colour = "#6A1B9A"
+
+        for element in tags:
+            n1, n2 = members[element]
+            if n1 not in nodes or n2 not in nodes:
+                continue
+            if n1 not in node_values or n2 not in node_values:
+                continue
+
+            x1, _, z1 = nodes[n1]
+            x2, _, z2 = nodes[n2]
+            v1, v2 = node_values[n1], node_values[n2]
+
+            ax.plot([x1, x2], [z1, z2], [0, 0],
+                    color="#9E9E9E", linewidth=1.0, alpha=0.55)
+            ax.plot([x1, x2], [z1, z2],
+                    [v1 * scale, v2 * scale],
+                    color=colour, linewidth=2.0, marker="o",
+                    markersize=3, label="Transverse displacement" if plotted == 0 else None)
+
+            values_for_summary.extend([v1, v2])
+            plotted += 1
+
+    else:
+        dataset = ds.get("forces")
+        if dataset is None:
+            ax.text2D(
+                0.5, 0.5, "Force results are unavailable.",
+                transform=ax.transAxes, ha="center", va="center",
+            )
+            return fig, {}
+
+        if result_key not in FORCE_MAP:
+            ax.text2D(
+                0.5, 0.5, f"Unsupported result component: {result_key}",
+                transform=ax.transAxes, ha="center", va="center",
+            )
+            return fig, {}
+
+        force_i, force_j = FORCE_MAP[result_key]
+        comp_i = find_component(dataset, force_i)
+        comp_j = find_component(dataset, force_j)
+
+        if comp_i is None or comp_j is None:
+            ax.text2D(
+                0.5, 0.5,
+                f"Force components {force_i}/{force_j} are unavailable.",
+                transform=ax.transAxes, ha="center", va="center",
+            )
+            return fig, {}
+
+        label = FORCE_DISPLAY.get(result_key, result_key)
+        unit = "kN" if result_key.startswith("F") else "kN·m"
+        colour = "#1565C0"
+
+        for element in tags:
+            n1, n2 = members[element]
+            if n1 not in nodes or n2 not in nodes:
+                continue
+            try:
+                v1 = float(
+                    dataset.sel(Element=element, Component=comp_i).values
+                ) / 1000.0
+                v2 = float(
+                    dataset.sel(Element=element, Component=comp_j).values
+                ) / 1000.0
+            except (KeyError, ValueError, TypeError):
+                continue
+
+            x1, _, z1 = nodes[n1]
+            x2, _, z2 = nodes[n2]
+
+            ax.plot([x1, x2], [z1, z2], [0, 0],
+                    color="#9E9E9E", linewidth=1.0, alpha=0.55)
+            ax.plot([x1, x2], [z1, z2],
+                    [v1 * scale, v2 * scale],
+                    color=colour, linewidth=2.0, marker="o",
+                    markersize=3, label="Transverse force" if plotted == 0 else None)
+
+            values_for_summary.extend([v1, v2])
+            plotted += 1
+
+    if plotted == 0:
+        ax.text2D(
+            0.5, 0.5,
+            "No matching transverse result values were found for this component.",
+            transform=ax.transAxes, ha="center", va="center",
+        )
+        return fig, {}
+
+    ax.set_xlabel("Span Length (m)", fontsize=10, fontweight="bold", labelpad=8)
+    ax.set_ylabel("Bridge Width (m)", fontsize=10, fontweight="bold", labelpad=8)
+    ax.set_zlabel(f"{label} ({unit})", fontsize=10, fontweight="bold", labelpad=8)
+    ax.set_title(
+        f"Transverse Members — {label} ({unit})",
+        fontsize=12, fontweight="bold", pad=12,
+    )
+
+    _set_value_axis_tick_formatter(ax, scale)
+
+    all_x = [nodes[n][0] for e in tags if e in members
+             for n in members[e] if n in nodes]
+    all_z = [nodes[n][2] for e in tags if e in members
+             for n in members[e] if n in nodes]
+    if all_x:
+        x_pad = max((max(all_x) - min(all_x)) * 0.08, 0.5)
+        ax.set_xlim(min(all_x) - x_pad, max(all_x) + x_pad)
+    if all_z:
+        z_pad = max((max(all_z) - min(all_z)) * 0.08, 0.5)
+        ax.set_ylim(min(all_z) - z_pad, max(all_z) + z_pad)
+
+    if values_for_summary:
+        low = min(0.0, min(values_for_summary) * scale)
+        high = max(0.0, max(values_for_summary) * scale)
+        pad = max((high - low) * 0.08, 0.1)
+        ax.set_zlim(low - pad, high + pad)
+
+    ax.set_box_aspect((2.5, 1.2, max(scale, 0.5)))
+    ax.view_init(elev=DEFAULT_ELEV, azim=DEFAULT_AZIM)
+    ax.grid(True, linestyle="--", linewidth=0.4, alpha=0.5)
+    ax.legend(loc="upper right", fontsize=8)
+
+    for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+        pane.fill = False
+        pane.set_edgecolor("#777777")
+        pane.set_alpha(0.8)
+
+    summary = {
+        "Transverse": {
+            "max": max(values_for_summary),
+            "min": min(values_for_summary),
+        }
+    }
+    fig._eng_scale = scale
+    return fig, summary
+
+
+
 def figure_to_bytes(fig, fmt="png", dpi=150):
     """Convenience helper — render a matplotlib figure to raw bytes."""
     buf = io.BytesIO()

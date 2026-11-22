@@ -245,6 +245,7 @@ class AdditionalInputs(QDialog):
             self.interacted_first = False
             from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import END_CONNECTORS
             UIBuilder.wire_end_connectors(END_CONNECTORS, ai=self)
+        self._saved_input_snapshot = deepcopy(self.working_input_dict)
 
     def set_defaults(self) -> None:  # lifecycle: populates all widgets from working_input_dict; called at init time only
         """
@@ -506,28 +507,83 @@ class AdditionalInputs(QDialog):
 
     # ── Dialog Persistence ───────────────────────────────────────────────────────
 
-    def _save_inputs(self):  # on_change: validates all tabs then commits working_input_dict and emits CAD update signal
+    def _validate_working_inputs(self):
+        """Validate only fields changed since the last successful save."""
+        errors = []
+        saved_inputs = getattr(self, "_saved_input_snapshot", {})
 
-        # Flush the currently-displayed stiffener member's widgets before committing.
-        # _save_stiffener_member_data otherwise only runs when switching *away* from a
-        # member (via _on_stiffener_member_load), so the last-viewed girder (e.g. G4)
-        # would never be persisted. This gives it the same save the other girders get.
+        for key, value in self.working_input_dict.items():
+            if value == saved_inputs.get(key):
+                continue
+
+            result = self.validator.validate_additional_inputs(
+                key, self.working_input_dict
+            )
+
+            if result is not None:
+                _, message = result
+                if message:
+                    errors.append(f"{key}: {message}")
+
+        return errors
+
+    def _save_inputs(self):
+        # Flush the currently displayed stiffener member before validation.
         combo = self.findChild(QComboBox, KEY_MP_STIFFENER_SELECT_MEMBER_ID)
         if combo and combo.currentText().strip():
             self._save_stiffener_member_data(combo.currentText().strip())
 
+        errors = self._validate_working_inputs()
+        if errors:
+            self._show_validation_errors(errors)
+            return False
+
         self.default_input_dict.update(self.working_input_dict)
+        self._saved_input_snapshot = deepcopy(self.working_input_dict)
+
         from osdagbridge.desktop.ui.docks.cad_cross_section import CrossSectionCADWidget
         cad = self.findChild(CrossSectionCADWidget, KEY_TS_CAD_PREVIEW)
         if cad:
             self.update_template_page_2d_cad.emit(cad.params)
-        
+
         CustomMessageBox(
             title="Saved",
             text="Inputs saved successfully.",
             buttons=["OK"],
             dialogType=MessageBoxType.Success,
         ).exec()
+        return True
+
+    def _has_unsaved_changes(self):
+        return self.working_input_dict != getattr(
+            self, "_saved_input_snapshot", self.working_input_dict
+        )
+
+    def _confirm_close_with_unsaved_changes(self):
+        if not self._has_unsaved_changes():
+            return True
+
+        result = CustomMessageBox(
+            title="Unsaved Changes",
+            text="You have unsaved changes in Additional Inputs.",
+            informativeText="Do you want to save them before closing?",
+            buttons=["Save", "Discard", "Cancel"],
+            dialogType=MessageBoxType.Warning,
+        ).exec()
+
+        if result == "Save":
+            return self._save_inputs()
+        return result == "Discard"
+
+    def reject(self):
+        if self._confirm_close_with_unsaved_changes():
+            super().reject()
+
+    def closeEvent(self, event):
+        if self._confirm_close_with_unsaved_changes():
+            event.accept()
+        else:
+            event.ignore()
 
     def _show_validation_errors(self, errors):  # utility: displays validation error list in a warning popup
         message = "\n\n".join(f"• {err}" for err in errors)

@@ -519,6 +519,12 @@ def _on_no_of_girders_changed(working_input_dict: dict) -> None:
         n_footpaths    = 1
 
     from .initial_sizing import BridgeConfigurationSolver
+    print("[GIRDER REGEN INPUT CHECK]", {
+        "carriageway_width": repr(working_input_dict.get(KEY_CARRIAGEWAY_WIDTH)),
+        "crash_barrier_width": repr(working_input_dict.get(KEY_CB_WIDTH)),
+        "footpath_width": repr(working_input_dict.get(KEY_TS_FOOTPATH_WIDTH)),
+    }, flush=True)
+
     solver = BridgeConfigurationSolver(
         carriageway_width=float(working_input_dict.get(KEY_CARRIAGEWAY_WIDTH)),
         crash_barrier_width=float(working_input_dict.get(KEY_CB_WIDTH)),
@@ -867,7 +873,7 @@ def seed_no_of_girders(overall_width: float) -> int:
         raise ValueError("Overall bridge width must be positive.")
     return max(2, ceil(overall_width / DEFAULT_GIRDER_SPACING))
 
-def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
+def solve_extend_basic_input_dict(basic_input_dict: dict, changed_field: str = 'girders') -> None:
     """Parse basic inputs and solve bridge layout. Updates basic_input_dict in-place."""
     from .initial_sizing import BridgeConfigurationSolver
 
@@ -882,6 +888,8 @@ def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
 
     # Fill sub-tab defaults before reading any typical-section keys (e.g. footpath width)
     _update_typical_section_defaults(basic_input_dict)
+    if basic_input_dict.get(KEY_TS_DECK_OVERHANG) in (None, ""):
+        basic_input_dict[KEY_TS_DECK_OVERHANG] = 0.0
 
     _update_loading_tab_defaults(basic_input_dict)
 
@@ -904,6 +912,14 @@ def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
 
     median_width  = basic_input_dict.get(KEY_MD_WIDTH) or 0.0
 
+    print("[LAYOUT INPUT CHECK]", {
+        "carriageway_width": repr(basic_input_dict.get(KEY_CARRIAGEWAY_WIDTH)),
+        "crash_barrier_width": repr(basic_input_dict.get(KEY_CB_WIDTH)),
+        "footpath_width": repr(basic_input_dict.get(KEY_TS_FOOTPATH_WIDTH)),
+        "girder_spacing": repr(basic_input_dict.get(KEY_TS_GIRDER_SPACING)),
+        "deck_overhang": repr(basic_input_dict.get(KEY_TS_DECK_OVERHANG)),
+    }, flush=True)
+
     solver = BridgeConfigurationSolver(
         carriageway_width=float(basic_input_dict.get(KEY_CARRIAGEWAY_WIDTH)),
         crash_barrier_width=float(basic_input_dict.get(KEY_CB_WIDTH)),
@@ -916,7 +932,14 @@ def solve_extend_basic_input_dict(basic_input_dict: dict) -> None:
         basic_input_dict.get(KEY_TS_NO_OF_GIRDERS)
         or seed_no_of_girders(solver.calculate_overall_bridge_width())
     )
-    sizing_result = solver._solve_layout(no_of_girders=no_of_girders, changed_field='girders')
+    if changed_field not in ('girders', 'spacing', 'overhang'):
+        raise ValueError(f"Unsupported layout change: {changed_field}")
+    sizing_result = solver._solve_layout(
+        no_of_girders=no_of_girders,
+        girder_spacing=float(basic_input_dict.get(KEY_TS_GIRDER_SPACING) or 0),
+        deck_overhang=float(basic_input_dict.get(KEY_TS_DECK_OVERHANG) or 0),
+        changed_field=changed_field,
+    )
 
     print("[DEBUG] Bridge Layout Sizing Result:")
     print(f"  overall_width = {sizing_result.overall_width} m")
