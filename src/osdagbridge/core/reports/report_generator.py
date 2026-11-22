@@ -119,6 +119,13 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from .styles import (
+    get_geometry_latex,
+    get_latex_color_definitions,
+    get_table_environment_settings,
+    post_process_longtables,
+    COLOR_OSDAG_GREEN,
+)
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -153,10 +160,10 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     rd = _tex(report_date)
     rv = _tex(report_version)
     return r"""
-\documentclass[12pt,a4paper]{report}
+\documentclass[11pt,a4paper]{report}
 
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
+% Centralized Page Geometry (styles.py Single Source of Truth)
+""" + get_geometry_latex() + r"""
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -181,8 +188,6 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{multirow}
 \usepackage{colortbl}
 \usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
 \usepackage{titlesec}
 \usepackage{titletoc}
 \usepackage{lastpage}
@@ -192,64 +197,53 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
+% Centralized Table Formatting and Color Palette
+""" + get_table_environment_settings() + r"""
+""" + get_latex_color_definitions() + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+  \fancyfoot[L]{\small Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[R]{\small Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
+      \vspace{-16pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
       \vspace{4pt}%
     }{%
-      \vspace{-8pt}%
+      \vspace{-6pt}%
     }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{4pt}%
   }
 }
 \fancypagestyle{plain}{
   \fancyhf{}
   \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+  \fancyfoot[L]{\small Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[R]{\small Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
+      \vspace{-16pt}%
       \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
       \vspace{4pt}%
     }{%
-      \vspace{-8pt}%
+      \vspace{-6pt}%
     }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{4pt}%
   }
 }
 \fancypagestyle{firstpage}{
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
+  \fancyfoot[L]{\small Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+  \fancyfoot[R]{\small Page \thepage\ of \pageref{LastPage}}
+  \renewcommand{\footrule}{\vspace{-6pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{4pt}}
 }
 \pagestyle{main}
 \setstretch{1.15}
@@ -851,6 +845,17 @@ def generate_report(payload, request):
                     os.environ['PATH'] = str(latex_env.bin_dir) + os.pathsep + os.environ.get('PATH', '')
         except Exception as e:
             logger.info("osdag_latex_env not found or failed to load. (%s)", e)
+
+        # Fallback to local user or system MiKTeX installation if pdflatex not discovered
+        if shutil.which(compiler) is None:
+            user_miktex = os.path.expanduser(r"~\AppData\Local\Programs\MiKTeX\miktex\bin\x64\pdflatex.exe")
+            sys_miktex = r"C:\Program Files\MiKTeX\miktex\bin\x64\pdflatex.exe"
+            if os.path.exists(user_miktex):
+                compiler = user_miktex
+                os.environ['PATH'] = os.path.dirname(user_miktex) + os.pathsep + os.environ.get('PATH', '')
+            elif os.path.exists(sys_miktex):
+                compiler = sys_miktex
+                os.environ['PATH'] = os.path.dirname(sys_miktex) + os.pathsep + os.environ.get('PATH', '')
             
         logger.info("Compiler: %s", compiler)
 
@@ -924,11 +929,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, fig_dir=tmp_images))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, fig_dir=tmp_images))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -941,11 +946,9 @@ def generate_report(payload, request):
 
             full_tex = "\n".join(doc_parts)
 
-
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
+            # Centralized post-processing: guarantee repeated longtable headers,
+            # continuation messages, and styling across all tables and page breaks.
+            full_tex = post_process_longtables(full_tex)
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
