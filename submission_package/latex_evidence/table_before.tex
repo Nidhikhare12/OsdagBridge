@@ -1,0 +1,53 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{array}
+\usepackage{caption}
+\captionsetup{
+    labelfont=bf,
+    justification=raggedright,
+    singlelinecheck=false,
+    format=plain
+}
+\usepackage{longtable}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+\begin{document}
+
+\chapter{Input Parameters (Original - Before Fix)}
+
+\setlength\LTleft{0pt}
+\setlength\LTright{\fill}
+
+% Bug 1: 6 columns specified (|L|L|L|L|C|C|), but only 5 data cells per row
+% Bug 2: Missing \\ after \caption{...} inside longtable
+\begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
+\caption{\textbf{Member Properties: Cross Bracing Details}}
+\hline
+\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\
+\hline
+G1-G2 & B1M1 & X-Type & ISA 100x100x10 & 4.5 m \\[6pt]
+\hline
+G2-G3 & B2M1 & X-Type & ISA 100x100x10 & 4.5 m \\[6pt]
+\hline
+\end{longtable}
+
+\vspace{0.8em}
+\setlength\LTleft{0pt}
+\setlength\LTright{\fill}
+
+% Bug 3: 6 columns specified, but only 4 data cells per row
+% Bug 4: Missing \\ after \caption{...} inside longtable
+\begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|C{1.8cm}|}
+\caption{\textbf{Member Properties: End Diaphragm Details}}
+\hline
+\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} \\
+\hline
+G1-G2 & E1M1 & Solid & ISMC 250 \\[6pt]
+\hline
+G2-G3 & E2M1 & Solid & ISMC 250 \\[6pt]
+\hline
+\end{longtable}
+
+\end{document}

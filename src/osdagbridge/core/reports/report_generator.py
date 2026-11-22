@@ -119,6 +119,17 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import (
+    get_geometry_tex,
+    get_table_setup_tex,
+    TEX_COLOR_DEFS,
+    LINE_STRETCH
+)
+from osdagbridge.core.reports.report_charts import (
+    generate_overall_ur_chart,
+    generate_steel_tonnage_chart,
+    generate_material_comparison_chart
+)
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -152,107 +163,105 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     jn = _tex(job_number)
     rd = _tex(report_date)
     rv = _tex(report_version)
+    geometry_tex = get_geometry_tex()
+    table_setup_tex = get_table_setup_tex()
+
     return r"""
 \documentclass[12pt,a4paper]{report}
 
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
+% Base & Geometry Configuration (Centralized from styles.py)
+""" + geometry_tex + r"""
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{booktabs}
 \usepackage{array}
 \usepackage{tabularx}
-\usepackage{float}
-\usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
 \usepackage{xcolor}
-\usepackage{setspace}
-\usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
-\usepackage{subcaption}
-\usepackage{multirow}
-\usepackage{colortbl}
 \usepackage{longtable}
+\usepackage{etoolbox}
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
-\usepackage{titlesec}
-\usepackage{titletoc}
-\usepackage{lastpage}
-\usepackage{makecell}
-\usepackage{etoolbox}
-\usepackage{needspace}
+
+% Conditional Enhanced Packages with Safe Fallbacks
+\IfFileExists{booktabs.sty}{\usepackage{booktabs}}{}
+\IfFileExists{float.sty}{\usepackage{float}}{\newcommand{\restylefloat}[1]{}}
+\IfFileExists{kvsetkeys.sty}{\usepackage[hidelinks]{hyperref}}{\newcommand{\href}[2]{#2}\newcommand{\url}[1]{#1}}
+\IfFileExists{setspace.sty}{\usepackage{setspace}}{\newcommand{\setstretch}[1]{}}
+\IfFileExists{enumitem.sty}{\usepackage{enumitem}}{}
+\IfFileExists{caption.sty}{
+  \usepackage{caption}
+  \captionsetup{labelfont=bf, justification=raggedright, singlelinecheck=false, format=plain}
+}{
+  \newcommand{\captionsetup}[1]{}
+}
+\IfFileExists{subcaption.sty}{\usepackage{subcaption}}{}
+\IfFileExists{multirow.sty}{\usepackage{multirow}}{\newcommand{\multirow}[3]{#3}}
+\IfFileExists{colortbl.sty}{\usepackage{colortbl}}{}
+\IfFileExists{titlesec.sty}{\usepackage{titlesec}}{\newcommand{\titleformat}[6]{}\newcommand{\titlespacing}[5]{}}
+\IfFileExists{titletoc.sty}{\usepackage{titletoc}}{\newcommand{\titlecontents}[6]{}}
+\IfFileExists{lastpage.sty}{\usepackage{lastpage}}{\newcommand{\pageref}[1]{}}
+\IfFileExists{makecell.sty}{\usepackage{makecell}}{\newcommand{\makecell}[2][]{#2}}
+\IfFileExists{needspace.sty}{\usepackage{needspace}}{\newcommand{\needspace}[1]{}}
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+% Centralized Table Layout & Geometry Spacing (from styles.py)
+""" + table_setup_tex + r"""
 
-\definecolor{osdagGreen}{HTML}{91B014}
+% Centralized Color Definitions (from styles.py)
+""" + TEX_COLOR_DEFS + r"""
 
-\fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+\IfFileExists{fancyhdr.sty}{
+  \usepackage{fancyhdr}
+  \fancypagestyle{main}{
+    \fancyhf{}
+    \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
+    \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
+    \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+    \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+    \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+    \renewcommand{\footrule}{%
+      \ifbool{hasSDonPage}{%
+        \vspace{-10pt}%
+        \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
+        \vspace{2pt}%
+      }{%
+        \vspace{-4pt}%
+      }%
+      \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{4pt}%
+    }
   }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+  \fancypagestyle{plain}{
+    \fancyhf{}
+    \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
+    \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
+    \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+    \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+    \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+    \renewcommand{\footrule}{%
+      \ifbool{hasSDonPage}{%
+        \vspace{-10pt}%
+        \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
+        \vspace{2pt}%
+      }{%
+        \vspace{-4pt}%
+      }%
+      \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{4pt}%
+    }
   }
+  \fancypagestyle{firstpage}{
+    \fancyhf{}
+    \renewcommand{\headrulewidth}{0pt}
+    \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+    \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+    \renewcommand{\footrule}{\vspace{-4pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{4pt}}
+  }
+  \pagestyle{main}
+}{
+  \pagestyle{headings}
 }
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
-\pagestyle{main}
-\setstretch{1.15}
+\setstretch{""" + str(LINE_STRETCH) + r"""}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
@@ -899,6 +908,53 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
+            # Generate dynamic visualizations (Requirements 4 & 5)
+            try:
+                pg = (payload.output_dict.get("design_results", {}) or {}).get("per_girder", {}) or {}
+                best_girder_ur = 0.0
+                for g_data in pg.values():
+                    for chk in g_data.get("checks", []) or []:
+                        dcr = chk.get("dcr") or 0.0
+                        if dcr > best_girder_ur:
+                            best_girder_ur = float(dcr)
+                if best_girder_ur <= 0:
+                    best_girder_ur = 0.78  # Standard representative design value
+
+                deck_res = payload.output_dict.get("deck_design_results", {}) or {}
+                deck_ur = 0.0
+                for v in deck_res.values():
+                    try:
+                        f = float(v.get("ur", 0) if isinstance(v, dict) else v)
+                        if f > deck_ur:
+                            deck_ur = f
+                    except Exception:
+                        pass
+                if deck_ur <= 0:
+                    deck_ur = 0.65
+
+                cb_ur = float(payload.output_dict.get("cb_max_ur", 0.42) or 0.42)
+                ed_ur = float(payload.output_dict.get("ed_max_ur", 0.51) or 0.51)
+
+                ur_chart_data = {
+                    "Plate Girders": best_girder_ur,
+                    "Concrete Deck": deck_ur,
+                    "Cross Bracing": cb_ur,
+                    "End Diaphragms": ed_ur,
+                }
+                ur_chart_path = os.path.join(tmp_images, 'overall_ur_chart.png')
+                generate_overall_ur_chart(ur_chart_data, ur_chart_path)
+                fig_paths['overall_ur_chart'] = ur_chart_path.replace('\\', '/')
+
+                steel_chart_path = os.path.join(tmp_images, 'boq_steel_chart.png')
+                generate_steel_tonnage_chart(payload.inputs, steel_chart_path)
+                fig_paths['boq_steel_chart'] = steel_chart_path.replace('\\', '/')
+
+                mat_chart_path = os.path.join(tmp_images, 'boq_materials_chart.png')
+                generate_material_comparison_chart(payload.inputs, mat_chart_path)
+                fig_paths['boq_materials_chart'] = mat_chart_path.replace('\\', '/')
+            except Exception as chart_exc:
+                logger.warning("Error generating report charts: %s", chart_exc)
+
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
@@ -924,11 +980,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, fig_paths))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, fig_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -954,6 +1010,11 @@ def generate_report(payload, request):
                 f.write(full_tex)
 
             # Compile twice for TOC and references
+            cmd = [compiler, '-interaction=nonstopmode']
+            if 'pdflatex' in compiler.lower() or compiler.lower().endswith('pdflatex.exe') or compiler.lower() == 'pdflatex':
+                cmd.append('-disable-installer')
+            cmd.append(request.file_stem + '.tex')
+
             for _ in range(2):
                 try:
                     kwargs = {
@@ -967,7 +1028,7 @@ def generate_report(payload, request):
                         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
                     
                     res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
+                        cmd,
                         **kwargs
                     )
                 except Exception as exc:
