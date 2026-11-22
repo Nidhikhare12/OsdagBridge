@@ -11,6 +11,8 @@ from osdagbridge.core.utils.common import (
     KEY_TS_NO_OF_GIRDERS,
     KEY_TS_DECK_THICKNESS,
     KEY_TS_GIRDER_SPACING,
+    KEY_MP_CB_TOP_CHORD,
+    KEY_MP_CB_BOTTOM_CHORD,
 )
 
 logger = logging.getLogger("osdagbridge.core.boq_generator")
@@ -29,6 +31,23 @@ def resolve_girder_value(source: dict, base_key: str, i: int = 0) -> Any:
         if key in source:
             return source[key]
     raise KeyError(base_key)
+
+
+def _normalize_chord_enabled(val: Any, default: bool = True) -> bool:
+    """Normalize a chord-enablement flag from outputs or inputs.
+    Tolerates booleans, None, and common string representations ('yes', 'no', 'true', 'false', '1', '0').
+    Defaults to `default` (True) when val is None or empty for backward compatibility.
+    """
+    if val is None or val == "":
+        return default
+    if isinstance(val, bool):
+        return val
+    s = str(val).strip().lower()
+    if s in ("no", "false", "0", "disabled", "none"):
+        return False
+    if s in ("yes", "true", "1", "enabled"):
+        return True
+    return default
 
 
 def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
@@ -240,16 +259,25 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         # Find bracing section properties from outputs or skip if not present
         bracing_area = 0.0
         bracing_len = 0.0
-        top_chord_enabled = True
-        bot_chord_enabled = True
 
         bracing_area_val = outputs.get("transverse_member_design.cb.section_properties.bracing.G1G2.A")
-        cb_forces = outputs.get("crossbracing_forces_dict")
+        cb_forces = outputs.get("crossbracing_forces_dict") if isinstance(outputs.get("crossbracing_forces_dict"), dict) else {}
         bracing_len_val = None
         if cb_forces:
             cb_geom = cb_forces.get("geometry")
             if cb_geom:
                 bracing_len_val = cb_geom.get("diagonal_length_m")
+
+        # Resolve chord enablement from outputs (crossbracing_forces_dict) or inputs
+        top_raw = cb_forces.get("top_chord")
+        if top_raw is None:
+            top_raw = inputs.get(KEY_MP_CB_TOP_CHORD)
+        top_chord_enabled = _normalize_chord_enabled(top_raw, default=True)
+
+        bot_raw = cb_forces.get("bottom_chord")
+        if bot_raw is None:
+            bot_raw = inputs.get(KEY_MP_CB_BOTTOM_CHORD)
+        bot_chord_enabled = _normalize_chord_enabled(bot_raw, default=True)
 
         if bracing_area_val is not None and bracing_len_val is not None:
             try:
@@ -268,7 +296,6 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
 
         # Only perform calculations if bracing is designed (area and length are positive)
         if bracing_area > 0.0 and bracing_len > 0.0 and spacing > 0.0:
-            cb_forces = outputs.get("crossbracing_forces_dict", {}) or {}
             cb_geom = cb_forces.get("geometry", {}) or {}
             cb_spacing_val = cb_geom.get("cb_spacing_m")
             cb_spacing = 0.0
@@ -290,10 +317,13 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             top_chord_wt_single = top_chord_vol_single * 7.85
             top_chord_wt_total = top_chord_vol_total * 7.85
             
-            quantities["bracing_top_vol_formula"] = f"${bracing_area:.5f}\\text{{ m}}^2 \\times {spacing:.2f}\\text{{ m}} = {top_chord_vol_single:.5f}\\text{{ m}}^3$"
+            quantities["bracing_top_vol_formula"] = (
+                f"${bracing_area:.5f}\\text{{ m}}^2 \\times {spacing:.2f}\\text{{ m}} = {top_chord_vol_single:.5f}\\text{{ m}}^3$"
+                if top_chord_enabled else "N.A."
+            )
             quantities["bracing_top_qty"] = str(top_chord_qty)
             quantities["bracing_top_vol_total"] = f"{top_chord_vol_total:.2f}" if top_chord_enabled else "0.00"
-            quantities["bracing_top_wt_single"] = f"{top_chord_wt_single:.4f}"
+            quantities["bracing_top_wt_single"] = f"{top_chord_wt_single:.4f}" if top_chord_enabled else "0.0000"
             quantities["bracing_top_wt_total"] = f"{top_chord_wt_total:.2f}" if top_chord_enabled else "0.00"
 
             # 5b. Bottom Chord
@@ -303,10 +333,13 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             bot_chord_wt_single = bot_chord_vol_single * 7.85
             bot_chord_wt_total = bot_chord_vol_total * 7.85
             
-            quantities["bracing_bot_vol_formula"] = f"${bracing_area:.5f}\\text{{ m}}^2 \\times {spacing:.2f}\\text{{ m}} = {bot_chord_vol_single:.5f}\\text{{ m}}^3$"
+            quantities["bracing_bot_vol_formula"] = (
+                f"${bracing_area:.5f}\\text{{ m}}^2 \\times {spacing:.2f}\\text{{ m}} = {bot_chord_vol_single:.5f}\\text{{ m}}^3$"
+                if bot_chord_enabled else "N.A."
+            )
             quantities["bracing_bot_qty"] = str(bot_chord_qty)
             quantities["bracing_bot_vol_total"] = f"{bot_chord_vol_total:.2f}" if bot_chord_enabled else "0.00"
-            quantities["bracing_bot_wt_single"] = f"{bot_chord_wt_single:.4f}"
+            quantities["bracing_bot_wt_single"] = f"{bot_chord_wt_single:.4f}" if bot_chord_enabled else "0.0000"
             quantities["bracing_bot_wt_total"] = f"{bot_chord_wt_total:.2f}" if bot_chord_enabled else "0.00"
 
             # 5c. Diagonal
