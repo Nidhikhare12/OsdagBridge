@@ -890,10 +890,41 @@ def run_test(output_dir="output/before", file_stem="Report_Before", large: bool 
     else:
         print("  0 footer overlap collisions detected (all body text ends cleanly above footer zone).")
 
+    # 7. Ghost Header Detection (PyMuPDF)
+    # Detects orphan continuation headers ("Table X.Y -- continued from previous page")
+    # followed immediately on the same page by the same table's caption ("Table X.Y:").
+    ghost_headers_detected = []
+    if os.path.exists(pdf_path):
+        try:
+            import fitz
+            doc = fitz.open(pdf_path)
+            for page_idx in range(len(doc)):
+                text = doc[page_idx].get_text()
+                m_cont = re.search(r"Table\s+(\d+\.\d+)\s+[–-]\s+continued from previous page", text)
+                if m_cont:
+                    tbl_num = m_cont.group(1)
+                    cont_pos = m_cont.start()
+                    m_cap = re.search(rf"Table\s+{re.escape(tbl_num)}:", text)
+                    if m_cap and m_cap.start() > cont_pos:
+                        ghost_headers_detected.append((page_idx + 1, tbl_num))
+            doc.close()
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"\n[NOTE] Ghost header check error: {e}")
+
+    print("\n[7/7] Ghost Header Detection:")
+    if ghost_headers_detected:
+        print(f"  [FAILURE] Found {len(ghost_headers_detected)} ghost header(s) (orphan continuation header before table caption):")
+        for p, tbl_num in ghost_headers_detected:
+            print(f"    - Page {p}: Table {tbl_num}")
+    else:
+        print("  0 ghost headers detected (no orphan continuation header followed by caption).")
+
     print("\n" + "=" * 70)
     print("Test Harness Execution Completed!")
     print("=" * 70)
-    return True
+    return len(ghost_headers_detected) == 0
 
 
 if __name__ == "__main__":

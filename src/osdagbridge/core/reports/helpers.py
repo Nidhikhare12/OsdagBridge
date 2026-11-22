@@ -83,17 +83,23 @@ def make_longtable(
     if ncols == 0:
         ncols = 1
 
-    # Format header row
+    # Format header row — use \\*[6pt] (nobreak) so longtable never splits immediately after header
     if isinstance(headers, (list, tuple)):
         header_tex = " & ".join(
             h if h.strip().startswith(("\\textbf", "\\makecell", "\\multicolumn"))
             else f"\\textbf{{{h}}}"
             for h in headers
-        ) + r" \\[6pt]"
+        ) + r" \\*[6pt]"
     else:
         header_tex = headers.strip()
-        if not header_tex.endswith(r"\\") and not header_tex.endswith("}"):
-            header_tex += r" \\[6pt]"
+        if header_tex.endswith(r"\\*"):
+            pass
+        elif header_tex.endswith(r"\\[6pt]"):
+            header_tex = header_tex[:-7] + r" \\*[6pt]"
+        elif header_tex.endswith(r"\\"):
+            header_tex = header_tex[:-2] + r" \\*"
+        elif not header_tex.endswith("}"):
+            header_tex += r" \\*[6pt]"
 
     # Format body rows
     if isinstance(rows, (list, tuple)):
@@ -102,8 +108,8 @@ def make_longtable(
         body_tex = rows.strip()
 
     lbl_tex = f"\\label{{{label}}}" if label else ""
-    caption_line = f"\\caption{{\\textbf{{{caption}}}}} {lbl_tex} \\\\" if caption else ""
-    cont_head = r"\multicolumn{" + str(ncols) + r"}{c}{\textbf{\tablename\ \thetable{} -- continued from previous page}} \\[6pt]"
+    caption_line = f"\\caption{{\\textbf{{{caption}}}}} {lbl_tex} \\\\*" if caption else ""
+    cont_head = r"\multicolumn{" + str(ncols) + r"}{c}{\textbf{\tablename\ \thetable{} -- continued from previous page}} \\*[6pt]"
     cont_foot = r"\multicolumn{" + str(ncols) + r"}{r}{\textit{" + continuation_note + r"}} \\"
 
     prefix = []

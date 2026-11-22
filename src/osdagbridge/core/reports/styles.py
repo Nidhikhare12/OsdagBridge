@@ -239,10 +239,11 @@ def generate_preamble(project_name: str, job_number: str, report_date: str, repo
 \setlength{\arrayrulewidth}{""" + TABLE_RULE_WIDTH + r"""}
 \setlength{\extrarowheight}{""" + TABLE_EXTRA_ROW_HEIGHT + r"""}
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
+% Prevent non-floating tables from breaking awkwardly across page bottoms
 \BeforeBeginEnvironment{table}{\needspace{""" + NEEDSPACE_TABLE + r"""}}
-\BeforeBeginEnvironment{longtable}{\needspace{""" + NEEDSPACE_LONGTABLE + r"""}}
+% Note: longtable handles its own pagination natively via \LT@start and \LT@output;
+% injecting \needspace before longtable interferes with its output routine and causes
+% orphan continuation footers and ghost headers. Header row nobreak (\\*) prevents orphan headers.
 
 \definecolor{""" + COLOR_PRIMARY_NAME + r"""}{HTML}{""" + COLOR_PRIMARY_HEX + r"""}
 
