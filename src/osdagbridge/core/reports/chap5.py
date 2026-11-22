@@ -141,7 +141,7 @@ from osdagbridge.core.utils.common import (
     KEY_UTIL_SHEAR
 )
 
-from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries
+from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries, _fig_or_placeholder
 from osdagbridge.core.reports import styles
 
 if TYPE_CHECKING:
@@ -1092,6 +1092,34 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     ]
     t522_content = "\n".join(_t522)
 
+    # Utilisation-ratio bar charts for the 5.5 summary: one chart per member
+    # group, red dashed reference line at UR = 1.0. Rendered headless into
+    # chart_dir (the report build's images dir); placeholders when rendering
+    # is unavailable or a group has no numeric data.
+    _ur_chart_block = ""
+    if chart_dir:
+        import os as _os
+        from .ur_charts import render_ur_bars
+        _specs = [
+            ("girders",   "Girder Utilisation Ratios",         "ur_girders"),
+            ("deck",      "Deck Slab Utilisation Ratios",      "ur_deck_slab"),
+            ("bracing",   "Cross Bracing Utilisation Ratios",  "ur_cross_bracing"),
+            ("diaphragm", "End Diaphragm Utilisation Ratios",  "ur_end_diaphragm"),
+        ]
+        _figs = []
+        for _key, _title, _stem in _specs:
+            _png = _os.path.join(chart_dir, _stem + ".png")
+            try:
+                _ok = render_ur_bars(_title, _ur_groups.get(_key, []), _png)
+            except Exception:
+                _ok = False
+            _figs.append(_fig_or_placeholder("images/" + _stem + ".png" if _ok else None, _title))
+        _ur_chart_block = (
+            r"\vspace{1em}" + "\n"
+            + r"\noindent\textbf{Utilisation Ratio Charts (red dashed line: UR = 1.0)}" + "\n"
+            + "\n".join(_figs) + "\n"
+        )
+
     return r"""
 \chapter{Design Checks}
 
@@ -1662,6 +1690,6 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 """ + t522_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
-
+""" + _ur_chart_block + r"""
 """
 
