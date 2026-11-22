@@ -122,6 +122,30 @@ def caption_spacing_tex() -> str:
     )
 
 
+def caption_setup_tex() -> str:
+    """Return LaTeX \\captionsetup configurations for tables and figures.
+    - Tables: left-aligned (raggedright) per engineering documentation standard.
+    - Figures: centered (justification=centering) for balanced visual presentation.
+    """
+    return (
+        "\\captionsetup[table]{\n"
+        "    labelfont=bf,\n"
+        "    justification=raggedright,\n"
+        "    singlelinecheck=false,\n"
+        "    format=plain,\n"
+        "    skip=4pt\n"
+        "}\n"
+        "\\captionsetup[figure]{\n"
+        "    labelfont=bf,\n"
+        "    justification=centering,\n"
+        "    singlelinecheck=false,\n"
+        "    format=plain,\n"
+        "    font=small,\n"
+        "    skip=6pt\n"
+        "}"
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. NEEDSPACE THRESHOLDS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -391,6 +415,7 @@ class _Style:
     lt_full_width_tex   = staticmethod(lt_full_width_tex)
     lt_centered_tex     = staticmethod(lt_centered_tex)
     caption_spacing_tex = staticmethod(caption_spacing_tex)
+    caption_setup_tex   = staticmethod(caption_setup_tex)
     lt_needspace_tex    = staticmethod(lt_needspace_tex)
 
     # Needspace

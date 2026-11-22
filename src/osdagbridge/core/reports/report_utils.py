@@ -77,40 +77,45 @@ def get_girder_entries(input_dict):
 def _fig_or_placeholder(path, caption, width=r'0.9\textwidth'):
     """Embed figure if path is provided (file already copied to assets), else show placeholder box.
     path is the relative path as pdflatex will see it (e.g. 'assets/plan.png').
+    Captions and placeholder text are centered.
     """
     if path:
         p = path.replace('\\', '/')
         return (r'\begin{figure}[H]' + '\n'
                 r'\centering' + '\n'
                 r'\includegraphics[width=' + width + ']{' + p + '}\n'
-                r'\caption*{' + caption + '}\n'
+                r'\vspace{0.4em}' + '\n'
+                r'\caption*{\textbf{' + caption + r'}}\n'
                 r'\end{figure}')
     return (r'\begin{figure}[H]' + '\n'
             r'\centering' + '\n'
             r'\fbox{\parbox{0.97\textwidth}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
+            r'\vspace{1.5em}\centering\textit{[ PLACEHOLDER: ' + caption + r' ]}\vspace{1.5em}' + '\n'
             r'}}' + '\n'
-            r'\caption*{' + caption + '}\n'
+            r'\vspace{0.4em}' + '\n'
+            r'\caption*{\textbf{' + caption + r'}}\n'
             r'\end{figure}')
 
 def _fig_embed(path, caption, width=r'\textwidth', height=None):
-    """Embed a real figure when path is provided (already copied); otherwise use an fbox placeholder."""
+    """Embed a real figure when path is provided (already copied); otherwise use an fbox placeholder.
+    Captions and placeholder text are centered.
+    """
     if path:
         p = path.replace('\\', '/')
         opts = 'width=' + width
         if height:
             opts += ',height=' + height + ',keepaspectratio'
         return (r'\begin{figure}[H]' + '\n'
-                r'\vspace{-0.5em}' + '\n'
+                r'\vspace{-0.3em}' + '\n'
                 r'\centering' + '\n'
                 r'\includegraphics[' + opts + ']{' + p + '}\n'
-                r'\vspace{0.5em}' + '\n'
-                r'\caption*{\small ' + caption + '}\n'
-                r'\vspace{-0.5em}' + '\n'
+                r'\vspace{0.4em}' + '\n'
+                r'\caption*{\small\textbf{' + caption + r'}}\n'
+                r'\vspace{-0.3em}' + '\n'
                 r'\end{figure}')
-    # fbox placeholder — matches template exactly
+    # fbox placeholder — matches template exactly, cleanly centered with vertical breathing room
     return (r'\noindent\fbox{\parbox{0.97\textwidth}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
+            r'\vspace{1.2em}\centering\textit{[ PLACEHOLDER: ' + caption + r' ]}\vspace{1.2em}' + '\n'
             r'}}')
 
 

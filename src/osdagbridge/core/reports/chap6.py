@@ -37,8 +37,9 @@ def ch6_drawings(fig_paths):
         return (r'\begin{figure}[H]' + '\n'
                 r'\centering' + '\n'
                 r'\fbox{\parbox{0.97\textwidth}{' + '\n'
-                r'\textit{[ PLACEHOLDER: ' + ' ' + title + r' ]}' + '\n'
+                r'\vspace{1.5em}\centering\textit{[ PLACEHOLDER: ' + title + r' ]}\vspace{1.5em}' + '\n'
                 r'}}' + '\n'
+                r'\vspace{4pt}' + '\n'
                 r'\caption{' + title + '}\n'
                 + label_tex
                 + r'\end{figure}' + '\n')
@@ -58,10 +59,11 @@ def ch6_drawings(fig_paths):
             p = path.replace('\\', '/')
             body = r'\includegraphics[width=\linewidth]{' + p + '}'
         else:
-            body = r'\fbox{\parbox{0.95\linewidth}{\centering\textit{[ ' + title + r' ]}}}'
+            body = r'\fbox{\parbox{0.95\linewidth}{\vspace{1em}\centering\textit{[ ' + title + r' ]}\vspace{1em}}}'
         return (r'\begin{minipage}[t]{0.31\textwidth}' + '\n'
                 r'\centering' + '\n'
                 + body + '\n'
+                r'\vspace{3pt}' + '\n'
                 r'\captionof{figure}{' + title + '}\n'
                 + label_tex + '\n'
                 r'\end{minipage}')

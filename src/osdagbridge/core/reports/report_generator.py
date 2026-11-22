@@ -172,14 +172,10 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
+\setlist{noitemsep, topsep=4pt, parsep=2pt, partopsep=0pt}
 \usepackage{caption}
 
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
+""" + STYLE.caption_setup_tex() + r"""
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
