@@ -5,6 +5,8 @@
 
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,
+    KEY_LL_CURVE_RADIUS,
+    KEY_LL_DESIGN_SPEED,
     KEY_LL_CUSTOM_VEHICLES,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
@@ -90,53 +92,10 @@ def ch3_loads(input_dict):
     
     vehicles = _add_custom_vehicles(
         vehicles, input_dict.get(KEY_LL_CUSTOM_VEHICLES))
-    vehicles_str = ", ".join(vehicles) if vehicles else "None"
 
     from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
     span = input_dict.get(KEY_SPAN)
-    impact_factor_str = ""
-    if span not in (None, ""):
-        try:
-            span_m = float(span)
-            factors = []
-            if input_dict.get(KEY_LL_IRC_CLASS_A):
-                im_a = IRC6_2017.cl_208_2_impact_factor(span_m)
-                factors.append(f"Class A: {1.0 + im_a:.3f}")
-            is_wheeled_heavy = (
-                input_dict.get(KEY_LL_IRC_70R_WHEELED) or 
-                input_dict.get(KEY_LL_IRC_AA_WHEELED) or 
-                input_dict.get(KEY_LL_IRC_70R_BOGIE)
-            )
-            is_tracked_heavy = (
-                input_dict.get(KEY_LL_IRC_70R_TRACKED) or 
-                input_dict.get(KEY_LL_IRC_AA_TRACKED)
-            )
-            if is_wheeled_heavy or is_tracked_heavy:
-                im_aa = IRC6_2017.cl_208_3_impact_factor(span_m)
-                factors.append(f"Class AA/70R: {1.0 + im_aa:.3f}")
-            
-            if factors:
-                impact_factor_str = ", ".join(factors)
-            else:
-                impact_factor_str = "N/A"
-        except Exception:
-            impact_factor_str = "N/A"
-    else:
-        impact_factor_str = "N/A"
-
     lanes = input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT)
-    braking_force_str = ""
-    if lanes not in (None, ""):
-        try:
-            lanes_int = int(lanes)
-            # IRC6 helper returns newtons; convert to kN.
-            braking_force_n = IRC6_2017.cl_211_2_braking_force(lanes_int)
-            braking_force_kN = braking_force_n / 1000.0
-            braking_force_str = f"{braking_force_kN:.2f} kN"
-        except Exception:
-            braking_force_str = "N/A"
-    else:
-        braking_force_str = "N/A"
 
     fp_mode  = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "")
     fp_value = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE, "")
@@ -161,13 +120,28 @@ def ch3_loads(input_dict):
         except Exception:
             pass
 
-    # Centrifugal force is not stored as a canonical KEY_ yet; read it from
-    # the backend when present and show a clear code reference otherwise.
+    # Centrifugal force per IRC 6 Cl. 209: C = W * V^2 / (127 * R)
+    # (W in kN, V in km/h, R in m).  Use a backend value when present, else
+    # compute it from the curve-radius / design-speed keys; straight bridges
+    # are reported explicitly as not applicable.
     centrifugal = (
         input_dict.get("loading.live_load.centrifugal_force")
         or input_dict.get("centrifugal_force")
-        or "As per IRC 6 Cl. 209"
     )
+    if centrifugal in (None, ""):
+        _radius = input_dict.get(KEY_LL_CURVE_RADIUS)
+        _speed = input_dict.get(KEY_LL_DESIGN_SPEED)
+        try:
+            if _radius and _speed and float(_radius) > 0:
+                _w_kn = sum(
+                    IRC6_2017.cl_204_1_ClassA_vehicle()["wheel_loads"]) / 1000.0
+                centrifugal = (
+                    f"{_w_kn * float(_speed) ** 2 / (127.0 * float(_radius)):.2f} kN"
+                )
+            else:
+                centrifugal = "N/A (straight alignment)"
+        except Exception:
+            centrifugal = "N/A"
 
     def _impact_for(label):
         try:

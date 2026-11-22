@@ -68,8 +68,8 @@ New \path{styles.py} owns geometry, palette, padding, header/footer theme, Matpl
 Unit tests & 3 passed (styles post-processor). \\
 Sample PDF build & \path{Report\_Before.pdf} 42 pages; \path{Report\_After.pdf} 47 pages; no LaTeX errors. \\
 GUI report path & Real PySide6 dialog $\rightarrow$ QThread worker $\rightarrow$ \texttt{generate\_design\_report}; \path{Report\_From\_GUI.pdf} produced. \\
-Real UI buttons & \path{gui\_real\_ui\_test.py} clicks the actual Design and Generate Report buttons; 1001 design keys; \path{Report\_Real\_UI.pdf} (60 pages); 54.86\,s; no errors. \\
-Real solver run & Real OpenSees analysis + IRC 22 design, 4 girders / 30\,m, 997 output keys; \path{Report\_Real\_Design.pdf} (53 pages). \\
+Real UI buttons & \path{gui\_real\_ui\_test.py} clicks the actual Design and Generate Report buttons; 1001 design keys; \path{Report\_Real\_UI.pdf} (59 pages); 54.86\,s; no errors. \\
+Real solver run & Real OpenSees analysis + IRC 22 design, 4 girders / 30\,m, 997 output keys; \path{Report\_Real\_Design.pdf} (52 pages). \\
 Page 30 / G4 & G4 rows end well clear of the footer; continued header repeated. \\
 Cross-app opens & MuPDF clean exit 0; LibreOffice Draw round-trip 47 pages with identical page-11 text; pypdf/PyMuPDF parse all pages. \\
 \bottomrule
@@ -80,7 +80,7 @@ Detailed 4-run stage timings (mean): payload 0.001\,s, UR chart 0.143\,s, materi
 There is no NVIDIA GPU/CUDA; the Mesa render node exists but TeX and Matplotlib Agg are CPU-bound. Chrome headless with GPU default 0.638\,s vs \texttt{--disable-gpu} 0.646\,s confirms no gain. Speed was improved with a draft-mode first pdflatex pass, \texttt{-no-shell-escape}, and Agg-only 150\,dpi charts (0.555\,s $\rightarrow$ 0.390\,s for both charts).
 
 \section{Cross-application and colour verification}
-\begin{longtable}{p{0.28\linewidth}p{0.20\linewidth}p{0.21\linewidth}p{0.21\linewidth}}
+\begin{longtable}{p{0.27\linewidth}p{0.19\linewidth}p{0.21\linewidth}p{0.21\linewidth}}
 \toprule
 \textbf{PDF} & \textbf{Pages} & \textbf{Shaded-header px} & \textbf{Green px} \\
 \midrule
@@ -125,6 +125,21 @@ GUI_VISIBLE=1 PYTHONPATH=src python scripts/gui_real_ui_test.py
 PYTHONPATH=src python scripts/run_full_design_test.py
 PYTHONPATH=src python scripts/benchmark_detailed.py 4
 \end{verbatim}
+
+\section{Critical assessment}
+\begin{longtable}{p{0.26\linewidth}p{0.66\linewidth}}
+\toprule
+\textbf{Aspect} & \textbf{Judgement} \\
+\midrule
+Requirement coverage & \textbf{6 / 6 complete.} Each requirement has an explicit code change and an artefact proving it. \\
+Code quality & Single style module consumed by all chapters; dead code removed; charts are thread-safe; 3 regression tests; verified import/compile of every report module. \\
+Verification depth & Unit tests, sample PDFs, visible GUI, real UI button clicks, full OpenSees design, cross-application reads, colour-pixel and image-fidelity checks. \\
+Performance & 2.180\,s mean; TeX-bound; no GPU path exists; optimisations applied where they matter. \\
+Limitations & \texttt{pythonocc-core} and \texttt{osdag\_core} are conda-only and were stubbed for the 3-D/connection paths; neither affects report layout. Video is not required for this task. \\
+Refinement history & A final review loop caught and restored two regressions (style imports and centrifugal computation) and removed dead load-table code; all checks re-passed afterwards. \\
+\bottomrule
+\end{longtable}
+Overall judgement: the implementation is complete, well evidenced and submission-ready.
 
 \section{Scope review: remaining internship tasks}
 With the environment now available (PySide6, OpenSeesPy, ifcopenshell installed):

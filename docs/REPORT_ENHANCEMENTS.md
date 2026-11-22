@@ -199,7 +199,7 @@ and `KEY_LL_DESIGN_SPEED` (or reported as "straight alignment").
 A real-UI verification is included as well:
 `scripts/gui_real_ui_test.py` clicks the actual `Design` and `Generate Report`
 QPushButtons, waits on the real QThread workers, and produces
-`deliverables/Report_Real_UI.pdf` (60 pages, 50 repeating headers) from 1001
+`deliverables/Report_Real_UI.pdf` (59 pages, 50 repeating headers) from 1001
 real design output keys.  This test exposed a thread-safety issue in the chart
 code (pyplot being switched to the Qt backend by the main window); chart
 figures are now built as detached `matplotlib.figure.Figure` objects and

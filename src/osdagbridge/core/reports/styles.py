@@ -14,7 +14,6 @@ pick up the global table-header and page-break rules.
 from __future__ import annotations
 
 import re
-from typing import Iterable
 
 # ---------------------------------------------------------------------------
 # Document / page geometry
@@ -233,8 +232,3 @@ def apply_global_styles(tex: str) -> str:
     """Apply all cross-cutting layout rules to the assembled report source."""
     return _protect_headings(_repeat_longtable_headers(tex))
 
-
-def iter_styled_labels(labels: Iterable[str]) -> Iterable[str]:
-    """Yield LaTeX-escaped axis labels (kept here so charts share one style)."""
-    for label in labels:
-        yield label.replace("&", r"\&").replace("_", r"\_")

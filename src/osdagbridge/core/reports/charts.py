@@ -17,6 +17,11 @@ from matplotlib.figure import Figure  # noqa: E402
 
 from . import styles  # noqa: E402
 
+# Apply the shared palette once at import time (main thread).  Chart functions
+# then only build detached Figures, so no worker thread mutates global
+# Matplotlib state while the desktop GUI is running.
+matplotlib.rcParams.update(styles.matplotlib_rc())
+
 
 def _save(fig: Figure, asset_dir: str, name: str) -> str:
     """Render a detached Figure through Agg (safe from worker threads)."""
@@ -26,10 +31,6 @@ def _save(fig: Figure, asset_dir: str, name: str) -> str:
     fig.savefig(path, dpi=150, facecolor="white")
     fig.clear()
     return path
-
-
-def _style() -> None:
-    matplotlib.rcParams.update(styles.matplotlib_rc())
 
 
 def _figure(*args, **kwargs) -> Figure:
@@ -53,7 +54,6 @@ def utilization_ratio_figure(
     dashed reference line is drawn at UR = 1.0 and bars are coloured by pass
     (green) / fail (red) state.
     """
-    _style()
     labels = [name for name, _ in ratios]
     values = [max(0.0, _number(ur)) for _, ur in ratios]
     colors = [
@@ -104,7 +104,6 @@ def material_quantity_figure(inputs: Dict[str, object], asset_dir: str) -> str:
     Left panel: structural steel tonnage by component.  Right panel:
     concrete volume (m\³) versus reinforcement steel weight (MT) on twin axes.
     """
-    _style()
 
     steel = _number(inputs.get("steel_girders_wt_total"))
     bracing = sum(
