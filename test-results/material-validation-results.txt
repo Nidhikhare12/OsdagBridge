@@ -1,0 +1,29 @@
+OSDAGBRIDGE - MATERIAL VALIDATION TEST
+Date: 21 November 2026
+Environment: Ubuntu WSL
+Python: 3.12.16
+
+Test group: Custom steel material
+Properties: Density, Fy, Fu, E, G, Poisson ratio, Thermal expansion
+Minimum and maximum boundaries: All accepted
+Below-minimum values: All corrected to minimum
+Above-maximum values: All corrected to maximum
+Result: PASS
+
+Test group: Custom concrete deck material
+Properties: Density, fck, fctm, Ecm, Thermal expansion
+Minimum and maximum boundaries: All accepted
+Below-minimum values: All corrected to minimum
+Above-maximum values: All corrected to maximum
+Result: PASS
+
+Total: 48 boundary checks
+Overall result: PASS
+
+Observation:
+The fck validation error message omits a space between
+"10.0" and "and". Reproduced for both below-minimum
+and above-maximum values.
+
+Source:
+src/osdagbridge/core/bridge_types/plate_girder/validator.py

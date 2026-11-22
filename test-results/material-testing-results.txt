@@ -1,0 +1,181 @@
+OSDAGBRIDGE - MATERIAL TESTING RESULTS
+Date: 21 November 2026
+Environment: Ubuntu WSL
+Python: 3.12.16
+
+1. STEEL MATERIAL VALIDATION
+Properties: Density, Fy, Fu, E, G, Poisson ratio, Thermal expansion.
+Minimum and maximum boundary checks: PASS
+Below-minimum and above-maximum checks: PASS
+
+2. CONCRETE MATERIAL VALIDATION
+Properties: Density, fck, fctm, Ecm, Thermal expansion.
+Minimum and maximum boundary checks: PASS
+Below-minimum and above-maximum checks: PASS
+
+3. INVALID INPUT TESTS
+Inputs tested: Empty string, non-numeric string, None.
+Properties tested: Steel density, steel Fy, concrete fck, concrete fctm.
+Result: PASS (12 checks)
+
+4. AUTOMATIC E/G CALCULATION
+E=210, Poisson=0.30: G=80.8 (PASS)
+G=80, Poisson=0.30: E=208.0 (PASS)
+E=200, Poisson=0.25: Expected G=80.0, actual G=83.3.
+Investigation confirmed that the input field accepts 0.2 instead of 0.25.
+
+5. MATERIAL EXPORT MAPPING
+Girder: PASS
+Cross Bracing: PASS
+End Diaphragm: PASS
+Deck Concrete: PASS
+All 26 expected property keys were generated.
+
+6. DEFECTS OBSERVED
+OSB-001: Desktop application crashes during 3D CAD initialization
+in the WSL test environment. Root cause not confirmed.
+
+OSB-002: Poisson's ratio input is restricted to one decimal place.
+Entering 0.25 results in 0.2. Reproduced using Qt offscreen testing.
+
+OSB-003: Concrete fck validation error message omits a space:
+"10.0and 80.0 MPa."
+
+7. AUTOMATED TESTS
+Unit tests: Passed.
+Integration tests: 2 passed, but existing integration tests are
+placeholder assertions and do not establish functional coverage.
+
+Note:
+Tests above distinguish direct validator tests, Qt dialog tests,
+and application launch tests. No structural analysis result or
+bridge-design correctness is claimed.
+
+8. OSI SAVE/LOAD AND PERSISTENCE TESTS
+Valid input dictionary saved to persistence-test.osi: PASS
+YAML file reloaded successfully: PASS
+Three input values preserved exactly: PASS
+Reloaded input validation: PASS
+Invalid span ("abcd") rejected: PASS
+Validation error correctly identifies geometry.span: PASS
+
+Note:
+These tests verify YAML serialization and OSI input validation.
+The desktop GUI save/load workflow was not tested because of the
+previously observed 3D CAD initialization crash.
+
+9. OSI AUTOMATED UNIT TESTS
+New test file: tests/unit/test_osi_validator.py
+Valid input acceptance: PASS
+Non-numeric span rejection: PASS
+Nested input validation: PASS
+Empty input rejection: PASS
+New OSI tests: 4 passed
+
+Earlier recorded unit test run:
+Total: 7 passed
+Meaningful OSI validation tests: 4
+Existing placeholder tests: 3
+
+Pytest version: 9.2.0
+Execution time: 0.30 seconds (earlier recorded run)
+
+10. COMPLETE AUTOMATED TEST SUITE
+Command: python -m pytest -v
+Total tests collected: 9
+Passed: 9
+Failed: 0
+Execution time: 0.30 seconds (earlier recorded run)
+
+Meaningful tests: 4 OSI validation tests.
+Placeholder tests: 5 existing tests.
+Overall automated test execution: PASS.
+Full application functionality is not established by these tests.
+
+11. UPDATED OSI AUTOMATED TEST RESULTS
+Date: 22 November 2026
+Command: python -m pytest -v
+Total tests collected: 9
+Passed: 9
+Failed: 0
+Execution time: 0.67 seconds (latest recorded run)
+
+Meaningful OSI validator tests: 4
+- Valid flat input acceptance: PASS
+- Non-numeric span rejection: PASS
+- Nested input acceptance: PASS
+- Empty input rejection: PASS
+
+Existing placeholder tests: 5
+Overall test execution: PASS.
+Note: Placeholder tests do not establish functional coverage.
+
+12. GUI AND 3D VIEWER INVESTIGATION
+Main environment:
+- PySide6 Qt GUI initialization: PASS
+- OpenCascade 3D viewer initialization: FAIL
+- Observed X11 error: BadWindow
+- Root cause not confirmed.
+
+Diagnostic environment:
+- Complete OsdagBridge desktop window launched: PASS
+- OpenCascade viewer initialization progressed further, but the
+  standalone viewer process terminated with a segmentation fault.
+- Clicking Design produced ModuleNotFoundError: osdag_core because
+  the diagnostic environment did not have the Osdag package installed.
+
+Conclusion:
+The GUI launch was demonstrated in the diagnostic environment.
+The full bridge-design workflow was not verified through the GUI.
+The main environment still has a 3D viewer initialization issue.
+
+13. INDEPENDENT OSDAG MEMBER CALCULATION TESTS
+Main environment: osdagbridge-env
+
+Bolted tension member:
+- Calculation completed: PASS
+- Design status: SAFE
+- Input load: 4.0 kN
+- Tension capacity: 45.0 kN
+- Osdag efficiency: 0.09
+- Independently calculated efficiency: 0.089
+- Efficiency comparison: PASS
+
+Bolted compression member:
+- Calculation completed: PASS
+- Design status: SAFE
+- Input load: 10.0 kN
+- Compression capacity: 32,570.951 N
+- Efficiency: 0.31
+
+Note:
+These are standalone member-level calculations using Osdag.
+They do not verify complete bridge analysis or full bridge design.
+
+14. ADDITIONAL OBSERVATION
+The Load class diagnostic output labels the axial force as N,
+while the tested tension and compression member modules interpret
+the supplied load in kN and convert it for capacity comparisons.
+This is a potentially misleading diagnostic message, not evidence
+of an incorrect member calculation.
+
+15. REPORT CLARIFICATIONS
+The earlier statement that GUI save/load was not tested remains
+applicable. YAML serialization was tested separately, but a complete
+desktop GUI save/load cycle has not yet been verified.
+
+The earlier OSI test label "Missing optional inputs" is superseded:
+the fourth test now verifies rejection of an empty input dictionary.
+
+The earlier complete-suite execution time of 0.55 seconds is
+superseded by the latest run: 0.30 seconds.
+
+16. FINAL RECORDED PYTEST RUN
+Date: 22 November 2026
+Command: python -m pytest -v
+Total tests: 9
+Passed: 9
+Failed: 0
+Execution time: 0.67 seconds
+Evidence file: test-results/pytest-results.txt
+Result: PASS
