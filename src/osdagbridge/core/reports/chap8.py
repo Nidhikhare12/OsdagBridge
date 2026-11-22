@@ -1,5 +1,7 @@
 from typing import List
 
+from osdagbridge.core.reports import styles
+
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE
 )
@@ -20,18 +22,11 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                     .replace('%', r'\%')
                     .replace('&', r'\&')
                     .replace('#', r'\#'))
-                upper = line.upper()
-                if 'WARNING' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
-                elif 'ERROR' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
-                elif 'INFO' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
-                else:
-                    continue  # skip lines without a known level — Osdag patter
+                color = styles.log_line_color(line)
+                if color is None:
+                    continue  # skip lines without a known level — Osdag pattern
+                lines_tex.append(
+                    rf'\textcolor{{{color}}}{{{escaped}}}\\')
 
     mode = str(input_dict.get(KEY_DESIGN_MODE, 'Optimized')).strip().lower()
     is_custom = mode in {'custom', 'customized'}
