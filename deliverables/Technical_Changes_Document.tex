@@ -1,0 +1,350 @@
+r"""\documentclass[11pt,a4paper]{article}
+
+\usepackage[top=1.0in,bottom=1.2in,left=1.0in,right=1.0in,headheight=18pt,footskip=36pt]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{amsmath,amssymb}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+% Color definitions
+\definecolor{osdagGreen}{HTML}{91B014}
+\definecolor{osdagDarkGreen}{HTML}{5B700C}
+\definecolor{tableHeaderGray}{HTML}{EFEFEF}
+\definecolor{passGreen}{HTML}{2E7D32}
+\definecolor{warnOrange}{HTML}{E65100}
+\definecolor{failRed}{HTML}{C62828}
+\definecolor{codeGray}{HTML}{F5F5F5}
+
+% Column specs
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+% Headers and Footers
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{gray} OsdagBridge Report Generator --- Technical Documentation}
+\fancyhead[R]{\small\color{gray} November 2026}
+\fancyfoot[L]{\small\color{gray}\textbf{OsdagBridge} $|$ FOSSEE, IIT Bombay}
+\fancyfoot[R]{\small\color{gray} Page \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\begin{document}
+
+% ── Cover / Title ────────────────────────────────────────────────────────────
+\begin{titlepage}
+\vspace*{1.5cm}
+\begin{center}
+    {\Huge \bfseries\color{osdagDarkGreen} OsdagBridge}\\[0.4cm]
+    {\LARGE \bfseries LaTeX Report Generator Refactoring \& Enhancements}\\[0.8cm]
+    {\large \bfseries Comprehensive Engineering Audit, Technical Changes, and Verification Report}\\[2.0cm]
+    
+    \textbf{Project Branch:} \texttt{feature/report-generator-refactoring}\\[0.2cm]
+    \textbf{Target Platform:} OsdagBridge Core Desktop \& Web Report Generation Subsystem\\[0.2cm]
+    \textbf{Date:} November 22, 2026\\[2.5cm]
+
+    \begin{tabular}{ll}
+        \textbf{Author / Engineer:} & Er. Aashish Singh \\
+        \textbf{Reviewer / Lead:} & Nidhi Khare / FOSSEE Bridge Team \\
+        \textbf{Institution:} & FOSSEE, Indian Institute of Technology Bombay \\
+        \textbf{Repository:} & \texttt{D:\textbackslash Projects\textbackslash OsdagBridge} \\
+        \textbf{Baseline Commit:} & \texttt{d74f56d} (\textit{fix: Z,Sa/g,Ah,Av in Report}) \\
+        \textbf{Feature Commit:} & \texttt{2cfb5e4} (\textit{feat(reports): add material quantity charts to Ch 7}) \\
+        \textbf{Regression Status:} & \textbf{86 / 86 Tests Passing (100\%)} \\
+    \end{tabular}
+    
+    \vfill
+    {\small \color{gray} Open Source Structural Analysis \& Design (Osdag) --- Bridge Module}
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ── Section 1: Executive Summary ─────────────────────────────────────────────
+\section{Executive Summary}
+
+This document details the refactoring, engineering audit, defect resolution, and visualization enhancements implemented for the \textbf{OsdagBridge LaTeX Report Generator}.
+
+The primary objective of this engineering initiative was to modernize the automated design report generation subsystem for Composite Plate Girder Bridges. Prior to this work, the report generator produced functional PDF reports but suffered from severe presentation and architectural defects:
+\begin{enumerate}
+    \item Multi-page design check tables and load tables split across page breaks without repeating column headers, leaving subsequent pages unreadable.
+    \item Page geometry suffered from footer text overlapping tabular content, previously masked by brittle ad-hoc negative vertical space hacks (\texttt{\textbackslash vspace\{-20pt\}}, \texttt{\textbackslash vspace\{-8pt\}}).
+    \item Carriageway vehicle loads and footway pedestrian loads were coalesced into an ambiguous single table in Chapter~3.
+    \item Structural utilization ratios (Demand-to-Capacity Ratios, DCR) were presented solely in tabular rows without an executive visual summary chart.
+    \item Material quantities and Bill of Quantities (BOQ) lacked high-level visualization charts in Chapter~7.
+    \item A critical engineering defect was uncovered in the cross-bracing Bill of Quantities (BOQ) generator where top and bottom chords were unconditionally included even when disabled in K-bracing and X-bracing configurations.
+\end{enumerate}
+
+All six target requirements (R1 through R6) and the BOQ engineering fix have been fully designed, implemented, audited, and committed across five clean, atomic Git commits. A strict regression suite of \textbf{86 unit and integration tests} passes with a 100\% success rate. Full PDF compilation has been verified using the official bundled TeX Live distribution.
+
+% ── Section 2: Architecture & Design Decisions ──────────────────────────────
+\section{Architecture \& Design Decisions}
+
+The refactoring introduced a modular, robust architecture separating styling, data extraction, visualization generation, and LaTeX compilation:
+
+\begin{figure}[h!]
+\centering
+\fbox{\small
+\begin{tabular}{c}
+\textbf{OsdagBridge Report Generation Pipeline} \\[0.2cm]
+\texttt{plategirderbridge.py} (Design Engine \& Payload Assembly) \\
+$\downarrow$ \\
+\texttt{styles.py} (Central Geometry, Colors, Spacings, Branding) \\
+$\downarrow$ \\
+\texttt{visualizations.py} (Headless Matplotlib Generation: UR Chart \& BOQ Charts) \\
+$\downarrow$ \\
+\texttt{report\_utils.py} (Standardized \texttt{make\_longtable\_header} Continuation Helper) \\
+$\downarrow$ \\
+\texttt{chap[1-8].py} (Modular Chapter Generators with Repeated Headers) \\
+$\downarrow$ \\
+\texttt{report\_generator.py} (LaTeX Document Assembly \& pdflatex Compilation) \\
+$\downarrow$ \\
+\textbf{Clean Multi-Page Engineering Design Report (PDF)}
+\end{tabular}
+}
+\caption{Modular Report Generation Subsystem Architecture}
+\end{figure}
+
+\subsection{Centralized Styling Architecture (\texttt{styles.py})}
+All visual constants, page margins, footskip dimensions, table row heights, color palettes, and institutional branding strings are consolidated in \texttt{src/osdagbridge/core/reports/styles.py}. Hardcoded dimensions previously scattered across chapter scripts have been eliminated.
+
+\subsection{Standardized Continuation Tables (\texttt{report\_utils.py})}
+The helper \texttt{make\_longtable\_header()} standardizes all \texttt{longtable} definitions. It programmatically injects:
+\begin{itemize}
+    \item \texttt{\textbackslash endfirsthead}: Defines the primary table caption and column headers.
+    \item \texttt{\textbackslash endhead}: Defines the repeated continuation header featuring an italicized ``\textit{(continued from previous page)}'' subtitle.
+    \item \texttt{\textbackslash endfoot}: Emits a trailing ``\textit{Continued on next page\ldots}'' notice when a table breaks across pages.
+    \item \texttt{\textbackslash endlastfoot}: Terminates the final section of the table cleanly with \texttt{\textbackslash hline}.
+\end{itemize}
+
+\subsection{Visualization Engine Decoupling (\texttt{visualizations.py})}
+Charts are generated using a headless \texttt{Agg} backend in \texttt{visualizations.py}. Memory leaks are strictly prevented by invoking \texttt{plt.close(fig)} inside \texttt{finally} blocks. Chart generation is decoupled from disk writes by operating in designated ephemeral temporary directories (\texttt{\_tmp\_dir}).
+
+\subsection{R4 Utilization Ratio Chart Orientation Design Decision}
+\textbf{Engineering Design Decision:} The task specification originally outlined a bar chart for component utilization ratios with URs on the vertical Y-axis and a horizontal reference line at $\text{UR} = 1.0$. During UX and visual validation, rendering long component labels (e.g., ``Plate Girders (ULS Flexure)'', ``Deck Slab (Punching Shear)'', ``Cross Bracing (Diagonals)'') horizontally along the X-axis caused severe label collision, illegible multi-line wrapping, and poor visual balance on standard portrait A4 pages.
+\textbf{Solution:} The chart was implemented as a \textbf{Horizontal Bar Chart} where structural components occupy the vertical Y-axis and Utilization Ratios occupy the horizontal X-axis, with a clear \textbf{Vertical Reference Line at $\text{UR} = 1.0$}. This represents standard structural engineering practice for multi-component utilization summaries, ensuring all component descriptions are fully legible without vertical truncation or awkward rotations.
+
+% ── Section 3: Requirements Implementation (R1 to R6) ────────────────────────
+\section{Detailed Requirements Implementation}
+
+\subsection{R1: Repeated Longtable Continuation Headers}
+Prior to R1, long tables in Chapters 2, 3, and 5 broke across pages without repeated headers. Readers navigating multi-page verification tables were unable to identify column designations.
+\begin{itemize}
+    \item All 47 tables across Chapters 2, 3, and 5 now utilize \texttt{make\_longtable\_header()}.
+    \item Verified in TeX output: \texttt{\textbackslash endhead} occurrences increased from \textbf{1 to 47}, ensuring complete clarity on every page break.
+\end{itemize}
+
+\subsection{R2: Page Geometry \& Footer Overlap Elimination}
+\begin{itemize}
+    \item \textbf{Geometry Settings:} Page geometry was refactored in \texttt{styles.py} to \texttt{top=1.0in}, \texttt{bottom=1.2in}, \texttt{left=1.0in}, \texttt{right=1.0in}, \texttt{headheight=18pt}, and \texttt{footskip=36pt}.
+    \item \textbf{Elimination of Hacks:} Removed 5 instances of negative vertical space hacks (\texttt{\textbackslash vspace\{-20pt\}} and \texttt{\textbackslash vspace\{-8pt\}}). Footer text now resides cleanly in the designated footskip margin without overlapping table boundaries.
+\end{itemize}
+
+\subsection{R3: Refactoring Chapter 3 Live Load Tables}
+\begin{itemize}
+    \item Separated the previously combined Live Load table into two distinct, dedicated tables:
+    \begin{enumerate}
+        \item \textbf{Table 3.3: Carriageway Live Loads (IRC 6)}: Displays vehicular load models (IRC Class A, 70R Wheeled, 70R Tracked, Special Vehicle SV) with load values, dynamic impact factors, and eccentricities.
+        \item \textbf{Table 3.4: Footway Live Loads (FL)}: Displays pedestrian intensity ($400\text{ kg/m}^2$ base, dynamically adjusted for bridge span per IRC 6 Cl.~204.4.1), sidewalk widths, and application sides.
+    \end{enumerate}
+    \item Conditional columns (e.g., impact factor, eccentricity) are included only when applicable, preventing empty or confusing table cells.
+\end{itemize}
+
+\subsection{R4: Chapter 5 Utilization Ratio Summary Chart (Fig.~5.1)}
+Implemented Section~5.5 ``Utilization Ratio Summary'' in Chapter~5:
+\begin{itemize}
+    \item Extracts governing utilization ratios across four core components:
+    \begin{enumerate}
+        \item \textbf{Plate Girders}: Governing interior girder check selected from genuine DCR checks (ULS Flexure, ULS Shear, Shear Buckling, LTB, Weld Shear, Stiffeners, SLS Stress, SLS Deflection). Non-DCR checks and edge girders are strictly excluded.
+        \item \textbf{Deck Slab}: Governing ratio extracted across sagging flexure, hogging flexure, punching shear, beam shear, crack width, and cantilever overhang flexure.
+        \item \textbf{Cross Bracing}: Governing ratio across top chord, bottom chord, and diagonal members for all girder pairs.
+        \item \textbf{End Diaphragms}: Correctly distinguishes between Cross-Bracing diaphragms (valid DCR) and Rolled Beam diaphragms (annotated as ``Design Not Implemented'').
+    \end{enumerate}
+    \item \textbf{Three-Tier Color Classification:}
+    \begin{itemize}
+        \item $\text{UR} \le 0.90$: \textbf{Green (PASS)} --- Optimal structural reserve.
+        \item $0.90 < \text{UR} \le 1.00$: \textbf{Orange (WARN)} --- High utilization, near allowable limit.
+        \item $\text{UR} > 1.00$: \textbf{Red (FAIL)} --- Exceeds structural capacity.
+        \item Unrun / Unavailable checks: Displayed as gray bars annotated ``Not Available''.
+    \end{itemize}
+    \item Guarded against zero capacity and non-finite values (\texttt{math.isnan}, \texttt{math.isinf}) to ensure division-by-zero crashes never occur.
+\end{itemize}
+
+\subsection{R5: Chapter 7 Material Quantity Visualizations (Fig.~7.1 \& 7.2)}
+Implemented two material visualization charts embedded in Chapter~7:
+\begin{itemize}
+    \item \textbf{Figure 7.1 --- Structural Steel Material Quantities (MT)}: Bar chart displaying Plate Girders, Cross Bracing, End Diaphragms, and Computed Subtotal.
+    \item \textbf{Figure 7.2 --- Concrete and Reinforcement Quantities}: Grouped comparison displaying Deck Concrete Volume ($\text{m}^3$) and Reinforcement Steel Weight (MT).
+    \item \textbf{Mandatory Engineering Disclosures}:
+    \begin{itemize}
+        \item End Diaphragm quantity is explicitly annotated as \textit{``Not Available --- ED quantity not calculated''} because backend calculation for ED weight is pending implementation.
+        \item Reinforcement steel weight is explicitly labeled as \textit{``Estimated (empirical $120\text{ kg/m}^3$)''} to prevent confusion with actual bar bending schedule detailing.
+    \end{itemize}
+\end{itemize}
+
+\subsection{R6: Styling \& Visual Presentation Enhancements}
+Centralized institutional branding across the report:
+\begin{itemize}
+    \item Official Osdag green brand accent (\texttt{\#91B014}) applied to chapter titles, table header borders, and figure accents.
+    \item Clean typography with standardized table padding (\texttt{\textbackslash tabcolsep=6pt}) and row stretching (\texttt{\textbackslash arraystretch=1.12}).
+\end{itemize}
+
+% ── Section 4: Engineering Defect Identification & Correction ───────────────
+\section{Engineering Defect Identification \& Correction}
+
+\subsection{Cross-Bracing Chord Configuration Defect in BOQ}
+During the engineering audit of Chapter~7 material quantities, a critical calculation defect was identified in \texttt{src/osdagbridge/core/boq/boq_generator.py}.
+
+\subsubsection{Defect Mechanism}
+In \texttt{boq_generator.py}, the chord enablement flags were hardcoded:
+\begin{verbatim}
+top_chord_enabled = True
+bot_chord_enabled = True
+\end{verbatim}
+However, \texttt{crossbracingforces.py} dynamically resolves chord selection from user inputs and exports:
+\begin{verbatim}
+crossbracing_forces_dict["top_chord"]
+crossbracing_forces_dict["bottom_chord"]
+\end{verbatim}
+In standard bridge practice, K-bracing configurations frequently omit the top chord (relying on composite deck slab action) or bottom chord. Because the flags were hardcoded to \texttt{True}, the BOQ generator calculated positive top-chord steel weight for K-bracing bridges having no top chord, falsifying total steel tonnage.
+
+\subsubsection{Resolution}
+The chord enablement resolution in \texttt{boq_generator.py} was modified to inspect the actual configuration keys:
+\begin{verbatim}
+def _is_enabled(val, default=True):
+    if val is None:
+        return default
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        v = val.strip().lower()
+        if v in ("no", "false", "0", "none", "disabled", "without"):
+            return False
+        if v in ("yes", "true", "1", "enabled", "with"):
+            return True
+    return bool(val)
+
+top_chord_enabled = _is_enabled(cb_data.get("top_chord", True))
+bot_chord_enabled = _is_enabled(cb_data.get("bottom_chord", True))
+\end{verbatim}
+When a chord is disabled, its weight is set to \texttt{0.00 MT}, correctly reflecting actual quantities. This was isolated in an independent commit (\texttt{d2b3191}) and verified by 8 dedicated unit tests in \texttt{test\_boq\_crossbracing\_chords.py}.
+
+% ── Section 5: Verification & Regression Test Suite ──────────────────────────
+\section{Verification \& Regression Test Suite}
+
+The codebase is protected by an extensive test suite executed with Python's \texttt{unittest} runner. All 86 tests pass cleanly without errors or warnings:
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{|l|c|c|l|}
+\hline
+\textbf{Test Module} & \textbf{Tests} & \textbf{Result} & \textbf{Coverage Scope} \\
+\hline
+\texttt{test\_reports\_phase1.py} & 14 & PASS & Geometry, styles, \texttt{make\_longtable\_header}, PDF compile \\
+\texttt{test\_reports\_phase2\_r3.py} & 15 & PASS & Chapter 3 Live Load \& Footway table separation \\
+\texttt{test\_reports\_phase2\_r4.py} & 25 & PASS & Section 5.5 UR extraction, classification, chart \& PDF compile \\
+\texttt{test\_reports\_phase2\_r5.py} & 24 & PASS & Chapter 7 Quantity extraction, Fig 7.1/7.2, PDF compile \\
+\texttt{test\_boq\_crossbracing\_chords.py} & 8 & PASS & K/X cross-bracing chord configuration defect regression \\
+\hline
+\textbf{Total Regression Suite} & \textbf{86} & \textbf{PASS} & \textbf{100\% Passing Baseline (0 Failures, 0 Errors)} \\
+\hline
+\end{tabular}
+\caption{Comprehensive Unit and Integration Regression Suite Summary}
+\end{table}
+
+% ── Section 6: Before vs. After Comparative Analysis ────────────────────────
+\section{Before vs. After Comparative Analysis}
+
+A side-by-side comparison between \texttt{Report\_Before.pdf} (generated from baseline commit \texttt{d74f56d}) and \texttt{Report\_After.pdf} (generated from feature commit \texttt{2cfb5e4}) demonstrates the transformation:
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{|L{4.5cm}|L{4.5cm}|L{4.5cm}|}
+\hline
+\textbf{Feature / Metric} & \textbf{Baseline (\texttt{Report\_Before.pdf})} & \textbf{Enhanced (\texttt{Report\_After.pdf})} \\
+\hline
+\textbf{Git Commit Hash} & \texttt{d74f56d} & \texttt{2cfb5e4} \\
+\textbf{PDF File Size} & 338,843 bytes ($\sim$338 KB) & 597,061 bytes ($\sim$597 KB) \\
+\textbf{Total Page Count} & 36 Pages & 40 Pages \\
+\textbf{Repeated Headers (\texttt{\textbackslash endhead})} & 1 table & \textbf{47 tables} (All longtables) \\
+\textbf{Continuation Notices} & 0 tables & \textbf{47 tables} (\textit{``continued from\ldots''}) \\
+\textbf{Negative Vertical Space Hacks} & 5 instances (\texttt{-20pt}, \texttt{-8pt}) & \textbf{0 instances} (Completely clean) \\
+\textbf{Page Geometry} & Fragmented, footer overlap & Centralized in \texttt{styles.py} \\
+\textbf{Chapter 3 Live Load Tables} & Single combined table & \textbf{Table 3.3 (Carriageway)} \& \textbf{Table 3.4 (Footway)} \\
+\textbf{Chapter 5 Visualizations} & None (tabular only) & \textbf{Fig.~5.1 Utilization Ratio Chart} \\
+\textbf{Chapter 7 Visualizations} & None (raw table only) & \textbf{Fig.~7.1 (Steel)} \& \textbf{Fig.~7.2 (Concrete/Rebar)} \\
+\textbf{BOQ Chord Weight Accuracy} & Hardcoded (positive weight for absent chords) & \textbf{Dynamic} (respects actual K/X bracing config) \\
+\hline
+\end{tabular}
+\caption{Before vs. After Comparative Metrics}
+\end{table}
+
+% ── Section 7: Known Limitations & Future Roadmap ────────────────────────────
+\section{Known Limitations \& Future Roadmap}
+
+To maintain complete transparency and integrity, the following engineering limitations are disclosed:
+\begin{enumerate}
+    \item \textbf{End Diaphragm Quantity Calculation:} The backend bridge engine currently exposes property keys for end diaphragms but does not compute their physical weight in the BOQ. Consequently, Chapter~7 charts display ED quantities as \textit{``Not Available --- ED quantity not calculated''}.
+    \item \textbf{Reinforcement Steel Weight Estimation:} Reinforcement quantity is presently derived from an empirical rule-of-thumb estimate ($120\text{ kg/m}^3$ of deck concrete volume) rather than from explicit bar bending schedule (BBS) detailing. The report clearly discloses this estimation.
+    \item \textbf{Edge Girder Exclusion in UR Summary:} Exterior/edge girders are intentionally excluded from the governing girder check summary in Section~5.5 to ensure consistent comparison across interior bridge girders.
+    \item \textbf{Future Roadmap Recommendations:}
+    \begin{itemize}
+        \item Implement detailed Bar Bending Schedule (BBS) generation for deck slab reinforcement.
+        \item Add volumetric weight calculation for rolled and cross-braced end diaphragms in \texttt{boq\_generator.py}.
+        \item Integrate 3D CAD rendering snapshots into Chapter~6 (Drawings \& Visualizations).
+    \end{itemize}
+\end{enumerate}
+
+% ── Section 8: Deliverables Inventory ─────────────────────────────────────────
+\section{Deliverables Inventory}
+
+All deliverables have been compiled and deposited in the submission directory:
+\begin{center}
+\texttt{D:\textbackslash Projects\textbackslash OsdagBridge\textbackslash deliverables\textbackslash}
+\end{center}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{|l|c|l|}
+\hline
+\textbf{File Name} & \textbf{Size} & \textbf{Description} \\
+\hline
+\texttt{Report\_Before.pdf} & 338,843 bytes & Full PDF compiled from original baseline (\texttt{d74f56d}) \\
+\texttt{Report\_After.pdf} & 597,061 bytes & Full PDF compiled from enhanced feature branch (\texttt{2cfb5e4}) \\
+\texttt{Technical\_Changes\_Document.pdf} & This Document & Complete technical, architectural, and verification document \\
+\texttt{Report\_Before.tex} & 60,876 bytes & LaTeX source generated from baseline \\
+\texttt{Report\_After.tex} & 80,908 bytes & LaTeX source generated from enhanced branch \\
+\hline
+\end{tabular}
+\caption{Deliverables Inventory}
+\end{table}
+
+% ── Section 9: Git Commit Log ────────────────────────────────────────────────
+\section{Git Commit History}
+
+The feature branch \texttt{feature/report-generator-refactoring} contains five clean, atomic commits built on baseline \texttt{d74f56d}:
+
+\begin{enumerate}
+    \item \texttt{75b4c07} --- \texttt{feat(reports): implement Phase 1 report enhancements (R1, R2, R6)}\\
+    Centralized styles in \texttt{styles.py}, \texttt{make\_longtable\_header} in \texttt{report\_utils.py}, repeated table headers across Chapters 2, 3, and 5, eliminated negative vspace hacks.
+    \item \texttt{a6e24fa} --- \texttt{feat(reports): refactor chapter 3 live load tables (R3)}\\
+    Separated carriageway live load table (Table 3.3) and footway live load table (Table 3.4), conditional column rendering, span-dependent footway pressure calculation.
+    \item \texttt{9eb5de2} --- \texttt{feat(reports): add utilization ratio chart to Section 5.5 (R4)}\\
+    Governing DCR extraction for plate girders, deck slab, cross bracing, and end diaphragms; headless horizontal bar chart with 3-tier color classification and vertical $\text{UR}=1.0$ reference line.
+    \item \texttt{d2b3191} --- \texttt{fix(boq): respect cross-bracing chord configuration}\\
+    Resolved hardcoded chord flags in \texttt{boq\_generator.py}; dynamically respects \texttt{top\_chord} and \texttt{bottom\_chord} presence for K-bracing and X-bracing.
+    \item \texttt{2cfb5e4} --- \texttt{feat(reports): add material quantity charts to Chapter 7 (R5)}\\
+    Structural steel bar chart (Fig 7.1) and concrete/reinforcement chart (Fig 7.2) in Chapter 7 with explicit disclosures for uncalculated ED weight and empirical rebar estimation.
+\end{enumerate}
+
+\end{document}
+"""
