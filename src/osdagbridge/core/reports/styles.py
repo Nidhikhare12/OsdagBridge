@@ -201,3 +201,153 @@ def table_padding(size):
 TABCOLSEP_COMPACT = "4pt"
 TABCOLSEP_ANALYSIS = "3pt"
 ANALYSIS_ARRAY_STRETCH = "1.25"
+
+
+def document_preamble(pn, jn, rd, rv):
+    """Full document layout; arguments are already LaTeX-escaped."""
+    return r"""
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{caption}
+
+""" + PREAMBLE_CAPTIONS + r"""
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{colortbl}
+\usepackage{longtable}
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{lastpage}
+\usepackage{makecell}
+\usepackage{etoolbox}
+\usepackage{needspace}
+
+""" + PREAMBLE_TABLE_LAYOUT + r"""
+
+""" + PREAMBLE_NBCLINE + r"""
+
+""" + COLOR_DEF_BRAND + r"""
+
+% Footer rule: fancyhdr sets \footrule above the footer text, so an unscoped
+% \color{osdagGreen} leaks into the text. Each rule colour is grouped in braces.
+% Footer text shared by all page styles
+\newcommand{\osdagFootL}{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+% Total comes from LastPage, so it only matches the PDF page count while the
+% page counter runs unbroken from the cover (see the setcounter after titlepage).
+\newcommand{\osdagFootR}{Page \thepage\ of \pageref{LastPage}}
+
+\fancypagestyle{main}{
+  \fancyhf{}
+  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
+  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
+  \fancyfoot[L]{\osdagFootL}
+  \fancyfoot[R]{\osdagFootR}
+  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \renewcommand{\footrule}{%
+    \ifbool{hasSDonPage}{%
+      \vspace{-20pt}%
+      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
+      \vspace{4pt}%
+    }{%
+      \vspace{-8pt}%
+    }%
+    {\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}%
+  }
+}
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
+  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
+  \fancyfoot[L]{\osdagFootL}
+  \fancyfoot[R]{\osdagFootR}
+  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \renewcommand{\footrule}{%
+    \ifbool{hasSDonPage}{%
+      \vspace{-20pt}%
+      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
+      \vspace{4pt}%
+    }{%
+      \vspace{-8pt}%
+    }%
+    {\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}%
+  }
+}
+\fancypagestyle{firstpage}{
+  \fancyhf{}
+  \renewcommand{\headrulewidth}{0pt}
+  \fancyfoot[L]{\osdagFootL}
+  \fancyfoot[R]{\osdagFootR}
+  \renewcommand{\footrule}{\vspace{-8pt}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}}
+}
+\pagestyle{main}
+\setstretch{""" + BODY_LINE_STRETCH + r"""}
+
+% Custom Commands
+\newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
+\newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
+""" + PREAMBLE_COLUMN_TYPES + r"""
+
+% Software-default asterisk
+\newcommand{\sdstar}{\textsuperscript{*}}
+\newbool{hasSDonPage}
+\boolfalse{hasSDonPage}
+\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
+\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
+\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
+
+\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
+\author{}
+\date{}
+
+\begin{document}
+"""
+
+
+def contents_layout():
+    return r"""
+% Chapter / TOC Formatting
+\titleformat{\chapter}[block]
+  {\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
+\titlespacing*{\chapter}{0pt}{0pt}{10pt}
+\setcounter{tocdepth}{2}
+
+% TOC styling using titletoc
+\titlecontents{chapter}[1.5em]
+  {\normalfont\vspace{2pt}}
+  {\contentslabel{1.5em}}
+  {\hspace*{-1.5em}}
+  {\hfill\contentspage}
+
+\titlecontents{section}[3.8em]
+  {\normalfont}
+  {\contentslabel{2.3em}}
+  {\hspace*{-2.3em}}
+  {\hfill\contentspage}
+
+\titlecontents{subsection}[7.0em]
+  {\normalfont}
+  {\contentslabel{3.2em}}
+  {\hspace*{-3.2em}}
+  {\hfill\contentspage}
+
+\newpage
+\renewcommand{\contentsname}{\centering\Large\bfseries Table of Contents}
+\tableofcontents
+"""
+
