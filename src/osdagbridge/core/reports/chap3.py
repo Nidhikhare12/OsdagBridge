@@ -347,7 +347,20 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textnormal{Braking Load (IRC 6 Cl. 211.2)} & """ + _tex(braking_force_val or braking_force_str or "N/A") + r""" & kN \\[6pt]
 \hline
-\textnormal{Footpath Live Load (if applicable)} & """ + _tex(footway_display) + r""" & """ + footway_unit + r""" \\[6pt]
+\end{longtable}
+
+\vspace{1em}
+\begin{longtable}{|L{5.0cm}|L{7.0cm}|C{2.8cm}|}
+\caption{\textbf{Footway Live Load (FLL)}}
+\hline
+\textbf{Parameter} & \textbf{Value} & \textbf{Unit} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Parameter} & \textbf{Value} & \textbf{Unit} \\
+\hline
+\endhead
+\textnormal{Footpath Live Load} & """ + _tex(footway_display) + r""" & """ + footway_unit + r""" \\[6pt]
 \hline
 \end{longtable}
 
