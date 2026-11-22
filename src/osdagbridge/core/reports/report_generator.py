@@ -118,7 +118,7 @@ from osdagbridge.core.utils.common import (
     KEY_TL_TEMP_RISE
 )
 
-from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.report_utils import _tex, escape_latex
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -148,15 +148,26 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def preamble(project_name, job_number, report_date, report_version='Rev 0'):
+    """Generate LaTeX preamble with styles from styles.py.
+    
+    Uses token replacement to avoid f-string brace conflicts (D7).
+    """
+    from .styles import get_preamble_tokens
+    
     pn = _tex(project_name)
     jn = _tex(job_number)
     rd = _tex(report_date)
     rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
+    
+    # Get style tokens
+    tokens = get_preamble_tokens()
+    
+    # Build preamble template
+    template = r"""
+\documentclass[@@FONT_SIZE@@pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+@@GEOMETRY@@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -192,21 +203,9 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+@@TABLE_SETTINGS@@
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
+@@COLORS@@
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -214,7 +213,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
   \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \renewcommand{\headrule}{\color{@@HEADER_RULE_COLOR@@}\hrule width\headwidth height @@HEADER_RULE_PT@@pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
       \vspace{-20pt}%
@@ -223,7 +222,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     }{%
       \vspace{-8pt}%
     }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+    \color{@@HEADER_RULE_COLOR@@}\hrule width\headwidth height @@HEADER_RULE_PT@@pt \vspace{6pt}%
   }
 }
 \fancypagestyle{plain}{
@@ -232,7 +231,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
   \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
+  \renewcommand{\headrule}{\color{@@HEADER_RULE_COLOR@@}\hrule width\headwidth height @@HEADER_RULE_PT@@pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
       \vspace{-20pt}%
@@ -241,7 +240,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     }{%
       \vspace{-8pt}%
     }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
+    \color{@@HEADER_RULE_COLOR@@}\hrule width\headwidth height @@HEADER_RULE_PT@@pt \vspace{6pt}%
   }
 }
 \fancypagestyle{firstpage}{
@@ -249,10 +248,10 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\headrulewidth}{0pt}
   \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
+  \renewcommand{\footrule}{\vspace{-8pt}\color{@@HEADER_RULE_COLOR@@}\hrule width\headwidth height @@HEADER_RULE_PT@@pt \vspace{6pt}}
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{@@LINE_STRETCH@@}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
@@ -275,6 +274,12 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \begin{document}
 """
+    
+    # Replace tokens
+    for key, val in tokens.items():
+        template = template.replace(f"@@{key}@@", val)
+    
+    return template
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -316,23 +321,23 @@ def title_page(m, osdag_logo, org_logo):
 {\Large Design Report}\\[1.5cm]
 \begin{tabular}{|L{4cm}|L{10cm}|}
 \hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
+\textbf{Project Name} & """ + escape_latex(m.project_name) + r""" \\
 \hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
+\textbf{Project Location} & """ + escape_latex(m.project_location) + r""" \\
 \hline
-\textbf{Author / Designer} & """ + _tex(m.designer) + r""" \\
+\textbf{Author / Designer} & """ + escape_latex(m.designer) + r""" \\
 \hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
+\textbf{Reviewer} & """ + escape_latex(m.reviewer) + r""" \\
 \hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
+\textbf{Organization} & """ + escape_latex(m.company) + r""" \\
 \hline
-\textbf{Client Name and Organization} & """ + _tex(m.client) + r""" \\
+\textbf{Client Name and Organization} & """ + escape_latex(m.client) + r""" \\
 \hline
-\textbf{Job Number} & """ + _tex(m.job_number) + r""" \\
+\textbf{Job Number} & """ + escape_latex(m.job_number) + r""" \\
 \hline
-\textbf{Date} & """ + _tex(m.report_date) + r""" \\
+\textbf{Date} & """ + escape_latex(m.report_date) + r""" \\
 \hline
-\textbf{Report Version} & """ + (_tex(m.subtitle) if m.subtitle else '') + r""" \\
+\textbf{Report Version} & """ + (escape_latex(m.subtitle) if m.subtitle else '') + r""" \\
 \hline
 \end{tabular}
 \end{titlepage}
@@ -458,6 +463,7 @@ class ReportDataBridge:
         self.output_dict = output_dict
         self.input_dict = input_dict
         self.payload = payload
+        self.ur_records = []  # R4: Capture UR values for chart rendering
 
 
     # =====================================================================
@@ -903,6 +909,24 @@ def generate_report(payload, request):
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
+            # ── R4 & R5: Render charts into tmp_images ──
+            # Charts are rendered only when their chapter is included
+            ur_chart_dir = None
+            quantity_chart_paths = {}
+            
+            if 'design_checks' in payload.options.sections:
+                # UR chart for chap5
+                ur_chart_dir = tmp_images
+            
+            # Quantity charts for chap7 (always included)
+            try:
+                from .charts import render_quantity_charts
+                quantity_chart_paths = render_quantity_charts(quantities, tmp_images)
+                logger.info(f"Quantity chart paths generated: {quantity_chart_paths}")
+            except Exception as e:
+                logger.warning(f"Failed to render quantity charts: {e}")
+                quantity_chart_paths = {}
+
             doc_parts = []
             doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
             doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
@@ -924,11 +948,13 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                # R4: Pass fig_dir to ch5_design_checks for UR chart
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, fig_dir=ur_chart_dir))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            # R5: Pass fig_paths to ch7_quantities for quantity charts
+            doc_parts.append(ch7_quantities(payload.inputs, fig_paths=quantity_chart_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -941,11 +967,12 @@ def generate_report(payload, request):
 
             full_tex = "\n".join(doc_parts)
 
-
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
+            # R1: Post-process to add repeating longtable headers
+            try:
+                from .tables import add_repeating_headers
+                full_tex = add_repeating_headers(full_tex)
+            except Exception as e:
+                logger.warning(f"Failed to add repeating headers: {e}")
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')

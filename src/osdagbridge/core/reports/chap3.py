@@ -5,6 +5,7 @@
 
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,
+    KEY_CARRIAGEWAY_WIDTH,
     KEY_LL_CUSTOM_VEHICLES,
     KEY_LL_FOOTPATH_PRESSURE_MODE,
     KEY_LL_FOOTPATH_PRESSURE_VALUE,
@@ -117,18 +118,40 @@ def ch3_loads(input_dict):
     else:
         impact_factor_str = "N/A"
 
+    # Determine the number of design lanes.
+    # Priority 1: explicit lane count from the back-end key.
     lanes = input_dict.get(KEY_WC_LD_LANE_TABLE_COUNT)
+    # Priority 2: derive from carriageway width per IRC 6 Cl. 204.1 / Table 6.
+    if lanes in (None, ""):
+        cw = input_dict.get(KEY_CARRIAGEWAY_WIDTH)
+        if cw not in (None, ""):
+            try:
+                cw_m = float(cw)
+                if cw_m > 0:
+                    lanes = IRC6_2017.table_6(cw_m)  # returns int design lanes
+            except Exception:
+                lanes = None
+        if lanes in (None, ""):
+            # Last resort: assume 2 lanes for a typical bridge if CW is also missing.
+            lanes = 2
+
     braking_force_str = ""
+    braking_note_needed = False
+    
     if lanes not in (None, ""):
         try:
             lanes_int = int(lanes)
             braking_force_t = IRC6_2017.cl_211_2_braking_force(lanes_int)
             braking_force_kN = braking_force_t * 9.81
-            braking_force_str = f"{braking_force_kN:.2f} kN ({braking_force_t:.2f} tonnes)"
-        except Exception:
-            braking_force_str = "N/A"
+            braking_force_str = f"{braking_force_kN:.2f}"
+        except Exception as e:
+            braking_force_str = "Not computed"
+            braking_note_needed = True
+            import logging
+            logging.getLogger(__name__).warning(f"Braking force calculation failed: {e}")
     else:
-        braking_force_str = "N/A"
+        braking_force_str = "Not computed"
+        braking_note_needed = True
 
     fp_mode  = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_MODE, "")
     fp_value = input_dict.get(KEY_LL_FOOTPATH_PRESSURE_VALUE, "")
@@ -200,6 +223,19 @@ def ch3_loads(input_dict):
     def _sl(v, unit=""):
         return f"{float(v):.4f}{unit}" if v not in (None, "") else "N/A"
 
+    def _temp(v):
+        """Render a temperature value with a proper LaTeX minus for negatives.
+
+        A bare hyphen in OT1 text mode renders as an inverted question mark;
+        use ``$-$`` so a negative temperature shows "$-$34.25 °C".
+        """
+        if v in (None, ""):
+            return "N/A"
+        s = str(v)
+        if s.startswith("-"):
+            return r"$-$" + s[1:]
+        return s
+
     # Table 3.6 — Temperature: compute effective bridge temp range from shade temps
     tl_temp_min = tl_temp_max = tl_rise = tl_fall = "N/A"
     try:
@@ -266,6 +302,74 @@ def ch3_loads(input_dict):
 
     lc_rows_str = "\n".join(lc_rows)
 
+    # === R3: Build separate Vehicle LL and Footway LL tables ===
+    
+    # Helper to get impact factor for a vehicle class
+    def _impact_for_vehicle(veh_name):
+        if "Class A" in veh_name and span not in (None, ""):
+            try:
+                im = IRC6_2017.cl_208_2_impact_factor(float(span))
+                return f"{1.0 + im:.3f}"
+            except Exception:
+                pass
+        elif any(x in veh_name for x in ["70R", "AA"]) and span not in (None, ""):
+            try:
+                im = IRC6_2017.cl_208_3_impact_factor(float(span))
+                return f"{1.0 + im:.3f}"
+            except Exception:
+                pass
+        return "N/A"
+    
+    # Table A: Vehicular Live Loads
+    vehicle_rows = []
+    for veh in vehicles:
+        impact_factor = _impact_for_vehicle(veh)
+        braking = braking_force_str  # Now shows actual kN value or "Not computed"
+        centrifugal = "N/A"
+        vehicle_rows.append(
+            _tex(veh) + r" & " + impact_factor + r" & " + braking + r" & " + centrifugal + r" \\[6pt]" + "\n" + r"\hline"
+        )
+    
+    vehicle_table_content = "\n".join(vehicle_rows) if vehicle_rows else (
+        r"None & N/A & N/A & N/A \\[6pt]" + "\n" + r"\hline"
+    )
+    
+    # Table B: Footway Live Load
+    footway_value = fp_str
+    footway_mode = str(fp_mode).strip().lower()
+    if footway_mode in ("as per irc 6", "as per irc6", "automatic"):
+        footway_ref = "IRC 6 Cl. 206.1 (automatic)"
+    elif fp_value not in (None, ""):
+        footway_ref = "User-specified"
+    else:
+        footway_ref = "Not provided"
+        footway_value = "---"
+    
+    live_loads_latex = (
+        r"\vspace{1em}" + "\n"
+        + r"\begin{longtable}{|L{4.0cm}|C{3.0cm}|C{3.5cm}|C{3.5cm}|}" + "\n"
+        + r"\caption{\textbf{Vehicular Live Loads (IRC 6)}}" + "\n"
+        + r"\hline" + "\n"
+        + r"\textbf{Vehicle Class} & \textbf{Impact Factor (---)} & \textbf{Braking Force (kN)} & \textbf{Centrifugal Force (kN)} \\[6pt]" + "\n"
+        + r"\hline" + "\n"
+        + vehicle_table_content + "\n"
+        + r"\end{longtable}" + "\n"
+        + r"\noindent\textit{Note: Braking force is lane-based (IRC 6 Cl. 211.2)"
+        + (r"; not computed (no lane count provided)" if braking_note_needed else "")
+        + r". Centrifugal force (IRC 6 Cl. 212) applies to curved bridges; no horizontal-curvature input provided.}" + "\n"
+        + "\n"
+        + r"\vspace{1em}" + "\n"
+        + r"\begin{longtable}{|L{4.5cm}|C{3.5cm}|C{2.5cm}|L{5.0cm}|}" + "\n"
+        + r"\caption{\textbf{Footway Live Load}}" + "\n"
+        + r"\hline" + "\n"
+        + r"\textbf{Parameter} & \textbf{Value} & \textbf{Unit} & \textbf{Reference} \\[6pt]" + "\n"
+        + r"\hline" + "\n"
+        + "Footway Live Load & " + _tex(footway_value.split()[0] if footway_value != "---" else "---") 
+        + r" & kN/m\textsuperscript{2} & " + _tex(footway_ref) + r" \\[6pt]" + "\n"
+        + r"\hline" + "\n"
+        + r"\end{longtable}" + "\n"
+    )
+
     return r"""
 \chapter{Loads and Load Combinations}
 
@@ -298,23 +402,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \textnormal{Railing Load} & """ + (_render_value(input_dict, KEY_RL_LOAD_VALUE)) + r""" kN/m\sdstar{} \\[6pt]
 \hline
 \end{longtable}
-
-\vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
-\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
-\hline
-\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
-\hline
-\textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
-\hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
-\hline
-\end{longtable}
-
+""" + live_loads_latex + r"""
 \vspace{1em}
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Wind Load (WL) --- per IRC 6}}
@@ -371,13 +459,13 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
-\textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[6pt]
+\textnormal{Maximum Shade Temperature} & """ + (_temp(input_dict.get('shade_temp_max'))) + r""" $^\circ$C \\[6pt]
 \hline
-\textnormal{Minimum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_min')) + r""" $^\circ$C \\[6pt]
+\textnormal{Minimum Shade Temperature} & """ + (_temp(input_dict.get('shade_temp_min'))) + r""" $^\circ$C \\[6pt]
 \hline
-\textnormal{Effective Bridge Temp. Range} & """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MIN)) + r""" to """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MAX)) + r""" $^\circ$C \\[6pt]
+\textnormal{Effective Bridge Temp. Range} & """ + (_temp(input_dict.get(KEY_TL_BRIDGE_TEMP_MIN))) + r""" to """ + (_temp(input_dict.get(KEY_TL_BRIDGE_TEMP_MAX))) + r""" $^\circ$C \\[6pt]
 \hline
-\textnormal{Temperature Rise / Fall for Design} & +""" + (_render_value(input_dict, KEY_TL_TEMP_RISE)) + r""" $^\circ$C / \textminus{}""" + (_render_value(input_dict, KEY_TL_TEMP_FALL)) + r""" $^\circ$C \\[6pt]
+\textnormal{Temperature Rise / Fall for Design} & +""" + (_temp(input_dict.get(KEY_TL_TEMP_RISE))) + r""" $^\circ$C / \textminus{}""" + (_temp(input_dict.get(KEY_TL_TEMP_FALL))) + r""" $^\circ$C \\[6pt]
 \hline
 \end{longtable}
 

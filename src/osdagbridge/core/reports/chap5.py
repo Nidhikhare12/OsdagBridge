@@ -63,6 +63,12 @@ from osdagbridge.core.utils.common import (
     KEY_MATERIAL_DECK_FCK,
     KEY_MATERIAL_DECK_FCTM,
     KEY_MP_ED_TYPE,
+    KEY_MP_STIFFENER_BEARING_THICKNESS,
+    KEY_MP_STIFFENER_DESIGN_METHOD,
+    KEY_MP_STIFFENER_INTERMEDIATE_SPACING,
+    KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS,
+    KEY_MP_STIFFENER_LONGITUDINAL,
+    KEY_MP_STIFFENER_NO_BEARING_STIFFENERS,
     KEY_SD_BOTTOM_FLANGE_THICKNESS,
     KEY_SD_BOTTOM_FLANGE_WIDTH,
     KEY_SD_BS_FCD,
@@ -145,7 +151,29 @@ from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girde
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+
+
+# =============================================================================
+# UR Value Capture (R4)
+# =============================================================================
+
+class _URStr(str):
+    """String subclass that carries a numeric .value attribute for chart rendering.
+    
+    This allows _ur_522() to return a formatted LaTeX string (with \\textcolor{red}{...})
+    while preserving the raw float value for the UR chart.
+    """
+    value = None
+
+
+def _mk_ur(text: str, val: float):
+    """Create a _URStr instance with both formatted text and numeric value."""
+    s = _URStr(text)
+    s.value = val
+    return s
+
+
+def ch5_design_checks(checks_data, bridge, fig_dir=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -332,20 +360,25 @@ def ch5_design_checks(checks_data, bridge) -> str:
     t56_content = "\n".join(t56_rows)
 
     # Generate Table 5.7 rows
+    # Stiffener values come from the user-provided stiffener input details
+    # (member_properties.stiffener_details.*.G{i}.M1), which hold the real
+    # inputs (e.g. spacing 2440 mm, thickness 10 mm). The report-only
+    # steeldesign.details.stiffener_summary.* output keys are unreliable and
+    # must not be used as the primary source.
     t57_rows = []
-    for lbl, _ in girder_entries:
+    for i, (lbl, _) in enumerate(girder_entries, start=1):
         t57_rows.append(
-            r"\multirow{6}{*}{\makecell{" + lbl + r"""}} & \textnormal{Shear Buckling Design Method} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_METHOD) + r""" \\[6pt]
+            r"\multirow{6}{*}{\makecell{" + lbl + r"""}} & \textnormal{Shear Buckling Design Method} & """ + _render_value(bridge.input_dict, f"{KEY_MP_STIFFENER_DESIGN_METHOD}.G{i}.M1") + r""" \\[6pt]
 \cline{2-3}
- & \textnormal{Intermediate Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_THICK) + r""" \\[6pt]
+ & \textnormal{Intermediate Stiffener Thickness (mm)} & """ + _render_value(bridge.input_dict, f"{KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS}.G{i}.M1") + r""" \\[6pt]
 \cline{2-3}
- & \textnormal{Intermediate Stiffener Spacing (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_SPACING) + r""" \\[6pt]
+ & \textnormal{Intermediate Stiffener Spacing (mm)} & """ + _render_value(bridge.input_dict, f"{KEY_MP_STIFFENER_INTERMEDIATE_SPACING}.G{i}.M1") + r""" \\[6pt]
 \cline{2-3}
- & \textnormal{End Panel Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_END_THICK) + r""" \\[6pt]
+ & \textnormal{End Panel Stiffener Thickness (mm)} & """ + _render_value(bridge.input_dict, f"{KEY_MP_STIFFENER_BEARING_THICKNESS}.G{i}.M1") + r""" \\[6pt]
 \cline{2-3}
- & \textnormal{No. of End Panel Stiffeners} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_END_COUNT) + r""" \\[6pt]
+ & \textnormal{No. of End Panel Stiffeners} & """ + _render_value(bridge.input_dict, f"{KEY_MP_STIFFENER_NO_BEARING_STIFFENERS}.G{i}.M1") + r""" \\[6pt]
 \cline{2-3}
- & \textnormal{Longitudinal Stiffeners} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_LONG) + r""" \\[6pt]
+ & \textnormal{Longitudinal Stiffeners} & """ + _render_value(bridge.input_dict, f"{KEY_MP_STIFFENER_LONGITUDINAL}.G{i}.M1") + r""" \\[6pt]
 \hline"""
         )
     t57_content = "\n".join(t57_rows)
@@ -878,7 +911,8 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         except (TypeError, ValueError):
             return ""
         s = f"{f:.2f}"
-        return (r"\textcolor{red}{" + s + "}") if f > 1.0 else s
+        formatted = (r"\textcolor{red}{" + s + "}") if f > 1.0 else s
+        return _mk_ur(formatted, f)
 
     def _lc_short(lc):
         # Show the full combination expression as-is, e.g.
@@ -977,6 +1011,12 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
 
     def _row522(label, cells):
         c = [x if x else "---" for x in cells]
+        # Capture UR value (last cell) for chart
+        ur_cell = cells[-1] if cells else None
+        ur_value = getattr(ur_cell, "value", None)
+        if ur_value is not None:
+            from .charts import URRecord, group_of
+            bridge.ur_records.append(URRecord(group_of(label), label, ur_value))
         return label + r" & " + r" & ".join(c) + r" \\[6pt]" + "\n\\hline"
 
     # Deck rows: Demand/Capacity from deck_report_values (KEY_DD_*, the same dict
@@ -999,6 +1039,9 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
 
     def _row522_msg(label, msg):
         # Single message spanning the 4 data columns.
+        # Capture N/A for chart
+        from .charts import URRecord, group_of
+        bridge.ur_records.append(URRecord(group_of(label), label, None))
         return label + r" & \multicolumn{4}{c|}{" + msg + r"} \\[6pt]" + "\n\\hline"
 
     # End diaphragm: when configured as Cross Bracing it is designed as bracing
@@ -1064,6 +1107,28 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         _ed_shear_row,
     ]
     t522_content = "\n".join(_t522)
+
+    # R4: Render UR chart before building the return string
+    ur_chart_latex = ""
+    if fig_dir:
+        try:
+            from .charts import render_ur_chart
+            ur_chart_path = render_ur_chart(bridge.ur_records, fig_dir)
+            if ur_chart_path:
+                ur_chart_latex = (
+                    r"\vspace{1em}" + "\n"
+                    + r"\begin{figure}[H]" + "\n"
+                    + r"\centering" + "\n"
+                    + r"\includegraphics[width=\textwidth]{"
+                    + ur_chart_path.replace('\\', '/') + "}\n"
+                    + r"\caption{Utilization Ratio of Primary Elements (UR = Demand / Capacity)}" + "\n"
+                    + r"\label{fig:ur-chart}" + "\n"
+                    + r"\end{figure}" + "\n"
+                    + r"\vspace{1em}" + "\n"
+                )
+        except Exception as _ure:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to render UR chart: {_ure}")
 
     return r"""
 \chapter{Design Checks}
@@ -1177,7 +1242,7 @@ This section presents all structural design checks performed by OsdagBridge. For
 \hline
 """ + t512_content + r"""
 \end{longtable}
-\noindent\textit{Note: IRC 22 Cl. 605 --- governing of normal and shear fatigue (worst by DCR). Capacity reduction factor $\mu_r$ applied where plate thickness > 25 mm.}
+\noindent\textit{Note: IRC 22 Cl. 605 --- governing of normal and shear fatigue (worst by DCR). Capacity reduction factor $\mu_r$ applied where plate thickness $>$ 25 mm.}
 
 \vspace{1em}
 \vspace{0.4em}
@@ -1408,7 +1473,7 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 
 \vspace{0.4em}
 \noindent
-\setlength{\tabcolsep}{4pt}
+
 \setlength\LTleft{0pt}
 \setlength\LTright{\fill}
 
@@ -1419,6 +1484,7 @@ Cross bracing between adjacent plate girders provides lateral stability during c
 \hline
 """ + cb_forces_content + r"""
 \end{longtable}
+
 \noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
 
 \vspace{1em}
@@ -1452,45 +1518,25 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 
 \vspace{0.4em}
 \noindent
-\setlength{\tabcolsep}{4pt}
+
 \setlength{\LTleft}{0pt}
 \setlength{\LTright}{\fill}
 
-\begin{longtable}{|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|}
-\caption{\textbf{End Diaphragm --- Connection and Section Properties}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)} \\[6pt]
-\hline
-""" + cb_forces_content + r"""
-\end{longtable}
-\noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
+% End diaphragm design data is not yet computed by the backend
+% (no end-diaphragm design helpers wired into the report). Show a note
+% instead of re-using cross bracing values, which would be incorrect.
+\begin{center}
+\textit{End Diaphragm design data is not available in this design run.}
+\end{center}
 
 \vspace{1em}
-\begin{longtable}{|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|}
-\caption{\textbf{End Diaphragm --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status} \\[6pt]
-\hline
-""" + cb_slenderness_content + r"""
-\end{longtable}
-\noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
-
-\vspace{1em}
-
-\begin{longtable}{|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|}
-\caption{\textbf{End Diaphragm Design --- Capacity Summary}}
-\hline
-\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status} \\[6pt]
-\hline
-""" + cb_capacity_content + r"""
-\end{longtable}
-\noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
+\noindent\textit{Note: End diaphragm tables (5.26-5.28) are omitted because end-diaphragm member data (section, forces, slenderness) is not produced by the design pipeline. No values are invented.}
 
 % ===========================
 \section{Overall Design Check Summary}
 \label{sec:overall-summary}
 % ===========================
-
+""" + ur_chart_latex + r"""
 \vspace{1em}
 \begin{longtable}{|C{3.4cm}|L{4.5cm}|C{2.3cm}|C{2.3cm}|>{\centering\arraybackslash}p{1.6cm}|}
 \caption{\textbf{Overall Design Check Summary --- All Members}}

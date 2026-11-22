@@ -891,15 +891,18 @@ class IRC6_2017:
         Returns:
             float: Braking force in t (rounded to 3 decimal places)
         """
+        braking_force_1 = 0.0
+        braking_force_2 = 0.0
+        
         for lane in range(1, design_lanes + 1):
             if lane == 1 or lane == 2:
                 wheel_load = IRC6_2017.cl_204_1_ClassA_vehicle()['wheel_loads']
                 braking_force_1 = 0.20 * sum(wheel_load)  # t
             if lane > 2:
                 wheel_load = IRC6_2017.cl_204_1_Class70R_vehicle_wheel()['wheel_loads']
-                braking_force_2 = 0.05 * sum(wheel_load)  # t
+                braking_force_2 += 0.05 * sum(wheel_load)  # t (accumulate for lanes > 2)
             
-            total_braking_force = braking_force_1 + braking_force_2
+        total_braking_force = braking_force_1 + braking_force_2
         return round(total_braking_force, 3)
     
     @staticmethod
