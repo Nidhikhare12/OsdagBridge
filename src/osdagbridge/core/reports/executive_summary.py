@@ -3,6 +3,13 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from osdagbridge.core.reports.report_utils import _fig_or_placeholder, _render_value, _tex, get_girder_entries
+from osdagbridge.core.reports.styles import (
+    COL_PARAM_VALUE,
+    VSPACE_SECTION,
+    VSPACE_SMALL,
+    VSPACE_TABLE,
+    chapter_titleformat,
+)
 from osdagbridge.core.utils.common import (
     KEY_CARRIAGEWAY_WIDTH,
     KEY_SD_SECTION_DESIGNATION,
@@ -160,28 +167,30 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     ur_cells = ' & '.join([ur] * n_cols)
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
-    table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
-              r'\vspace{0.4em}' + '\n'
-              r'\noindent' + '\n'
-              r'\begin{tabular}{' + col_spec + '}\n'
-              r'\hline' + '\n'
-              + header_row +
-              r'\hline' + '\n'
-              + member_id_row +
-              r'\hline' + '\n'
-              + sections + '\n'
-              r'\hline' + '\n'
-              + gov_checks + '\n'
-              r'\hline' + '\n'
-              + urs + '\n'
-              r'\hline' + '\n'
-              r'\end{tabular}')
+    table1 = (
+        r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
+        + VSPACE_SMALL + '\n'
+        + r'\noindent' + '\n'
+        + r'\begin{tabular}{' + col_spec + '}\n'
+        + r'\hline' + '\n'
+        + header_row
+        + r'\hline' + '\n'
+        + member_id_row
+        + r'\hline' + '\n'
+        + sections + '\n'
+        + r'\hline' + '\n'
+        + gov_checks + '\n'
+        + r'\hline' + '\n'
+        + urs + '\n'
+        + r'\hline' + '\n'
+        + r'\end{tabular}'
+    )
 
     return r"""
 \newpage
 {\centering\Large\bfseries Executive Summary\par}
 \addcontentsline{toc}{chapter}{Executive Summary}
-\vspace{0.8em}
+""" + VSPACE_SECTION + r"""
 
 This section provides a concise summary of the bridge design, key inputs, governing loads, and final design outcomes.
 
@@ -190,7 +199,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \label{sec:project-overview}
 
 
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\begin{tabular}{""" + COL_PARAM_VALUE + r"""}
 \hline
 \textbf{Bridge Type} & """ + (_render_value(input_dict, KEY_STRUCTURE_TYPE)) + r""" \\
 \hline
@@ -221,10 +230,10 @@ This section provides a concise summary of the bridge design, key inputs, govern
 
 """ + cs_fig + '\n\n' + geom_fig + '\n\n' + table1 + r"""
 
-\vspace{0.4em}
+""" + VSPACE_SMALL + r"""
 \noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value $< 1.0$ indicates a passing check.}
 
-\vspace{1em}
+""" + VSPACE_TABLE + r"""
 
 \section*{Key Design Outcomes Summary}
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
@@ -247,6 +256,5 @@ Deck design pass
 \end{itemize}
 
 % Restore numbered chapter format
-\titleformat{\chapter}[block]{\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{-30pt}{10pt}
+""" + chapter_titleformat(after_skip="10pt", before_skip="-30pt") + r"""
 """

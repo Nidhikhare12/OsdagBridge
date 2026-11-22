@@ -1,8 +1,25 @@
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.styles import COL_PARAM_VALUE, VSPACE_SECTION, lt_begin, lt_end
 
 
 def ch1_project_info(m):
-    return r"""
+    table = (
+        lt_begin(
+            COL_PARAM_VALUE,
+            "Project and Design Team Details",
+            r"\textbf{Field} & \textbf{Value} \\",
+        )
+        + r"\textbf{Project Name} & " + _tex(m.project_name) + r" \\" + "\n\\hline\n"
+        + r"\textbf{Project Location} & " + _tex(m.project_location) + r" \\" + "\n\\hline\n"
+        + r"\textbf{Designer} & " + _tex(m.designer) + r" \\" + "\n\\hline\n"
+        + r"\textbf{Reviewer} & " + _tex(m.reviewer) + r" \\" + "\n\\hline\n"
+        + r"\textbf{Organization} & " + _tex(m.company) + r" \\" + "\n\\hline\n"
+        + r"\textbf{Client} & " + _tex(m.client) + r" \\" + "\n\\hline\n"
+        + r"\textbf{Software Version} & OsdagBridge \\" + "\n"
+        + lt_end()
+    )
+    return (
+        r"""
 \chapter{Project Information}
 
 This section records all project metadata as entered by the designer.
@@ -10,24 +27,10 @@ This section records all project metadata as entered by the designer.
 \section{Project and Design Team Details}
 \label{sec:project-details}
 
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
-\hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
-\hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
-\hline
-\textbf{Designer} & """ + _tex(m.designer) + r""" \\
-\hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
-\hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
-\hline
-\textbf{Client} & """ + _tex(m.client) + r""" \\
-\hline
-\textbf{Software Version} & OsdagBridge \\
-\hline
-\end{tabular}
-
+"""
+        + VSPACE_SECTION + "\n"
+        + table
+        + r"""
 
 \section{Applicable Codes and Standards}
 \label{sec:codes}
@@ -44,5 +47,4 @@ This section records all project metadata as entered by the designer.
 \item Indian Standard (IS) 6006: Steel Bearings
 \end{itemize}
 """
-
-
+    )
