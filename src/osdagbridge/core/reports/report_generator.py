@@ -981,6 +981,12 @@ def generate_report(payload, request):
                     args.append(request.file_stem + '.tex')
 
                     res = subprocess.run(args, **kwargs)
+                    if res.returncode != 0:
+                        # TeX often exits 1 for harmless overfull-box notices;
+                        # the PDF-existence check below is the real verdict.
+                        logger.debug(
+                            "pdflatex pass %d exited with %d",
+                            pass_no, res.returncode)
                 except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
 

@@ -53,7 +53,7 @@ New \path{styles.py} owns geometry, palette, padding, header/footer theme, Matpl
 \item \path{src/osdagbridge/core/utils/codes/irc6\_2017.py} --- fixed braking-force helper.
 \item Test/verification scripts: \path{generate\_sample\_reports.py}, \path{gui\_smoke\_test.py}, \path{gui\_real\_ui\_test.py}, \path{run\_full\_design\_test.py}, \path{benchmark\_report.py}, \path{benchmark\_detailed.py}.
 \item \path{scripts/tex/lastpage.sty}, \path{scripts/tex/makecell.sty} --- minimal TeX compatibility stubs.
-\item \path{tests/unit/test\_report\_styles.py} --- 3 regression tests.
+\item \path{tests/unit/test\_report\_styles.py}, \path{tests/unit/test\_report\_charts.py} --- 6 regression tests.
 \item Documentation: \path{docs/REPORT\_ENHANCEMENTS.md}, \path{docs/BENCHMARK.md}, \path{docs/PERFORMANCE\_DETAIL.md}.
 \end{itemize}
 
@@ -65,7 +65,7 @@ New \path{styles.py} owns geometry, palette, padding, header/footer theme, Matpl
 \toprule
 \textbf{Test} & \textbf{Result} \\
 \midrule
-Unit tests & 3 passed (styles post-processor). \\
+Unit tests & 6 passed (style post-processor, chart assets, thread-safety, header shading). \\
 Sample PDF build & \path{Report\_Before.pdf} 42 pages; \path{Report\_After.pdf} 47 pages; no LaTeX errors. \\
 GUI report path & Real PySide6 dialog $\rightarrow$ QThread worker $\rightarrow$ \texttt{generate\_design\_report}; \path{Report\_From\_GUI.pdf} produced. \\
 Real UI buttons & \path{gui\_real\_ui\_test.py} clicks the actual Design and Generate Report buttons; 1001 design keys; \path{Report\_Real\_UI.pdf} (59 pages); 54.86\,s; no errors. \\
@@ -132,8 +132,8 @@ PYTHONPATH=src python scripts/benchmark_detailed.py 4
 \textbf{Aspect} & \textbf{Judgement} \\
 \midrule
 Requirement coverage & \textbf{6 / 6 complete.} Each requirement has an explicit code change and an artefact proving it. \\
-Code quality & Single style module consumed by all chapters; dead code removed; charts are thread-safe; 3 regression tests; verified import/compile of every report module. \\
-Verification depth & Unit tests, sample PDFs, visible GUI, real UI button clicks, full OpenSees design, cross-application reads, colour-pixel and image-fidelity checks. \\
+Code quality & Single style module consumed by all chapters; dead code removed; charts are thread-safe; 6 regression tests; verified import/compile of every report module. \\
+Verification depth & Unit tests, sample PDFs, visible GUI, real UI buttons, full OpenSees design, all tests re-run in the real conda env, cross-app reads, colour/image checks and a demo video. \\
 Performance & 2.180\,s mean; TeX-bound; no GPU path exists; optimisations applied where they matter. \\
 Dependencies & The full conda environment (\path{environment.yml}) is installed; \texttt{OCC}, \texttt{osdag\_core}, \texttt{fiona} and PySide6 are real packages, and the GUI/report tests were re-run inside \texttt{osdagbridge-env} with no stubs. \\
 Video & A silent screengrab demo (\path{Demo\_Video.mp4}, 50\,s) is included as required. \\
