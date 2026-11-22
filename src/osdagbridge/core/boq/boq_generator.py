@@ -391,39 +391,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             dw_m = (float(dw_val) / 1000.0) if dw_val else 2.0
             ed_diag_len = (spacing**2 + dw_m**2)**0.5
 
-            # 1. Resolve designed section area (m2) and unit mass (kg/m)
-            # Check ED-specific outputs first
-            ed_diag_area_val = (
-                outputs.get("transverse_member_design.ed.section_properties.end_diaphragm.G1G2.A")
-                or outputs.get("transverse_member_design.ed.section_properties.diagonal.G1G2.A")
-            )
-            ed_chord_area_val = (
-                outputs.get("transverse_member_design.ed.section_properties.top_chord.G1G2.A")
-                or outputs.get("transverse_member_design.ed.section_properties.chord.G1G2.A")
-            )
-
-            diag_mass_pm = None
-            chord_mass_pm = None
-
-            if ed_diag_area_val is not None:
-                try:
-                    diag_mass_pm = round((float(ed_diag_area_val) / 10000.0) * 7850.0, 2)
-                except (ValueError, TypeError):
-                    pass
-
-            if ed_chord_area_val is not None:
-                try:
-                    chord_mass_pm = round((float(ed_chord_area_val) / 10000.0) * 7850.0, 2)
-                except (ValueError, TypeError):
-                    pass
-
-            # If not in ED outputs, fall back to cross-bracing designed area (shared cross-frame section)
-            if diag_mass_pm is None and bracing_area > 0.0:
-                diag_mass_pm = round(bracing_area * 7850.0, 2)
-            if chord_mass_pm is None and diag_mass_pm is not None:
-                chord_mass_pm = diag_mass_pm
-
-            # 2. Extract section designation from design results
+            # 1. Extract section designation from design results first (ED or CB cross-frame design)
             diag_des = None
             chord_des = None
             cb_results = outputs.get("crossbracing_design_results", {}) or {}
@@ -449,13 +417,45 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                                         chord_des = str(c_des)
                                         break
 
-            # If designation was in design results, check if we need to look up mass from it
-            if diag_mass_pm is None and diag_des:
+            # 2. Look up unit mass from the designed section designation (single source of truth with database)
+            diag_mass_pm = None
+            chord_mass_pm = None
+
+            if diag_des:
                 diag_mass_pm = _lookup_section_mass(diag_des)
-            if chord_mass_pm is None and chord_des:
+            if chord_des:
                 chord_mass_pm = _lookup_section_mass(chord_des)
 
-            # If designation not in results but mass is known, infer or check outputs
+            # 3. If mass not found via designation, fall back to cross-bracing designed area (shared cross-frame)
+            if diag_mass_pm is None and bracing_area > 0.0:
+                diag_mass_pm = round(bracing_area * 7850.0, 2)
+            if chord_mass_pm is None and diag_mass_pm is not None:
+                chord_mass_pm = diag_mass_pm
+
+            # 4. If neither designation nor CB area available, check ED output area properties
+            if diag_mass_pm is None:
+                ed_diag_area_val = (
+                    outputs.get("transverse_member_design.ed.section_properties.end_diaphragm.G1G2.A")
+                    or outputs.get("transverse_member_design.ed.section_properties.diagonal.G1G2.A")
+                )
+                if ed_diag_area_val is not None:
+                    try:
+                        diag_mass_pm = round((float(ed_diag_area_val) / 10000.0) * 7850.0, 2)
+                    except (ValueError, TypeError):
+                        pass
+
+            if chord_mass_pm is None:
+                ed_chord_area_val = (
+                    outputs.get("transverse_member_design.ed.section_properties.top_chord.G1G2.A")
+                    or outputs.get("transverse_member_design.ed.section_properties.chord.G1G2.A")
+                )
+                if ed_chord_area_val is not None:
+                    try:
+                        chord_mass_pm = round((float(ed_chord_area_val) / 10000.0) * 7850.0, 2)
+                    except (ValueError, TypeError):
+                        pass
+
+            # 5. Infer designation if mass is known but designation string wasn't in design results
             if not diag_des and diag_mass_pm is not None:
                 if abs(diag_mass_pm - 1.86) < 0.05:
                     diag_des = "ISA 40x40x3"
@@ -468,7 +468,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 else:
                     chord_des = outputs.get("member_properties.cross_bracing_details.top_chord_section_designation.G1G2")
 
-            # 3. Check if designed vs assumed
+            # 6. Fall back to assumed default sections only when completely un-designed
             is_assumed = False
             if diag_mass_pm is None and chord_mass_pm is None:
                 is_assumed = True

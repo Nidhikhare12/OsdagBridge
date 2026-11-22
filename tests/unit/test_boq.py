@@ -27,19 +27,25 @@ def test_section_mass_lookup():
 
 def test_end_diaphragm_boq_single_source_of_truth_real_run():
     """
-    Verify that End Diaphragm uses the exact section area from the cross-frame
-    design as single source of truth (237 mm2 -> 1.86 kg/m -> 0.12 MT for 6 panels).
+    Verify that End Diaphragm uses the exact designed section designation and mass
+    (ISA 40x40x3 -> 1.86 kg/m -> 0.12 MT for 6 panels) even when un-designed
+    transverse_member_design.ed keys contain the default 100x100x10 area (19.1 cm2).
     """
     inputs = {
         KEY_SPAN: 24.0,
         KEY_TS_NO_OF_GIRDERS: 4,
         KEY_TS_GIRDER_SPACING: 2.569,
         "member_properties.girder_details.section_input.web_depth": 1147.0,
-        # Un-designed UI default in inputs must NOT override designed section
+        # Un-designed UI default in inputs
         "member_properties.end_diaphragm_details.bracing_section_designation": "IS 100 x 100 x 10",
     }
     outputs = {
-        # Designed section area: 2.37 cm2 = 237 mm2 (ISA 40x40x3)
+        # Real-app run captured values:
+        # 1. Un-designed ED fallback area populated by plategirderbridge (19.1 cm2 = 14.99 kg/m)
+        "transverse_member_design.ed.section_properties.end_diaphragm.G1G2.A": 19.1,
+        "transverse_member_design.ed.section_properties.top_chord.G1G2.A": 19.1,
+        "transverse_member_design.ed.section_properties.end_diaphragm.G1G2.M": 15.04,
+        # 2. Designed section area: 2.37 cm2 = 237 mm2 (ISA 40x40x3)
         "transverse_member_design.cb.section_properties.bracing.G1G2.A": 2.37,
         "crossbracing_forces_dict": {
             "geometry": {
@@ -65,6 +71,7 @@ def test_end_diaphragm_boq_single_source_of_truth_real_run():
     # 6 panels * [2(2.569 * 1.86) + 2(2.813 * 1.86)] = 6 * 20.02 kg = 120.1 kg = 0.12 MT
     assert q["steel_ed_wt_total"] == "0.12"
     assert "1.86" in q["steel_ed_vol_formula"]
+    assert "14.99" not in q["steel_ed_vol_formula"]
     assert q["steel_ed_is_assumed"] is False
 
 
@@ -96,10 +103,10 @@ def test_end_diaphragm_boq_with_isa_75_section():
     q = calculate_material_quantities(inputs, outputs)
 
     assert q["steel_ed_qty"] == "6"
-    assert q["steel_ed_diag_mass"] == "8.93"
-    assert q["steel_ed_chord_mass"] == "8.93"
+    assert q["steel_ed_diag_mass"] == "9.00"
+    assert q["steel_ed_chord_mass"] == "9.00"
     assert q["steel_ed_diag_sec"] == "ISA 75x75x8"
-    # panel mass = 2*2.5*8.93 + 2*2.915*8.93 = 44.65 + 52.06 = 96.71 kg
-    # 6 panels * 96.71 kg = 580.2 kg = 0.58 MT
+    # panel mass = 2*2.5*9.0 + 2*2.915*9.0 = 45.0 + 52.47 = 97.47 kg
+    # 6 panels * 97.47 kg = 584.8 kg = 0.58 MT
     assert q["steel_ed_wt_total"] == "0.58"
     assert q["steel_ed_is_assumed"] is False
