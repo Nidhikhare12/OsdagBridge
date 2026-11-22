@@ -1,5 +1,7 @@
 from typing import List
 
+from .styles import compact_table_begin, compact_table_end
+
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE
 )
@@ -55,8 +57,9 @@ form the basis of all design calculations in this software.
 
 \vspace{0.5cm}
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
+"""
++ compact_table_begin()
++ r"""
 \begin{table}[H]
 \caption{\textbf{IRC Codes}}
 \begin{tabular}{|c|c|p{13cm}|}
@@ -77,9 +80,13 @@ IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \hline
 \end{tabular}
 \end{table}
+"""
++ compact_table_end()
++ r"""
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
+"""
++ compact_table_begin()
++ r"""
 \begin{table}[H]
 \caption{\textbf{IS Codes}}
 \begin{tabular}{|c|c|p{13cm}|}
@@ -98,6 +105,9 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
 \end{tabular}
 \end{table}
+"""
++ compact_table_end()
++ r"""
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}

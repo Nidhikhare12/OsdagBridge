@@ -8,17 +8,30 @@ from osdagbridge.core.utils.common import (
 
 def _tex(value):
     """Escape a Python value for safe LaTeX embedding."""
+    return escape_latex(value)
+
+
+def escape_latex(value):
+    """Escape user-entered text for safe LaTeX embedding.
+
+    Converts LaTeX-special characters (& % $ # { } _ ~ ^) and non-ASCII
+    glyphs (e.g. section designations like "∠ 100 x 100 x 10") so that
+    strings such as "A & B_100% #1" do not break pdflatex compilation.
+
+    This is the single helper used for all user-entered text (project name,
+    designer, client, company, comments, ...).
+    """
     s = str(value) if value is not None else ''
     if not s:
         return r''
-    # Normalise non-ASCII glyphs from section designations (e.g. "∠ 100 ⅹ 100ⅹ 10")
-    # that pdflatex cannot render.
+    # Normalise non-ASCII glyphs from section designations that pdflatex
+    # cannot render (OT1 encoding).
     for uni, ascii_ in [('∠', 'L'), ('ⅹ', 'x'), ('×', 'x')]:
         s = s.replace(uni, ascii_)
     s = s.replace('\\', r'\textbackslash{}')
     for ch, esc in [('&', r'\&'), ('%', r'\%'), ('$', r'\$'), ('#', r'\#'),
-                    ('{', r'\{'), ('}', r'\}'),          
-                    ('_', r'\_\allowbreak{}'),            
+                    ('{', r'\{'), ('}', r'\}'),
+                    ('_', r'\_\allowbreak{}'),
                     ('~', r'\textasciitilde{}'), ('^', r'\^{}')]:
         s = s.replace(ch, esc)
     s = s.replace(':', r':\allowbreak{}')
@@ -30,6 +43,39 @@ def _render_value(source_dict, key, unit=""):
     if val in ("", None):
         return ""
     return _tex(val) + unit
+
+
+def _round2(value) -> str:
+    """Round a numeric value to 2 decimal places for report display.
+
+    Handles None, empty string, and non-numeric strings gracefully,
+    returning the value formatted to exactly 2 decimal places, or '' if
+    the value cannot be parsed.
+    """
+    if value in (None, ""):
+        return ""
+    try:
+        f = float(value)
+        return f"{f:.2f}"
+    except (TypeError, ValueError):
+        return ""
+
+
+def _render_m_as_mm(source_dict, key):
+    """Render a metre-valued input as millimetres (integer).
+
+    Bridge section inputs (depth, web/flange thicknesses) are stored in
+    metres but Table 2.7 reports them in mm. Converts m -> mm and prints
+    an integer so values are reported in mm (e.g. 1.67 m -> 1670 mm).
+    """
+    val = source_dict.get(key)
+    if val in ("", None):
+        return ""
+    try:
+        mm = float(val) * 1000.0
+        return str(int(round(mm)))
+    except (TypeError, ValueError):
+        return _tex(val)
 
 
 def get_girder_entries(input_dict):

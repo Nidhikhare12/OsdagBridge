@@ -2,7 +2,8 @@
 # EXECUTIVE SUMMARY
 # ═══════════════════════════════════════════════════════════════════════════════
 
-from osdagbridge.core.reports.report_utils import _fig_or_placeholder, _render_value, _tex, get_girder_entries
+from osdagbridge.core.reports.report_utils import _fig_or_placeholder, _render_value, _tex, get_girder_entries, _round2
+from osdagbridge.core.reports.styles import color_pass, color_fail
 from osdagbridge.core.utils.common import (
     KEY_CARRIAGEWAY_WIDTH,
     KEY_SD_SECTION_DESIGNATION,
@@ -130,6 +131,28 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     gov = _tex(gov_name) if gov_name not in (None, '', 'None') else ''
     ur = _tex(overall_utilization_ratio) if overall_utilization_ratio else ''
 
+    # --- Key Design Outcomes: drive each line from real check results ---
+    _c_pass = color_pass()
+    _c_fail = color_fail()
+
+    girder_ok = girder_max_ur is not None and girder_max_ur <= 1.0
+    deck_ok = deck_max is not None and deck_max <= 1.0
+    cb_max = _max_member_efficiency(cb_results)
+    ed_max = _max_member_efficiency(ed_results)
+    cb_ok = cb_max is not None and cb_max <= 1.0
+    ed_ok = ed_max is not None and ed_max <= 1.0
+
+    def _outcome_line(label, ok):
+        status = r"\textcolor{%s}{PASS}" % _c_pass if ok else r"\textcolor{%s}{FAIL}" % _c_fail
+        return "\\noindent %s design %s \\\\" % (label, status)
+
+    _outcomes = (
+        _outcome_line("Girder", girder_ok) + "\n"
+        + _outcome_line("Cross bracing", cb_ok) + "\n"
+        + _outcome_line("End Diaphragm", ed_ok) + "\n"
+        + _outcome_line("Deck", deck_ok)
+    )
+
     # --- Dynamic Table 1: fetch backend-populated labels via exact suffix pattern ---
     # defaults.py populates: KEY_MP_GD_SELECT_GIRDER + '.G{i}' = 'G{i}'
     #                        KEY_MP_GD_MEMBER_ID     + '.G{i}.M1' = 'G{i}M1'
@@ -202,7 +225,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \hline
 \textbf{No. of Girders} & """ + (_render_value(input_dict, KEY_TS_NO_OF_GIRDERS)) + r""" \\
 \hline
-\textbf{Girder Spacing} & """ + (_render_value(input_dict, KEY_TS_GIRDER_SPACING)) + r""" \\
+\textbf{Girder Spacing} & """ + _round2(input_dict.get(KEY_TS_GIRDER_SPACING)) + r""" \\
 \hline
 \textbf{Deck Thickness} & """ + (_render_value(input_dict, KEY_TS_DECK_THICKNESS)) + r""" \\
 \hline
@@ -230,10 +253,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
 \label{sec:key-outcomes}
 
-\noindent Girder design pass \\
-Cross bracing design pass \\
-End Diaphragm design pass \\
-Deck design pass
+\noindent """ + _outcomes + r"""
 
 \section*{Design Assumptions and Limitations}
 \addcontentsline{toc}{section}{Design Assumptions and Limitations}
