@@ -7,7 +7,10 @@
 \usepackage{url}
 \usepackage{caption}
 \usepackage{array}
+\usepackage{titlesec}
 \definecolor{osdaggreen}{HTML}{91B014}
+\titleformat{\section}{\Large\bfseries\color{osdaggreen}}{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{10pt}{5pt}
 \definecolor{tablehead}{HTML}{EAF2D6}
 \title{\textbf{OsdagBridge LaTeX Report Generator}\\[2mm]
 \large Refactoring \& Enhancements --- Technical Report}
@@ -21,7 +24,7 @@ The report generator assembles a multi-chapter LaTeX document from Python module
 \path{src/osdagbridge/core/reports/}. The original implementation scattered formatting constants across the preamble and chapters, lost table headers at page breaks, allowed content to approach the footer, merged vehicle and footway loads, and contained no data visualisation. All six requested improvements were implemented, then verified through unit tests, a real GUI session, a full OpenSees design run and independent PDF applications.
 
 \section{Requirement status}
-\begin{longtable}{p{0.31\linewidth}p{0.61\linewidth}}
+\begin{longtable}{p{0.29\linewidth}p{0.60\linewidth}}
 \toprule
 \textbf{Requirement} & \textbf{Implementation and evidence} \\
 \midrule
@@ -55,7 +58,7 @@ New \path{styles.py} owns geometry, palette, padding, header/footer theme, Matpl
 \end{itemize}
 
 \section{Centralized style architecture}
-\path{styles.py} exposes: document settings (\texttt{PAGE\_MARGIN}, \texttt{DOCUMENT\_STRETCH}); colour palette (\texttt{COLOR\_OSDAG\_GREEN\_HEX}, \texttt{COLOR\_UR\_PASS}, \texttt{COLOR\_UR\_FAIL}); table layout (\texttt{TAB\_COLSEP}, \texttt{ARRAY\_STRETCH}, \texttt{PAGE\_BOTTOM\_THRESHOLD\_LINES}, \texttt{table\_header\_row()}); spacing constants (\texttt{SECTION\_SKIP}, \texttt{TABLE\_TOP\_SKIP}, \texttt{FIGURE\_SKIP}); caption/section settings; chart theming (\texttt{matplotlib\_rc()}, \texttt{figure\_block()}); and the global pass \texttt{apply\_global\_styles()} which repeats longtable headers, shades header rows and protects headings from the footer.
+\path{styles.py} exposes: document settings (\path{PAGE_MARGIN}, \path{DOCUMENT_STRETCH}); colour palette (\path{COLOR_OSDAG_GREEN_HEX}, \path{COLOR_UR_PASS}, \path{COLOR_UR_FAIL}); table layout (\path{TAB_COLSEP}, \path{ARRAY_STRETCH}, \path{PAGE_BOTTOM_THRESHOLD_LINES}, \path{table_header_row()}); spacing constants (\path{SECTION_SKIP}, \path{TABLE_TOP_SKIP}, \path{FIGURE_SKIP}); caption/section settings; chart theming (\path{matplotlib_rc()}, \path{figure_block()}); and the global pass \path{apply_global_styles()} which repeats longtable headers, shades header rows and protects headings from the footer.
 
 \section{Verification performed}
 \begin{longtable}{p{0.29\linewidth}p{0.63\linewidth}}
