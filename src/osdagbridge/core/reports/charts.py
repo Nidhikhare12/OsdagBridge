@@ -87,7 +87,9 @@ def utilization_ratio_figure(
             color=styles.COLOR_TEXT,
         )
     ax.legend(loc="upper right", fontsize=8)
-    fig.tight_layout()
+    # Fixed padding is ~0.4 s faster than tight_layout() and sufficient for
+    # these small, predictable charts.
+    fig.subplots_adjust(left=0.13, right=0.97, top=0.88, bottom=0.24, wspace=0.45)
 
     path = _save(fig, asset_dir, "ur_summary.png")
     return styles.figure_block(
@@ -146,7 +148,9 @@ def material_quantity_figure(inputs: Dict[str, object], asset_dir: str) -> str:
     _bar_panel(axes[2], ["Deck Rebar"], [rebar],
                styles.COLOR_REBAR, "Reinforcement", "Mass (MT)")
 
-    fig.tight_layout()
+    # Fixed padding is ~0.4 s faster than tight_layout() and sufficient for
+    # these small, predictable charts.
+    fig.subplots_adjust(left=0.13, right=0.97, top=0.88, bottom=0.24, wspace=0.45)
     path = _save(fig, asset_dir, "material_quantities.png")
     return styles.figure_block(
         path,

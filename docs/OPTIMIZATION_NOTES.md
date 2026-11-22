@@ -11,7 +11,7 @@ Measured in one process, identical request:
 
 | Pass | Time |
 |---|---:|
-| First export (pdflatex draft + final) | 2.940 s |
+| First export (pdflatex draft + final) | 1.968 s |
 | Second export (cache hit) | **0.0002 s** |
 
 This is what makes a real-time preview possible: re-opening/regenerating the
