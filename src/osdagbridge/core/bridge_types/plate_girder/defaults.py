@@ -427,8 +427,11 @@ def extend_cb_dynamic_keys(working_input_dict: dict, girder_count: int, no_of_br
             # End Diaphragm population above) so report Table 2.7 can read them.
             working_input_dict[KEY_MP_CB_SELECT_GIRDERS + suffix] = \
                 f"G{girder_idx} to G{girder_idx + 1}"
-            working_input_dict[KEY_MP_CB_MEMBER_ID + suffix] = \
-                f"B{girder_idx}M1 to B{girder_idx}M{no_of_bracings}"
+            working_input_dict[KEY_MP_CB_MEMBER_ID + suffix] = (
+                f"B{girder_idx}M1"
+                if no_of_bracings == 1
+                else f"B{girder_idx}M1 to B{girder_idx}M{no_of_bracings}"
+            )
             working_input_dict[KEY_MP_CB_SPACING + suffix] = cb_spacing
             for base_key, defaults_key in _CB_PROPS:
                 full_key = base_key + suffix

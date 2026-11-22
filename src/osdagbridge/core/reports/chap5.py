@@ -839,6 +839,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         for member, label in [("diagonal", "Diagonal"), ("chord", "Chord")]:
             nature = bridge.get_ed_nature(pair, member)
             slenderness = bridge.get_ed_slenderness(pair, member)
+            effective_length = bridge.get_ed_effective_length(pair, member)
 
             try:
                 value = float(slenderness)
@@ -856,7 +857,8 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             ed_slenderness_rows.append(
                 r"\textbf{" + _tex(pair) + r"} & " + label
                 + r" & " + _tex(nature)
-                + r" &  & " + _tex(slenderness)
+                + r" & " + _tex(effective_length)
+                + r" & " + _tex(slenderness)
                 + r" & " + limit_status
                 + r" \\[6pt]\hline"
             )
@@ -883,7 +885,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                 + r" & " + force_str
                 + r" & " + capacity
                 + r" & " + ur
-                + r" & " + _tex(status)
+                + r" & " + (str(status) if status is not None else "")
                 + r" \\[6pt]\hline"
             )
 

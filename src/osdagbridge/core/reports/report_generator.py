@@ -503,9 +503,12 @@ class ReportDataBridge:
         except Exception:
             return ""
 
-    # =====================================================================
+        # =====================================================================
     # CHAPTER 5: END DIAPHRAGM
     # =====================================================================
+    def _ed_forces_dict(self) -> dict:
+        """Return end_diaphragm_forces_dict from output_dict."""
+        return self.output_dict.get("end_diaphragm_forces_dict", {})
 
     def _ed_pair_designs(self) -> dict:
         """Return end_diaphragm_design_results from output_dict."""
@@ -524,6 +527,20 @@ class ReportDataBridge:
         )
         try:
             raw = self._ed_pair_designs()[pair][member][force_type]
+            if pair == "G1-G2" and member == "diagonal" and force_type == "compression":
+                print("\n[ED RAW KEYS]", sorted(raw.keys()))
+                print("[ED RAW PROPERTIES]", {
+                    k: v for k, v in raw.items()
+                    if any(s in k.lower() for s in (
+                        "area", "radius", "rmin", "r_min",
+                        "effective", "length", "slender"
+                    ))
+                })
+            print(
+                "[ED ADAPTER DEBUG]",
+                pair, member, force_type,
+                _extract_osdag_summary(raw or {})
+            )
             return _extract_osdag_summary(raw or {})
         except (KeyError, TypeError):
             return {}
@@ -639,11 +656,20 @@ class ReportDataBridge:
             return f"{float(val):.3f}" if val is not None else ""
         except (TypeError, ValueError):
             return ""
-
     def get_ed_slenderness(self, pair: str, member: str) -> str:
         """Return member slenderness ratio KL/r."""
         for force_type in ("compression", "tension"):
             val = self._ed_osdag(pair, member, force_type).get("slenderness")
+            if val is not None:
+                try:
+                    return f"{float(val):.1f}"
+                except (TypeError, ValueError):
+                    pass
+        return ""
+    def get_ed_effective_length(self, pair: str, member: str) -> str:
+        """Return member effective length in mm."""
+        for force_type in ("compression", "tension"):
+            val = self._ed_osdag(pair, member, force_type).get("effective_length")
             if val is not None:
                 try:
                     return f"{float(val):.1f}"
@@ -946,6 +972,9 @@ def generate_report(payload, request):
 
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
+            print("REPORT ED FORCES:", payload.output_dict.get("end_diaphragm_forces_dict", {}).keys())
+            print("REPORT ED DESIGNS:", payload.output_dict.get("end_diaphragm_design_results", {}).keys())
+            print("REPORT ED SAMPLE:", payload.output_dict.get("end_diaphragm_design_results", {}).get("G1-G2", {}))
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
             doc_parts = []

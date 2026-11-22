@@ -75,6 +75,22 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
     _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
     _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
+    reaction_rows = []
+
+    for lc in all_lcs:
+        rxn = rxn_summary.get(lc) or {}
+        reaction_rows.append(
+            _tex(lc) + " & "
+            + _fmt(rxn.get("left_kN")) + " & "
+            + _fmt(rxn.get("right_kN"))
+            + r" \\[6pt]"
+        )
+
+    reaction_body = (
+        "\n\\hline\n".join(reaction_rows)
+        if reaction_rows
+        else r"--- & --- & --- \\[6pt]"
+    )
     return r"""
 \chapter{Analysis Results}
 
@@ -153,11 +169,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \endhead
 
- &  & \\[6pt]
-\hline
- &  & \\[6pt]
-\hline
- &  & \\[6pt]
+""" + reaction_body + r"""
 \hline
 \end{longtable}
 

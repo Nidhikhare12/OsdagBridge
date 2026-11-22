@@ -62,13 +62,13 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
 
 \definecolor{osdagGreen}{HTML}{91B014}
-
+\setlength{\headheight}{28pt}
 \fancypagestyle{main}{
   \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
+  \fancyhead[L]{\small\parbox[b]{0.60\headwidth}{\raggedright """ + pn + r""" $|$ """ + jn + r"""}}
+  \fancyhead[R]{\small\parbox[b]{0.34\headwidth}{\raggedleft """ + rd + r""" $|$ """ + rv + r"""}}
   \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+  \fancyfoot[R]{Page \thepage\\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
     \ifbool{hasSDonPage}{%
@@ -83,8 +83,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 }
 \fancypagestyle{plain}{
   \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
+  \fancyhead[L]{\small\parbox[b]{0.60\headwidth}{\raggedright """ + pn + r""" $|$ """ + jn + r"""}}
+  \fancyhead[R]{\small\parbox[b]{0.34\headwidth}{\raggedleft """ + rd + r""" $|$ """ + rv + r"""}}
   \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
@@ -103,7 +103,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
   \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+  \fancyfoot[R]{}
   \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
 }
 \pagestyle{main}
