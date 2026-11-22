@@ -196,6 +196,16 @@ constants (`SECTION_SKIP`, `TABLE_TOP_SKIP`, `FIGURE_SKIP`) from it.
 Centrifugal load is computed per IRC 6 Cl. 209 from `KEY_LL_CURVE_RADIUS`
 and `KEY_LL_DESIGN_SPEED` (or reported as "straight alignment").
 
+A real-UI verification is included as well:
+`scripts/gui_real_ui_test.py` clicks the actual `Design` and `Generate Report`
+QPushButtons, waits on the real QThread workers, and produces
+`deliverables/Report_Real_UI.pdf` (60 pages, 50 repeating headers) from 1001
+real design output keys.  This test exposed a thread-safety issue in the chart
+code (pyplot being switched to the Qt backend by the main window); chart
+figures are now built as detached `matplotlib.figure.Figure` objects and
+rendered through `FigureCanvasAgg`, so they are safe to create on a worker
+thread.
+
 A full real-solver verification is also included:
 
 ```bash

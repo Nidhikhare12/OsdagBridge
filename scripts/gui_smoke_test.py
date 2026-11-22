@@ -212,7 +212,11 @@ def install_navcube_stub() -> None:
         pass
     module = types.ModuleType("navcube")
     module.__path__ = []
-    class _Signal:
+    class _Signal(int):
+        """Dummy that behaves both like a Qt signal and like a numeric value."""
+        def __new__(cls):
+            return super().__new__(cls, 0)
+
         def __call__(self, *args, **kwargs):
             return self
 
@@ -221,6 +225,9 @@ def install_navcube_stub() -> None:
 
         def emit(self, *args, **kwargs):
             pass
+
+        def __getattr__(self, item):
+            return _Signal()
 
     class _NavDummy:
         def __init__(self, *args, **kwargs):

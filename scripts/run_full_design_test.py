@@ -98,7 +98,8 @@ from osdagbridge.core.utils.common import (  # noqa: E402
 )
 
 
-def main() -> int:
+def full_inputs() -> dict:
+    """Complete input dictionary matching a filled-in desktop UI form."""
     inputs = dict(BASIC_INPUT_DICT)
     inputs[KEY_SPAN] = 30.0
     inputs[KEY_TS_NO_OF_GIRDERS] = 4
@@ -121,7 +122,11 @@ def main() -> int:
     inputs[KEY_SC_RIGHT_SUPPORT] = "Roller"
     # Populate the dynamic per-girder/member keys exactly like the desktop UI.
     solve_extend_basic_input_dict(inputs)
+    return inputs
 
+
+def main() -> int:
+    inputs = full_inputs()
     bridge = PlateGirderBridge()
     bridge.set_input(inputs)
     print("Running real OpenSees analysis + design ...")

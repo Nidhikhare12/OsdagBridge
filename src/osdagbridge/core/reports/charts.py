@@ -12,22 +12,28 @@ import os
 from typing import Dict, List, Tuple
 
 import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.backends.backend_agg import FigureCanvasAgg  # noqa: E402
+from matplotlib.figure import Figure  # noqa: E402
 
 from . import styles  # noqa: E402
 
 
-def _save(fig: "plt.Figure", asset_dir: str, name: str) -> str:
+def _save(fig: Figure, asset_dir: str, name: str) -> str:
+    """Render a detached Figure through Agg (safe from worker threads)."""
     os.makedirs(asset_dir, exist_ok=True)
     path = os.path.join(asset_dir, name)
+    FigureCanvasAgg(fig)
     fig.savefig(path, dpi=200, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
+    fig.clear()
     return path
 
 
 def _style() -> None:
-    plt.rcParams.update(styles.matplotlib_rc())
+    matplotlib.rcParams.update(styles.matplotlib_rc())
+
+
+def _figure(*args, **kwargs) -> Figure:
+    return Figure(*args, **kwargs)
 
 
 def _number(value) -> float:
@@ -55,7 +61,8 @@ def utilization_ratio_figure(
         for ur in values
     ]
 
-    fig, ax = plt.subplots(figsize=(7.2, 3.3))
+    fig = _figure(figsize=(7.2, 3.3))
+    ax = fig.subplots()
     bars = ax.bar(labels, values, color=colors, width=0.55, zorder=3)
     ax.axhline(
         1.0,
@@ -115,7 +122,8 @@ def material_quantity_figure(inputs: Dict[str, object], asset_dir: str) -> str:
     concrete = _number(inputs.get("concrete_deck_vol_total"))
     rebar = _number(inputs.get("rebar_deck_wt_total"))
 
-    fig, axes = plt.subplots(1, 3, figsize=(9.0, 3.0))
+    fig = _figure(figsize=(9.0, 3.0))
+    axes = fig.subplots(1, 3)
 
     def _bar_panel(ax, labels, values, color, title, ylabel, fmt="{:.2f}"):
         bars = ax.bar(labels, values, color=color, width=0.55, zorder=3)
