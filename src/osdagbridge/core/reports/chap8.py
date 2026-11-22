@@ -59,7 +59,7 @@ form the basis of all design calculations in this software.
 \setlength{\tabcolsep}{3.5pt}
 \begin{table}[H]
 \caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabular}{|C{2.0cm}|C{1.5cm}|L{11.0cm}|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
@@ -77,12 +77,13 @@ IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \hline
 \end{tabular}
 \end{table}
+\endgroup
 
 \begingroup
 \setlength{\tabcolsep}{3.5pt}
 \begin{table}[H]
 \caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabular}{|C{2.0cm}|C{1.5cm}|L{11.0cm}|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
@@ -98,6 +99,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
 \end{tabular}
 \end{table}
+\endgroup
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}
@@ -109,7 +111,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
     \item All girders are modelled as simply supported; continuous spans are not currently supported.
     \item A 3D grillage model (OSPGrillage) is used for load distribution. Grillage members carry composite section properties after the construction stage.
     \item The transverse member forces are computed using an approximate 2D frame analogy. For irregular or skewed geometries, a 3D FEM is recommended.
-    \item Fixed bearing stiffness is modelled as $k = 1{,}000{,}000 \,\text{kN/m}$ (virtually rigid); free/expansion bearing as $k = 100 \, \text{kN/m}$.
+    \item Fixed bearing stiffness is modelled as $k = 10^6\text{ kN/m}$ (rigid); free / expansion bearing is modelled as $k = 100\text{ kN/m}$.
     \item Construction stage sequence analysis is approximate. Detailed staged analysis should be performed for long-term deflection checks.
 \end{itemize}
 
@@ -129,7 +131,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \textbf{Material Properties (IRC 22:2015 Annex III)}
 
 \begin{itemize}
-\item Steel: $E_s = 200{,}000 \, \text{MPa}, \ G_s = 80{,}000 \, \text{MPa}, \ \nu = 0.30, \ \alpha = 11.7 \times 10^{-6}/^\circ\mathrm{C}$ (grade-independent).
+\item Steel: $E_s = 200{,}000 \, \text{MPa}$, $G_s = 80{,}000 \, \text{MPa}$, $\nu = 0.30$, $\alpha = 11.7 \times 10^{-6}/^\circ\mathrm{C}$ (grade-independent).
 \item Minimum structural concrete grade: M25.
 \item Default reinforcement grade: Fe500.
 \end{itemize}
@@ -149,7 +151,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \begin{itemize}
 \item Dead load densities per IRC 6:2017 Cl.203: structural steel $78.5 \ \text{kN/m}^3$, concrete $25.0 \ \text{kN/m}^3$, bituminous wearing course $24.0 \ \text{kN/m}^3$.
 \item Multi-lane live load reduction factors per IRC 6:2017 Cl.204.4 Table 6A: 1st lane = 1.0, 2nd lane = 0.8, 3rd lane onwards = 0.4.
-\item Impact factor (dynamic load allowance) computed from span per IRC 6:2017 Cl.208.2/208.3.
+\item Impact factor (dynamic allowance) computed from bridge span per IRC 6:2017 Cl.~208.
 \item Wind load applied as transverse, longitudinal, and vertical components per IRC 6:2017 Cl.209.3.3--209.3.5.
 \end{itemize}
 

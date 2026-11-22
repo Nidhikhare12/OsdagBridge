@@ -129,6 +129,8 @@ from .chap6 import ch6_drawings
 from .chap7 import ch7_quantities
 from .chap8 import ch8_design_log
 from .chap9 import references
+from .styles import generate_preamble
+from .charts import generate_ur_summary_chart, generate_material_quantity_charts
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +140,6 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # LaTeX template sections for OsdagBridge Design Report
 # Matches the LaTeX template used in the OsdagBridge desktop application.
-# Color: osdagGreen = #91B014
 # =============================================================================
 
 
@@ -148,133 +149,8 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def preamble(project_name, job_number, report_date, report_version='Rev 0'):
-    pn = _tex(project_name)
-    jn = _tex(job_number)
-    rd = _tex(report_date)
-    rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
-
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{tabularx}
-\usepackage{float}
-\usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
-\usepackage{setspace}
-\usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
-\usepackage{subcaption}
-\usepackage{multirow}
-\usepackage{colortbl}
-\usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
-\usepackage{titlesec}
-\usepackage{titletoc}
-\usepackage{lastpage}
-\usepackage{makecell}
-\usepackage{etoolbox}
-\usepackage{needspace}
-
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
-
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
-
-\fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
-\pagestyle{main}
-\setstretch{1.15}
-
-% Custom Commands
-\newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
-\newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
-
-% Software-default asterisk
-\newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
-
-\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
-\author{}
-\date{}
-
-\begin{document}
-"""
+    """Generate document preamble using centralized styling system."""
+    return generate_preamble(project_name, job_number, report_date, report_version)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -336,6 +212,7 @@ def title_page(m, osdag_logo, org_logo):
 \hline
 \end{tabular}
 \end{titlepage}
+\setcounter{page}{2}
 """
 
 
@@ -613,6 +490,100 @@ class ReportDataBridge:
         """Return 'Welded' or 'Bolted'."""
         val = self._cb_osdag(pair, member, force_type).get("connection")
         return str(val) if val else ""
+
+    # =====================================================================
+    # CHAPTER 5: END DIAPHRAGM
+    # =====================================================================
+
+    def _ed_pair_designs(self) -> dict:
+        """Internal: return end_diaphragm_design_results from output_dict."""
+        designs = self.output_dict.get("end_diaphragm_design_results")
+        if designs and isinstance(designs, dict) and any(designs.values()):
+            return designs
+        # When configured as Cross Bracing (or if ed designs are empty),
+        # fall back to crossbracing_design_results so data is available.
+        from osdagbridge.core.utils.common import KEY_MP_ED_TYPE
+        ed_type = ""
+        for k, v in self.input_dict.items():
+            if str(k).startswith(KEY_MP_ED_TYPE) and v:
+                ed_type = str(v)
+                break
+        if not ed_type or "brac" in ed_type.strip().lower():
+            cb_designs = self._cb_pair_designs()
+            if cb_designs:
+                return cb_designs
+        return designs or {}
+
+    def _ed_osdag(self, pair: str, member: str, force_type: str) -> dict:
+        """Extract the _extract_osdag_summary dict for one end diaphragm member."""
+        from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+        designs = self._ed_pair_designs()
+        if not designs or not isinstance(designs, dict):
+            return self._cb_osdag(pair, member, force_type)
+
+        # Try various pair key formats (e.g. "G1-G2", "G1G2", "G1_G2")
+        pair_candidates = [pair, pair.replace("-", ""), pair.replace("-", "_")]
+        if "-" not in pair and len(pair) >= 4 and pair.startswith("G"):
+            pair_candidates.append(f"{pair[:2]}-{pair[2:]}")
+
+        p_dict = None
+        for p in pair_candidates:
+            if p in designs and isinstance(designs[p], dict):
+                p_dict = designs[p]
+                break
+
+        if isinstance(p_dict, dict):
+            # Try member candidates (e.g. "chord", "top_chord", "bottom_chord")
+            mem_candidates = [member]
+            if member == "chord":
+                mem_candidates.extend(["top_chord", "bottom_chord"])
+            elif member in ("top_chord", "bottom_chord"):
+                mem_candidates.append("chord")
+
+            for m in mem_candidates:
+                if m in p_dict and isinstance(p_dict[m], dict):
+                    raw = p_dict[m].get(force_type)
+                    if raw is not None:
+                        summary = _extract_osdag_summary(raw)
+                        if summary:
+                            return summary
+
+        # Fallback to cross bracing if available
+        return self._cb_osdag(pair, member, force_type)
+
+    def get_ed_pairs(self) -> list:
+        """Return sorted list of girder pair keys for end diaphragms."""
+        try:
+            pairs = sorted(self._ed_pair_designs().keys())
+            if pairs:
+                return pairs
+        except Exception:
+            pass
+        return self.get_cb_pairs()
+
+    def get_ed_capacity(self, pair: str, member: str, force_type: str) -> str:
+        """Capacity in kN."""
+        val = self._ed_osdag(pair, member, force_type).get("capacity_kN")
+        return f"{float(val):.3f}" if val is not None else ""
+
+    def get_ed_efficiency(self, pair: str, member: str, force_type: str) -> str:
+        """Utilization ratio (efficiency)."""
+        val = self._ed_osdag(pair, member, force_type).get("efficiency")
+        return f"{float(val):.3f}" if val is not None else ""
+
+    def get_ed_slenderness(self, pair: str, member: str) -> str:
+        """KL/r — same for tension and compression (geometry-based)."""
+        for ft in ("compression", "tension"):
+            val = self._ed_osdag(pair, member, ft).get("slenderness")
+            if val is not None and str(val).strip():
+                try:
+                    return f"{float(val):.1f}"
+                except (ValueError, TypeError):
+                    return str(val)
+        cb_sl = self.get_cb_slenderness(pair, member)
+        if cb_sl:
+            return cb_sl
+        return ""
 
     def get_cb_effective_length(self, member: str) -> str:
         """Effective length KL in mm from geometry."""
@@ -919,16 +890,24 @@ def generate_report(payload, request):
             doc_parts.append(ch1_project_info(payload.metadata))
             doc_parts.append(ch2_input_parameters(payload.metadata, payload.inputs, payload.output_dict))
 
+            # ── Generate Section 5.5 UR Summary & Chapter 7 Quantity Charts (Phases 5 & 6) ──
+            chart_output_dirs = [
+                tmp_images,
+                os.path.join(request.output_dir, 'images'),
+            ]
+            ur_chart_path = generate_ur_summary_chart(bridge, chart_output_dirs)
+            steel_chart_path, concrete_chart_path = generate_material_quantity_charts(payload.inputs, chart_output_dirs)
+
             if 'loads' in secs:
                 doc_parts.append(ch3_loads(payload.inputs))
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, ur_chart=ur_chart_path))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, steel_chart=steel_chart_path, concrete_chart=concrete_chart_path))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}

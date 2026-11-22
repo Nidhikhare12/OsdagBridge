@@ -140,8 +140,8 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
 
     # Column widths: row-label column fixed at 2.8cm; girder columns share remainder
     label_col_cm = 2.8
-    # Available width ≈ 15.0cm for A4 with 1in margins; each girder col gets equal share
-    girder_col_cm = round(max(1.5, (15.0 - label_col_cm) / n_cols), 1)
+    # With \tabcolsep{3pt} (padding ~0.21cm per col), total width fits within 15.6cm textwidth
+    girder_col_cm = round(max(1.1, (15.5 - label_col_cm - (n_cols + 1) * 0.22) / n_cols), 1)
     col_spec = '|C{' + str(label_col_cm) + 'cm}|' + '|'.join(['C{' + str(girder_col_cm) + 'cm}'] * n_cols) + '|'
 
     # Header row
@@ -162,7 +162,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
 
     table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
               r'\vspace{0.4em}' + '\n'
-              r'\noindent' + '\n'
+              r'\begingroup\setlength{\tabcolsep}{3pt}\noindent' + '\n'
               r'\begin{tabular}{' + col_spec + '}\n'
               r'\hline' + '\n'
               + header_row +
@@ -175,7 +175,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
               r'\hline' + '\n'
               + urs + '\n'
               r'\hline' + '\n'
-              r'\end{tabular}')
+              r'\end{tabular}\endgroup')
 
     return r"""
 \newpage
@@ -237,7 +237,7 @@ Deck design pass
 
 \section*{Design Assumptions and Limitations}
 \addcontentsline{toc}{section}{Design Assumptions and Limitations}
-\label{sec:assumptions}
+\label{sec:exec-assumptions}
 
 \begin{itemize}
 \item Additional inputs not provided by the user were assumed by software per IRC/IS code defaults or practical consideration.
