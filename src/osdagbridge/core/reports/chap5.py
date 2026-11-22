@@ -1404,7 +1404,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             base = os.path.splitext(str(chart_file))[0].replace("\\", "/")
             ur_chart_block = r"""\begin{figure}[H]
 \centering
-\IfFileExists{""" + base + r""".pdf}{\includegraphics[width=0.96\textwidth]{""" + base + r""".pdf}}{\includegraphics[width=0.96\textwidth]{""" + base + r""".png}}
+\IfFileExists{""" + base + r""".pdf}{\includegraphics[width=0.90\textwidth]{""" + base + r""".pdf}}{\includegraphics[width=0.90\textwidth]{""" + base + r""".png}}
 \caption{Overall Component Utilization Ratios (Demand / Capacity)""" + caption_extra + r"""}
 \label{fig:ur-summary}
 \end{figure}"""
@@ -1534,10 +1534,10 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \label{sec:overall-summary}
 % ===========================
 
-\vspace{1em}
+\vspace{0.4em}
 """ + ur_chart_block + r"""
 
-\vspace{1em}
+\vspace{0.4em}
 """ + t_overall_summary_table + r"""
 """
 
