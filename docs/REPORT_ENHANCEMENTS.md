@@ -196,6 +196,18 @@ constants (`SECTION_SKIP`, `TABLE_TOP_SKIP`, `FIGURE_SKIP`) from it.
 Centrifugal load is computed per IRC 6 Cl. 209 from `KEY_LL_CURVE_RADIUS`
 and `KEY_LL_DESIGN_SPEED` (or reported as "straight alignment").
 
+A full real-solver verification is also included:
+
+```bash
+PYTHONPATH=src python scripts/run_full_design_test.py
+```
+
+It runs an actual OpenSees grillage analysis and IRC 22 design (4 girders,
+30 m span, 997 output keys) and generates `deliverables/Report_Real_Design.pdf`.
+That report reproduces the reported **Page 30 / G4** case: the G4 rows end
+well clear of the footer, and the continued table header is repeated at the
+top of the page.
+
 > The sample payload contains representative (not physically complete)
 > design values so that the PDF can be built without a GUI or an OpenSees
 > analysis.  In a full OsdagBridge session the same code path is reached from
