@@ -140,7 +140,26 @@ Run the complete test suite:
 pytest -q
 ```
 
-Continuous integration runs automatically through GitHub Actions (`.github/workflows/ci.yml`).
+Continuous integration runs automatically through GitHub Actions (`.github/workflows/test.yml`).
+
+---
+
+## LaTeX Report Generator Enhancements
+
+This repository contains comprehensive enhancements to the OsdagBridge PDF Report Generator module:
+- **Centralized Style System (`styles.py`)**: Single source of truth for document geometries, color palettes (`osdagGreen`, `osdagBlue`), table paddings, and rule widths.
+- **Repeated Multi-Page Table Headers**: Reusable LaTeX `longtable` header generator (`build_longtable_header()`) with `\endfirsthead`, `\endhead`, `\endfoot`, and `\endlastfoot` across multi-page tables.
+- **Layout & Footer Clearance Fixes**: 18 mm footskip clearance barrier and `\needspace{6\baselineskip}` constraints eliminating footer bleed (e.g. Page 30 / G4 row).
+- **Chapter 3 Load Table Refactoring**: Clean separation into Table 3.3 (Vehicular Live Loads with dynamic vehicle UI selections, impact factors, braking loads) and Table 3.4 (Pedestrian / Footway Live Load).
+- **Chapter 5.5 UR Summary Visualizations**: Programmatic Matplotlib bar charts plotting Utilization Ratios against a distinct red dashed reference line at UR = 1.0.
+- **Chapter 7 Material BOQ Visualizations**: Programmatic Matplotlib bar charts summarizing Structural Steel tonnage breakdown (MT) and Concrete volume ($m^3$) vs Reinforcement Steel weight (MT).
+
+### Running Report Enhancement Tests
+```powershell
+cd C:\Users\Asus\OsdagBridge
+$env:PYTHONPATH="src"
+pytest -v tests/
+```
 
 ---
 

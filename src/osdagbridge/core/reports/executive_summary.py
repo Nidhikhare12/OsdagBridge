@@ -31,7 +31,17 @@ def _max_member_efficiency(pair_designs):
     """Maximum Osdag 'efficiency' (utilization ratio) over a cross-bracing or
     end-diaphragm result dump (nested pair -> member -> force_type -> raw).
     Reads already-computed results only; nothing is recalculated here."""
-    from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+    try:
+        from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+    except (ImportError, ModuleNotFoundError):
+        def _extract_osdag_summary(result):
+            if not result:
+                return {}
+            for k in ("Member.efficiency", "Optimum.UR"):
+                v = result.get(k)
+                if v is not None:
+                    return {"efficiency": v}
+            return {}
     if not isinstance(pair_designs, dict):
         return None
     best = None

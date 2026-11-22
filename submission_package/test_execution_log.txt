@@ -1,0 +1,22 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.6, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\Asus\AppData\Local\Programs\Python\Python312\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Asus\OsdagBridge
+configfile: pyproject.toml
+plugins: anyio-4.9.0, langsmith-0.4.5
+collecting ... collected 12 items
+
+tests/integration/test_api_plate_girder.py::test_api_placeholder PASSED  [  8%]
+tests/integration/test_cli_plate_girder.py::test_cli_placeholder PASSED  [ 16%]
+tests/unit/test_analyser.py::test_placeholder_analyser PASSED            [ 25%]
+tests/unit/test_designer.py::test_placeholder_designer PASSED            [ 33%]
+tests/unit/test_io.py::test_placeholder_io PASSED                        [ 41%]
+tests/unit/test_report_enhancements.py::test_styles_configuration PASSED [ 50%]
+tests/unit/test_report_enhancements.py::test_repeated_headers_structure PASSED [ 58%]
+tests/unit/test_report_enhancements.py::test_chapter3_load_tables_separation PASSED [ 66%]
+tests/unit/test_report_enhancements.py::test_overall_ur_chart_creation PASSED [ 75%]
+tests/unit/test_report_enhancements.py::test_boq_charts_creation PASSED  [ 83%]
+tests/unit/test_report_enhancements.py::test_chapter7_figures_embed PASSED [ 91%]
+tests/unit/test_report_tables.py::test_bracing_tables_have_matching_column_counts PASSED [100%]
+
+============================= 12 passed in 1.38s ==============================
