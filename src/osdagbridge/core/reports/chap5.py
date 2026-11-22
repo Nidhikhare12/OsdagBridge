@@ -1068,6 +1068,34 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     ]
     t522_content = "\n".join(_t522)
 
+    # R4: Utilization Ratio chart — written as PNG into tmp_dir, embedded via \includegraphics
+    import os as _os
+    _tmp = getattr(bridge, "_tmp_dir", None)
+    _ur_chart_latex = ""
+    if _tmp and isinstance(_tmp, str) and _os.path.isdir(_tmp):
+        from osdagbridge.core.reports.visualizations import extract_ur_data, generate_ur_chart
+        _ur_chart_path = _os.path.join(_tmp, "ur_chart.png")
+        try:
+            _ur_data = extract_ur_data(bridge)
+            generate_ur_chart(_ur_data, _ur_chart_path)
+            _ur_chart_latex = (
+                "\n"
+                r"\vspace{1.5em}" + "\n"
+                r"\begin{figure}[H]" + "\n"
+                r"\centering" + "\n"
+                r"\includegraphics[width=0.88\textwidth]{ur_chart.png}" + "\n"
+                r"\caption{\textbf{Fig.~5.1 --- Utilization Ratio Summary: All Structural Components.} "
+                r"Code capacity limit is UR = 1.0. Report classification bands: "
+                r"PASS (UR $<$ 0.90), WARN (0.90 $\leq$ UR $<$ 1.00), and FAIL (UR $\geq$ 1.00).}" + "\n"
+                r"\label{fig:ur-summary}" + "\n"
+                r"\end{figure}"
+            )
+        except Exception:
+            _ur_chart_latex = (
+                "\n"
+                r"\noindent\textit{[Utilization ratio chart could not be generated.]}"
+            )
+
     return r"""
 \chapter{Design Checks}
 
@@ -1486,5 +1514,5 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
 
-"""
+""" + _ur_chart_latex + "\n"
 
