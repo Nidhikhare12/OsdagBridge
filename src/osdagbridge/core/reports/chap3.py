@@ -331,23 +331,23 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}
+\begin{longtable}{|L{5.0cm}|L{7.0cm}|C{2.8cm}|}
+\caption{\textbf{Vehicle Live Loads (LL)}}
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} & \textbf{Unit} \\
 \hline
 \endfirsthead
 \hline
-\textbf{parameter} & \textbf{value} \\
+\textbf{Parameter} & \textbf{Value} & \textbf{Unit} \\
 \hline
 \endhead
-\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
+\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" & --- \\[6pt]
 \hline
-\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
+\textnormal{Impact Factor (IRC 6 Cl. 208)} & """ + _tex(impact_factor_str) + r""" & --- \\[6pt]
 \hline
-\textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
+\textnormal{Braking Load (IRC 6 Cl. 211.2)} & """ + _tex(braking_force_val or braking_force_str or "N/A") + r""" & kN \\[6pt]
 \hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Footpath Live Load (if applicable)} & """ + _tex(footway_display) + r""" & """ + footway_unit + r""" \\[6pt]
 \hline
 \end{longtable}
 
