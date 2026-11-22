@@ -188,6 +188,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 """ + styles.PREAMBLE_TABLE_LAYOUT + r"""
 
+""" + styles.PREAMBLE_NBCLINE + r"""
+
 """ + styles.COLOR_DEF_BRAND + r"""
 
 % Footer rule: fancyhdr sets \footrule above the footer text, so an unscoped
