@@ -762,7 +762,8 @@ KEY_SL_ZONE_FACTOR              = "loading.seismic_load.computed.zone_factor"
 KEY_SL_SPECTRAL_COEFF           = "loading.seismic_load.computed.spectral_coeff"
 KEY_SL_HORIZONTAL_COEFF         = "loading.seismic_load.computed.horizontal_coeff"
 KEY_SL_VERTICAL_COEFF           = "loading.seismic_load.computed.vertical_coeff"
-
+KEY_SL_LONGITUDINAL_FORCE = "loading.seismic_load.computed.longitudinal_force"
+KEY_SL_TRANSVERSE_FORCE = "loading.seismic_load.computed.transverse_force"
 #--------------- Wind Load Sub-Tab -------------------------------------------------
 KEY_WL_TAB                      = "loading.wind_load.tab"
 KEY_WL_BASIC_WIND_SPEED         = "loading.wind_load.basic_wind_speed"

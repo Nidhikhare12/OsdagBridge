@@ -915,6 +915,15 @@ class TransverseMemberDesign(QDialog):
 
             cb_designs = getattr(backend, "crossbracing_design_results", {}) or {}
             ed_designs = getattr(backend, "end_diaphragm_design_results", {}) or {}
+            print("\n[ED SOURCE TRACE]")
+            print("CB design pairs:", list(cb_designs.keys()))
+            print("ED design pairs:", list(ed_designs.keys()))
+
+            for pair in cb_designs:
+                print(f"CB DATA {pair}:", cb_designs[pair])
+
+            for pair in ed_designs:
+                print(f"ED DATA {pair}:", ed_designs[pair])
             od         = getattr(backend, "output_dict", {}) or {}
 
             # Merge ED results into designs_dict and tag ed_type / ed_bracing_type

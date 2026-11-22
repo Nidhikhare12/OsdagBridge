@@ -1,7 +1,8 @@
+
 from __future__ import annotations
+from pathlib import Path
 import sqlite3
 import types
-from pathlib import Path
 from .ui_fields import FrontendData
 from .dto import (
     ConcreteProperties,
@@ -36,6 +37,11 @@ from .plot_generator import (
 )
 from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
 from osdagbridge.core.utils.common import (
+    KEY_WL_TRANSVERSE_WIND_FORCE, KEY_WC_LD_LANE_TABLE_COUNT,
+    KEY_SL_LONGITUDINAL_FORCE,
+    KEY_SL_TRANSVERSE_FORCE,
+    KEY_WL_LONGITUDINAL_WIND_FORCE,
+    KEY_WL_VERTICAL_WIND_FORCE,
     KEY_STRUCTURE_TYPE,
     KEY_PROJECT_LOCATION,
     KEY_SPAN,
@@ -776,11 +782,20 @@ class PlateGirderBridge:
             
             self.bridge_component_solver()
             self.compute_load_effects_cache()
-            for _gi, _vals in (self._deflections_cache or {}).items():
-                _live = _vals.get("live_mm")
-                _total = _vals.get("total_mm")
+            # Use composite-stiffness-corrected deflections from the design pipeline.
+            _per_girder = (
+                (self.output_dict.get("design_results") or {}).get("per_girder") or {}
+            )
+
+            for _gi, _gdata in _per_girder.items():
+                _demand = (_gdata or {}).get("demand") or {}
+
+                _live = _demand.get("delta_live_mm")
+                _total = _demand.get("delta_total_mm")
+
                 if _live is not None:
                     self.output_dict[f"{KEY_SD_DEFL_LIVE}.{_gi}"] = round(float(_live), 3)
+
                 if _total is not None:
                     self.output_dict[f"{KEY_SD_DEFL_TOTAL}.{_gi}"] = round(float(_total), 3)
             
@@ -971,6 +986,32 @@ class PlateGirderBridge:
         from osdagbridge.core.reports.report_generator import build_report_payload, generate_report
 
         report_inputs = self.input_dict.copy()
+                # Populate traffic lane count for the report using IRC 6 Table 6.
+        # For a single carriageway (no median), use the full carriageway width.
+        if str(report_inputs.get(KEY_INCLUDE_MEDIAN, "No")).strip().lower() not in (
+            "yes", "true", "1"
+        ):
+            try:
+                carriageway_width = float(report_inputs.get(KEY_CARRIAGEWAY_WIDTH))
+                if carriageway_width > 0:
+                    report_inputs[KEY_WC_LD_LANE_TABLE_COUNT] = IRC6_2017.table_6(
+                        carriageway_width
+                    )
+            except (TypeError, ValueError):
+                pass
+                # Report fix: girder dimensions must be in mm. Any value < 5 is in metres.
+        _dim_keys = (KEY_MP_GIRDER_DEPTH, KEY_MP_GIRDER_WEB_THICKNESS,
+                     KEY_MP_GIRDER_TOP_FLANGE_WIDTH, KEY_MP_GIRDER_TOP_FLANGE_THICKNESS,
+                     KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH, KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS)
+        for _k in list(report_inputs.keys()):
+            if isinstance(_k, str) and _k.startswith(tuple(b + ".G" for b in _dim_keys)):
+                try:
+                    _v = float(report_inputs[_k])
+                except (TypeError, ValueError):
+                    continue
+                if 0 < _v < 5:
+                    _v = round(_v * 1000, 2)
+                    report_inputs[_k] = int(_v) if float(_v).is_integer() else _v
         output_dict   = dict(self.output_dict)  # MappingProxyType → dict
 
         # ── Chapter 4: analysis summary for Tables ──────────────────
@@ -1414,6 +1455,14 @@ class PlateGirderBridge:
             d_depth=d_depth,
             partial_safety_factor=1.0,
         )
+
+        wind_results = self.grillage_model.wind_force_results
+
+        self.input_dict.update({
+            KEY_WL_TRANSVERSE_WIND_FORCE: wind_results["transverse"],
+            KEY_WL_LONGITUDINAL_WIND_FORCE: wind_results["longitudinal"],
+            KEY_WL_VERTICAL_WIND_FORCE: wind_results["vertical"],
+        })
 
     # ============================================================
     #   Temperature Load Analysis  IRC:6-2017 Cl.215
@@ -1972,7 +2021,13 @@ class PlateGirderBridge:
             dead_load_kN=dead_load_kN,
             live_load_kN=live_load_kN,
             partial_safety_factor=1.5,  # IRC:6-2017 Table B.2 seismic ULS
-        )
+        )# Pass calculated seismic resultants to the report input dictionary.
+        seismic_results = self.grillage_model.seismic_force_results
+
+        self.input_dict.update({
+            KEY_SL_LONGITUDINAL_FORCE: seismic_results["longitudinal"],
+            KEY_SL_TRANSVERSE_FORCE: seismic_results["transverse"],
+        })
 
     def vehicle_lane_coordinates(self) -> list:
         """
@@ -2586,15 +2641,50 @@ class PlateGirderBridge:
             return {}
 
         # 1. Map support element IDs (start and end edges) to adjacent girder pairs
-        start_elements = [str(e) for e in model.get_element(member="start_edge", options="elements")]
-        end_elements = [str(e) for e in model.get_element(member="end_edge", options="elements")]
+        start_elements = [
+            str(e) for e in model.get_element(member="start_edge", options="elements")
+        ]
+        end_elements = [
+            str(e) for e in model.get_element(member="end_edge", options="elements")
+        ]
         all_edge_elements = start_elements + end_elements
+        mesh = model.Mesh_obj
+
+        for m in all_edge_elements:
+            entry = next(
+                (e for e in mesh.edge_span_ele if str(e[0]) == m),
+                None
+            )
+
+            if entry:
+                transform_tag = entry[4]
+                transform = next(
+                    (k for k, v in mesh.transform_dict.items()
+                     if v == transform_tag),
+                    None
+                )
+                print(
+                    f"[ED TRANSFORM] member={m}, "
+                    f"edge_entry={entry}, "
+                    f"transform={transform}"
+                )
 
         girders = self.result_data.get("girders", {})
         girder_node_sets = {
             g_name: set(g_data.get("nodes", []))
             for g_name, g_data in girders.items()
         }
+        print("\n[ED DEBUG] START EDGE ELEMENTS:", start_elements)
+        print("[ED DEBUG] END EDGE ELEMENTS:", end_elements)
+
+        print("\n[ED DEBUG] GIRDER NODE SETS:")
+        for g_name, nodes in girder_node_sets.items():
+            print(f"{g_name}: {sorted(nodes)}")
+
+        print("\n[ED DEBUG] CANDIDATE ELEMENT ENDPOINTS:")
+        for m in all_edge_elements:
+            if m in self.result_data.get("members", {}):
+                print(m, self.result_data["members"][m])
 
         def _find_girder(node) -> str | None:
             for g_name, node_set in girder_node_sets.items():
@@ -2607,6 +2697,17 @@ class PlateGirderBridge:
             if m not in self.result_data.get("members", {}):
                 continue
             n1, n2 = self.result_data["members"][m]
+
+            nodes, _ = self.get_nodes_members()
+            xyz1 = nodes.get(int(n1))
+            xyz2 = nodes.get(int(n2))
+
+            with open(r"C:\Users\groza\Downloads\OsdagBridge\ed_debug2.txt", "a", encoding="utf-8") as f:
+                f.write(
+                    f"[ED GEOMETRY] member={m}, "
+                    f"n1={n1}, xyz1={xyz1}, "
+                    f"n2={n2}, xyz2={xyz2}\n"
+                )
             g1 = _find_girder(n1)
             g2 = _find_girder(n2)
             if g1 and g2 and g1 != g2:
@@ -2614,7 +2715,10 @@ class PlateGirderBridge:
                 idx2 = girders[g2].get("index", 0)
                 pair = f"{g1}-{g2}" if idx1 <= idx2 else f"{g2}-{g1}"
                 pair_to_elements.setdefault(pair, []).append(m)
-
+                print(
+                    f"[ED MAP CHECK] pair={pair}, element={m}, "
+                    f"nodes=({n1}, {n2})"
+                )
         # 2. Key mapping function for end diaphragm details
         def make_pair_key(key: str, pair_id: str) -> str:
             for pfx in (
@@ -2706,6 +2810,20 @@ class PlateGirderBridge:
 
                 # Collect envelope forces over both ends and all load cases
                 elements = pair_to_elements.get(pair, [])
+                print(f"[ED DEBUG] {pair} | elements={elements}")
+
+                for lc in self.result_data["loadcases"]:
+                    lc_str = str(lc)
+                    if lc_str.startswith("Envelope"):
+                        continue
+                    for m in elements:
+                        member_forces = self.result_data.get("forces", {}).get(lc_str, {}).get(m)
+                        if member_forces:
+                            print(
+                                f"[ED FORCE DETAIL] LC={lc_str}, member={m}, "
+                                f"nodes={self.result_data.get('members', {}).get(m)}, "
+                                f"forces={member_forces}"
+                            )
                 diag_tens_max = 0.0
                 diag_comp_max = 0.0
                 chord_tens_max = 0.0
@@ -2718,32 +2836,68 @@ class PlateGirderBridge:
 
                 for lc in self.result_data["loadcases"]:
                     lc_str = str(lc)
-                    # Envelope pseudo cases copy the governing combination's values;
-                    # skip them so they can't steal the governing-LC label here.
+
+                    # Skip envelope pseudo-cases
                     if lc_str.startswith("Envelope"):
                         continue
-                    for m in elements:
-                        if lc_str not in self.result_data["forces"] or m not in self.result_data["forces"][lc_str]:
-                            continue
-                        vz_i = self.result_data["forces"][lc_str][m].get("Vz_i")
-                        if vz_i is None:
-                            continue
-                        vz_kn = vz_i / 1000.0
-                        f_diag = vz_kn / cos_alpha
-                        f_chord = vz_kn
 
-                        if f_diag > diag_tens_max:
-                            diag_tens_max = f_diag
+                    for m in elements:
+                        if (
+                            lc_str not in self.result_data["forces"]
+                            or m not in self.result_data["forces"][lc_str]
+                        ):
+                            continue
+
+                        forces = self.result_data["forces"][lc_str][m]
+
+                        vx_i = forces.get("Vx_i")
+                        vx_j = forces.get("Vx_j")
+                        vy_i = forces.get("Vy_i")
+                        vy_j = forces.get("Vy_j")
+                        vz_i = forces.get("Vz_i")
+                        vz_j = forces.get("Vz_j")
+
+                        with open(
+                            r"C:\Users\groza\Desktop\ed-force-check.txt",
+                            "a",
+                            encoding="utf-8"
+                        ) as log_file:
+                            print(
+                                f"[ED ALL FORCES] LC={lc_str} | Member={m} | {forces}",
+                                file=log_file
+                            )
+                            print(
+                                f"[ED MEMBER CHECK] LC={lc_str} | "
+                                f"Pair={pair} | Member={m} | "
+                                f"Nodes={self.result_data.get('members', {}).get(m)}",
+                                file=log_file
+                            )
+                            print(
+                                f"[ED FORCE CHECK] "
+                                f"Vx_i={vx_i}, Vx_j={vx_j}, "
+                                f"Vy_i={vy_i}, Vy_j={vy_j}, "
+                                f"Vz_i={vz_i}, Vz_j={vz_j}",
+                                file=log_file
+                            )# Convert candidate axial force from N to kN.
+                        # Sign convention and member-axis mapping still need verification.
+                        axial_values = [
+                            float(v) / 1000.0
+                            for v in (vx_i, vx_j)
+                            if v is not None
+                        ]
+
+                        if not axial_values:
+                            continue
+
+                        axial_kn = max(axial_values, key=abs)
+
+                        if axial_kn > diag_tens_max:
+                            diag_tens_max = axial_kn
                             diag_tens_lc = lc_str
-                        if f_chord > chord_tens_max:
-                            chord_tens_max = f_chord
-                            chord_tens_lc = lc_str
-                        if f_diag < diag_comp_max:
-                            diag_comp_max = f_diag
+
+                        if axial_kn < diag_comp_max:
+                            diag_comp_max = axial_kn
                             diag_comp_lc = lc_str
-                        if f_chord < chord_comp_max:
-                            chord_comp_max = f_chord
-                            chord_comp_lc = lc_str
 
                 pair_forces = {
                     "diag_tension_kN": round(diag_tens_max, 3) if diag_tens_max > _tol else None,
@@ -2756,7 +2910,7 @@ class PlateGirderBridge:
                     "chord_compression_gov_lc": chord_comp_lc if chord_comp_max < -_tol else None,
                 }
                 forces_dict["pairs"][pair] = pair_forces
-
+                print(f"[ED DEBUG] {pair} | type={ed_type} | forces={pair_forces}")
                 # Run Osdag design checks
                 from osdagbridge.core.utils.connect import (
                     design_dict_struts_bolted,
@@ -2779,13 +2933,14 @@ class PlateGirderBridge:
                         d["Load.Axial"] = str(float(pair_forces[c_key]))
                         d["Member.Length"] = str(L_mm)
                         jobs.append((pair, member, "compression", d))
-
+                print(f"[ED DEBUG] {pair} | jobs created={len(jobs)}")
                 if jobs:
                     cpu_count = __import__("os").cpu_count() or 4
                     max_workers = min(cpu_count, len(jobs))
                     # spawn-context pool: forking under the design worker thread
                     # deadlocks (see connect.design_pool).
                     with design_pool(max_workers) as executor:
+                        print(f"[ED DEBUG] {pair} | running jobs={[(j[1], j[2]) for j in jobs]}")
                         futures = {executor.submit(run_calculation, j[3]): j for j in jobs}
                         for future, (p, member, force_type, _) in futures.items():
                             try:
@@ -3008,8 +3163,11 @@ class PlateGirderBridge:
 
         if forces_dict.get("pairs"):
             self._print_enddiaphragm_design_results(forces_dict, pair_designs)
-        
+        print("ED PAIRS:", forces_dict.get("pairs", {}).keys())
+        print("ED DESIGN PAIRS:", pair_designs.keys())
+        print("ED DESIGN DATA:", pair_designs)
         self.output_dict["end_diaphragm_forces_dict"] = forces_dict
+        self.output_dict["end_diaphragm_design_results"] = pair_designs
         self.end_diaphragm_design_results = pair_designs
         return pair_designs
 

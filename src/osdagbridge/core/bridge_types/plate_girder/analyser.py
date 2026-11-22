@@ -1200,7 +1200,11 @@ class BridgeGrillageModel:
         Feq_X_kN = Ah * dead_load_kN / R                            # longitudinal (0% LL)
         Feq_Z_kN = Ah * (dead_load_kN + ll_contribution) / R        # transverse  (20% LL)
         Feq_Y_kN = Av * (dead_load_kN + ll_contribution) / R        # vertical    (20% LL, Av)
-
+        # Store unfactored seismic force resultants for report generation (kN).
+        self.seismic_force_results = {
+            "longitudinal": Feq_X_kN,
+            "transverse": Feq_Z_kN,
+        }
         print(
             f"Seismic loads (IRC:6-2017 Cl.218): Z={z_value}  "
             f"Ah={Ah:.4f}  Av={Av:.4f}\n"
@@ -1424,7 +1428,12 @@ class BridgeGrillageModel:
         # Uplift patch intensity (N/m²) — Cl.209.3.5: FV/A = Pz × G × CL
         CL        = 0.75
         FV_per_m2 = Pz * G * CL                            # upward (applied as −y)
-
+        # Store resultant wind forces for report generation (kN).
+        self.wind_force_results = {
+            "transverse": FT_total / 1000.0,
+            "longitudinal": (0.25 * FT_total) / 1000.0,
+            "vertical": (FV_per_m2 * deck_area) / 1000.0,
+        }
         print(
             f"Wind loads (IRC:6-2017): Pz={Pz:.1f} N/m²  "
             f"FT={FT_total/1000:.2f} kN  FT/m={FT_per_m/1000:.3f} kN/m  "
