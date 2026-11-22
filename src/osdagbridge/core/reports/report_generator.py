@@ -128,6 +128,7 @@ from .chap5 import ch5_design_checks
 from .chap6 import ch6_drawings
 from .chap7 import ch7_quantities
 from .chap8 import ch8_design_log
+from . import styles
 from .chap9 import references
 
 logger = logging.getLogger(__name__)
@@ -171,12 +172,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{enumitem}
 \usepackage{caption}
 
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
+""" + styles.PREAMBLE_CAPTIONS + r"""
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
@@ -190,23 +186,9 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{etoolbox}
 \usepackage{needspace}
 
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+""" + styles.PREAMBLE_TABLE_LAYOUT + r"""
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
+""" + styles.COLOR_DEF_BRAND + r"""
 
 % Footer rule: fancyhdr sets \footrule above the footer text, so an unscoped
 % \color{osdagGreen} leaks into the text. Each rule colour is grouped in braces.
@@ -260,14 +242,12 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\footrule}{\vspace{-8pt}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}}
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{""" + styles.BODY_LINE_STRETCH + r"""}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
 \newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+""" + styles.PREAMBLE_COLUMN_TYPES + r"""
 
 % Software-default asterisk
 \newcommand{\sdstar}{\textsuperscript{*}}
@@ -603,9 +583,7 @@ class ReportDataBridge:
             val = self._cb_osdag(pair, member, force_type).get("efficiency")
             if val is not None:
                 ur = float(val)
-                if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                return styles.status(ur <= 1.0, colored_pass=True)
         except (TypeError, ValueError):
             pass
         return ""
