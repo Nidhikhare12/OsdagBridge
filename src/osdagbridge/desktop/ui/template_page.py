@@ -350,6 +350,8 @@ class CustomWindow(QWidget):
         self.cad_comp_widget.setSizePolicy(
             QSizePolicy.Expanding, QSizePolicy.Expanding
         )
+        # Double-click editing of CAD labels -> input dictionaries -> redraw
+        self.cad_comp_widget.cad_parameter_edited.connect(self._on_cad_parameter_edited)
         self.cad_log_splitter.addWidget(self.cad_comp_widget)
 
         # from osdagbridge.desktop.ui.cad_3d import CAD3DWindow
@@ -456,6 +458,105 @@ class CustomWindow(QWidget):
             # This is updated directly because 
             # there is some mapping that takes place in BridgeDualCADWidget which can worst the things
             self.cad_comp_widget.cross_section_widget.update_params(cad_state)
+
+    #-------2D-CAD-Label-Editing-START----------------------------------------
+
+    # Editable CAD label -> (input key, lives in the basic input dock?)
+    # Overhang, overall width and bracing spacing are derived and stay read-only.
+    _CAD_EDIT_TARGETS = {
+        "span_length":       (KEY_SPAN,              True),
+        "carriageway_width": (KEY_CARRIAGEWAY_WIDTH, True),
+        "girder_spacing":    (KEY_TS_GIRDER_SPACING, False),
+        "deck_thickness":    (KEY_TS_DECK_THICKNESS, False),
+    }
+
+    def _on_cad_parameter_edited(self, cad_param: str, text: str):
+        """
+        Slot for a label edited by double-click on the 2D CAD.
+        Validates the value, writes it to the basic / additional input dictionary
+        through the same handlers the input widgets use, then redraws the CAD.
+        """
+        target = self._CAD_EDIT_TARGETS.get(cad_param)
+        if target is None:
+            return
+        key, is_basic = target
+
+        if self.input_dock and self.input_dock.is_locked:
+            CustomMessageBox(
+                title="Inputs Locked",
+                text="Inputs are locked after design. Unlock to edit values on the CAD.",
+                dialogType=MessageBoxType.Warning,
+            ).exec()
+            return
+
+        try:
+            value = float(text)
+        except (TypeError, ValueError):
+            value = None
+        if value is None or value <= 0:
+            CustomMessageBox(
+                title="Input Error",
+                text=f"'{text}' is not a valid value. Please enter a positive number.",
+                dialogType=MessageBoxType.Critical,
+            ).exec()
+            self.cad_comp_widget.update()
+            return
+
+        if is_basic:
+            self._apply_basic_cad_edit(key, text)
+        else:
+            self._apply_additional_cad_edit(key, text)
+
+    def _apply_basic_cad_edit(self, key: str, text: str):
+        """Span / carriageway width: route through the input dock so the field,
+        its hard validation and the layout re-solve behave exactly like typing."""
+        widget = self.input_dock.input_widget.findChild(QLineEdit, key)
+        if widget is None:
+            return
+        widget.blockSignals(True)
+        widget.setText(text)
+        widget.blockSignals(False)
+        # Validates (popup + correction), updates input_dict, flags a required-field
+        # change and emits input_value_changed -> update_cad_from_inputs (redraw)
+        self.input_dock._on_field_edited(key, widget)
+
+    def _apply_additional_cad_edit(self, key: str, text: str):
+        """Girder spacing / deck thickness: validate with the Additional Inputs
+        logic, re-solve the girder layout and commit to input_dict."""
+        if self.input_dock.is_require_field_changed or self.input_dict.get(key) is None:
+            try:
+                solve_extend_basic_input_dict(self.input_dict)
+                self.input_dock.is_require_field_changed = False
+            except Exception:
+                CustomMessageBox(
+                    title="Input Error",
+                    text="Enter the Span and Carriageway Width before editing this value.",
+                    dialogType=MessageBoxType.Warning,
+                ).exec()
+                return
+
+        dlg = self._get_additional_inputs()
+        dlg.set_input_dictionary(self.input_dict)   # fresh working copy of committed values
+        widget = dlg.findChild(QLineEdit, key)
+        if widget is None:
+            return
+        widget.blockSignals(True)
+        widget.setText(text)
+        widget.blockSignals(False)
+        dlg._on_field_edited(key, widget)           # range check, popup + correction
+
+        if key == KEY_TS_GIRDER_SPACING and not dlg.update_girder_layout("spacing"):
+            # Infeasible layout: solver already reported it; keep committed values
+            self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
+            return
+
+        # Commit exactly like Additional Inputs > Save (overhang etc. are derived here)
+        self.input_dict.update(dlg.working_input_dict)
+        dlg.is_modified = False
+        dlg._update_additional_input_cad()
+        self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
+
+    #-------2D-CAD-Label-Editing-END------------------------------------------
 
     def _show_additional_inputs(self, target_tab: str | None = None):
         """
