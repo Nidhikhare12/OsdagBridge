@@ -71,7 +71,10 @@ def install_occ_stub() -> None:
     # children (timers, overlays) during the smoke test.
     try:
         import OCC.Display.qtDisplay as qtdisplay
-        from PyQt5.QtWidgets import QWidget
+        try:
+            from PySide6.QtWidgets import QWidget
+        except Exception:
+            from PyQt5.QtWidgets import QWidget
 
         class _ViewerStub(QWidget):
             def __getattr__(self, item):
@@ -89,6 +92,8 @@ def install_pyside6_shim() -> bool:
         return True
     except Exception:
         pass
+
+    install_module_stub("shiboken6")
 
     import PyQt5.QtCore as qc
     import PyQt5.QtGui as qg
@@ -236,9 +241,13 @@ def install_navcube_stub() -> None:
     sys.modules["navcube.connectors.occ"] = occ
 
 
-def patch_matplotlib_backend() -> None:
-    """Force the Qt5 backend while keeping the PySide6 shim for the app."""
+def patch_matplotlib_backend(force_qt5: bool = True) -> None:
+    """Route Matplotlib's Qt backend to the same binding as the app."""
     import matplotlib
+
+    if not force_qt5:
+        os.environ["QT_API"] = "pyside6"
+        return
 
     original_use = matplotlib.use
 
@@ -262,9 +271,8 @@ def main() -> int:
     install_opensees_stub()
     install_navcube_stub()
     install_module_stub("opsvis")
-    install_module_stub("shiboken6")
-    patch_matplotlib_backend()
     shimmed = not install_pyside6_shim()
+    patch_matplotlib_backend(force_qt5=shimmed)
     print(f"GUI binding: {'PyQt5 compatibility shim' if shimmed else 'PySide6'}")
 
     from PySide6.QtWidgets import QApplication

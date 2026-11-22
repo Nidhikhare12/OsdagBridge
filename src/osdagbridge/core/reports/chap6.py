@@ -1,3 +1,6 @@
+from osdagbridge.core.reports import styles
+
+
 def ch6_drawings(fig_paths):
     """Chapter 6 – Drawings and Visualizations.
 
@@ -28,7 +31,7 @@ def ch6_drawings(fig_paths):
             p = path.replace('\\', '/')
             return (r'\begin{figure}[H]' + '\n'
                     r'\centering' + '\n'
-                    r'\vspace{4pt}' + '\n'
+                    + styles.FIGURE_SKIP + '\n'
                     r'\includegraphics[width=0.85\textwidth]{' + p + '}\n'
                     r'\caption{' + title + '}\n'
                     + label_tex

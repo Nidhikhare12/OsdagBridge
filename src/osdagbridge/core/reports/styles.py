@@ -60,6 +60,8 @@ EXTRA_ROW_HEIGHT = "0.6pt"
 LT_PRE = "0pt"
 LT_POST = "6pt"
 TABLE_TOP_SKIP = r"\vspace{1em}"
+SECTION_SKIP = r"\vspace{0.4cm}"
+FIGURE_SKIP = r"\vspace{4pt}"
 
 LATEX_TABLE_SETTINGS = (
     r"\setlength{\tabcolsep}{" + TAB_COLSEP + "}" "\n"

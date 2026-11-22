@@ -1,9 +1,13 @@
+from osdagbridge.core.reports import styles
+
+
 def references():
     return r"""
 \chapter*{References}
 \addcontentsline{toc}{chapter}{References}
 
 
+""" + styles.SECTION_SKIP + r"""
 \begin{enumerate}
 
 \item IRC 5 (2024) --- \textit{Standard Specifications and Code of Practice for Road Bridges, Section I: General Features of Design.}

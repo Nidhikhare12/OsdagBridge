@@ -6,6 +6,7 @@ from osdagbridge.core.utils.common import (
     KEY_SD_DEFL_TOTAL,
 )
 from osdagbridge.core.reports.report_utils import _tex, _fig_embed
+from osdagbridge.core.reports import styles
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -80,7 +81,7 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
 
 A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements --- longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
 
-\vspace{1em}
+""" + styles.TABLE_TOP_SKIP + r"""
 \begingroup
 \footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -140,7 +141,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \end{longtable}
 \endgroup
 
-\vspace{1em}
+""" + styles.TABLE_TOP_SKIP + r"""
 \begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
 \caption{\textbf{Reactions at Supports}}
 \hline
@@ -154,7 +155,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \end{longtable}
 
-\vspace{1em}
+""" + styles.TABLE_TOP_SKIP + r"""
 \begin{longtable}{|L{7cm}|p{8.5cm}|}
 \caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
 \hline
@@ -174,7 +175,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \end{longtable}
 
-\vspace{1em}
+""" + styles.TABLE_TOP_SKIP + r"""
 \noindent
 """ + _fig_embed(fig_paths.get('bm_envelope'), 'Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).', width=r'0.75\textwidth') + r"""
 """ + _fig_embed(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=r'0.75\textwidth') + r"""
