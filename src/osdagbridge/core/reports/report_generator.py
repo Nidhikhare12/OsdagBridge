@@ -120,6 +120,8 @@ from osdagbridge.core.utils.common import (
 
 from osdagbridge.core.reports.report_utils import _tex
 from .executive_summary import executive_summary
+from .latex_tables import normalize_longtables
+from . import styles
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
 from .chap3 import ch3_loads
@@ -156,7 +158,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[""" + styles.PAGE.geometry_options + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -193,20 +195,25 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
+\setlength{\tabcolsep}{""" + styles.TABLE.tabcolsep + r"""}
+\renewcommand{\arraystretch}{""" + styles.TABLE.arraystretch + r"""}
+% Row gaps and the column-width unit: every chapter uses these, never literals.
+\newlength{\rowgap}\setlength{\rowgap}{""" + styles.TABLE.row_gap + r"""}
+\newlength{\rowgapwide}\setlength{\rowgapwide}{""" + styles.TABLE.row_gap_wide + r"""}
+\newlength{\rowgaptight}\setlength{\rowgaptight}{""" + styles.TABLE.row_gap_tight + r"""}
+\newlength{\rowgaplabel}\setlength{\rowgaplabel}{""" + styles.TABLE.row_gap_label + r"""}
+\newlength{\colunit}\setlength{\colunit}{""" + styles.TABLE.column_unit + r"""}
+\setlength{\LTpre}{""" + styles.TABLE.longtable_pre + r"""}
+\setlength{\LTpost}{""" + styles.TABLE.longtable_post + r"""}
 % Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+\setlength{\arrayrulewidth}{""" + styles.TABLE.rule_width + r"""}
+\setlength{\extrarowheight}{""" + styles.TABLE.extra_row_height + r"""}
 
 % Prevent tables from overflowing past the page bottom:
 % if fewer than 5 baseline-skips remain, break to the next page first.
 \BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
 
-\definecolor{osdagGreen}{HTML}{91B014}
+\definecolor{osdagGreen}{HTML}{""" + styles.PALETTE.osdag_green + r"""}
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -216,13 +223,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
+    \sdnote
     \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
   }
 }
@@ -234,13 +235,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
   \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
   \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
+    \sdnote
     \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
   }
 }
@@ -263,11 +258,14 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 % Software-default asterisk
 \newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
+% Page-accurate "software default" note: \sdstar records the page it is
+% shipped on in the .aux file, and the footer reads it back on the next run.
+\makeatletter
+\newcommand{\sdonpage}[1]{\global\@namedef{sd@page@#1}{}}
+\renewcommand{\sdstar}{\textsuperscript{*}\protected@write\@auxout{}{\string\sdonpage{\thepage}}}
+\newcommand{\sdnote}{\@ifundefined{sd@page@\thepage}{}{%
+  \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}\vspace{2pt}}}
+\makeatother
 
 \title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
 \author{}
@@ -314,7 +312,7 @@ def title_page(m, osdag_logo, org_logo):
 {\Huge \textbf{OsdagBridge}}\\[0.3cm]
 {\large Open Source Software for Steel Girder Bridge Design}\\[1.5cm]
 {\Large Design Report}\\[1.5cm]
-\begin{tabular}{|L{4cm}|L{10cm}|}
+\begin{tabular}{|L{4\colunit}|L{10\colunit}|}
 \hline
 \textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
 \hline
@@ -924,11 +922,12 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge,
+                                                   chart_dir=tmp_images))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, chart_dir=tmp_images))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -942,10 +941,10 @@ def generate_report(payload, request):
             full_tex = "\n".join(doc_parts)
 
 
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
+            # Terminate captions and repeat header rows in every longtable.
+            # Captions stay in \endfirsthead only, so captions and column
+            # headings are never reordered (see latex_tables.py).
+            full_tex = normalize_longtables(full_tex)
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')

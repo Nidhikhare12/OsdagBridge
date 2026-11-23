@@ -1,5 +1,8 @@
-def ch7_quantities(input_dict):
-    return r"""
+from osdagbridge.core.reports.charts import material_charts_latex
+
+
+def ch7_quantities(input_dict, chart_dir=None):
+    chapter = r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
 
@@ -7,7 +10,7 @@ def ch7_quantities(input_dict):
 
 \begingroup
 \setlength{\tabcolsep}{3.5pt}
-\begin{longtable}{|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
+\begin{longtable}{|C{1.0\colunit}|L{3.8\colunit}|C{2.6\colunit}|C{1.8\colunit}|C{1.8\colunit}|C{1.8\colunit}|C{1.8\colunit}|}
 \hline
 \textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
 \hline
@@ -29,5 +32,4 @@ def ch7_quantities(input_dict):
 \hline
 \end{longtable}
 """
-
-
+    return chapter + material_charts_latex(input_dict, chart_dir)

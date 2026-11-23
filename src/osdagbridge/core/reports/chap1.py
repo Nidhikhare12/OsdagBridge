@@ -10,7 +10,7 @@ This section records all project metadata as entered by the designer.
 \section{Project and Design Team Details}
 \label{sec:project-details}
 
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
+\begin{tabular}{|L{5.5\colunit}|L{8.5\colunit}|}
 \hline
 \textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
 \hline
