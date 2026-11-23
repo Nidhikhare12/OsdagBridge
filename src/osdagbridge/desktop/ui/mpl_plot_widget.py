@@ -523,6 +523,13 @@ class MplPlotWidget(QWidget):
         force_key = self._current_force_key()
         sel_girder= self._current_member()
 
+        print(
+            "[PLOT] member =", sel_girder,
+            "lc =", loadcase,
+            "force_key =", force_key,
+            flush=True
+        )
+
         if not loadcase or not force_key:
             return
 

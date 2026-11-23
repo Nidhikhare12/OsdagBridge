@@ -1116,7 +1116,9 @@ class CustomWindow(QWidget):
 
 
     def plots_view_toggle(self):
+        print("DIAG: plots_view_toggle ENTERED", flush=True)
         self.plots_view_active = not self.plots_view_active
+        print("DIAG: plots_view_active =", self.plots_view_active, flush=True)
 
         if self.plots_view_active:
             # Plots is mutually exclusive — deactivate 3D CAD & update icon
