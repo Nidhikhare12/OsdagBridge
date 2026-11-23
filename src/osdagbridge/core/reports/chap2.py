@@ -71,6 +71,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _render_value, get_girder_entries, _tex
+from osdagbridge.core.reports import styles
 
 def ch2_input_parameters(m, input_dict, output_dict=None):
     girder_entries = get_girder_entries(input_dict)
@@ -114,7 +115,7 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 \textnormal{Shade Temp. Max / Min (IRC 6)} & """ + (_render_value(input_dict,'shade_temp_max','')) + r""" °C / """ + (_render_value(input_dict,'shade_temp_min','')) + r""" °C \\
 \hline
 \end{tabular}
-\vspace{0.4cm}
+""" + styles.SECTION_SKIP + r"""
 \end{table}
 
 \begin{table}[H]

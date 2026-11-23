@@ -1,5 +1,7 @@
 from typing import List
 
+from osdagbridge.core.reports import styles
+
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE
 )
@@ -53,7 +55,7 @@ design modules, and notes the limitations of the current software version.
 The following Indian Road Congress (IRC) codes and Indian Standards (IS) 
 form the basis of all design calculations in this software.
 
-\vspace{0.5cm}
+""" + styles.SECTION_SKIP + r"""
 
 \begingroup
 \setlength{\tabcolsep}{3.5pt}

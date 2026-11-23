@@ -741,6 +741,10 @@ KEY_LL_FOOTPATH_PRESSURE   = "loading.live_load.footpath_pressure"
 KEY_LL_FOOTPATH_PRESSURE_MODE   = "loading.live_load.footpath_pressure.mode"
 KEY_LL_FOOTPATH_PRESSURE_VALUE  = "loading.live_load.footpath_pressure.value"
 
+# Centrifugal load (IRC 6 Cl. 209) -- used by the report's live-load table
+KEY_LL_CURVE_RADIUS       = "loading.live_load.curve_radius"
+KEY_LL_DESIGN_SPEED       = "loading.live_load.design_speed"
+
 #--------------- Seismic Load Sub-Tab -------------------------------------------------
 KEY_SL_TAB                      = "loading.seismic_load.tab"
 KEY_SL_SEISMIC_ZONE             = "loading.seismic_load.seismic_zone"
