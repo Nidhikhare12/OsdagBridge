@@ -119,6 +119,8 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from .styles import get_latex_preamble
+from .charts import generate_ur_charts, generate_quantity_charts
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -899,12 +901,42 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
-            # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
+            # ── Generate dynamic UR and quantity charts into tmp_images ──
+            # ReportDataBridge exposes the actual cross-bracing design result
+            # adapters used by Chapter 5; do not rely on a non-existent payload
+            # attribute (which previously prevented bracing charts from appearing).
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
+            try:
+                ur_paths = generate_ur_charts(payload.output_dict, payload.inputs, bridge, tmp_images)
+                fig_paths.update(ur_paths)
+                logger.info("UR charts generated: %s", list(ur_paths.keys()))
+            except Exception as _e:
+                logger.warning("UR chart generation skipped: %s", _e)
+
+            try:
+                qty_paths = generate_quantity_charts(quantities, tmp_images)
+                fig_paths.update(qty_paths)
+                logger.info("Quantity charts generated: %s", list(qty_paths.keys()))
+            except Exception as _e:
+                logger.warning("Quantity chart generation skipped: %s", _e)
+
+            # Only pass image paths that really exist to the LaTeX chapters.
+            # A chart may be unavailable when the design output has no complete
+            # bill-of-materials values; embedding its intended filename would
+            # make pdflatex abort with a missing-file error.
+            valid_fig_paths = {}
+            for key, image_path in fig_paths.items():
+                if image_path and os.path.isfile(image_path):
+                    valid_fig_paths[key] = image_path
+                else:
+                    logger.warning("Skipping unavailable report image %s: %s", key, image_path)
+            fig_paths = valid_fig_paths
+
+            # ── Assemble LaTeX document (fig_paths now has existing tmp_dir paths) ──
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
 
             doc_parts = []
-            doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
+            doc_parts.append(get_latex_preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
             doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
 
             if payload.options.include_toc:
@@ -924,11 +956,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, fig_paths=fig_paths))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, fig_paths=fig_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -954,6 +986,7 @@ def generate_report(payload, request):
                 f.write(full_tex)
 
             # Compile twice for TOC and references
+            compile_success = False
             for _ in range(2):
                 try:
                     kwargs = {
@@ -970,15 +1003,19 @@ def generate_report(payload, request):
                         [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
                         **kwargs
                     )
+                    compile_success = (res.returncode == 0 and os.path.exists(tmp_pdf))
+                    if res.returncode != 0:
+                        logger.error("LaTeX compilation failed (pass %s): %s", _ + 1,
+                                     res.stderr.decode('utf-8', 'ignore')[-5000:])
                 except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
 
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)
-            if os.path.exists(tmp_pdf):
+            if compile_success and os.path.exists(tmp_pdf) and os.path.getsize(tmp_pdf) > 0:
                 shutil.copy2(tmp_pdf, pdf_path)
 
-        if os.path.exists(pdf_path):
+        if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
             logger.info("Report generated: %s", pdf_path)
             return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
 

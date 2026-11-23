@@ -65,6 +65,12 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         "bracing_diag_vol_total": "N.A.",
         "bracing_diag_wt_single": "N.A.",
         "bracing_diag_wt_total": "N.A.",
+
+        "steel_ed_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "steel_ed_qty": "N.A.",
+        "steel_ed_vol_total": "N.A.",
+        "steel_ed_wt_single": "N.A.",
+        "steel_ed_wt_total": "N.A.",
         
         "concrete_deck_vol_formula": r"\placeholder{Width $\times$ Thickness $\times$ Length}",
         "concrete_deck_qty": "N.A.",
@@ -321,9 +327,22 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["bracing_diag_vol_total"] = f"{diag_vol_total:.2f}"
             quantities["bracing_diag_wt_single"] = f"{diag_wt_single:.4f}"
             quantities["bracing_diag_wt_total"] = f"{diag_wt_total:.2f}"
+
+            # 5d. End Diaphragms (at 2 ends of the bridge, between each adjacent girder)
+            ed_qty = (n_girders - 1) * 2
+            ed_vol_single = bracing_area * (2 * spacing + 2 * bracing_len) if bracing_len > 0 else bracing_area * spacing
+            ed_vol_total = ed_qty * ed_vol_single
+            ed_wt_single = ed_vol_single * 7.85
+            ed_wt_total = ed_vol_total * 7.85
+
+            quantities["steel_ed_vol_formula"] = f"${bracing_area:.5f}\\text{{ m}}^2 \\times {spacing:.2f}\\text{{ m}} = {ed_vol_single:.5f}\\text{{ m}}^3$"
+            quantities["steel_ed_qty"] = str(ed_qty)
+            quantities["steel_ed_vol_total"] = f"{ed_vol_total:.2f}"
+            quantities["steel_ed_wt_single"] = f"{ed_wt_single:.4f}"
+            quantities["steel_ed_wt_total"] = f"{ed_wt_total:.2f}"
         else:
             # Keep all bracing volumes, quantities, and weights as default placeholder "N.A."
-            for prefix in ("bracing_top", "bracing_bot", "bracing_diag"):
+            for prefix in ("bracing_top", "bracing_bot", "bracing_diag", "steel_ed"):
                 quantities[f"{prefix}_vol_formula"] = "N.A."
                 quantities[f"{prefix}_qty"] = "N.A."
                 quantities[f"{prefix}_vol_total"] = "N.A."
