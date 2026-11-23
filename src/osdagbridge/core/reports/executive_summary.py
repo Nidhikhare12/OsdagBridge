@@ -133,9 +133,16 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     # --- Dynamic Table 1: fetch backend-populated labels via exact suffix pattern ---
     # defaults.py populates: KEY_MP_GD_SELECT_GIRDER + '.G{i}' = 'G{i}'
     #                        KEY_MP_GD_MEMBER_ID     + '.G{i}.M1' = 'G{i}M1'
-    labels = get_girder_entries(input_dict)
-    if not labels:
-        labels = [("", "")]
+    raw_labels = get_girder_entries(input_dict)
+    n_g = int(input_dict.get(KEY_TS_NO_OF_GIRDERS) or input_dict.get("no_of_girders") or len(raw_labels) or 1)
+    if not raw_labels:
+        labels = [(f"G{i}", f"G{i}") for i in range(1, n_g + 1)]
+    else:
+        labels = []
+        for i, (lbl, mid) in enumerate(raw_labels, start=1):
+            cur_lbl = lbl if (lbl and str(lbl).strip()) else f"G{i}"
+            cur_mid = mid if (mid and str(mid).strip()) else f"G{i}"
+            labels.append((cur_lbl, cur_mid))
     n_cols = len(labels)
 
     # Column widths: row-label column fixed at 2.8cm; girder columns share remainder
