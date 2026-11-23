@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so the baseline commit is available locally
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -96,9 +98,9 @@ jobs:
         run: |
           set -o pipefail
           # deliverables/ is git-ignored, so generate the baseline from the
-          # original upstream commit instead of relying on a checked-in PDF.
-          git clone -q https://github.com/Nidhikhare12/OsdagBridge.git /tmp/baseline
-          git -C /tmp/baseline checkout -q d74f56d
+          # original commit using this repo's own full git history (no network).
+          mkdir -p /tmp/baseline
+          git archive d74f56d | tar -x -C /tmp/baseline
           mkdir -p /tmp/baseline/scripts
           cp scripts/benchmark_report.py /tmp/baseline/scripts/
           cp -r scripts/tex /tmp/baseline/scripts/
