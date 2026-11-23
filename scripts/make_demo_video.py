@@ -24,6 +24,7 @@ if not FONT.exists():
 
 W, H = 1920, 1080
 BAR = 104
+CAPTION_BOTTOM_MARGIN = 64  # keeps captions clear of video-player overlays
 BG = (245, 246, 240)
 GREEN = (145, 176, 20)
 DARK = (34, 34, 34)
@@ -33,9 +34,9 @@ SLIDES = [
      "GUI - Tables - Charts - Verification", 5),
     ("gui_window.png", "1. Real OsdagBridge desktop UI",
      "Basic Inputs, 2-D CAD canvas and Design button", 5),
-    ("gui_after_design.png", "2. Design completed in the real UI",
+    ("TITLE", "2. Design completed in the real UI",
      "1001 output keys from OpenSees + IRC 22 design", 5),
-    ("gui_after_report.png", "3. Generate Report clicked in the real UI",
+    ("TITLE", "3. Generate Report clicked in the real UI",
      "Dialog -> QThread worker -> PDF", 5),
     ("report_assets/before_loads.png", "4. Before: merged Live Loads table",
      "Values and units mixed in one column", 5),
@@ -76,9 +77,10 @@ def _slide(image_path, title, subtitle, duration, workdir, index):
         img.thumbnail((W - 40, H - BAR - 40))
         canvas.paste(img, ((W - img.width) // 2, 20))
         draw = ImageDraw.Draw(canvas)
-        draw.rectangle((0, H - BAR, W, H), fill=DARK)
-        draw.text((40, H - BAR + 20), title, font=_font(40), fill="white")
-        draw.text((40, H - BAR + 62), subtitle, font=_font(26), fill=(200, 215, 180))
+        cy = H - BAR - CAPTION_BOTTOM_MARGIN
+        draw.rectangle((0, cy, W, cy + BAR), fill=DARK)
+        draw.text((40, cy + 20), title, font=_font(40), fill="white")
+        draw.text((40, cy + 62), subtitle, font=_font(26), fill=(200, 215, 180))
     path = workdir / f"slide_{index:02d}.png"
     canvas.save(path)
     return f"file '{path}'\nduration {duration}\n", duration

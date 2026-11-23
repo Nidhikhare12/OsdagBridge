@@ -40,6 +40,11 @@ Frame extraction at 2 s and 30 s confirms the title card and captioned report
 slides render correctly — not a black screen (the earlier raw X11 capture was
 black because the display is Wayland/Xwayland).
 
+Two early slides originally used screenshots of the OCC 3-D viewport captured
+under software OpenGL; the Mesa framebuffer was garbled (coloured streaks).
+Those slides were replaced with clean text cards, and caption bars were raised
+64 px so video-player overlays cannot cover them.
+
 Frame-by-frame audit (15 samples across the main video and 9 across the live
 clip) confirms: no black lead-in in either video, no one-frame title flash at
 the end, chronological slide order, readable captions, and a live clip that
