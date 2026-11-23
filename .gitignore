@@ -305,3 +305,16 @@ Thumbs.db
 
 # Local-only PR draft (given to the user, never committed)
 PR_MESSAGE.md
+
+# Local submission pack (uploaded separately)
+submission/
+
+# Local-only analysis/demo helpers (not part of the submitted source)
+docs/BENCHMARK.md
+docs/PERFORMANCE_DETAIL.md
+docs/OPTIMIZATION_NOTES.md
+docs/PDF_VIDEO_REVIEW.md
+docs/REPORT_DATA_NOTES.md
+scripts/benchmark_detailed.py
+scripts/make_demo_video.py
+CHANGELOG.md

@@ -90,15 +90,33 @@ jobs:
           echo "status=pass" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
+      - name: Build baseline PDF from upstream for comparison
+        id: baseline
+        if: steps.build.outputs.status == 'pass'
+        run: |
+          set -o pipefail
+          # deliverables/ is git-ignored, so generate the baseline from the
+          # original upstream commit instead of relying on a checked-in PDF.
+          git clone -q https://github.com/Nidhikhare12/OsdagBridge.git /tmp/baseline
+          git -C /tmp/baseline checkout -q d74f56d
+          mkdir -p /tmp/baseline/scripts
+          cp scripts/benchmark_report.py /tmp/baseline/scripts/
+          cp -r scripts/tex /tmp/baseline/scripts/
+          (cd /tmp/baseline && \
+             TEXINPUTS="/tmp/baseline/scripts/tex:${TEXINPUTS:-}" \
+             PYTHONPATH=src python scripts/benchmark_report.py \
+             /tmp/baseline_out 1 > /tmp/baseline_build.log 2>&1)
+          test -f /tmp/baseline_out/bench.pdf
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
       - name: Build before/after comparison thumbnail
         id: compare
-        # deliverables/ is git-ignored, so the baseline PDF may be absent in CI;
-        # only build the comparison when it is actually present.
-        if: steps.build.outputs.status == 'pass' && hashFiles('deliverables/Report_Before.pdf') != ''
+        if: steps.build.outputs.status == 'pass' && steps.baseline.outputs.status == 'pass'
         run: |
           set -o pipefail
           python scripts/make_ci_comparison.py \
-            deliverables/Report_Before.pdf ci_out/CI_Report.pdf 11 ci_out/comparison.png
+            /tmp/baseline_out/bench.pdf ci_out/CI_Report.pdf 11 ci_out/comparison.png
           echo "status=pass" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
@@ -143,7 +161,11 @@ jobs:
           echo "pdf_url=$BASE/CI_Report.pdf" >> "$GITHUB_OUTPUT"
           echo "tex_url=$BASE/CI_Report.tex" >> "$GITHUB_OUTPUT"
           echo "preview_url=$RAW/preview.png" >> "$GITHUB_OUTPUT"
-          echo "comparison_url=$RAW/comparison.png" >> "$GITHUB_OUTPUT"
+          # Only publish the URL when the file actually exists; otherwise the
+          # PR comment embeds a broken image (as happened before).
+          if [ -f "$DEST/runs/$RUN/comparison.png" ]; then
+            echo "comparison_url=$RAW/comparison.png" >> "$GITHUB_OUTPUT"
+          fi
           echo "status=pass" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 

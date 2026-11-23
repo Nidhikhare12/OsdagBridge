@@ -213,8 +213,8 @@ Additional formatting polish: table header rows are now shaded
 (`tableHead`) with softened green rules, captions use a consistent
 period-separated style, and section/subsection headings use the Osdag green
 palette.  Compilation speed was improved with a draft-mode first pdflatex pass
-and faster Agg chart rendering; see `docs/BENCHMARK.md` for measurements and
-cross-application PDF verification (MuPDF, LibreOffice, Poppler, pypdf).
+and faster Agg chart rendering. The exported PDF was also verified with
+MuPDF, LibreOffice, Poppler and pypdf.
 
 A full real-solver verification is also included:
 
@@ -267,3 +267,12 @@ side-by-side thumbnail** (load tables, page 11), runs a **font-embedding /
 encryption validation** (`pdffonts`, all fonts must be embedded), and a
 **nightly cron** (`0 2 * * *`) that opens or updates a `nightly-ci` issue on
 failure to catch dependency regressions.
+
+
+### Local submission pack
+
+A clean, git-ignored folder `submission/` contains the files to upload:
+`Report_Before.pdf`, `Report_After.pdf`, `Technical_Report.pdf`,
+`Demo_Video_1080p.mp4`, plus supporting `Report_Real_Design.pdf` and
+`Demo_Live_X11_1080p.mp4`. The full artefact set remains in `deliverables/`;
+CI publishes built PDFs to the public `ci-reports` branch.

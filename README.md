@@ -1,5 +1,23 @@
 # OsdagBridge
 
+> **Report Generator enhancements — screening-task branch `report-generator-enhancements`**
+>
+> [![Report generator CI](https://github.com/danish9661/OsdagBridge/actions/workflows/report-ci.yml/badge.svg?branch=report-generator-enhancements)](https://github.com/danish9661/OsdagBridge/actions/workflows/report-ci.yml)
+>
+> This branch implements all six report-generator requirements (repeating
+> longtable headers, footer/spacing fixes, split vehicle/footway load tables,
+> UR and material charts, and a centralized `styles.py`), backed by 9 unit
+> tests, a real-GUI + real-OpenSees verification suite, CI with PR reporting,
+> and a 1080p demo video.
+>
+> - Submission checklist and deliverables: [`README_REPORT_TASK.md`](README_REPORT_TASK.md)
+> - Technical changes: [`docs/REPORT_ENHANCEMENTS.md`](docs/REPORT_ENHANCEMENTS.md)
+> - Generate a sample report: `python scripts/generate_sample_reports.py deliverables Report_After`
+> - Upload pack (local, git-ignored): `submission/` (`OsdagBridge_Submission.pdf` + `Demo_Video_1080p.mp4`)
+> - CI-published PDFs: https://github.com/danish9661/OsdagBridge/tree/ci-reports
+>
+> ---
+
 OsdagBridge is a modular, shared-core software plugin for the analysis and design of steel bridges within the Osdag ecosystem.  
 It supports desktop (PySide6), web (Django + React), and CLI interfaces through a unified Python core.
 
