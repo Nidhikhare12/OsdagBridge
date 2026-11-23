@@ -1,6 +1,7 @@
 # Chapter 2: Input Parameters — exact LaTeX template match
 
 
+from osdagbridge.core.reports import styles as report_styles
 from osdagbridge.core.utils.common import (
     KEY_CARRIAGEWAY_WIDTH,
     KEY_CB_LOAD,
@@ -167,7 +168,7 @@ Where the user has modified additional inputs, those values are reported here. W
 
 \vspace{0.8cm}
 
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}""" + report_styles.STD_PARAM_TABLE + r"""
 \caption{\textbf{Typical Section Details}}
 \hline
 \textbf{parameter} & \textbf{value} \\
@@ -190,7 +191,7 @@ Where the user has modified additional inputs, those values are reported here. W
 
 \vspace{0.8em}
 
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}""" + report_styles.STD_PARAM_TABLE + r"""
 \caption{\textbf{Components Details}}
 \hline
 \textbf{parameter} & \textbf{value} \\
@@ -423,7 +424,7 @@ def _shear_connector_table(input_dict, output_dict=None):
 \vspace{2.2em}
 
 \vspace{0.4em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}""" + report_styles.STD_PARAM_TABLE + r"""
 \caption{\textbf{Shear Connector Details}}
 \hline
 \textbf{parameter} & \textbf{value} \\
@@ -451,7 +452,7 @@ def _safety_factors_table(input_dict):
 \noindent\textit{Note: All values are per IRC 22 Table 1 unless user-modified.}
 
 \vspace{0.4em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}""" + report_styles.STD_PARAM_TABLE + r"""
 \caption{\textbf{Partial Safety Factors}}
 \hline
 \textbf{parameter} & \textbf{value} \\

@@ -26,7 +26,7 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                         rf'\textcolor{{blue}}{{{escaped}}}\\')
                 elif 'ERROR' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
+                        rf'\textcolor{{failRed}}{{{escaped}}}\\')
                 elif 'INFO' in upper:
                     lines_tex.append(
                         rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')

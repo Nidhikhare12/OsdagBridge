@@ -72,3 +72,17 @@ def table_layout_block():
         r"\BeforeBeginEnvironment{table}{\needspace{" + NEEDSPACE + "}}",
         r"\BeforeBeginEnvironment{longtable}{\needspace{" + NEEDSPACE + "}}",
     ])
+
+
+# ---------------- Semantic colors used inside chapter strings ----------------
+# (names refer to the \definecolor entries in COLORS above)
+FAIL_COLOR = "failRed"
+PASS_COLOR = "passGreen"
+BRAND_COLOR = "osdagGreen"
+INFO_COLOR = "blue"
+STD_PARAM_TABLE = "{|L{" + LABEL_COL + "}|p{" + VALUE_COL + "}|}"
+
+
+def fail_text(text):
+    """LaTeX for text marked as failing / over limit."""
+    return r"\textcolor{" + FAIL_COLOR + "}{" + str(text) + "}"
