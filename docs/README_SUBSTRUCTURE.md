@@ -174,7 +174,8 @@ python -m osdagbridge.desktop
    blue and is visible *through* the pier/pile-cap concrete. Hover a member
    to see its dimensions.
 
-To customize dimensions programmatically (UI fields are not wired yet):
+Substructure parameters can currently be changed through `SubstructureParamsDTO`
+in code; dedicated UI input fields are not yet wired to these values:
 
 ```python
 from osdagbridge.core.bridge_types.plate_girder.dto import SubstructureParamsDTO
@@ -207,8 +208,8 @@ superstructure psets) are attached to every substructure element:
 `ComponentRole`, dimensions in metres, `NumberOfPiles`, `ConcreteVolume`
 (m³), `BarCount`, `MainBarDiameter`, spacings, `ClearCover`, `SteelVolume`,
 `Material` (concrete grade enriched with fck/fctm/Ecm from the Osdag
-database; `Fe 500` for rebar). Import in Revit / BIMcollab / usBIM to
-schedule quantities.
+database; `Fe 500` for rebar). Import in FreeCAD BIM (verified on this Linux
+workstation), Revit, BIMcollab or usBIM to schedule quantities.
 
 ## 6. Environment note
 
@@ -265,10 +266,31 @@ ifcopenshell 0.8.5, Python 3.12):
   797 `IfcPropertySet` objects carrying the BOQ data.
 * A headless GUI smoke test initialised `V3d_Viewer`,
   `AIS_InteractiveContext` and the Mesa OpenGL backend successfully. An
-  interactive visual pass (semi-transparent concrete at opacity 0.35 with
-  visible rebar) is still recommended for the demonstration video.
+  interactive pass confirmed semi-transparent concrete (opacity 0.35) with the
+  rebar cage visible inside; see §7.3 and the demonstration video.
 
-### 7.3 Quick reproduction
+### 7.3 Runtime evidence (report Figures 1–9)
+
+The bridge was designed end-to-end in the OsdagBridge desktop application on
+this Linux workstation, using the `osdagbridge` environment with pythonocc-core
+and IfcOpenShell installed. Figures 8–9 record the design run and its outputs;
+Figures 3–4 show the 3D CAD viewer with the **Substructure** component enabled;
+Figures 5–7 show the exported IFC opened in the **FreeCAD BIM workbench**, used
+as the IFC viewer on this machine. The model tree, element classifications and
+property sets were verified there, and the pier concrete volume reported by the
+viewer (**1.51 m³**) matches the **1.508 m³** computed by the pure-Python
+geometry helpers.
+
+**Open items**
+
+* Revit import test — not performed; Revit is unavailable on this Linux
+  workstation.
+* Dedicated UI input fields for substructure dimensions — not wired yet;
+  parameters are changed through `SubstructureParamsDTO` in code (see §4).
+* CAD/IFC bearing-elevation agreement for haunched or non-uniform end-girder
+  segments — not yet tested (see the report).
+
+### 7.4 Quick reproduction
 
 ```python
 from osdagbridge.core.bridge_components.sub_structure.pier.builder import build_pier
