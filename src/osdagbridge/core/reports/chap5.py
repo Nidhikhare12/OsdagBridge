@@ -3,6 +3,7 @@
 # Extracted from report_generator.py — DO NOT add business logic here.
 # =============================================================================
 from __future__ import annotations
+from osdagbridge.core.reports.ur_charts import ur_charts_latex
 from typing import TYPE_CHECKING
 
 from osdagbridge.core.utils.common import (
@@ -1500,6 +1501,8 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 """ + t522_content + r"""
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
+
+""" + ur_charts_latex(_t522) + r"""
 
 """
 
