@@ -267,3 +267,38 @@ tools/
 # LaTeX build artifacts for the submission report
 deliverables/*.aux
 deliverables/*.log
+
+# Submission artefacts (kept locally / uploaded separately, not in git)
+deliverables/
+*.zip
+
+# Python build / test junk
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# LaTeX build artifacts (any directory)
+*.aux
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# CI / local output dirs
+ci_out/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

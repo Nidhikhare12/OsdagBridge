@@ -92,7 +92,9 @@ jobs:
 
       - name: Build before/after comparison thumbnail
         id: compare
-        if: steps.build.outputs.status == 'pass'
+        # deliverables/ is git-ignored, so the baseline PDF may be absent in CI;
+        # only build the comparison when it is actually present.
+        if: steps.build.outputs.status == 'pass' && hashFiles('deliverables/Report_Before.pdf') != ''
         run: |
           set -o pipefail
           python scripts/make_ci_comparison.py \
