@@ -1132,17 +1132,17 @@ class ExportTablePage(QWidget):
         for lvl1, sub1 in selected_tables.items():
             p1 = QTreeWidgetItem(self.tree, [lvl1])
             p1.setFlags(p1.flags() | Qt.ItemIsUserCheckable)
-            p1.setCheckState(0, Qt.Unchecked)
+            p1.setCheckState(0, Qt.Checked)
 
             for lvl2, sub2 in sub1.items():
                 p2 = QTreeWidgetItem(p1, [lvl2])
                 p2.setFlags(p2.flags() | Qt.ItemIsUserCheckable)
-                p2.setCheckState(0, Qt.Unchecked)
+                p2.setCheckState(0, Qt.Checked)
 
                 for lvl3, data in sub2.items():
                     p3 = QTreeWidgetItem(p2, [lvl3])
                     p3.setFlags(p3.flags() | Qt.ItemIsUserCheckable)
-                    p3.setCheckState(0, Qt.Unchecked)
+                    p3.setCheckState(0, Qt.Checked)
                     p3.setData(0, Qt.UserRole, data)
 
         self.tree.expandAll()
@@ -1400,8 +1400,14 @@ class GenerateResultsDialog(QDialog):
         super().__init__(parent)
         self._input_dict = input_dict or {}
         self._bridge = bridge
-        self.setMinimumWidth(1080)
-        self.setMinimumHeight(720)
+        screen = self.screen().availableGeometry()
+        if screen.isEmpty():
+            screen = QApplication.primaryScreen().availableGeometry()
+
+        target_width = min(1080, max(720, screen.width() - 24))
+        target_height = min(720, max(520, screen.height() - 24))
+        self.setMinimumSize(min(720, target_width), min(520, target_height))
+        self.resize(target_width, target_height)
         self.setObjectName("generate_results_dialog")
 
         self.setStyleSheet("""
@@ -1412,6 +1418,14 @@ class GenerateResultsDialog(QDialog):
         """)
 
         self._setup_ui()
+        self._move_to_available_screen(screen)
+
+    def _move_to_available_screen(self, screen):
+        if screen.isEmpty():
+            return
+        x = screen.x() + max(0, (screen.width() - self.width()) // 2)
+        y = screen.y() + max(0, (screen.height() - self.height()) // 2)
+        self.move(x, y)
 
     # ── Wrapper ─────────────────────────────────────────────────────────────
     def _setup_wrapper(self):
