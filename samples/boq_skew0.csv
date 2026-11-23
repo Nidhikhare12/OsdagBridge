@@ -1,0 +1,18 @@
+Category,Item,Material,Nos,Unit,Quantity
+Concrete,Pier cap,Concrete M35,2,m3,35.303
+Concrete,Pier,Concrete M35,2,m3,3.016
+Concrete,Pile cap,Concrete M35,2,m3,3.118
+Concrete,Pile,Concrete M35,8,m3,5.077
+Concrete,Pedestal,Concrete M35,10,m3,0.54
+Reinforcement,"Pedestal - main 8 mm (280 bars, 145.6 m)",Fe 500,280,kg,57.5
+Reinforcement,"Pedestal - main 16 mm (40 bars, 11.1 m)",Fe 500,40,kg,17.6
+Reinforcement,"Pier - ligature 8 mm (30 bars, 69.5 m)",Fe 500,30,kg,27.4
+Reinforcement,"Pier - main 16 mm (30 bars, 132.4 m)",Fe 500,30,kg,209.0
+Reinforcement,"Pier Cap - ligature 8 mm (168 bars, 961.8 m)",Fe 500,168,kg,379.5
+Reinforcement,"Pier Cap - main 16 mm (56 bars, 951.4 m)",Fe 500,56,kg,1501.7
+Reinforcement,"Pile - ligature 8 mm (200 bars, 212.0 m)",Fe 500,200,kg,83.7
+Reinforcement,"Pile - main 16 mm (56 bars, 318.1 m)",Fe 500,56,kg,502.0
+Reinforcement,"Pile Cap - main 8 mm (38 bars, 56.0 m)",Fe 500,38,kg,22.1
+Reinforcement,"Pile Cap - main 16 mm (50 bars, 119.8 m)",Fe 500,50,kg,189.2
+Total,Substructure concrete,,,m3,47.053
+Total,Substructure reinforcement,,,kg,2989.6

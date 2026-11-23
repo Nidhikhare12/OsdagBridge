@@ -24,4 +24,5 @@ dependencies:
   - pip:
     - openseespy>=3.2.2.6
     - opsvis
+    - ifcopenshell   # IFC4 export (core/ifc_export_bridge)
     - -e .

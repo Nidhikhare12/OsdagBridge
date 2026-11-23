@@ -35,6 +35,9 @@ from osdagbridge.core.bridge_components.super_structure.crash_barrier.builder im
 from osdagbridge.core.bridge_components.super_structure.plate_girder.builder import (
     END_STIFFENER_SPACING
 )
+from osdagbridge.core.bridge_components.sub_structure.substructure_builder import (
+    SubstructureParams, substructure_layout, girder_soffit_z
+)
 from osdagbridge.desktop.cad.irc5_geometry import (
     CrashBarrierGeometry,
     MedianGeometry,
@@ -125,7 +128,8 @@ class PlateGirderIFCExtractor:
             "cross_bracings": self._extract_cross_bracings(n_girders, spacing),
             "deck_slab": self._extract_deck_slab(total_width),
             "crash_barriers": self._extract_safety_components(total_width, actual_base_width, actual_railing_width),
-            "supports": self._extract_supports(n_girders, spacing)
+            "supports": self._extract_supports(n_girders, spacing),
+            "substructure": self._extract_substructure(n_girders, spacing, total_width),
         }
 
     def _solve_girder_layout(self, total_width):
@@ -133,6 +137,13 @@ class PlateGirderIFCExtractor:
         Dynamically solves for n, spacing, and overhang based on Osdag's structural sizing rules.
         OverallBridgeWidth = (n - 1) * spacing + 2 * overhang
         """
+        # Use the designed girder layout when the DTO carries it, so the IFC
+        # girders (and the pier-cap pedestals under them) match the CAD model.
+        n_design = int(getattr(self.cad, 'num_girders', 0) or 0)
+        s_design = float(getattr(self.cad, 'girder_spacing', 0) or 0)
+        if n_design >= 2 and s_design > 0:
+            return n_design, s_design, (total_width - (n_design - 1) * s_design) / 2.0
+
         target_s = getattr(self.cad, 'girder_spacing', DEFAULT_GIRDER_SPACING * 1000)
         target_o = getattr(self.cad, 'deck_overhang', target_s / 2.0)
         
@@ -492,3 +503,32 @@ class PlateGirderIFCExtractor:
                 uDir=[0,1,0], wDir=[0,0,1], ifc_name=f"Cylindrical Support {i+1}"))
                 
         return {"supports_tri": [s for s in supports if s._class_name == "StiffenerPlate"], "supports_cyl": [s for s in supports if s._class_name == "CircularSolid"]}
+
+    def _extract_substructure(self, n_girders, spacing, total_width):
+        """
+        Substructure layout (pier caps, pedestals, piers, pile caps, piles and
+        reinforcement) for the IFC exporter.
+
+        Uses the same pure-Python layout function as the CAD generator
+        (sub_structure/substructure_builder.py), fed with this extractor's own
+        girder layout so the pedestals line up with the exported girders.
+        """
+        if not getattr(self.cad, "include_substructure", True):
+            return []
+        params = getattr(self.cad, "substructure_params", None) or SubstructureParams()
+        segs = list(getattr(self.cad, "girder_segments", None) or [])
+        candidates = [segs[0], segs[-1]] if segs else [None]
+        soffit = min(
+            girder_soffit_z(self.cad.girder_section_d, self.cad.girder_section_tf, s,
+                            self.cad.girder_section_tf_b)
+            for s in candidates
+        )
+        width_girders = (n_girders - 1) * spacing
+        return substructure_layout(
+            params,
+            span_length=self.cad.span_length_L,
+            soffit_z=soffit,
+            deck_width=total_width,
+            girder_y_positions=[i * spacing - width_girders / 2.0 for i in range(n_girders)],
+            skew_angle=self.skew_angle,
+        )

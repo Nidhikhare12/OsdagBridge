@@ -7,6 +7,7 @@ import time
 import ifcopenshell
 from osdagbridge.core.ifc_export_bridge.bridge_geometry_mapper import BridgeGeometryMapper, create_ifc_guid
 from osdagbridge.core.ifc_export_bridge.metadata_mapper import BridgeMetadataMapper
+from osdagbridge.core.ifc_export_bridge.substructure_ifc import SubstructureIfcWriter
 
 class BridgeIfcGenerator:
     def __init__(self, output_path):
@@ -36,7 +37,9 @@ class BridgeIfcGenerator:
             ApplicationDeveloper=org, Version="1.0", ApplicationFullName="Osdag Bridge", ApplicationIdentifier="OSDAG_BRIDGE_IFC"
         )
         self._owner_history = self.file.createIfcOwnerHistory(
-            OwningUser=person_org, OwningApplication=app, ChangeAction="ADDED", CreationDate=stamp
+            OwningUser=person_org, OwningApplication=app, ChangeAction="ADDED",
+            LastModifiedDate=stamp,  # required with ChangeAction (IFC4 rule WR1)
+            CreationDate=stamp
         )
         
         # Baseline spatial hierarchy
@@ -619,6 +622,17 @@ class BridgeIfcGenerator:
                  elif item._class_name == "RailingSweep":
                      _process_railing(item)
                  
+        # Substructure: pier caps, pedestals, piers, pile caps, piles + rebar
+        supports = extracted_dict.get("substructure") or []
+        if supports:
+            sub_params = getattr(cad_context, "substructure_params", None)
+            cover = sub_params.rebar.cover if sub_params is not None else 40.0
+            stats = SubstructureIfcWriter(
+                self, concrete_grade=getattr(cad_context, "concrete_grade", "M35"),
+            ).write(supports, cover=cover)
+            print(f"Substructure exported: {stats['elements']} concrete elements, "
+                  f"{stats['bars']} reinforcing bars.")
+
         # Intentionally ignore "deck_textures"
         print("Model assembly complete. Saving...")
         self.file.write(self.output_path)

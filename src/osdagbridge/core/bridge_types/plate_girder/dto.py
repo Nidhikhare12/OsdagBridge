@@ -397,4 +397,11 @@ class BridgeParametersDTO:
     girder_segments_dict: dict[int, list[GirderSegmentDTO]] = field(default_factory=dict)
     stiffeners_dict: dict[int, dict] = field(default_factory=dict)
 
+    # --- Substructure (piers, pier caps, pile caps, piles, reinforcement) ---
+    # A SubstructureParams instance from
+    # core/bridge_components/sub_structure/substructure_builder.py.
+    # None -> builder defaults (the hardcoded values in each builder.py).
+    include_substructure: bool = True
+    substructure_params: Optional[object] = None
+
 

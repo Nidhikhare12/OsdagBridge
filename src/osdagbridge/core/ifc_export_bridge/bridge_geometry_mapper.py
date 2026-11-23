@@ -52,7 +52,8 @@ class BridgeGeometryMapper:
     def apply_color(self, shape_rep, rgb_tuple):
         """Applies an RGB color to an IfcShapeRepresentation."""
         rgb = self.file.createIfcColourRgb(None, float(rgb_tuple[0]), float(rgb_tuple[1]), float(rgb_tuple[2]))
-        surf_style = self.file.createIfcSurfaceStyleRendering(SurfaceColour=rgb)
+        # ReflectanceMethod is mandatory in IFC4 - without it strict importers reject the style
+        surf_style = self.file.createIfcSurfaceStyleRendering(SurfaceColour=rgb, ReflectanceMethod="NOTDEFINED")
         surface_style = self.file.createIfcSurfaceStyle(None, "BOTH", [surf_style])
         for item in shape_rep.Items:
             self.file.createIfcStyledItem(item, [surface_style], None)
