@@ -1,4 +1,8 @@
-def ch7_quantities(input_dict):
+from .plots import figure_latex
+from .styles import report_section
+
+@report_section
+def ch7_quantities(input_dict, fig_paths=None):
     return r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
@@ -6,11 +10,17 @@ def ch7_quantities(input_dict):
 \noindent\textbf{Table 7.1  Bill of Materials (Steel, Concrete, and Reinforcement Quantities)}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\ReportCompactTable
 \begin{longtable}{|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
 \hline
-\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
+\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume (m$^3$)} & \textbf{Quantity} & \textbf{Total Volume (m$^3$)} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
 \hline
+\endfirsthead
+\hline
+\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume (m$^3$)} & \textbf{Quantity} & \textbf{Total Volume (m$^3$)} & \textbf{Weight (MT)} & \textbf{Total Weight (MT)} \\
+\hline
+\endhead
+
 1 & Structural Steel (IS 2062) for Girders & """ + str(input_dict.get("steel_girders_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_qty", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_total", "N.A.")) + r""" \\
 \hline
 2(a) & Cross Bracing - Top Chord & """ + str(input_dict.get("bracing_top_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_qty", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("bracing_top_wt_total", "N.A.")) + r""" \\
@@ -18,6 +28,8 @@ def ch7_quantities(input_dict):
 2(b) & Cross Bracing - Bottom Chord & """ + str(input_dict.get("bracing_bot_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("bracing_bot_qty", "N.A.")) + r""" & """ + str(input_dict.get("bracing_bot_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("bracing_bot_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("bracing_bot_wt_total", "N.A.")) + r""" \\
 \hline
 2(c) & Cross Bracing - Diagonal Chord & """ + str(input_dict.get("bracing_diag_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("bracing_diag_qty", "N.A.")) + r""" & """ + str(input_dict.get("bracing_diag_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("bracing_diag_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("bracing_diag_wt_total", "N.A.")) + r""" \\
+\hline
+2(d) & End Diaphragms (bracing frames at supports) & """ + str(input_dict.get("end_diaphragms_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("end_diaphragms_qty", "N.A.")) + r""" & """ + str(input_dict.get("end_diaphragms_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("end_diaphragms_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("end_diaphragms_wt_total", "N.A.")) + r""" \\
 \hline
 3 & Concrete (M40) for Deck Slab & """ + str(input_dict.get("concrete_deck_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("concrete_deck_qty", "N.A.")) + r""" & """ + str(input_dict.get("concrete_deck_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("concrete_deck_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("concrete_deck_wt_total", "N.A.")) + r""" \\
 \hline
@@ -28,6 +40,7 @@ def ch7_quantities(input_dict):
 6 & Crash Barrier & """ + str(input_dict.get("crash_barrier_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_qty", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_total", "N.A.")) + r""" \\
 \hline
 \end{longtable}
-"""
+\endgroup
+""" + figure_latex((fig_paths or {}).get("structural_steel"), "Structural steel tonnage by component. N/A denotes unavailable quantities.") + figure_latex((fig_paths or {}).get("concrete_reinforcement"), "Concrete volume and reinforcement weight on separate unit axes.")
 
 

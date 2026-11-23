@@ -1,0 +1,4 @@
+# Standalone report development; the full GUI still needs environment.yml.
+matplotlib>=3.5
+PyLaTeX>=1.4.2
+pytest>=6.2.2

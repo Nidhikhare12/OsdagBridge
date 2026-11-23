@@ -31,6 +31,86 @@ def resolve_girder_value(source: dict, base_key: str, i: int = 0) -> Any:
     raise KeyError(base_key)
 
 
+ED_DETAILS = "member_properties.end_diaphragm_details"
+ED_DESIGN = "transverse_member_design.ed.section_properties"
+STEEL_DENSITY_T_PER_M3 = 7.85  # same value as the cross-bracing rows
+
+
+def _first_value(key, *sources):
+    for source in sources:
+        if isinstance(source, dict) and source.get(key) not in (None, ""):
+            return source[key]
+    return None
+
+
+def _end_diaphragm_quantities(inputs, outputs, cb_geom):
+    """Steel in bracing-type end diaphragms (one frame per bay at each support).
+
+    Uses the same rules as the cross-bracing rows: designed section areas from
+    ``transverse_member_design``, member lengths from the bracing geometry, and
+    7.85 t/m3. Returns N.A. when the end diaphragm is not a bracing frame or the
+    data is incomplete, rather than estimating.
+    """
+    na = {f"end_diaphragms_{field}": "N.A." for field in
+          ("vol_formula", "qty", "vol_total", "wt_single", "wt_total")}
+    prefix = f"{ED_DETAILS}.type."
+    frames = []
+    for key in list(outputs) + list(inputs):
+        if key.startswith(prefix) and key.count(".") == prefix.count(".") + 1:
+            bay, member = key[len(prefix):].split(".")
+            if (bay, member) not in frames:
+                frames.append((bay, member))
+    if not frames:
+        return na
+    try:
+        spacing = float(cb_geom.get("girder_spacing_m") or cb_geom.get("horiz_proj_m"))
+        height = float(cb_geom.get("brace_height_m"))
+    except (TypeError, ValueError):
+        return na
+    if spacing <= 0 or height <= 0:
+        return na
+
+    def _yes(value):
+        return str(value).strip().lower() in ("yes", "true", "1")
+
+    total_vol = 0.0
+    for bay, member in frames:
+        suffix = f"{bay}.{member}"
+        ed_type = str(_first_value(f"{ED_DETAILS}.type.{suffix}", outputs, inputs) or "")
+        if "bracing" not in ed_type.lower():
+            return na  # rolled or plate-girder diaphragms are not covered by these rules
+        brace = str(_first_value(f"{ED_DETAILS}.bracing_type.{suffix}", outputs, inputs) or "X")
+        # X: full-bay diagonals; K: each diagonal spans half the bay.
+        run = spacing / 2.0 if brace.strip().upper().startswith("K") else spacing
+        diagonal = (run ** 2 + height ** 2) ** 0.5
+        members = [("end_diaphragm", diagonal, 2)]
+        for chord in ("top_chord", "bottom_chord"):
+            if _yes(_first_value(f"{ED_DETAILS}.{chord}.{suffix}", outputs, inputs)):
+                members.append((chord, spacing, 1))
+        for part, length, count in members:
+            area_cm2 = _first_value(f"{ED_DESIGN}.{part}.{bay}.A", outputs, inputs)
+            try:
+                area = float(area_cm2) / 10000.0
+            except (TypeError, ValueError):
+                return na
+            if area <= 0:
+                return na
+            total_vol += count * area * length
+    n_frames = len(frames)
+    single_vol = total_vol / n_frames
+    return {
+        # Per frame, as the other rows give the volume of one member.
+        "end_diaphragms_vol_formula": (
+            f"$2 \\times {diagonal:.2f}\\text{{ m}}$ diagonals"
+            + (f" $+ {len(members) - 1} \\times {spacing:.2f}\\text{{ m}}$ chords" if len(members) > 1 else "")
+            + f" $= {single_vol:.5f}\\text{{ m}}^3$"),
+        "end_diaphragms_qty": str(n_frames),
+        "end_diaphragms_vol_total": f"{total_vol:.2f}",
+        "end_diaphragms_wt_single": f"{single_vol * STEEL_DENSITY_T_PER_M3:.4f}",
+        "end_diaphragms_wt_total": f"{total_vol * STEEL_DENSITY_T_PER_M3:.2f}",
+    }
+
+
 def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
     """Calculate quantities (steel tonnage, concrete volume, rebar, studs)
     needed for the material take-off summary (Chapter 7).
@@ -240,16 +320,29 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         # Find bracing section properties from outputs or skip if not present
         bracing_area = 0.0
         bracing_len = 0.0
-        top_chord_enabled = True
-        bot_chord_enabled = True
 
         bracing_area_val = outputs.get("transverse_member_design.cb.section_properties.bracing.G1G2.A")
         cb_forces = outputs.get("crossbracing_forces_dict")
         bracing_len_val = None
+        cb_geom = {}
         if cb_forces:
-            cb_geom = cb_forces.get("geometry")
+            cb_geom = cb_forces.get("geometry") or {}
             if cb_geom:
                 bracing_len_val = cb_geom.get("diagonal_length_m")
+
+        # Chords exist only when the user enables them; CrossBracingForces resolves
+        # this from the inputs and records it (top level and in "geometry").
+        def _chord_enabled(name):
+            for source in (cb_forces or {}, cb_geom):
+                if name in source and source[name] is not None:
+                    value = source[name]
+                    if isinstance(value, str):
+                        return value.strip().lower() not in ("no", "false", "0", "none")
+                    return bool(value)
+            return True  # previous behaviour when no bracing configuration is available
+
+        top_chord_enabled = _chord_enabled("top_chord")
+        bot_chord_enabled = _chord_enabled("bottom_chord")
 
         if bracing_area_val is not None and bracing_len_val is not None:
             try:
@@ -329,6 +422,9 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
                 quantities[f"{prefix}_vol_total"] = "N.A."
                 quantities[f"{prefix}_wt_single"] = "N.A."
                 quantities[f"{prefix}_wt_total"] = "N.A."
+
+        # 5d. End diaphragms (bracing frames at both supports)
+        quantities.update(_end_diaphragm_quantities(inputs, outputs, cb_geom or {}))
 
         # 6. Crash Barrier (Cu.m) and Weight (MT)
         KEY_CB_AREA = "typical_section.crash_barrier.area"

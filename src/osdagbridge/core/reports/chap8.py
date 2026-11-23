@@ -5,6 +5,9 @@ from osdagbridge.core.utils.common import (
 )
 
 
+from .styles import report_section
+
+@report_section
 def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
     """Render Chapter 8 using real log_entries, matching Osdag color convention."""
 
@@ -23,10 +26,10 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                 upper = line.upper()
                 if 'WARNING' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
+                        rf'\textcolor{{reportInfo}}{{{escaped}}}\\')
                 elif 'ERROR' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
+                        rf'\textcolor{{reportFail}}{{{escaped}}}\\')
                 elif 'INFO' in upper:
                     lines_tex.append(
                         rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
@@ -50,42 +53,55 @@ design modules, and notes the limitations of the current software version.
 \section{Design Standards}
 \label{sec:design_standards}
 
-The following Indian Road Congress (IRC) codes and Indian Standards (IS) 
+The following Indian Road Congress (IRC) codes and Indian Standards (IS)
 form the basis of all design calculations in this software.
 
-\vspace{0.5cm}
+\ReportSectionGap
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\ReportCompactTable
+\begin{longtable}{|c|c|p{12.7cm}|}
+
+\caption{\textbf{IRC Codes}}\\
 \hline
-\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
+\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\
 \hline
-IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
+\endfirsthead
 \hline
-IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\ 
+\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\
 \hline
-IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\ 
+\endhead
+
+IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\
 \hline
-IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\ 
+IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\
 \hline
-IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\ 
+IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\
 \hline
-IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
+IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\
 \hline
-\end{tabular}
-\end{table}
+IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\
+\hline
+IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
+\hline
+\end{longtable}
+\endgroup
+
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\ReportCompactTable
+\begin{longtable}{|c|c|p{12.7cm}|}
+
+\caption{\textbf{IS Codes}}\\
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
+\endfirsthead
+\hline
+\textbf{Code} & \textbf{Year} & \textbf{Scope} \\
+\hline
+\endhead
+
 IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\
 \hline
 IS 456 & 2000 & Concrete - simplified stress-block for deck moment capacity \\
@@ -96,8 +112,9 @@ IS 1893 (Part 3) & 2014 & Earthquake resistant design \\
 \hline
 IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\endgroup
+
 
 \clearpage
 \section{Analysis and Design Assumptions of This Version}

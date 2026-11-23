@@ -1,3 +1,6 @@
+from .styles import report_section
+
+@report_section
 def references():
     return r"""
 \chapter*{References}

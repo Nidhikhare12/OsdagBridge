@@ -1,3 +1,6 @@
+from .styles import report_section
+
+@report_section
 def ch6_drawings(fig_paths):
     """Chapter 6 – Drawings and Visualizations.
 
@@ -28,7 +31,7 @@ def ch6_drawings(fig_paths):
             p = path.replace('\\', '/')
             return (r'\begin{figure}[H]' + '\n'
                     r'\centering' + '\n'
-                    r'\vspace{4pt}' + '\n'
+                    r'\ReportMinorGap' + '\n'
                     r'\includegraphics[width=0.85\textwidth]{' + p + '}\n'
                     r'\caption{' + title + '}\n'
                     + label_tex
@@ -150,7 +153,7 @@ This section presents CAD-generated views of the designed bridge and its compone
 """
             + cbdia + '\n\n'
             + cb_sections_row + r"""
-            
+
 
 \section{End Diaphragm Detail}
 \label{sec:diaphragm-detail}
@@ -160,3 +163,12 @@ This section presents CAD-generated views of the designed bridge and its compone
             + ed_sections_row + r"""
 
 """)
+
+
+@report_section
+def ch6_omitted(reason):
+    """Keep Chapter 6 in the numbering when drawings are not part of the report."""
+    return (r'\chapter{Drawings and Visualizations}' + '\n'
+            r'\label{chap:drawings}' + '\n'
+            r'\noindent\textit{' + reason + r'} '
+            r'Chapter numbering is kept so that the Material Take-off remains Chapter 7.' + '\n')
