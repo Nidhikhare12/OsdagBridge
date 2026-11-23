@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+import os
 from osdagbridge.core.utils.common import (
     KEY_SPAN,
     KEY_TS_NO_OF_GIRDERS,
@@ -49,6 +50,22 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         for lc in all_lcs
     ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \\[6pt]"
 
+    reaction_rows = []
+    for _lc, _reaction in rxn_summary.items():
+        _reaction = _reaction or {}
+        reaction_rows.append(
+            _tex(_lc) + r" & "
+            + _fmt(_reaction.get("left_kN")) + r" & "
+            + _fmt(_reaction.get("right_kN")) + r" \\[6pt]"
+        )
+    if reaction_rows:
+        reaction_body = ("\n\\hline\n").join(reaction_rows)
+    else:
+        reaction_body = (
+            r"\multicolumn{3}{|p{14.8cm}|}{Support reaction values were not "
+            r"returned in the analysis summary for this run.} \\[6pt]"
+        )
+
     _span_m         = float(bridge.input_dict.get(KEY_SPAN, 0) or 0)
     _allow_live_mm  = _span_m * 1000.0 / 800.0
     _allow_total_mm = _span_m * 1000.0 / 600.0
@@ -73,8 +90,28 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "---"
     _allow_live_str  = f"L/800 = {_allow_live_mm:.1f} mm"
     _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
-    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
-    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
+    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\ReportFailText{FAIL}") if _live_mm  is not None else "---"
+    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\ReportFailText{FAIL}") if _total_mm is not None else "---"
+    _analysis_figures = [
+        _fig_embed(fig_paths.get("bm_envelope"), "Bending Moment Envelope", width=r"0.75\\textwidth"),
+        _fig_embed(fig_paths.get("sf_envelope"), "Shear Force Envelope", width=r"0.75\\textwidth"),
+        _fig_embed(fig_paths.get("defl_ll"), "Vertical Deflection (Live Load)", width=r"0.75\\textwidth"),
+    ]
+    _analysis_figures_tex = "".join(_analysis_figures)
+    _available_analysis_figures = sum(
+        1 for _key in ("bm_envelope", "sf_envelope", "defl_ll")
+        if fig_paths.get(_key) and os.path.isfile(os.fspath(fig_paths.get(_key)))
+    )
+    if _available_analysis_figures == 0:
+        _analysis_figures_tex = (
+            r"\noindent\textit{Analysis plots were not supplied by the current analysis run. "
+            r"The numerical load, reaction and deflection tables above are retained.}"
+        )
+    elif _available_analysis_figures < 3:
+        _analysis_figures_tex += (
+            r"\noindent\footnotesize Some analysis plots were not supplied by the current run.\normalsize"
+        )
+
     return r"""
 \chapter{Analysis Results}
 
@@ -83,19 +120,19 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \vspace{1em}
 \begingroup
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{\ReportDenseTablePadding}
+\renewcommand{\arraystretch}{\ReportDenseTableStretch}
 
 \begin{longtable}{|
->{\centering\arraybackslash}p{3.1cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
+>{\centering\arraybackslash}p{2.4cm}|
 >{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
+>{\centering\arraybackslash}p{1.1cm}|
+>{\centering\arraybackslash}p{1.1cm}|
 >{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.6cm}|
->{\centering\arraybackslash}p{1.6cm}|}
+>{\centering\arraybackslash}p{1.1cm}|
+>{\centering\arraybackslash}p{1.1cm}|
+>{\centering\arraybackslash}p{1.1cm}|
+>{\centering\arraybackslash}p{1.1cm}|}
 
 \caption{\textbf{Summary of Maximum Demands}}\\
 \hline
@@ -106,10 +143,10 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \cline{2-9}
 
 & \makecell{\textbf{Max}\\\textbf{(kNm)}}
-& \textbf{Girder}
+& \scriptsize\textbf{Girder}
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
 & \makecell{\textbf{Max}\\\textbf{(kN)}}
-& \textbf{Girder}
+& \scriptsize\textbf{Girder}
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
 & \makecell{\textbf{Left}}
 & \makecell{\textbf{Right }}\\
@@ -124,10 +161,10 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \cline{2-9}
 
 & \makecell{\textbf{Max}\\\textbf{(kNm)}}
-& \textbf{Girder}
+& \scriptsize\textbf{Girder}
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
 & \makecell{\textbf{Max}\\\textbf{(kN)}}
-& \textbf{Girder}
+& \scriptsize\textbf{Girder}
 & \makecell{\textbf{Loc.}\\\textbf{(m)}}
 & \makecell{\textbf{Left}}
 & \makecell{\textbf{Right}}\\
@@ -140,26 +177,34 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \end{longtable}
 \endgroup
 
-\vspace{1em}
-\begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
+\ReportTopicBreak
+\begin{longtable}{|>{\centering\arraybackslash}p{4.7cm}|>{\centering\arraybackslash}p{4.7cm}|>{\centering\arraybackslash}p{4.7cm}|}
+\caption{\textbf{Reactions at Supports}}\\
 \hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
+\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endfirsthead
+\multicolumn{3}{c}{\tablename\ \thetable{} -- continued from previous page}\\
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\
 \hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
+\endhead
+""" + reaction_body + r"""
 \hline
 \end{longtable}
 
-\vspace{1em}
-\begin{longtable}{|L{7cm}|p{8.5cm}|}
-\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
+\ReportTopicBreak
+\begin{longtable}{|L{6.5cm}|p{8.2cm}|}
+\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}\\
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
+\endfirsthead
+\multicolumn{2}{c}{\tablename\ \thetable{} -- continued from previous page}\\
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]
@@ -176,8 +221,5 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 
 \vspace{1em}
 \noindent
-""" + _fig_embed(fig_paths.get('bm_envelope'), 'Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).', width=r'0.75\textwidth') + r"""
-""" + _fig_embed(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=r'0.75\textwidth') + r"""
-""" + _fig_embed(fig_paths.get('defl_ll'), 'Vertical Deflection D$_y$ (1.0 LL): Maximum deflection along span. Load Case: 1.0 LL, Combination: $D_y$. Nodes shown. Isometric view.', width=r'0.75\textwidth') + r"""
-"""
+""" + _analysis_figures_tex
 

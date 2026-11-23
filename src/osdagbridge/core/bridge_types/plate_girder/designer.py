@@ -3217,6 +3217,9 @@ def _build_uls_per_girder(per_girder_results: dict) -> dict:
     return result
 
 
+from osdagbridge.core.bridge_types.plate_girder.dcr_utils import aggregate_bridge_category_urs
+
+
 def run_design_check(
     config: "BridgeConfig | None" = None,
     plate_girder_bridge: Any | None = None,
@@ -3595,7 +3598,8 @@ def run_design_check(
         "n_pass"                    : engine.n_pass(),
         "n_warn"                    : engine.n_warn(),
         "n_fail"                    : engine.n_fail(),
-        "category_urs": engine.category_urs(),
+        "controlling_girder_category_urs": engine.category_urs(),
+        "category_urs": aggregate_bridge_category_urs(per_girder_results),
         # -- DCR check rows --
         "checks": [
             {

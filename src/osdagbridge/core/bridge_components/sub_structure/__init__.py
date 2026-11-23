@@ -1,1 +1,1 @@
-"""Sub-structure package."""
+"""Pier cap package."""

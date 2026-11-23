@@ -1,0 +1,296 @@
+import sys
+import os
+
+# Print a Python traceback instead of a bare core dump on a native crash (stderr may be None).
+import faulthandler
+try:
+    faulthandler.enable()
+except Exception:
+    pass
+
+
+def _register_conda_dll_directories():
+    """Add the active conda environment's native DLL folders to the Windows DLL
+    search path before numpy/scipy/openseespy are imported.
+
+    A conda-constructor-installed app launched from its shortcut does not
+    "activate" the environment, so ``<prefix>/Library/bin`` (MKL/OpenBLAS, Qt,
+    etc.) is not on the DLL search path. Native extensions then crash the whole
+    process with ``ERROR_MOD_NOT_FOUND`` (``0xc06d007f``) the first time they
+    delay-load a backend DLL — e.g. ``numpy.linalg.lstsq`` during grillage
+    meshing, which silently closes the window and hangs the loader. No-op on
+    non-Windows and in already-activated environments.
+    """
+    if os.name != "nt":
+        return
+    prefix = sys.prefix
+    candidates = [
+        os.path.join(prefix, "Library", "bin"),
+        os.path.join(prefix, "Library", "mingw-w64", "bin"),
+        os.path.join(prefix, "Library", "usr", "bin"),
+        os.path.join(prefix, "DLLs"),
+        prefix,
+    ]
+    path_entries = os.environ.get("PATH", "").split(os.pathsep)
+    for path in candidates:
+        if not os.path.isdir(path):
+            continue
+        try:
+            os.add_dll_directory(path)
+        except (OSError, AttributeError):
+            pass
+        if path not in path_entries:
+            os.environ["PATH"] = path + os.pathsep + os.environ.get("PATH", "")
+            path_entries.insert(0, path)
+
+
+_register_conda_dll_directories()
+
+
+def _ensure_std_streams():
+    """Guarantee sys.stdout/sys.stderr are writable.
+
+    When launched as a gui-script, Windows runs this under pythonw.exe, which
+    has no console: sys.stdout/sys.stderr are None. The desktop app prints a lot
+    of debug output, and the first print() against None raises AttributeError
+    and kills the app silently. Redirect the missing stream(s) to a log file
+    (falling back to os.devnull) so the GUI can launch without a console window.
+    """
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    try:
+        import tempfile
+        log_path = os.path.join(tempfile.gettempdir(), "osdagbridge.log")
+        stream = open(log_path, "a", buffering=1, encoding="utf-8")
+    except Exception:
+        stream = open(os.devnull, "w")
+    if sys.stdout is None:
+        sys.stdout = stream
+    if sys.stderr is None:
+        sys.stderr = stream
+
+
+_ensure_std_streams()
+
+from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon
+from PySide6.QtCore import QFile, QTextStream
+from osdagbridge.desktop.resources import resources_rc
+
+
+def _app_icon():
+    """Return the OsdagBridge application icon (the same .ico used for the
+    desktop / Start Menu shortcut), or an empty QIcon if it can't be found."""
+    try:
+        from importlib.resources import files
+        ico = files('osdagbridge.desktop.resources').joinpath('osdagbridge.ico')
+        if ico.is_file():
+            return QIcon(str(ico))
+    except Exception:
+        pass
+    return QIcon()
+
+
+def _set_windows_app_id():
+    """Give the app its own Windows taskbar identity so the taskbar shows the
+    OsdagBridge icon instead of the generic Python/pythonw icon. Must run before
+    the main window is shown. No-op on non-Windows."""
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "Osdag.OsdagBridge.Desktop.1"
+        )
+    except Exception:
+        pass
+
+# Create Intg_osdag.sqlite if not Exist
+def create_sqlite():
+    import sqlite3
+    import subprocess
+    from importlib.resources import files
+    import shutil
+    
+    try:
+        # Get paths
+        sqlpath = files('osdagbridge.core.data.ResourceFiles').joinpath('Intg_osdag.sql')
+        sqlitepath = files('osdagbridge.core.data.ResourceFiles').joinpath('Intg_osdag.sqlite')
+
+        if not sqlpath.exists():
+            print(f"[ERROR] SQL file not found: {sqlpath}")
+            return
+
+        # Determine if we need to create or update
+        needs_creation = not sqlitepath.exists()
+        needs_update = (sqlitepath.exists() and 
+                    (sqlitepath.stat().st_size == 0 or 
+                        sqlitepath.stat().st_mtime < sqlpath.stat().st_mtime - 1))
+
+        if not needs_creation and not needs_update:
+            # print("[INFO] Database is up to date")
+            return
+
+        # Create backup if updating existing database
+        backup_path = None
+        if needs_update:
+            backup_path = sqlitepath.with_suffix('.sqlite.backup')
+            shutil.copy2(sqlitepath, backup_path)
+
+        # Create/update database
+        target_path = sqlitepath
+        if needs_update:
+            # Create in temp location first
+            target_path = sqlitepath.parent / 'Intg_osdag_temp.sqlite'
+
+        # Try Python sqlite3 first
+        try:
+            with open(sqlpath, 'r', encoding='utf-8') as sql_file:
+                sql_content = sql_file.read()
+            
+            conn = sqlite3.connect(target_path)
+            conn.executescript(sql_content)
+            conn.close()
+            
+            print(f"[INFO] Intg_osdag sqlite database {'created' if needs_creation else 'updated'} using python sqlite3")
+            
+        except Exception as e:
+            print(f"[ERROR] Python sqlite3 failed: {e}, trying command line")
+            
+            # Fallback to command line
+            result = subprocess.run([
+                'sqlite3', str(target_path), 
+                f'.read {sqlpath}'
+            ], capture_output=True, text=True, timeout=30)
+            
+            if result.returncode != 0:
+                raise Exception(f"[ERROR] Command line sqlite3 failed: {result.stderr}")
+            
+            print(f"[INFO] Intg_osdag sqlite database {'created' if needs_creation else 'updated'} using command line")
+
+        # If updating, replace the original
+        if needs_update:
+            sqlitepath.unlink()
+            target_path.rename(sqlitepath)
+            if backup_path and backup_path.exists():
+                backup_path.unlink()
+
+        # Touch the SQL file to update timestamp
+        sqlpath.touch()
+
+    except Exception as e:
+        print(f"[ERROR] Database setup failed: {e}")
+        
+        # Cleanup on failure
+        if needs_update:
+            # Restore backup if available
+            if backup_path and backup_path.exists():
+                if not sqlitepath.exists():
+                    shutil.copy2(backup_path, sqlitepath)
+                backup_path.unlink()
+            
+            # Remove temp file
+            temp_path = sqlitepath.parent / 'Intg_osdag_temp.sqlite'
+            if temp_path.exists():
+                temp_path.unlink()
+
+create_sqlite()
+
+
+def ensure_osdag_core_db():
+    """Build the osdag_core sqlite database if it is missing or empty.
+
+    The installed `osdag` package ships a 0-byte placeholder
+    `Intg_osdag.sqlite` alongside the `Intg_osdag.sql` that defines its
+    tables (Beams, Angles, Columns, ...), but nothing populates it. When the
+    desktop app queries it via osdag_core.Common, every lookup fails with
+    "no such table: Beams/Angles". Build the database from the bundled SQL on
+    startup so those section tables are always available.
+    """
+    import sqlite3
+    from importlib.resources import files
+
+    try:
+        db_dir = files('osdag_core.data.ResourceFiles.Database')
+        sqlpath = db_dir.joinpath('Intg_osdag.sql')
+        sqlitepath = db_dir.joinpath('Intg_osdag.sqlite')
+
+        if not sqlpath.exists():
+            print(f"[ERROR] osdag_core SQL file not found: {sqlpath}")
+            return
+
+        # Decide whether the database needs (re)building: missing, empty, or
+        # has no tables at all.
+        needs_build = True
+        if sqlitepath.exists() and sqlitepath.stat().st_size > 0:
+            try:
+                conn = sqlite3.connect(str(sqlitepath))
+                has_tables = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' LIMIT 1"
+                ).fetchone()
+                conn.close()
+                needs_build = has_tables is None
+            except Exception:
+                needs_build = True
+
+        if not needs_build:
+            return
+
+        with open(sqlpath, 'r', encoding='utf-8') as sql_file:
+            sql_content = sql_file.read()
+
+        conn = sqlite3.connect(str(sqlitepath))
+        conn.executescript(sql_content)
+        conn.commit()
+        conn.close()
+        print("[INFO] osdag_core Intg_osdag sqlite database built from SQL")
+
+    except Exception as e:
+        print(f"[ERROR] osdag_core database setup failed: {e}")
+
+
+ensure_osdag_core_db()
+
+# Import template_page
+from osdagbridge.desktop.ui.template_page import CustomWindow
+from osdagbridge.core.bridge_types.plate_girder.plategirderbridge import PlateGirderBridge
+
+def load_stylesheet():
+    """Load the global QSS stylesheet from resources."""
+    file = QFile(":/themes/lightstyle.qss")
+    if file.open(QFile.ReadOnly | QFile.Text):
+        stream = QTextStream(file)
+        stylesheet = stream.readAll()
+        file.close()
+        return stylesheet
+    return ""
+
+def main():
+    # Establish the Windows taskbar identity before the QApplication so the
+    # taskbar uses our icon, not the host Python interpreter's.
+    _set_windows_app_id()
+
+    # Create the Qt application instance
+    app = QApplication(sys.argv)
+
+    # Application-wide icon: taskbar, Alt-Tab, and default window icon.
+    icon = _app_icon()
+    if not icon.isNull():
+        app.setWindowIcon(icon)
+
+    # Load and apply the global stylesheet
+    stylesheet = load_stylesheet()
+    if stylesheet:
+        app.setStyleSheet(stylesheet)
+
+    window = CustomWindow("OsdagBridge", PlateGirderBridge)
+    if not icon.isNull():
+        window.setWindowIcon(icon)
+    window.showMaximized()
+    window.show()
+
+    # Execute the event loop
+    sys.exit(app.exec())
+
+if __name__ == "__main__":
+    main()

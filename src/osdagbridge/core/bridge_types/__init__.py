@@ -1,1 +1,1 @@
-"""Bridge types registry."""
+"""truss module."""

@@ -1,5 +1,13 @@
-% Default LaTeX template (placeholder)
-\documentclass{article}
-\begin{document}
-OsdagBridge report
-\end{document}
+% OsdagBridge default report shell.
+% The active application currently assembles its document preamble in
+% report_generator.preamble() and imports shared styles from report_formatting.py.
+% Keep this fallback shell aligned with that report class and page layout.
+\\documentclass[12pt,a4paper]{report}
+\\usepackage[a4paper,left=1in,right=1in,top=0.85in,bottom=0.95in,includeheadfoot]{geometry}
+\\usepackage{graphicx,amsmath,amssymb,booktabs,array,longtable,tabularx,float,fancyhdr,xcolor,caption,subcaption,multirow,needspace}
+\\newcommand{\\ReportTopicBreak}{\\clearpage}
+\\newcommand{\\ReportFailText}[1]{\\textcolor{red}{#1}}
+\\newcommand{\\ReportPassText}[1]{\\textcolor{green!45!black}{#1}}
+\\begin{document}
+% Generated report content is inserted here by the report generator.
+\\end{document}
