@@ -5,14 +5,17 @@ on:
     branches: ["**"]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: "0 2 * * *"   # nightly at 02:00 UTC to catch dependency regressions
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 concurrency:
-  group: report-ci-${{ github.ref }}
+  group: report-ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -32,7 +35,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install numpy scipy matplotlib pytest
+          pip install numpy scipy matplotlib pytest pillow
 
       - name: Install LaTeX and PDF tools
         run: |
@@ -58,7 +61,7 @@ jobs:
           echo "status=pass" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
-      - name: Verify report structure and metadata
+      - name: Verify structure, metadata and font embedding
         id: verify
         if: steps.build.outputs.status == 'pass'
         run: |
@@ -68,16 +71,32 @@ jobs:
           TITLE=$(pdfinfo ci_out/CI_Report.pdf | awk -F': *' '/^Title:/{print $2}')
           UR=$(grep -c 'fig:ur-summary' ci_out/CI_Report.tex)
           MAT=$(grep -c 'fig:material-quantities' ci_out/CI_Report.tex)
+          # Font-embedding validation: every font must be embedded (emb=yes).
+          NOTEMB=$(pdffonts ci_out/CI_Report.pdf | awk 'NR>2 && $4=="no"' | wc -l)
+          ENCRYPTED=$(pdfinfo ci_out/CI_Report.pdf | awk '/^Encrypted:/{print $2}')
           pdftoppm -f 1 -l 1 -r 90 -png -singlefile ci_out/CI_Report.pdf ci_out/preview
           echo "endhead=$ENDHEAD" >> "$GITHUB_OUTPUT"
           echo "pages=$PAGES" >> "$GITHUB_OUTPUT"
           echo "title=$TITLE" >> "$GITHUB_OUTPUT"
           echo "ur=$UR" >> "$GITHUB_OUTPUT"
           echo "mat=$MAT" >> "$GITHUB_OUTPUT"
+          echo "notemb=$NOTEMB" >> "$GITHUB_OUTPUT"
           test "$ENDHEAD" -ge 40
           test "$UR" -ge 1
           test "$MAT" -ge 1
           test -n "$TITLE"
+          test "$NOTEMB" -eq 0
+          test "$ENCRYPTED" = "no"
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Build before/after comparison thumbnail
+        id: compare
+        if: steps.build.outputs.status == 'pass'
+        run: |
+          set -o pipefail
+          python scripts/make_ci_comparison.py \
+            deliverables/Report_Before.pdf ci_out/CI_Report.pdf 11 ci_out/comparison.png
           echo "status=pass" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
@@ -90,11 +109,12 @@ jobs:
             ci_out/CI_Report.pdf
             ci_out/CI_Report.tex
             ci_out/preview.png
+            ci_out/comparison.png
             pytest.log
             build.log
           if-no-files-found: warn
 
-      - name: Publish PDF + preview to public ci-reports branch
+      - name: Publish PDF + previews to public ci-reports branch
         id: publish
         if: steps.build.outputs.status == 'pass'
         env:
@@ -110,6 +130,7 @@ jobs:
             || { git init -q "$DEST"; git -C "$DEST" checkout -q -b ci-reports; }
           mkdir -p "$DEST/runs/$RUN"
           cp ci_out/CI_Report.pdf ci_out/CI_Report.tex ci_out/preview.png "$DEST/runs/$RUN/"
+          if [ -f ci_out/comparison.png ]; then cp ci_out/comparison.png "$DEST/runs/$RUN/"; fi
           git -C "$DEST" add runs
           git -C "$DEST" -c user.name=ci-bot -c user.email=ci@users.noreply.github.com \
             commit -q -m "CI report run $RUN" || true
@@ -120,10 +141,11 @@ jobs:
           echo "pdf_url=$BASE/CI_Report.pdf" >> "$GITHUB_OUTPUT"
           echo "tex_url=$BASE/CI_Report.tex" >> "$GITHUB_OUTPUT"
           echo "preview_url=$RAW/preview.png" >> "$GITHUB_OUTPUT"
+          echo "comparison_url=$RAW/comparison.png" >> "$GITHUB_OUTPUT"
           echo "status=pass" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
-      - name: Write PR summary
+      - name: Write summary
         if: always()
         run: |
           {
@@ -133,10 +155,11 @@ jobs:
             echo "|---|---|"
             echo "| Unit tests | ${{ steps.tests.outputs.status || 'fail' }} |"
             echo "| Sample PDF build | ${{ steps.build.outputs.status || 'fail' }} |"
-            echo "| Structure + metadata verification | ${{ steps.verify.outputs.status || 'fail' }} |"
+            echo "| Structure + metadata + font embedding | ${{ steps.verify.outputs.status || 'fail' }} |"
             echo "| Repeating headers (\\endhead) | ${{ steps.verify.outputs.endhead || 'n/a' }} |"
             echo "| PDF pages | ${{ steps.verify.outputs.pages || 'n/a' }} |"
             echo "| PDF title | ${{ steps.verify.outputs.title || 'n/a' }} |"
+            echo "| Non-embedded fonts | ${{ steps.verify.outputs.notemb || 'n/a' }} |"
             echo "| UR chart | ${{ steps.verify.outputs.ur || 'n/a' }} |"
             echo "| Material chart | ${{ steps.verify.outputs.mat || 'n/a' }} |"
             echo ""
@@ -148,6 +171,12 @@ jobs:
               echo "- Artifact \`ci-report\` also contains PDF + TeX + logs."
               echo ""
               echo "![page 1 preview](${{ steps.publish.outputs.preview_url }})"
+              echo ""
+              if [ -n "${{ steps.publish.outputs.comparison_url }}" ]; then
+                echo "### Before / after (load tables, page 11)"
+                echo ""
+                echo "![before after](${{ steps.publish.outputs.comparison_url }})"
+              fi
             else
               echo "Artifact: \`ci-report\` (PDF + TeX + logs)."
             fi
@@ -166,6 +195,26 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
         run: gh pr comment "$PR" --body-file pr_summary.md
+
+      - name: Open or update nightly issue on failure
+        if: always() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.tests.outputs.status }}" = "pass" ] && \
+             [ "${{ steps.build.outputs.status }}" = "pass" ] && \
+             [ "${{ steps.verify.outputs.status }}" = "pass" ]; then
+            echo "Nightly run healthy; no issue needed."
+            exit 0
+          fi
+          gh label create nightly-ci --color B60205 --description "Nightly report CI failure" 2>/dev/null || true
+          EXISTING=$(gh issue list --label nightly-ci --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body-file pr_summary.md
+          else
+            gh issue create --title "Nightly report CI failed ($(date -u +%F))" \
+              --label nightly-ci --body-file pr_summary.md
+          fi
 
       - name: Fail if any check failed
         if: always()

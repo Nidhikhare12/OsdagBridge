@@ -259,4 +259,8 @@ posts a results table to the PR conversation and uploads the PDF/TeX/logs as an
 artifact. It also **publishes the PDF and a page-1 preview PNG to a public
 `ci-reports` branch** (`runs/<run_id>/`), so the PR comment contains a
 browser-viewable PDF link and an embedded preview image — reviewers can check
-the exported PDF without downloading anything.
+the exported PDF without downloading anything. It also embeds a **before/after
+side-by-side thumbnail** (load tables, page 11), runs a **font-embedding /
+encryption validation** (`pdffonts`, all fonts must be embedded), and a
+**nightly cron** (`0 2 * * *`) that opens or updates a `nightly-ci` issue on
+failure to catch dependency regressions.
