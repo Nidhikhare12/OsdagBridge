@@ -55,63 +55,63 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
     needed for the material take-off summary (Chapter 7).
     """
     quantities = {
-        "steel_girders_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "steel_girders_vol_formula": "---",
         "steel_girders_qty": "N.A.",
         "steel_girders_vol_total": "N.A.",
         "steel_girders_wt_single": "N.A.",
         "steel_girders_wt_total": "N.A.",
         
-        "steel_bracing_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "steel_bracing_vol_formula": "---",
         "steel_bracing_qty": "N.A.",
         "steel_bracing_vol_total": "N.A.",
         "steel_bracing_wt_single": "N.A.",
         "steel_bracing_wt_total": "N.A.",
 
-        "bracing_top_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "bracing_top_vol_formula": "---",
         "bracing_top_qty": "N.A.",
         "bracing_top_vol_total": "N.A.",
         "bracing_top_wt_single": "N.A.",
         "bracing_top_wt_total": "N.A.",
 
-        "bracing_bot_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "bracing_bot_vol_formula": "---",
         "bracing_bot_qty": "N.A.",
         "bracing_bot_vol_total": "N.A.",
         "bracing_bot_wt_single": "N.A.",
         "bracing_bot_wt_total": "N.A.",
 
-        "bracing_diag_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "bracing_diag_vol_formula": "---",
         "bracing_diag_qty": "N.A.",
         "bracing_diag_vol_total": "N.A.",
         "bracing_diag_wt_single": "N.A.",
         "bracing_diag_wt_total": "N.A.",
         
-        "concrete_deck_vol_formula": r"\placeholder{Width $\times$ Thickness $\times$ Length}",
+        "concrete_deck_vol_formula": "---",
         "concrete_deck_qty": "N.A.",
         "concrete_deck_vol_total": "N.A.",
         "concrete_deck_wt_single": "N.A.",
         "concrete_deck_wt_total": "N.A.",
         
-        "rebar_deck_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "rebar_deck_vol_formula": "---",
         "rebar_deck_qty": "N.A.",
         "rebar_deck_vol_total": "N.A.",
         "rebar_deck_wt_single": "N.A.",
         "rebar_deck_wt_total": "N.A.",
         
-        "shear_studs_vol_formula": r"\placeholder{Area $\times$ Height}",
+        "shear_studs_vol_formula": "---",
         "shear_studs_qty": "N.A.",
         "shear_studs_vol_total": "N.A.",
         "shear_studs_wt_single": "N.A.",
         "shear_studs_wt_total": "N.A.",
 
-        "crash_barrier_vol_formula": r"\placeholder{Area $\times$ Length}",
+        "crash_barrier_vol_formula": "---",
         "crash_barrier_qty": "N.A.",
         "crash_barrier_vol_total": "N.A.",
         "crash_barrier_wt_single": "N.A.",
         "crash_barrier_wt_total": "N.A.",
     }
     try:
-        span_val = inputs.get(KEY_SPAN)
-        n_girders_val = inputs.get(KEY_TS_NO_OF_GIRDERS)
+        span_val = inputs.get(KEY_SPAN) or inputs.get("span") or inputs.get("geometry.span")
+        n_girders_val = inputs.get(KEY_TS_NO_OF_GIRDERS) or inputs.get("no_of_girders") or inputs.get("typical_section.no_of_girders")
         if span_val is None or n_girders_val is None:
             return quantities
             
@@ -125,8 +125,8 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             return quantities
 
         # 1. Concrete deck volume (Cu.m) and Weight (MT)
-        overall_width_val = inputs.get("typical_section.overall_bridge_width")
-        deck_thickness_val = inputs.get(KEY_TS_DECK_THICKNESS)
+        overall_width_val = inputs.get("typical_section.overall_bridge_width") or inputs.get("overall_bridge_width")
+        deck_thickness_val = inputs.get(KEY_TS_DECK_THICKNESS) or inputs.get("typical_section.deck_thickness") or inputs.get("deck_thickness")
         
         if overall_width_val is not None and deck_thickness_val is not None:
             try:
@@ -162,15 +162,54 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
         except Exception:
             pass
 
+        if girder_area <= 0:
+            try:
+                area_val = inputs.get("sectional_area") or outputs.get("steeldesign.details.section_properties.area")
+                if area_val:
+                    # If in mm² (> 100), convert to m²
+                    f_area = float(area_val)
+                    girder_area = f_area / 1e6 if f_area > 10.0 else f_area
+            except Exception:
+                pass
+
         # Calculate from inputs if not in properties
         if girder_area <= 0:
             try:
-                dw_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.web_depth", 0)
-                tw_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.web_thickness", 0)
-                bft_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.top_flange_width", 0)
-                tft_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.top_flange_thickness", 0)
-                bfb_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.bottom_flange_width", 0)
-                tfb_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.bottom_flange_thickness", 0)
+                dw_val = None
+                try:
+                    dw_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.web_depth", 0)
+                except Exception:
+                    dw_val = inputs.get("web_depth")
+
+                tw_val = None
+                try:
+                    tw_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.web_thickness", 0)
+                except Exception:
+                    tw_val = inputs.get("web_thickness")
+
+                bft_val = None
+                try:
+                    bft_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.top_flange_width", 0)
+                except Exception:
+                    bft_val = inputs.get("top_flange_width")
+
+                tft_val = None
+                try:
+                    tft_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.top_flange_thickness", 0)
+                except Exception:
+                    tft_val = inputs.get("top_flange_thickness")
+
+                bfb_val = None
+                try:
+                    bfb_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.bottom_flange_width", 0)
+                except Exception:
+                    bfb_val = inputs.get("bottom_flange_width")
+
+                tfb_val = None
+                try:
+                    tfb_val = resolve_girder_value(inputs, "member_properties.girder_details.section_input.bottom_flange_thickness", 0)
+                except Exception:
+                    tfb_val = inputs.get("bottom_flange_thickness")
                 
                 if (dw_val is not None and tw_val is not None and 
                     bft_val is not None and tft_val is not None and 

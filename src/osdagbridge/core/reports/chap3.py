@@ -376,6 +376,50 @@ def ch3_loads(input_dict):
 
     lc_rows_str = "\n".join(lc_rows)
 
+    wc_mat = _render_value(input_dict, KEY_WC_MATERIAL) or _render_value(input_dict, "wearing_coat_type")
+    wc_thk = _render_value(input_dict, KEY_WC_THICKNESS, " mm") or _render_value(input_dict, "wearing_coat_thickness", " mm")
+    if wc_mat and wc_thk:
+        wc_load_display = f"{wc_mat} ({wc_thk})"
+    elif wc_mat:
+        wc_load_display = wc_mat
+    elif wc_thk:
+        wc_load_display = wc_thk
+    else:
+        wc_load_display = "---"
+
+    cb_load = _render_value(input_dict, KEY_CB_LOAD) or _render_value(input_dict, "crash_barrier_load")
+    cb_load_display = f"{cb_load} kN/m per barrier" if cb_load else "---"
+
+    rl_load = _render_value(input_dict, KEY_RL_LOAD_VALUE) or _render_value(input_dict, "railing_load")
+    rl_load_display = f"{rl_load} kN/m\\sdstar{{}}" if rl_load else "---"
+
+    max_shade = _render_value(input_dict, 'shade_temp_max')
+    max_shade_display = f"{max_shade} $^\\circ$C" if max_shade else "---"
+    min_shade = _render_value(input_dict, 'shade_temp_min')
+    min_shade_display = f"{min_shade} $^\\circ$C" if min_shade else "---"
+
+    bt_min = _render_value(input_dict, KEY_TL_BRIDGE_TEMP_MIN)
+    bt_max = _render_value(input_dict, KEY_TL_BRIDGE_TEMP_MAX)
+    if bt_min and bt_max:
+        eff_range_display = f"{bt_min} to {bt_max} $^\\circ$C"
+    elif bt_min:
+        eff_range_display = f"{bt_min} $^\\circ$C"
+    elif bt_max:
+        eff_range_display = f"{bt_max} $^\\circ$C"
+    else:
+        eff_range_display = "---"
+
+    tr = _render_value(input_dict, KEY_TL_TEMP_RISE)
+    tf = _render_value(input_dict, KEY_TL_TEMP_FALL)
+    if tr and tf:
+        rise_fall_display = f"+{tr} $^\\circ$C / \\textminus{{}}{tf} $^\\circ$C"
+    elif tr:
+        rise_fall_display = f"+{tr} $^\\circ$C"
+    elif tf:
+        rise_fall_display = f"\\textminus{{}}{tf} $^\\circ$C"
+    else:
+        rise_fall_display = "---"
+
     return r"""
 \chapter{Loads and Load Combinations}
 
@@ -386,11 +430,11 @@ This section summarizes all loads applied to the bridge and the load combination
     col_spec=r"|L{5.5cm}|p{10.0cm}|",
     caption=r"\textbf{Dead Load -- Self Weight}",
     header_row=r"\textbf{Parameter} & \textbf{Value}",
-) + r"""\textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+) + r"""\textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}') or "---") + r""" \\[6pt]
 \hline
-\textnormal{Concrete Deck Weight} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+\textnormal{Concrete Deck Weight} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}') or "---") + r""" \\[6pt]
 \hline
-\textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR)) + r""" \\[6pt]
+\textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR) or "---") + r""" \\[6pt]
 \hline
 \end{longtable}
 
@@ -399,11 +443,11 @@ This section summarizes all loads applied to the bridge and the load combination
     col_spec=r"|L{5.5cm}|p{10.0cm}|",
     caption=r"\textbf{Dead Load for Surfacing (DW)}",
     header_row=r"\textbf{Parameter} & \textbf{Value}",
-) + r"""\textnormal{Wearing Course Load} & """ + (_render_value(input_dict, KEY_WC_MATERIAL)) + r""" x """ + (_render_value(input_dict, KEY_WC_THICKNESS)) + r""" \\[6pt]
+) + r"""\textnormal{Wearing Course Load} & """ + wc_load_display + r""" \\[6pt]
 \hline
-\textnormal{Additional SIDL (Crash Barrier)} & """ + (_render_value(input_dict, KEY_CB_LOAD)) + r""" kN/m per barrier \\[6pt]
+\textnormal{Additional SIDL (Crash Barrier)} & """ + cb_load_display + r""" \\[6pt]
 \hline
-\textnormal{Railing Load} & """ + (_render_value(input_dict, KEY_RL_LOAD_VALUE)) + r""" kN/m\sdstar{} \\[6pt]
+\textnormal{Railing Load} & """ + rl_load_display + r""" \\[6pt]
 \hline
 \end{longtable}
 
@@ -445,21 +489,21 @@ This section summarizes all loads applied to the bridge and the load combination
     col_spec=r"|L{5.5cm}|p{10.0cm}|",
     caption=r"\textbf{Wind Load (WL) --- per IRC 6}",
     header_row=r"\textbf{Parameter} & \textbf{Value}",
-) + r"""\textnormal{Basic Wind Speed, Vb} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" [from Project Location] \\[6pt]
+) + r"""\textnormal{Basic Wind Speed, Vb} & """ + (_render_value(input_dict,'wind_speed', ' m/s') or "---") + r""" [from Project Location] \\[6pt]
 \hline
-\textnormal{Terrain Type} & """ + (_render_value(input_dict, KEY_WL_TERRAIN_TYPE)) + r""" \\[6pt]
+\textnormal{Terrain Type} & """ + (_render_value(input_dict, KEY_WL_TERRAIN_TYPE) or "---") + r""" \\[6pt]
 \hline
-\textnormal{Average Exposed Height, H (m)} & """ + (_render_value(input_dict, KEY_WL_AVG_EXPOSED_HEIGHT, ' m')) + r""" \\[6pt]
+\textnormal{Average Exposed Height, H (m)} & """ + (_render_value(input_dict, KEY_WL_AVG_EXPOSED_HEIGHT, ' m') or "---") + r""" \\[6pt]
 \hline
-\textnormal{Hourly Mean Wind Speed, Vz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_MEAN_WIND, ' m/s')) + r""" \\[6pt]
+\textnormal{Hourly Mean Wind Speed, Vz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_MEAN_WIND, ' m/s') or "---") + r""" \\[6pt]
 \hline
-\textnormal{Hourly Wind Pressure, Pz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_WIND_PRESSURE, ' N/m\\textsuperscript{2}')) + r""" \\[6pt]
+\textnormal{Hourly Wind Pressure, Pz} & """ + (_render_value(input_dict, KEY_WL_HOURLY_WIND_PRESSURE, ' N/m\\textsuperscript{2}') or "---") + r""" \\[6pt]
 \hline
-\textnormal{Transverse Wind Force} & """ + (_render_value(input_dict, KEY_WL_TRANSVERSE_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Transverse Wind Force} & """ + (_render_value(input_dict, KEY_WL_TRANSVERSE_WIND_FORCE, ' kN') or "---") + r""" \\[6pt]
 \hline
-\textnormal{Longitudinal Wind Force} & """ + (_render_value(input_dict, KEY_WL_LONGITUDINAL_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Longitudinal Wind Force} & """ + (_render_value(input_dict, KEY_WL_LONGITUDINAL_WIND_FORCE, ' kN') or "---") + r""" \\[6pt]
 \hline
-\textnormal{Vertical Wind Force} & """ + (_render_value(input_dict, KEY_WL_VERTICAL_WIND_FORCE, ' kN')) + r""" \\[6pt]
+\textnormal{Vertical Wind Force} & """ + (_render_value(input_dict, KEY_WL_VERTICAL_WIND_FORCE, ' kN') or "---") + r""" \\[6pt]
 \hline
 \end{longtable}
 
@@ -468,23 +512,23 @@ This section summarizes all loads applied to the bridge and the load combination
     col_spec=r"|L{5.5cm}|p{10.0cm}|",
     caption=r"\textbf{Earthquake Load (EL) --- per IRC 6}",
     header_row=r"\textbf{Parameter} & \textbf{Value}",
-) + r"""\textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone')) + r""" [from Project Location] \\[6pt]
+) + r"""\textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone') or "---") + r""" [from Project Location] \\[6pt]
 \hline
-\textnormal{Zone Factor, Z} & """ + (_render_value(input_dict, KEY_SL_ZONE_FACTOR)) + r""" \\[6pt]
+\textnormal{Zone Factor, Z} & """ + (_render_value(input_dict, KEY_SL_ZONE_FACTOR) or "---") + r""" \\[6pt]
 \hline
-\textnormal{Importance Factor, I} & """ + (_render_value(input_dict, KEY_SL_IMPORTANCE_FACTOR)) + r""" \\[6pt]
+\textnormal{Importance Factor, I} & """ + (_render_value(input_dict, KEY_SL_IMPORTANCE_FACTOR) or "---") + r""" \\[6pt]
 \hline
-\textnormal{Type of Soil} & """ + (_render_value(input_dict, KEY_SL_SOIL_TYPE)) + r""" \\[6pt]
+\textnormal{Type of Soil} & """ + (_render_value(input_dict, KEY_SL_SOIL_TYPE) or "---") + r""" \\[6pt]
 \hline
-\textnormal{Sa/g} & """ + (_render_value(input_dict, KEY_SL_SPECTRAL_COEFF)) + r""" \\[6pt]
+\textnormal{Sa/g} & """ + (_render_value(input_dict, KEY_SL_SPECTRAL_COEFF) or "---") + r""" \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Coefficient, Ah} & """ + (_render_value(input_dict, KEY_SL_HORIZONTAL_COEFF)) + r""" \\[6pt]
+\textnormal{Horizontal Seismic Coefficient, Ah} & """ + (_render_value(input_dict, KEY_SL_HORIZONTAL_COEFF) or "---") + r""" \\[6pt]
 \hline
-\textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF)) + r""" \\[6pt]
+\textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF) or "---") + r""" \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Force (longitudinal)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (longitudinal)} & --- \\[6pt]
 \hline
-\textnormal{Horizontal Seismic Force (transverse)} & """ + '' + r""" kN \\[6pt]
+\textnormal{Horizontal Seismic Force (transverse)} & --- \\[6pt]
 \hline
 \end{longtable}
 
@@ -493,13 +537,13 @@ This section summarizes all loads applied to the bridge and the load combination
     col_spec=r"|L{5.5cm}|p{10.0cm}|",
     caption=r"\textbf{Temperature Load (TL) --- per IRC 6}",
     header_row=r"\textbf{Parameter} & \textbf{Value}",
-) + r"""\textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[6pt]
+) + r"""\textnormal{Maximum Shade Temperature} & """ + max_shade_display + r""" \\[6pt]
 \hline
-\textnormal{Minimum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_min')) + r""" $^\circ$C \\[6pt]
+\textnormal{Minimum Shade Temperature} & """ + min_shade_display + r""" \\[6pt]
 \hline
-\textnormal{Effective Bridge Temp. Range} & """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MIN)) + r""" to """ + (_render_value(input_dict, KEY_TL_BRIDGE_TEMP_MAX)) + r""" $^\circ$C \\[6pt]
+\textnormal{Effective Bridge Temp. Range} & """ + eff_range_display + r""" \\[6pt]
 \hline
-\textnormal{Temperature Rise / Fall for Design} & +""" + (_render_value(input_dict, KEY_TL_TEMP_RISE)) + r""" $^\circ$C / \textminus{}""" + (_render_value(input_dict, KEY_TL_TEMP_FALL)) + r""" $^\circ$C \\[6pt]
+\textnormal{Temperature Rise / Fall for Design} & """ + rise_fall_display + r""" \\[6pt]
 \hline
 \end{longtable}
 

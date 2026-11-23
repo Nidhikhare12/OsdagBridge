@@ -631,11 +631,11 @@ def _extract_osdag_summary(result: dict) -> dict:
         return None
 
     return {
-        "section":     _first("section_size.designation", "Optimum.Designation"),
-        "capacity_kN": _first("Member.tension_capacity",  "Design.Strength"),
-        "efficiency":  _first("Member.efficiency",        "Optimum.UR"),
-        "slenderness": result.get("Member.Slenderness"),
-        "connection":  "Welded" if "Weld.Type" in result else "Bolted",
+        "section":     _first("section", "section_size.designation", "Optimum.Designation"),
+        "capacity_kN": _first("capacity_kN", "Member.tension_capacity",  "Design.Strength"),
+        "efficiency":  _first("efficiency", "Member.efficiency",        "Optimum.UR"),
+        "slenderness": _first("slenderness", "Member.Slenderness"),
+        "connection":  result.get("connection", "Welded" if "Weld.Type" in result else "Bolted"),
     }
 
 

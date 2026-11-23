@@ -4,7 +4,10 @@ from osdagbridge.core.reports.report_utils import make_longtable_header
 
 def ch7_quantities(input_dict, tmp_dir=None):
     def _v(key, fallback="N.A."):
-        return str(input_dict.get(key, fallback))
+        val = input_dict.get(key)
+        if val in (None, "", "N.A.") or "placeholder" in str(val).lower():
+            return fallback
+        return str(val)
 
     charts_latex = ""
     if tmp_dir and isinstance(tmp_dir, str) and os.path.isdir(tmp_dir):

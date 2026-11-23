@@ -426,11 +426,21 @@ class ReportDataBridge:
 
     def _cb_forces_dict(self) -> dict:
         """Internal: return crossbracing_forces_dict from output_dict."""
-        return self.output_dict.get("crossbracing_forces_dict", {})
+        return (
+            self.output_dict.get("crossbracing_forces_dict")
+            or self.output_dict.get("design_results", {}).get("crossbracing_forces_dict")
+            or self.output_dict.get("design_results", {}).get("cross_bracing_forces_dict")
+            or {}
+        )
 
     def _cb_pair_designs(self) -> dict:
         """Internal: return crossbracing_design_results from output_dict."""
-        return self.output_dict.get("crossbracing_design_results", {})
+        return (
+            self.output_dict.get("crossbracing_design_results")
+            or self.output_dict.get("design_results", {}).get("crossbracing_design_results")
+            or self.output_dict.get("design_results", {}).get("cross_bracing_design_results")
+            or {}
+        )
 
     def _cb_osdag(self, pair: str, member: str, force_type: str) -> dict:
         """
@@ -525,6 +535,9 @@ class ReportDataBridge:
     def get_cb_section(self, pair: str, member: str, force_type: str) -> str:
         """Section designation for a member e.g. '75 x 75 x 8'."""
         val = self._cb_osdag(pair, member, force_type).get("section")
+        if not val:
+            other = "tension" if force_type == "compression" else "compression"
+            val = self._cb_osdag(pair, member, other).get("section")
         return _tex(val) if val else ""
 
     def get_cb_capacity(self, pair: str, member: str, force_type: str) -> str:
@@ -592,6 +605,208 @@ class ReportDataBridge:
             return f"{self.get_cb_geometry().get('alpha_deg', 0):.2f}"
         except Exception:
             return ""
+
+    # =====================================================================
+    # CHAPTER 5: END DIAPHRAGM
+    # =====================================================================
+
+    def _ed_forces_dict(self) -> dict:
+        """Internal: return end_diaphragm_forces_dict from output_dict."""
+        return (
+            self.output_dict.get("end_diaphragm_forces_dict")
+            or self.output_dict.get("design_results", {}).get("end_diaphragm_forces_dict")
+            or {}
+        )
+
+    def _ed_pair_designs(self) -> dict:
+        """Internal: return end_diaphragm_design_results from output_dict."""
+        return (
+            self.output_dict.get("end_diaphragm_design_results")
+            or self.output_dict.get("design_results", {}).get("end_diaphragm_design_results")
+            or {}
+        )
+
+    def _ed_osdag(self, pair: str, member: str, force_type: str) -> dict:
+        from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+        try:
+            raw = self._ed_pair_designs()[pair][member][force_type]
+            return _extract_osdag_summary(raw or {})
+        except (KeyError, TypeError):
+            return {}
+
+    def get_ed_pairs(self) -> list:
+        try:
+            pairs = list(self._ed_forces_dict().get("pairs", {}).keys())
+            if pairs:
+                return sorted(pairs)
+            designs = list(self._ed_pair_designs().get("pairs", {}).keys())
+            if designs:
+                return sorted(designs)
+            designs_top = [p for p in self._ed_pair_designs().keys() if p != "pairs"]
+            if designs_top and isinstance(self._ed_pair_designs().get(designs_top[0]), dict):
+                return sorted(designs_top)
+        except Exception:
+            pass
+        # Fallback to CB pairs if available or girder count
+        cb_p = self.get_cb_pairs()
+        if cb_p:
+            return cb_p
+        try:
+            n_g = int(self.input_dict.get("typical_section.no_of_girders") or self.input_dict.get("no_of_girders") or 0)
+            if n_g > 1:
+                return [f"G{i}-G{i+1}" for i in range(1, n_g)]
+        except Exception:
+            pass
+        return []
+
+    def get_ed_geometry(self) -> dict:
+        return self._ed_forces_dict().get("geometry", {})
+
+    def get_ed_brace_type(self) -> str:
+        try:
+            return self._ed_forces_dict().get("brace_type") or self.input_dict.get("end_diaphragm_bracing_type") or "X"
+        except Exception:
+            return "X"
+
+    def get_ed_force(self, pair: str, member: str, force_type: str) -> str:
+        try:
+            pairs = self._ed_forces_dict().get("pairs", {})[pair]
+            key = f"diag_{force_type}_kN" if member == "diagonal" else f"chord_{force_type}_kN"
+            val = pairs.get(key)
+            if val is not None:
+                return f"{float(val):.3f}"
+        except (KeyError, TypeError):
+            pass
+        return ""
+
+    def get_ed_nature(self, pair: str, member: str) -> str:
+        try:
+            pairs = self._ed_forces_dict().get("pairs", {})[pair]
+            t_key = "diag_tension_kN" if member == "diagonal" else "chord_tension_kN"
+            c_key = "diag_compression_kN" if member == "diagonal" else "chord_compression_kN"
+            has_t = pairs.get(t_key) is not None
+            has_c = pairs.get(c_key) is not None
+            if has_t and has_c:
+                return "T / C"
+            if has_t:
+                return "T"
+            if has_c:
+                return "C"
+        except (KeyError, TypeError):
+            pass
+        return ""
+
+    def get_ed_governing_force(self, pair: str, member: str) -> tuple:
+        try:
+            pairs = self._ed_forces_dict().get("pairs", {})[pair]
+            t_key = "diag_tension_kN" if member == "diagonal" else "chord_tension_kN"
+            c_key = "diag_compression_kN" if member == "diagonal" else "chord_compression_kN"
+            t_val = pairs.get(t_key)
+            c_val = pairs.get(c_key)
+            if t_val is not None and c_val is not None:
+                if abs(float(c_val)) >= abs(float(t_val)):
+                    return (f"{float(c_val):.3f}", "compression")
+                return (f"{float(t_val):.3f}", "tension")
+            if c_val is not None:
+                return (f"{float(c_val):.3f}", "compression")
+            if t_val is not None:
+                return (f"{float(t_val):.3f}", "tension")
+        except (KeyError, TypeError, ValueError):
+            pass
+        try:
+            designs = self._ed_pair_designs()
+            mem_data = designs.get("pairs", {}).get(pair, {}).get("diagonals" if member == "diagonal" else "chord") or designs.get(pair, {}).get(member, {})
+            if isinstance(mem_data, dict) and "demand" in mem_data:
+                return (f"{float(mem_data['demand']):.3f}", "compression")
+        except Exception:
+            pass
+        return ("", "compression")
+
+    def get_ed_section(self, pair: str, member: str, force_type: str) -> str:
+        val = self._ed_osdag(pair, member, force_type).get("section")
+        if not val:
+            other = "tension" if force_type == "compression" else "compression"
+            val = self._ed_osdag(pair, member, other).get("section")
+        if not val:
+            pair_id = pair.replace("-", "")
+            if member == "diagonal":
+                val = self.output_dict.get(f"transverse_member_design.ed.section_properties.end_diaphragm.{pair_id}.section") or self.input_dict.get("end_diaphragm_diagonal_section") or self.input_dict.get("end_diaphragm_diagonal_section_designation")
+            else:
+                val = self.output_dict.get(f"transverse_member_design.ed.section_properties.bottom_chord.{pair_id}.section") or self.input_dict.get("end_diaphragm_bottom_chord_section_desig")
+        return _tex(str(val)) if val else ""
+
+    def get_ed_capacity(self, pair: str, member: str, force_type: str) -> str:
+        val = self._ed_osdag(pair, member, force_type).get("capacity_kN")
+        if val is None:
+            designs = self._ed_pair_designs()
+            mem_data = designs.get("pairs", {}).get(pair, {}).get("diagonals" if member == "diagonal" else "chord") or designs.get(pair, {}).get(member, {})
+            if isinstance(mem_data, dict) and "capacity" in mem_data:
+                val = mem_data["capacity"]
+        return f"{float(val):.3f}" if val is not None else ""
+
+    def get_ed_efficiency(self, pair: str, member: str, force_type: str) -> str:
+        val = self._ed_osdag(pair, member, force_type).get("efficiency")
+        if val is None:
+            designs = self._ed_pair_designs()
+            mem_data = designs.get("pairs", {}).get(pair, {}).get("diagonals" if member == "diagonal" else "chord") or designs.get(pair, {}).get(member, {})
+            if isinstance(mem_data, dict) and "dcr" in mem_data:
+                val = mem_data["dcr"]
+        return f"{float(val):.3f}" if val is not None else ""
+
+    def get_ed_slenderness(self, pair: str, member: str) -> str:
+        for ft in ("compression", "tension"):
+            val = self._ed_osdag(pair, member, ft).get("slenderness")
+            if val is not None:
+                return f"{float(val):.1f}"
+        return ""
+
+    def get_ed_status(self, pair: str, member: str, force_type: str) -> str:
+        try:
+            ur_str = self.get_ed_efficiency(pair, member, force_type)
+            if ur_str:
+                ur = float(ur_str)
+                return r"\textcolor{black}{PASS}" if ur <= 1.0 else r"\textcolor{red}{FAIL}"
+        except (TypeError, ValueError):
+            pass
+        return ""
+
+    def get_ed_gov_lc(self, pair: str, member: str, force_type: str) -> str:
+        try:
+            pfx = "diag" if member == "diagonal" else "chord"
+            key = f"{pfx}_{force_type}_gov_lc"
+            val = self._ed_forces_dict().get("pairs", {})[pair].get(key)
+            return _tex(str(val)) if val else ""
+        except (KeyError, TypeError):
+            return ""
+
+    def get_ed_connection(self, pair: str, member: str, force_type: str) -> str:
+        val = self._ed_osdag(pair, member, force_type).get("connection")
+        if not val:
+            val = self.input_dict.get("end_diaphragm_connection_type", "Bolted")
+        return str(val) if val else ""
+
+    def get_ed_effective_length(self, member: str) -> str:
+        try:
+            geom = self.get_ed_geometry()
+            if member == "diagonal":
+                L_m = geom.get("diagonal_length_m", 0)
+            else:
+                L_m = geom.get("horiz_proj_m", 0)
+            if L_m and float(L_m) > 0:
+                return f"{float(L_m) * 1000:.0f}"
+            s = float(self.input_dict.get("typical_section.girder_spacing") or self.input_dict.get("girder_spacing") or 0.0)
+            d = float(self.input_dict.get("girder_depth") or self.input_dict.get("web_depth") or 0.0)
+            if d > 100:
+                d = d / 1000.0
+            h = d * 0.85
+            if member == "diagonal" and s > 0 and h > 0:
+                L_diag = math.sqrt(s**2 + h**2)
+                return f"{L_diag * 1000:.0f}"
+            elif member == "chord" and s > 0:
+                return f"{s * 1000:.0f}"
+        except (TypeError, ValueError):
+            pass
+        return ""
 
 def _format_project_location(pl_data):
     if not pl_data:
@@ -836,6 +1051,17 @@ def build_report_payload(request, input_dict, output_dict):
                 le = bridge_logger.get_success_log()
             except Exception as _le:
                 logger.warning("Could not read design log from logger: %s", _le)
+
+        # Promote nested design results to top-level if not already present
+        if output_dict and isinstance(output_dict, dict):
+            design_res = output_dict.get("design_results")
+            if isinstance(design_res, dict):
+                if "deck_report_values" in design_res and "deck_report_values" not in output_dict:
+                    output_dict["deck_report_values"] = design_res["deck_report_values"]
+                if "cross_bracing_design_results" in design_res and "crossbracing_design_results" not in output_dict:
+                    output_dict["crossbracing_design_results"] = design_res["cross_bracing_design_results"]
+                if "end_diaphragm_design_results" in design_res and "end_diaphragm_design_results" not in output_dict:
+                    output_dict["end_diaphragm_design_results"] = design_res["end_diaphragm_design_results"]
 
         return ReportPayload(metadata=md, options=request.options, inputs=input_dict,
                              analysis_summary=asum, design_checks=dc,

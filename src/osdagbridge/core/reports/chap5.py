@@ -3,6 +3,7 @@
 # Extracted from report_generator.py — DO NOT add business logic here.
 # =============================================================================
 from __future__ import annotations
+import math
 from typing import TYPE_CHECKING
 
 from osdagbridge.core.utils.common import (
@@ -169,7 +170,7 @@ def ch5_design_checks(checks_data, bridge) -> str:
     # Deck slab design report values (Tables 5.17(a)-(g)), keyed to
     # common.KEY_DD_*. Populated by deckdesign.design_deck_slab(); empty
     # dict when deck design has not been run. Look up with deck_rpt.get(KEY_...).
-    deck_rpt = bridge.output_dict.get("deck_report_values", {}) or {}
+    deck_rpt = bridge.output_dict.get("deck_report_values") or bridge.output_dict.get("design_results", {}).get("deck_report_values", {}) or {}
 
     # Generate Table 5.1 rows (per-girder section properties)
     t51_rows = []
@@ -803,6 +804,113 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         cb_capacity_rows.append(r"\hline")
     cb_capacity_content = "\n".join(cb_capacity_rows)
 
+    # Generate Table 5.21(a) End Diaphragm rows
+    ed_forces_rows = []
+    ed_pairs = bridge.get_ed_pairs()
+
+    if not ed_pairs:
+        ed_forces_rows.append(
+            r"""Between Girders & Diagonal &  &  &  &  \\[6pt]
+\hline"""
+        )
+    else:
+        for pair in ed_pairs:
+            pair_id = pair.replace("-", "")
+            for member, label in [("diagonal", "Diagonal"),
+                                  ("chord", "Top / Bottom chord")]:
+                force_str, ftype = bridge.get_ed_governing_force(pair, member)
+                conn_type = bridge.get_ed_connection(pair, member, ftype)
+                section  = bridge.get_ed_section(pair, member, ftype)
+
+                if member == "diagonal":
+                    pfx = f"transverse_member_design.ed.section_properties.end_diaphragm.{pair_id}"
+                else:
+                    pfx = f"transverse_member_design.ed.section_properties.bottom_chord.{pair_id}"
+                    if bridge.output_dict.get(f"{pfx}.A") is None:
+                        pfx = f"transverse_member_design.ed.section_properties.top_chord.{pair_id}"
+
+                area_cm2 = bridge.output_dict.get(f"{pfx}.A")
+                rv_cm = bridge.output_dict.get(f"{pfx}.rv")
+
+                area_str = f"{float(area_cm2) * 100:.1f}" if area_cm2 is not None else ""
+                rmin_str = f"{float(rv_cm) * 10:.1f}" if rv_cm is not None else ""
+                ed_forces_rows.append(
+                    r"\multirow{2}{*}{\makecell{" + _tex(pair) + r"}} & "
+                    + label + r" & " + conn_type + r" & " + section
+                    + r" & " + area_str + r" & " + rmin_str
+                    + r" \\[6pt]\cline{2-6}"
+                )
+            ed_forces_rows.append(r"\hline")
+    ed_forces_content = "\n".join(ed_forces_rows)
+
+    # Generate Table 5.21(b) End Diaphragm Slenderness rows
+    ed_slenderness_rows = []
+    if not ed_pairs:
+        ed_slenderness_rows.append(
+            r"""Between Girders & Diagonal & C &  &  &  ---  \\[6pt]
+\hline"""
+        )
+    else:
+        for pair in ed_pairs:
+            pair_id = pair.replace("-", "")
+            kl_diag = bridge.get_ed_effective_length("diagonal")
+            slnd_diag = bridge.get_ed_slenderness(pair, "diagonal")
+            status_diag = get_status_str(slnd_diag, 250)
+
+            kl_tc = bridge.get_ed_effective_length("chord")
+            slnd_tc = bridge.get_ed_slenderness(pair, "chord")
+            status_tc = get_status_str(slnd_tc, 250)
+
+            kl_bc = bridge.get_ed_effective_length("chord")
+            slnd_bc = bridge.get_ed_slenderness(pair, "chord")
+            status_bc = get_status_str(slnd_bc, 400)
+
+            top_chord_enabled = bridge.output_dict.get(f"transverse_member_design.ed.top_chord.{pair_id}", bridge.output_dict.get("member_properties.end_diaphragm_details.top_chord", True))
+            bottom_chord_enabled = bridge.output_dict.get(f"transverse_member_design.ed.bottom_chord.{pair_id}", bridge.output_dict.get("member_properties.end_diaphragm_details.bottom_chord", True))
+
+            num_rows = 1 + int(top_chord_enabled) + int(bottom_chord_enabled)
+            row_tex = r"\multirow{" + str(num_rows) + r"}{*}{\makecell{" + _tex(pair) + r"}}"
+            row_tex += f" & Diagonal & C & {kl_diag} & {slnd_diag} & 250 --- {status_diag} \\\\[6pt]"
+
+            if top_chord_enabled:
+                row_tex += f"\n\\cline{{2-6}}\n & Top chord & C & {kl_tc} & {slnd_tc} & 250 --- {status_tc} \\\\[6pt]"
+            if bottom_chord_enabled:
+                row_tex += f"\n\\cline{{2-6}}\n & Bottom chord & T & {kl_bc} & {slnd_bc} & 400 --- {status_bc} \\\\[6pt]"
+
+            row_tex += "\n\\hline"
+            ed_slenderness_rows.append(row_tex)
+    ed_slenderness_content = "\n".join(ed_slenderness_rows)
+
+    # Generate Table 5.21(c) End Diaphragm Capacity rows
+    ed_capacity_rows = []
+    if not ed_pairs:
+        ed_capacity_rows.append(
+            r"""Between Girders & Diagonal &  &  &  &  &  &  \\[6pt]
+\hline"""
+        )
+    else:
+        for pair in ed_pairs:
+            rows_for_pair = []
+            for member, label in [("diagonal", "Diagonal"),
+                                  ("chord", "Chord")]:
+                force_str, ftype = bridge.get_ed_governing_force(pair, member)
+                section  = bridge.get_ed_section(pair, member, ftype)
+                gov_lc   = bridge.get_ed_gov_lc(pair, member, ftype)
+                capacity = bridge.get_ed_capacity(pair, member, ftype)
+                ur       = bridge.get_ed_efficiency(pair, member, ftype)
+                status   = bridge.get_ed_status(pair, member, ftype)
+                rows_for_pair.append(
+                    r" & " + label + r" & " + section
+                    + r" & " + gov_lc + r" & " + force_str + r" & " + capacity
+                    + r" & " + ur + r" & " + status + r" \\[6pt]\cline{2-8}"
+                )
+            first = r"\multirow{2}{*}{\makecell{" + _tex(pair) + r"}}" + rows_for_pair[0]
+            rest  = rows_for_pair[1:]
+            ed_capacity_rows.append(first)
+            ed_capacity_rows.extend(rest)
+            ed_capacity_rows.append(r"\hline")
+    ed_capacity_content = "\n".join(ed_capacity_rows)
+
 
 
     # ── Deck slab design value helpers (Tables 5.17 a/b/c/e/g) ────────────────
@@ -810,34 +918,148 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     # Tables 5.17(d) punching shear and 5.17(f) one-way shear stay as
     # placeholders — those are not computed by design_deck_slab().
     _dk_has = bool(deck_rpt)
-    _dk_oh = bool(deck_rpt.get(KEY_DD_HAS_OVERHANG))
     _DKPH = r"\placeholder{---}"
 
-    def _dkv(key, default=0.0):
-        """Raw float for status comparisons (0.0 if missing/non-numeric)."""
-        v = deck_rpt.get(key)
-        if v is None or v == "":
-            return default
-        try:
-            return float(v)
-        except (TypeError, ValueError):
-            return default
+    DECK_KEY_ALIASES = {
+        KEY_DD_M_ULS_SAG: ["M_uls_sag", "m_uls_sag"],
+        KEY_DD_MU_BOT: ["Mu_bot", "mu_bot"],
+        KEY_DD_M_ULS_HOG: ["M_uls_hog", "m_uls_hog"],
+        KEY_DD_MU_TOP: ["Mu_top", "mu_top"],
+        KEY_DD_M_ULS_OH: ["M_uls_oh", "m_uls_oh"],
+        KEY_DD_MU_OH: ["Mu_oh", "mu_oh"],
+        KEY_DD_WK_BOT: ["wk_bot", "Wk_bot"],
+        KEY_DD_WK_TOP: ["wk_top", "Wk_top"],
+        KEY_DD_WK_OH: ["wk_oh", "Wk_oh"],
+        KEY_DD_WK_LIMIT: ["wk_limit", "Wk_limit"],
+        KEY_DD_PUNCH_VED: ["punch_ved"],
+        KEY_DD_VRD_C_MPA: ["vrd_c_mpa"],
+        KEY_DD_SHEAR_VED: ["shear_ved"],
+        KEY_DD_SHEAR_VRDC: ["shear_vrdc"],
+        KEY_DD_AS_MIN: ["As_min", "as_min"],
+        KEY_DD_DIA_BOT: ["dia_bot"],
+        KEY_DD_SPC_BOT: ["spc_bot"],
+        KEY_DD_AS_BOT: ["As_bot", "as_bot"],
+        KEY_DD_AS_LONG: ["As_long", "as_long"],
+        KEY_DD_AS_REQ_BOT: ["As_req_bot", "as_req_bot"],
+        KEY_DD_AS_REQ_TOP: ["As_req_top", "as_req_top"],
+        KEY_DD_AS_TOP: ["As_top", "as_top"],
+        KEY_DD_MIN_COVER: ["min_cover"],
+        KEY_DD_COVER_OK: ["cover_ok"],
+        KEY_DD_SPACING_MAX: ["spacing_max"],
+        KEY_DD_HAS_OVERHANG: ["has_overhang"],
+        KEY_DD_SPAN: ["span"],
+        KEY_DD_WDL: ["w_dl", "wdl", "W_dl", "Wdl"],
+        KEY_DD_WHEEL_LOAD: ["wheel_load"],
+        KEY_DD_TYRE_WIDTH: ["tyre_contact_width", "tyre_width"],
+        KEY_DD_TYRE_LENGTH: ["tyre_contact_length", "tyre_length"],
+        KEY_DD_PUNCH_C1: ["punch_c1"],
+        KEY_DD_PUNCH_C2: ["punch_c2"],
+        KEY_DD_PUNCH_U1: ["punch_u1"],
+        KEY_DD_PUNCH_VED_KN: ["punch_ved_kn"],
+        KEY_DD_PUNCH_OK: ["punch_ok"],
+        KEY_DD_SHEAR_OK: ["shear_ok"],
+        KEY_DD_FY: ["fy"],
+        KEY_DD_M_DL: ["m_dl", "M_dl"],
+        KEY_DD_M_LL: ["m_ll", "M_ll"],
+        KEY_DD_D_BOT: ["d_bot"],
+        KEY_DD_M_BARRIER: ["m_barrier", "M_barrier"],
+        KEY_DD_M_DL_OH: ["m_dl_oh", "M_dl_oh"],
+        KEY_DD_M_LL_OH: ["m_ll_oh", "M_ll_oh"],
+        KEY_DD_VEHICLE: ["vehicle_class", "vehicle"],
+        KEY_DD_IMPACT_FACTOR: ["impact_factor"],
+        KEY_DD_GAMMA_DL: ["gamma_dl"],
+        KEY_DD_GAMMA_LL: ["gamma_ll"],
+    }
 
-    def _dkf(key, nd=2, scale=1.0):
-        """Formatted display string; placeholder when deck design not run."""
+    def _dk_get(key):
+        """Retrieve value from deck_rpt using canonical key first, then short aliases.
+        Canonical keys take precedence when both exist.
+        Returns None if missing or empty string.
+        """
+        if not isinstance(deck_rpt, dict):
+            return None
+        # 1. Canonical key lookup
+        if key in deck_rpt:
+            v = deck_rpt[key]
+            if v is not None and v != "":
+                return v
+        # 2. Candidate alias lookups
+        candidates = list(DECK_KEY_ALIASES.get(key, []))
+        suffix = key.split(".")[-1]
+        if suffix not in candidates:
+            candidates.append(suffix)
+        for alias in candidates:
+            if alias in deck_rpt:
+                v = deck_rpt[alias]
+                if v is not None and v != "":
+                    return v
+        return None
+
+    def _dk_val(key):
+        """Return parsed float from deck_rpt (canonical key or alias), or None if missing/non-numeric."""
+        v = _dk_get(key)
+        if v is None:
+            return None
+        try:
+            f = float(v)
+            return f if math.isfinite(f) else None
+        except (TypeError, ValueError):
+            return None
+
+    def _dkv(key, default=None):
+        """Float accessor with optional fallback; None by default (never auto-0.0)."""
+        val = _dk_val(key)
+        return val if val is not None else default
+
+    def _dkf(key, nd=2, scale=1.0, unit=""):
+        """Formatted display string; placeholder when missing or deck design not run."""
         if not _dk_has:
             return _DKPH
-        v = deck_rpt.get(key)
-        if v is None or v == "":
+        v = _dk_get(key)
+        if v is None:
             return _DKPH
         try:
-            return f"{float(v) * scale:.{nd}f}"
+            f = float(v)
+            if not math.isfinite(f):
+                return _DKPH
+            s = f"{f * scale:.{nd}f}"
+            return (s + unit) if unit else s
         except (TypeError, ValueError):
-            return str(v)
+            s = str(v)
+            return (s + unit) if unit else s
 
     def _dks(ok):
-        """PASS/FAIL status; '---' when deck design not run."""
-        return ("PASS" if ok else "FAIL") if _dk_has else "---"
+        """PASS/FAIL/Not calculated status; '---' when deck design not run."""
+        if not _dk_has:
+            return "---"
+        if ok is None:
+            return "Not calculated"
+        return "PASS" if ok else "FAIL"
+
+    def _dk_status_ge(cap_key, dem_key):
+        """Compare capacity >= demand safely; 'Not calculated' if either is missing."""
+        if not _dk_has:
+            return "---"
+        cap = _dk_val(cap_key)
+        dem = _dk_val(dem_key)
+        if cap is None or dem is None:
+            return "Not calculated"
+        return "PASS" if cap >= dem else "FAIL"
+
+    def _dk_shear_status(ok_key):
+        """Status for unsupported shear checks; displays 'Not calculated' unless explicitly verified."""
+        v = _dk_get(ok_key)
+        if v is None:
+            return "Not calculated"
+        if isinstance(v, str):
+            lv = v.strip().lower()
+            if lv in ("pass", "true", "1"):
+                return "PASS"
+            if lv in ("fail", "false", "0"):
+                return "FAIL"
+        return "PASS" if bool(v) else "FAIL"
+
+    _dk_oh = bool(_dk_get(KEY_DD_HAS_OVERHANG))
 
     def _dkoh(key, nd=2, scale=1.0, unit=""):
         """Overhang value; 'N/A' when there is no overhang."""
@@ -845,15 +1067,64 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
             return _DKPH
         if not _dk_oh:
             return "N/A"
-        return _dkf(key, nd=nd, scale=scale) + unit
+        return _dkf(key, nd=nd, scale=scale, unit=unit)
+
+    def _dk_dist_reinf_status():
+        """Safe status check for distribution reinforcement."""
+        if not _dk_has:
+            return "---"
+        as_long = _dk_val(KEY_DD_AS_LONG)
+        as_bot = _dk_val(KEY_DD_AS_BOT)
+        as_min = _dk_val(KEY_DD_AS_MIN)
+        if as_long is None:
+            return "Not calculated"
+        req_parts = []
+        if as_bot is not None:
+            req_parts.append(0.20 * as_bot)
+        if as_min is not None:
+            req_parts.append(as_min)
+        if not req_parts:
+            return "Not calculated"
+        return "PASS" if as_long >= max(req_parts) else "FAIL"
+
+    def _dk_cover_status():
+        """Safe status check for deck cover."""
+        if not _dk_has:
+            return "---"
+        cov_ok = _dk_get(KEY_DD_COVER_OK)
+        if cov_ok is None:
+            return "Not calculated"
+        if isinstance(cov_ok, str):
+            lcov = cov_ok.strip().lower()
+            if lcov in ("pass", "true", "1"):
+                return "PASS"
+            if lcov in ("fail", "false", "0"):
+                return "FAIL"
+        return "PASS" if bool(cov_ok) else "FAIL"
 
     # Governing crack width = max(bottom, top[, overhang]) vs the limit.
-    _dk_wks = [_dkv(KEY_DD_WK_BOT), _dkv(KEY_DD_WK_TOP)]
+    _wk_vals = []
+    for _k in [KEY_DD_WK_BOT, KEY_DD_WK_TOP]:
+        _v = _dk_val(_k)
+        if _v is not None:
+            _wk_vals.append(_v)
     if _dk_oh:
-        _dk_wks.append(_dkv(KEY_DD_WK_OH))
-    _dk_gov_wk = max(_dk_wks)
-    _dk_gov_wk_str = (f"{_dk_gov_wk:.4f}" if _dk_has else _DKPH)
-    _dk_crack_ok = _dk_has and _dk_gov_wk <= _dkv(KEY_DD_WK_LIMIT)
+        _v = _dk_val(KEY_DD_WK_OH)
+        if _v is not None:
+            _wk_vals.append(_v)
+
+    if _wk_vals:
+        _dk_gov_wk = max(_wk_vals)
+        _dk_gov_wk_str = f"{_dk_gov_wk:.4f}"
+        _wk_lim = _dk_val(KEY_DD_WK_LIMIT)
+        if _wk_lim is not None:
+            _dk_crack_status = "PASS" if _dk_gov_wk <= _wk_lim else "FAIL"
+        else:
+            _dk_crack_status = "Not calculated"
+    else:
+        _dk_gov_wk = None
+        _dk_gov_wk_str = _DKPH
+        _dk_crack_status = "Not calculated" if _dk_has else "---"
 
     # ── Table 5.22: Overall Design Check Summary — fill all rows ─────────────
     # Three row families:
@@ -986,18 +1257,24 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     # the 5.17 tables use); UR = Demand/Capacity. The deck is designed for the
     # IRC:6 Basic ULS combination — build that combo string from the stored
     # partial factors (gamma_dl, gamma_ll).
-    _deck_combo = (
-        r"Basic ULS: " + _tex(f"{_dkv(KEY_DD_GAMMA_DL):g}DL + {_dkv(KEY_DD_GAMMA_LL):g}LL")
-    ) if _dk_has else "---"
+    _gdl = _dk_val(KEY_DD_GAMMA_DL)
+    _gll = _dk_val(KEY_DD_GAMMA_LL)
+    if _gdl is not None and _gll is not None:
+        _combo_str = f"{_gdl:g}DL + {_gll:g}LL"
+    else:
+        _combo_str = "1.35DL + 1.5LL"
+    _deck_combo = (r"Basic ULS: " + _tex(_combo_str)) if _dk_has else "---"
 
     def _deck_row(dem_key, cap_key, unit, is_oh=False):
         if not _dk_has:
             return ("---", "---", "---", "---")
         if is_oh and not _dk_oh:
             return (_deck_combo, "N/A", "N/A", "N/A")
-        dem = _dkv(dem_key)
-        cap = _dkv(cap_key)
-        ur = (dem / cap) if cap > 0 else None
+        dem = _dk_val(dem_key)
+        cap = _dk_val(cap_key)
+        if dem is None or cap is None or cap <= 0:
+            return (_deck_combo, "---", "---", "---")
+        ur = dem / cap
         return (_deck_combo, f"{dem:.2f} {unit}", f"{cap:.2f} {unit}", _ur_522(ur))
 
     def _row522_msg(label, msg):
@@ -1038,12 +1315,12 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                     best = (_d, _lc)
         return _tex(str(best[1]).strip()) if best else "Frequent SLS"
 
-    _wk_lim = _dkv(KEY_DD_WK_LIMIT)
+    _wk_lim = _dk_val(KEY_DD_WK_LIMIT)
     _crack_cells = (
-        (_gov_sls_frequent() if _dk_has else "---"),
-        (f"{_dk_gov_wk:.3f} mm" if _dk_has else "---"),
-        (f"{_wk_lim:.3f} mm" if _dk_has else "---"),
-        (_ur_522(_dk_gov_wk / _wk_lim) if (_dk_has and _wk_lim > 0) else "---"),
+        (_gov_sls_frequent() if (_dk_has and _dk_gov_wk is not None) else "---"),
+        (f"{_dk_gov_wk:.3f} mm" if (_dk_has and _dk_gov_wk is not None) else "---"),
+        (f"{_wk_lim:.3f} mm" if (_dk_has and _wk_lim is not None) else "---"),
+        (_ur_522(_dk_gov_wk / _wk_lim) if (_dk_has and _dk_gov_wk is not None and _wk_lim is not None and _wk_lim > 0) else "---"),
     )
 
     _t522 = [
@@ -1283,21 +1560,21 @@ The reinforced concrete deck slab is designed per IRC~112:2011 (flexure, shear, 
     caption=r"\textbf{Deck Slab --- Flexure Check: Interior Panel (Pigeaud's Method)}",
     header_row=r"\textbf{Location} & \textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status}",
 ) + r"""
-\multirow{5}{*}{\makecell{At Midspan\\(Sagging)}} & Transverse BM (DL), $M_{T,DL}$ & $w_{DL}\,l_{eff}^2/10$ & """ + _dkf(KEY_DD_M_DL, nd=2) + r""" kN-m/m & --- \\[6pt]
+\multirow{5}{*}{\makecell{At Midspan\\(Sagging)}} & Transverse BM (DL), $M_{T,DL}$ & $w_{DL}\,l_{eff}^2/10$ & """ + _dkf(KEY_DD_M_DL, nd=2, unit=" kN-m/m") + r""" & --- \\[6pt]
 \cline{2-5}
- & Transverse BM (LL), $M_{T,LL}$ & Effective width (IRC 112 B3.1) & """ + _dkf(KEY_DD_M_LL, nd=2) + r""" kN-m/m & --- \\[6pt]
+ & Transverse BM (LL), $M_{T,LL}$ & Effective width (IRC 112 B3.1) & """ + _dkf(KEY_DD_M_LL, nd=2, unit=" kN-m/m") + r""" & --- \\[6pt]
 \cline{2-5}
- & Total Design BM, $M_{u,sag}$ & """ + _dkf(KEY_DD_GAMMA_DL, nd=2) + r""" DL + """ + _dkf(KEY_DD_GAMMA_LL, nd=2) + r""" LL & """ + _dkf(KEY_DD_M_ULS_SAG, nd=2) + r""" kN-m/m & --- \\[6pt]
+ & Total Design BM, $M_{u,sag}$ & """ + _dkf(KEY_DD_GAMMA_DL, nd=2) + r""" DL + """ + _dkf(KEY_DD_GAMMA_LL, nd=2) + r""" LL & """ + _dkf(KEY_DD_M_ULS_SAG, nd=2, unit=" kN-m/m") + r""" & --- \\[6pt]
 \cline{2-5}
- & Effective depth, $d$ & $t_s - c_{nom} - \phi/2$ & """ + _dkf(KEY_DD_D_BOT, nd=1) + r""" mm & --- \\[6pt]
+ & Effective depth, $d$ & $t_s - c_{nom} - \phi/2$ & """ + _dkf(KEY_DD_D_BOT, nd=1, unit=" mm") + r""" & --- \\[6pt]
 \cline{2-5}
- & Moment Capacity, $M_{Rd}$ & IRC 112 Cl. 12.2 & """ + _dkf(KEY_DD_MU_BOT, nd=2) + r""" kN-m/m & """ + _dks(_dkv(KEY_DD_MU_BOT) >= _dkv(KEY_DD_M_ULS_SAG)) + r""" \\[6pt]
+ & Moment Capacity, $M_{Rd}$ & IRC 112 Cl. 12.2 & """ + _dkf(KEY_DD_MU_BOT, nd=2, unit=" kN-m/m") + r""" & """ + _dk_status_ge(KEY_DD_MU_BOT, KEY_DD_M_ULS_SAG) + r""" \\[6pt]
 \hline
-\multirow{3}{*}{\makecell{At Support\\(Hogging)}} & Total Design BM, $M_{u,hog}$ & """ + _dkf(KEY_DD_GAMMA_DL, nd=2) + r""" DL + """ + _dkf(KEY_DD_GAMMA_LL, nd=2) + r""" LL (at support) & """ + _dkf(KEY_DD_M_ULS_HOG, nd=2) + r""" kN-m/m & --- \\[6pt]
+\multirow{3}{*}{\makecell{At Support\\(Hogging)}} & Total Design BM, $M_{u,hog}$ & """ + _dkf(KEY_DD_GAMMA_DL, nd=2) + r""" DL + """ + _dkf(KEY_DD_GAMMA_LL, nd=2) + r""" LL (at support) & """ + _dkf(KEY_DD_M_ULS_HOG, nd=2, unit=" kN-m/m") + r""" & --- \\[6pt]
 \cline{2-5}
- & Required Top Steel, $A_{st,top}$ & $M_u / (0.87\,f_y\,d)$ & """ + _dkf(KEY_DD_AS_REQ_TOP, nd=0) + r""" mm²/m & --- \\[6pt]
+ & Required Top Steel, $A_{st,top}$ & $M_u / (0.87\,f_y\,d)$ & """ + _dkf(KEY_DD_AS_REQ_TOP, nd=0, unit=" mm²/m") + r""" & --- \\[6pt]
 \cline{2-5}
- & Moment Capacity, $M_{Rd}$ & IRC 112 Cl. 12.2 & """ + _dkf(KEY_DD_MU_TOP, nd=2) + r""" kN-m/m & """ + _dks(_dkv(KEY_DD_MU_TOP) >= _dkv(KEY_DD_M_ULS_HOG)) + r""" \\[6pt]
+ & Moment Capacity, $M_{Rd}$ & IRC 112 Cl. 12.2 & """ + _dkf(KEY_DD_MU_TOP, nd=2, unit=" kN-m/m") + r""" & """ + _dk_status_ge(KEY_DD_MU_TOP, KEY_DD_M_ULS_HOG) + r""" \\[6pt]
 \hline
 \end{longtable}
 \noindent\textit{Note: IRC 112 Cl. 12.2. Distribution (longitudinal) reinforcement designed for 20\% of main steel moment (IRC 21 Cl. 305.18).}
@@ -1318,7 +1595,7 @@ Live Load Moment (eccentric wheel) & Wheel load $\times$ arm & """ + _dkoh(KEY_D
 \hline
 Total Hogging Moment, $M_{u,oh}$ & """ + _dkf(KEY_DD_GAMMA_DL, nd=2) + r""" DL + """ + _dkf(KEY_DD_GAMMA_LL, nd=2) + r""" (LL + CB) & """ + _dkoh(KEY_DD_M_ULS_OH, nd=2, unit=" kN-m/m") + r""" & --- \\[6pt]
 \hline
-Moment Capacity (top steel), $M_{Rd,oh}$ & IRC 112 Cl. 12.2 & """ + _dkoh(KEY_DD_MU_OH, nd=2, unit=" kN-m/m") + r""" & """ + (_dks(_dkv(KEY_DD_MU_OH) >= _dkv(KEY_DD_M_ULS_OH)) if _dk_oh else ("N/A" if _dk_has else "---")) + r""" \\[6pt]
+Moment Capacity (top steel), $M_{Rd,oh}$ & IRC 112 Cl. 12.2 & """ + _dkoh(KEY_DD_MU_OH, nd=2, unit=" kN-m/m") + r""" & """ + (_dk_status_ge(KEY_DD_MU_OH, KEY_DD_M_ULS_OH) if _dk_oh else ("N/A" if _dk_has else "---")) + r""" \\[6pt]
 \hline
 \end{longtable}
 \noindent\textit{Note: IRC 6 Cl. 206.4 crash barrier loads applied at kerb face; IRC 112 Cl. 12.2 flexure.}
@@ -1329,22 +1606,22 @@ Moment Capacity (top steel), $M_{Rd,oh}$ & IRC 112 Cl. 12.2 & """ + _dkoh(KEY_DD
     caption=r"\textbf{Deck Slab --- Punching Shear Check (IRC~112 Cl.~10.4.6)}",
     header_row=r"\textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status}",
 ) + r"""
-Design Wheel Load (ULS), $V_{Ed}$ & $\gamma_Q\,(1+IF)\,P_w$ & """ + _dkf(KEY_DD_PUNCH_VED_KN, nd=1) + r""" kN & --- \\[6pt]
+Design Wheel Load (ULS), $V_{Ed}$ & $\gamma_Q\,(1+IF)\,P_w$ & """ + _dkf(KEY_DD_PUNCH_VED_KN, nd=1, unit=" kN") + r""" & --- \\[6pt]
 \hline
 Tyre Contact Area & $a \times b$ (IRC 6 Annex~A) & """ + _dkf(KEY_DD_TYRE_WIDTH, nd=0, scale=1000.0) + r""" $\times$ """ + _dkf(KEY_DD_TYRE_LENGTH, nd=0) + r""" mm & --- \\[6pt]
 \hline
 Loaded Area at mid-depth, $b_0$ & $c_1 \times c_2$ (incl.\ WC dispersion) & """ + _dkf(KEY_DD_PUNCH_C1, nd=0) + r""" $\times$ """ + _dkf(KEY_DD_PUNCH_C2, nd=0) + r""" mm & --- \\[6pt]
 \hline
-Control Perimeter, $u_1$ & $2(c_1+c_2) + 4\pi d$ & """ + _dkf(KEY_DD_PUNCH_U1, nd=0) + r""" mm & --- \\[6pt]
+Control Perimeter, $u_1$ & $2(c_1+c_2) + 4\pi d$ & """ + _dkf(KEY_DD_PUNCH_U1, nd=0, unit=" mm") + r""" & --- \\[6pt]
 \hline
-Punching Shear Stress, $v_{Ed}$ & $V_{Ed} / (u_1\,d)$ & """ + _dkf(KEY_DD_PUNCH_VED, nd=3) + r""" MPa & --- \\[6pt]
+Punching Shear Stress, $v_{Ed}$ & $V_{Ed} / (u_1\,d)$ & """ + _dkf(KEY_DD_PUNCH_VED, nd=3, unit=" MPa") + r""" & --- \\[6pt]
 \hline
-Punching Resistance, $v_{Rd,c}$ & IRC 112 Eq.\ 10.1 & """ + _dkf(KEY_DD_VRD_C_MPA, nd=3) + r""" MPa & --- \\[6pt]
+Punching Resistance, $v_{Rd,c}$ & IRC 112 Eq.\ 10.1 & """ + _dkf(KEY_DD_VRD_C_MPA, nd=3, unit=" MPa") + r""" & --- \\[6pt]
 \hline
-Punching Shear Check & $v_{Ed} \leq v_{Rd,c}$ & """ + (f"{_dkv(KEY_DD_PUNCH_VED) / _dkv(KEY_DD_VRD_C_MPA):.2f}" if (_dk_has and _dkv(KEY_DD_VRD_C_MPA) > 0) else _DKPH) + r""" & """ + _dks(bool(deck_rpt.get(KEY_DD_PUNCH_OK))) + r""" \\[6pt]
+Punching Shear Check & $v_{Ed} \leq v_{Rd,c}$ & """ + (f"{_dk_val(KEY_DD_PUNCH_VED) / _dk_val(KEY_DD_VRD_C_MPA):.2f}" if (_dk_has and _dk_val(KEY_DD_PUNCH_VED) is not None and _dk_val(KEY_DD_VRD_C_MPA) is not None and _dk_val(KEY_DD_VRD_C_MPA) > 0) else _DKPH) + r""" & """ + _dk_shear_status(KEY_DD_PUNCH_OK) + r""" \\[6pt]
 \hline
 \end{longtable}
-\noindent\textit{Note: Punching shear reinforcement not typically required for deck slabs with $d \geq 200$ mm and adequate longitudinal reinforcement.}
+\noindent\textit{Note: Punching shear verification is not implemented in the current release. This check has not been verified by the software and must not be interpreted as passing or failing.}
 
 \vspace{1em}
 \clearpage
@@ -1353,15 +1630,15 @@ Punching Shear Check & $v_{Ed} \leq v_{Rd,c}$ & """ + (f"{_dkv(KEY_DD_PUNCH_VED)
     caption=r"\textbf{Crack Width Check (Deck Slab)}",
     header_row=r"\textbf{Parameter} & \textbf{Value / Reference}",
 ) + r"""
-\textnormal{Min. Reinforcement for Crack Control, $A_{s,min}$} & """ + _dkf(KEY_DD_AS_MIN, nd=0) + r""" mm²/m [IRC 112 Cl. 16.5.1] \\[6pt]
+\textnormal{Min. Reinforcement for Crack Control, $A_{s,min}$} & """ + _dkf(KEY_DD_AS_MIN, nd=0, unit=" mm²/m") + r""" [IRC 112 Cl. 16.5.1] \\[6pt]
 \hline
-\textnormal{Provided Reinforcement (bottom)} & $\phi$""" + _dkf(KEY_DD_DIA_BOT, nd=0) + r""" @ """ + _dkf(KEY_DD_SPC_BOT, nd=0) + r""" mm c/c (""" + _dkf(KEY_DD_AS_BOT, nd=0) + r""" mm²/m) \\[6pt]
+\textnormal{Provided Reinforcement (bottom)} & """ + ((rf"$\phi${_dkf(KEY_DD_DIA_BOT, nd=0)} @ {_dkf(KEY_DD_SPC_BOT, nd=0)} mm c/c" + (rf" ({_dkf(KEY_DD_AS_BOT, nd=0)} mm²/m)" if _dk_val(KEY_DD_AS_BOT) is not None else "")) if (_dk_val(KEY_DD_DIA_BOT) is not None and _dk_val(KEY_DD_SPC_BOT) is not None) else _DKPH) + r""" \\[6pt]
 \hline
-\textnormal{Max. Permissible Crack Width} & """ + _dkf(KEY_DD_WK_LIMIT, nd=2) + r""" mm \\[6pt]
+\textnormal{Max. Permissible Crack Width} & """ + (_dkf(KEY_DD_WK_LIMIT, nd=2, unit=" mm") if _dk_val(KEY_DD_WK_LIMIT) is not None else _DKPH) + r""" \\[6pt]
 \hline
-\textnormal{Calculated Crack Width, $w_k$ (governing)} & """ + _dk_gov_wk_str + r""" mm \\[6pt]
+\textnormal{Calculated Crack Width, $w_k$ (governing)} & """ + (f"{_dk_gov_wk_str} mm" if _wk_vals else _DKPH) + r""" \\[6pt]
 \hline
-\textnormal{Crack Width Check} & """ + _dks(_dk_crack_ok) + r""" \\[6pt]
+\textnormal{Crack Width Check} & """ + _dk_crack_status + r""" \\[6pt]
 \hline
 \end{longtable}
 
@@ -1371,20 +1648,20 @@ Punching Shear Check & $v_{Ed} \leq v_{Rd,c}$ & """ + (f"{_dkv(KEY_DD_PUNCH_VED)
     caption=r"\textbf{One-Way (Beam) Shear Check (Deck Slab)}",
     header_row=r"\textbf{Parameter} & \textbf{Formula / Reference} & \textbf{Value} & \textbf{Status}",
 ) + r"""
-Design Shear per unit width, $V_{Ed}$ & $\gamma_{DL} V_{DL} + \gamma_{LL}(1{+}IF)V_{LL}$ & """ + _dkf(KEY_DD_SHEAR_VED, nd=2) + r""" kN/m & --- \\[6pt]
+Design Shear per unit width, $V_{Ed}$ & $\gamma_{DL} V_{DL} + \gamma_{LL}(1{+}IF)V_{LL}$ & """ + _dkf(KEY_DD_SHEAR_VED, nd=2, unit=" kN/m") + r""" & --- \\[6pt]
 \hline
-Effective depth, $d$ & $t_s - c_{nom} - \phi/2$ & """ + _dkf(KEY_DD_D_BOT, nd=1) + r""" mm & --- \\[6pt]
+Effective depth, $d$ & $t_s - c_{nom} - \phi/2$ & """ + _dkf(KEY_DD_D_BOT, nd=1, unit=" mm") + r""" & --- \\[6pt]
 \hline
-Size factor, $k$ & $1 + \sqrt{200/d} \leq 2.0$ & """ + (f"{min(1.0 + (200.0 / _dkv(KEY_DD_D_BOT)) ** 0.5, 2.0):.3f}" if (_dk_has and _dkv(KEY_DD_D_BOT) > 0) else _DKPH) + r""" & --- \\[6pt]
+Size factor, $k$ & $1 + \sqrt{200/d} \leq 2.0$ & """ + (f"{min(1.0 + (200.0 / _dk_val(KEY_DD_D_BOT)) ** 0.5, 2.0):.3f}" if (_dk_val(KEY_DD_D_BOT) is not None and _dk_val(KEY_DD_D_BOT) > 0) else _DKPH) + r""" & --- \\[6pt]
 \hline
-Long.\ reinforcement ratio, $\rho_l$ & $A_{sl}/(b_w\,d) \leq 0.02$ & """ + (f"{min(_dkv(KEY_DD_AS_BOT) / (1000.0 * _dkv(KEY_DD_D_BOT)), 0.02):.4f}" if (_dk_has and _dkv(KEY_DD_D_BOT) > 0) else _DKPH) + r""" & --- \\[6pt]
+Long.\ reinforcement ratio, $\rho_l$ & $A_{sl}/(b_w\,d) \leq 0.02$ & """ + (f"{min(_dk_val(KEY_DD_AS_BOT) / (1000.0 * _dk_val(KEY_DD_D_BOT)), 0.02):.4f}" if (_dk_val(KEY_DD_AS_BOT) is not None and _dk_val(KEY_DD_D_BOT) is not None and _dk_val(KEY_DD_D_BOT) > 0) else _DKPH) + r""" & --- \\[6pt]
 \hline
-Shear resistance (no stirrups), $V_{Rd,c}$ & $v_{Rd,c}\,b_w\,d$ (Cl.\ 10.3.2) & """ + _dkf(KEY_DD_SHEAR_VRDC, nd=2) + r""" kN/m & --- \\[6pt]
+Shear resistance (no stirrups), $V_{Rd,c}$ & $v_{Rd,c}\,b_w\,d$ (Cl.\ 10.3.2) & """ + _dkf(KEY_DD_SHEAR_VRDC, nd=2, unit=" kN/m") + r""" & --- \\[6pt]
 \hline
-One-Way Shear Check & $V_{Ed} \leq V_{Rd,c}$ & """ + (f"{_dkv(KEY_DD_SHEAR_VED) / _dkv(KEY_DD_SHEAR_VRDC):.2f}" if (_dk_has and _dkv(KEY_DD_SHEAR_VRDC) > 0) else _DKPH) + r""" & """ + _dks(bool(deck_rpt.get(KEY_DD_SHEAR_OK))) + r""" \\[6pt]
+One-Way Shear Check & $V_{Ed} \leq V_{Rd,c}$ & """ + (f"{_dk_val(KEY_DD_SHEAR_VED) / _dk_val(KEY_DD_SHEAR_VRDC):.2f}" if (_dk_has and _dk_val(KEY_DD_SHEAR_VED) is not None and _dk_val(KEY_DD_SHEAR_VRDC) is not None and _dk_val(KEY_DD_SHEAR_VRDC) > 0) else _DKPH) + r""" & """ + _dk_shear_status(KEY_DD_SHEAR_OK) + r""" \\[6pt]
 \hline
 \end{longtable}
-\noindent\textit{Note: IRC 112 Cl. 10.3.2. Shear reinforcement not provided in deck slabs; capacity relies on concrete and main reinforcement.}
+\noindent\textit{Note: One-way transverse shear verification is not implemented in the current release. This check has not been verified by the software and must not be interpreted as passing or failing.}
 
 \vspace{1em}
 """ + make_longtable_header(
@@ -1394,25 +1671,25 @@ One-Way Shear Check & $V_{Ed} \leq V_{Rd,c}$ & """ + (f"{_dkv(KEY_DD_SHEAR_VED) 
 ) + r"""
 \multicolumn{4}{|l|}{\textbf{Main Reinforcement --- Bottom (Transverse)}} \\[6pt]
 \hline
-Required Area, $A_{st,req}$ (mm²/m) & """ + _dkf(KEY_DD_AS_REQ_BOT, nd=0) + r""" mm²/m & """ + _dkf(KEY_DD_AS_BOT, nd=0) + r""" mm²/m & """ + _dks(_dkv(KEY_DD_AS_BOT) >= _dkv(KEY_DD_AS_REQ_BOT)) + r""" \\[6pt]
+Required Area, $A_{st,req}$ (mm²/m) & """ + _dkf(KEY_DD_AS_REQ_BOT, nd=0, unit=" mm²/m") + r""" & """ + _dkf(KEY_DD_AS_BOT, nd=0, unit=" mm²/m") + r""" & """ + _dk_status_ge(KEY_DD_AS_BOT, KEY_DD_AS_REQ_BOT) + r""" \\[6pt]
 \hline
-Bar Diameter $\times$ Spacing & $\phi \geq 10$ mm (IRC 112) & $\phi$""" + _dkf(KEY_DD_DIA_BOT, nd=0) + r""" @ """ + _dkf(KEY_DD_SPC_BOT, nd=0) + r""" mm c/c & --- \\[6pt]
+Bar Diameter $\times$ Spacing & $\phi \geq 10$ mm (IRC 112) & """ + ((rf"$\phi${_dkf(KEY_DD_DIA_BOT, nd=0)} @ {_dkf(KEY_DD_SPC_BOT, nd=0)} mm c/c") if (_dk_val(KEY_DD_DIA_BOT) is not None and _dk_val(KEY_DD_SPC_BOT) is not None) else _DKPH) + r""" & --- \\[6pt]
 \hline
-Min.\ Reinforcement $A_{s,min}$ (IRC 112 Cl. 16.3.1) & """ + _dkf(KEY_DD_AS_MIN, nd=0) + r""" mm²/m & """ + _dkf(KEY_DD_AS_BOT, nd=0) + r""" mm²/m & """ + _dks(_dkv(KEY_DD_AS_BOT) >= _dkv(KEY_DD_AS_MIN)) + r""" \\[6pt]
+Min.\ Reinforcement $A_{s,min}$ (IRC 112 Cl. 16.3.1) & """ + _dkf(KEY_DD_AS_MIN, nd=0, unit=" mm²/m") + r""" & """ + _dkf(KEY_DD_AS_BOT, nd=0, unit=" mm²/m") + r""" & """ + _dk_status_ge(KEY_DD_AS_BOT, KEY_DD_AS_MIN) + r""" \\[6pt]
 \hline
-Max.\ Bar Spacing (IRC 112 Cl. 16.3.2) & """ + _dkf(KEY_DD_SPACING_MAX, nd=0) + r""" mm & """ + _dkf(KEY_DD_SPC_BOT, nd=0) + r""" mm & """ + _dks(0.0 < _dkv(KEY_DD_SPC_BOT) <= _dkv(KEY_DD_SPACING_MAX)) + r""" \\[6pt]
+Max.\ Bar Spacing (IRC 112 Cl. 16.3.2) & """ + _dkf(KEY_DD_SPACING_MAX, nd=0, unit=" mm") + r""" & """ + _dkf(KEY_DD_SPC_BOT, nd=0, unit=" mm") + r""" & """ + (("PASS" if (0.0 < _dk_val(KEY_DD_SPC_BOT) <= _dk_val(KEY_DD_SPACING_MAX)) else "FAIL") if (_dk_val(KEY_DD_SPC_BOT) is not None and _dk_val(KEY_DD_SPACING_MAX) is not None) else ("Not calculated" if _dk_has else "---")) + r""" \\[6pt]
 \hline
 \multicolumn{4}{|l|}{\textbf{Distribution Reinforcement --- Longitudinal}} \\[6pt]
 \hline
-Required Area, $A_{st,dist}$ (mm²/m) & $\geq 20\%$ of main steel & """ + _dkf(KEY_DD_AS_LONG, nd=0) + r""" mm²/m & """ + _dks(_dkv(KEY_DD_AS_LONG) >= max(0.20 * _dkv(KEY_DD_AS_BOT), _dkv(KEY_DD_AS_MIN))) + r""" \\[6pt]
+Required Area, $A_{st,dist}$ (mm²/m) & $\geq 20\%$ of main steel & """ + _dkf(KEY_DD_AS_LONG, nd=0, unit=" mm²/m") + r""" & """ + _dk_dist_reinf_status() + r""" \\[6pt]
 \hline
 \multicolumn{4}{|l|}{\textbf{Top Reinforcement (Support / Cantilever Overhang)}} \\[6pt]
 \hline
-Required Area, $A_{st,top}$ (mm²/m) & """ + _dkf(KEY_DD_AS_REQ_TOP, nd=0) + r""" mm²/m & """ + _dkf(KEY_DD_AS_TOP, nd=0) + r""" mm²/m & """ + _dks(_dkv(KEY_DD_AS_TOP) >= _dkv(KEY_DD_AS_REQ_TOP)) + r""" \\[6pt]
+Required Area, $A_{st,top}$ (mm²/m) & """ + _dkf(KEY_DD_AS_REQ_TOP, nd=0, unit=" mm²/m") + r""" & """ + _dkf(KEY_DD_AS_TOP, nd=0, unit=" mm²/m") + r""" & """ + _dk_status_ge(KEY_DD_AS_TOP, KEY_DD_AS_REQ_TOP) + r""" \\[6pt]
 \hline
 \multicolumn{4}{|l|}{\textbf{Cover and Detailing}} \\[6pt]
 \hline
-Clear Cover (IRC 112 Cl. 15.2) & $\geq$ """ + _dkf(KEY_DD_MIN_COVER, nd=0) + r""" mm (Table 14.2) & Top """ + _render_value(bridge.input_dict, KEY_DS_TOP_CLEAR_COVER) + r""" / Bottom """ + _render_value(bridge.input_dict, KEY_DS_BOTTOM_CLEAR_COVER) + r""" mm & """ + _dks(bool(deck_rpt.get(KEY_DD_COVER_OK))) + r""" \\[6pt]
+Clear Cover (IRC 112 Cl. 15.2) & $\geq$ """ + _dkf(KEY_DD_MIN_COVER, nd=0, unit=" mm (Table 14.2)") + r""" & Top """ + _render_value(bridge.input_dict, KEY_DS_TOP_CLEAR_COVER) + r""" / Bottom """ + _render_value(bridge.input_dict, KEY_DS_BOTTOM_CLEAR_COVER) + r""" mm & """ + _dk_cover_status() + r""" \\[6pt]
 \hline
 \end{longtable}
 \noindent\textit{Note: IRC 112 Cl. 16.3, IS 456 Cl. 26.5. All reinforcement provisions satisfy strength and detailing requirements.}
@@ -1477,7 +1754,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
     col_spec=r"|C{2.0cm}|L{2.0cm}|L{2.2cm}|C{2.5cm}|C{2.0cm}|C{2.0cm}|",
     caption=r"\textbf{End Diaphragm --- Connection and Section Properties}",
     header_row=r"\textbf{Panel} & \textbf{Member} & \textbf{Connection} & \textbf{Section} & \textbf{$A_g$ (mm²)} & \textbf{$r_{min}$ (mm)}",
-) + cb_forces_content + r"""
+) + ed_forces_content + r"""
 \end{longtable}
 \noindent\textit{Note: $A_g$ = gross cross-sectional area; $r_{min}$ = minimum radius of gyration.}
 
@@ -1486,7 +1763,7 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
     col_spec=r"|C{2.2cm}|L{2.2cm}|L{2.5cm}|C{2.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{3.6cm}|",
     caption=r"\textbf{End Diaphragm --- Slenderness Ratio Check (IS~800 Cl.~3.8 )}",
     header_row=r"\textbf{Panel} & \textbf{Member} & \textbf{Nature} & \textbf{Eff.\ Length $KL$ (mm)} & \textbf{$KL/r$} & \textbf{Limit / Status}",
-) + cb_slenderness_content + r"""
+) + ed_slenderness_content + r"""
 \end{longtable}
 \noindent\textit{Note:  3. Limit = 250 for compression members, 400 for tension members. $K = 1.0$ for members with both ends pinned.}
 
@@ -1496,9 +1773,9 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
     col_spec=r"|C{2.0cm}|L{1.8cm}|C{2.2cm}|C{3.0cm}|C{1.8cm}|C{1.8cm}|C{1.2cm}|C{1.8cm}|",
     caption=r"\textbf{End Diaphragm Design --- Capacity Summary}",
     header_row=r"\textbf{Panel} & \textbf{Member} & \textbf{Section} & \textbf{Governing LC} & \textbf{Demand (kN)} & \textbf{Capacity (kN)} & \textbf{UR} & \textbf{Status}",
-) + cb_capacity_content + r"""
+) + ed_capacity_content + r"""
 \end{longtable}
-\noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge cross-bracing module used.}
+\noindent\textit{Note: Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension). OsdagBridge end diaphragm module used.}
 
 % ===========================
 \section{Overall Design Check Summary}
