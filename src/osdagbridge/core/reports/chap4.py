@@ -5,7 +5,8 @@ from osdagbridge.core.utils.common import (
     KEY_SD_DEFL_LIVE,
     KEY_SD_DEFL_TOTAL,
 )
-from osdagbridge.core.reports.report_utils import _tex, _fig_embed
+from osdagbridge.core.reports.latex_tables import longtable, param_table, figure, status_cell
+from osdagbridge.core.reports.report_utils import _tex
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -73,111 +74,43 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "---"
     _allow_live_str  = f"L/800 = {_allow_live_mm:.1f} mm"
     _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
-    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
-    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
+    _live_status     = status_cell(_live_mm  <= _allow_live_mm)  if _live_mm  is not None else "---"
+    _total_status    = status_cell(_total_mm <= _allow_total_mm) if _total_mm is not None else "---"
+    # Table 4.2 — reactions (same analysis data, listed per load case)
+    rxn_rows = "\n".join(
+        _tex(lc) + " & " + _fmt((rxn_summary.get(lc) or {}).get('left_kN')) + " & "
+        + _fmt((rxn_summary.get(lc) or {}).get('right_kN')) + r" \\" + "\n\\hline"
+        for lc in all_lcs) or (r"--- & --- & --- \\" + "\n\\hline")
+
+    summary_header = (
+        r"\hdrfill \multirow{2}{*}{\makecell{\hcell{Load}\\\hcell{Case/}\\\hcell{Comb.}}}" "\n"
+        r"& \multicolumn{3}{c|}{\hcell{Bending Moment}}" "\n"
+        r"& \multicolumn{3}{c|}{\hcell{Shear Force}}" "\n"
+        r"& \multicolumn{2}{c|}{\hcell{Reaction at Supports (kN)}}\\" "\n"
+        r"\cline{2-9}" "\n"
+        r"\hdrfill & \makecell{\hcell{Max}\\\hcell{(kNm)}} & \hcell{Girder} & \makecell{\hcell{Loc.}\\\hcell{(m)}}" "\n"
+        r"& \makecell{\hcell{Max}\\\hcell{(kN)}} & \hcell{Girder} & \makecell{\hcell{Loc.}\\\hcell{(m)}}" "\n"
+        r"& \hcell{Left} & \hcell{Right}\\")
+
+    fig_w = r"0.8\textwidth"
     return r"""
 \chapter{Analysis Results}
 
 A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements --- longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
 
-\vspace{1em}
-\begingroup
-\footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
-
-\begin{longtable}{|
->{\centering\arraybackslash}p{3.1cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.7cm}|
->{\centering\arraybackslash}p{1.2cm}|
->{\centering\arraybackslash}p{1.3cm}|
->{\centering\arraybackslash}p{1.6cm}|
->{\centering\arraybackslash}p{1.6cm}|}
-
-\caption{\textbf{Summary of Maximum Demands}}\\
-\hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
-& \multicolumn{3}{c|}{\textbf{Bending Moment}}
-& \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
-\cline{2-9}
-
-& \makecell{\textbf{Max}\\\textbf{(kNm)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Max}\\\textbf{(kN)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Left}}
-& \makecell{\textbf{Right }}\\
-\hline
-\endfirsthead
-
-\hline
-\multirow{2}{*}{\makecell{\textbf{Load}\\\textbf{Case/}\\\textbf{Comb.}}}
-& \multicolumn{3}{c|}{\textbf{Bending Moment}}
-& \multicolumn{3}{c|}{\textbf{Shear Force}}
-& \multicolumn{2}{c|}{\textbf{Reaction at Supports}}\\
-\cline{2-9}
-
-& \makecell{\textbf{Max}\\\textbf{(kNm)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Max}\\\textbf{(kN)}}
-& \textbf{Girder}
-& \makecell{\textbf{Loc.}\\\textbf{(m)}}
-& \makecell{\textbf{Left}}
-& \makecell{\textbf{Right}}\\
-\hline
-\endhead
-
-""" + merged_body + r"""
-
-\hline
-\end{longtable}
+\vspace{0.6em}
+\begingroup\scriptsize
+""" + longtable("analysis_summary", "Summary of Maximum Demands", summary_header, merged_body,
+                label="tab:max-demands", small=False) + r"""
 \endgroup
-
-\vspace{1em}
-\begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}
-\hline
-\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
-\end{longtable}
-
-\vspace{1em}
-\begin{longtable}{|L{7cm}|p{8.5cm}|}
-\caption{\textbf{Deflection Summary (Live Load \& Total Load)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
-\textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
-\hline
-\textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]
-\hline
-\textnormal{Live Load Deflection Check Status} & """ + _live_status + r""" \\[6pt]
-\hline
-\textnormal{Deflection due to Total Load, $\delta_{total}$} & """ + _total_str + r""" \\[6pt]
-\hline
-\textnormal{Allowable Total Deflection ($\Delta_{allow}$)} & """ + _allow_total_str + r""" \\[6pt]
-\hline
-\textnormal{Total Load Deflection Check Status} & """ + _total_status + r""" \\[6pt]
-\hline
-\end{longtable}
-
-\vspace{1em}
-\noindent
-""" + _fig_embed(fig_paths.get('bm_envelope'), 'Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).', width=r'0.75\textwidth') + r"""
-""" + _fig_embed(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=r'0.75\textwidth') + r"""
-""" + _fig_embed(fig_paths.get('defl_ll'), 'Vertical Deflection D$_y$ (1.0 LL): Maximum deflection along span. Load Case: 1.0 LL, Combination: $D_y$. Nodes shown. Isometric view.', width=r'0.75\textwidth') + r"""
-"""
-
+""" + longtable("reactions", "Reactions at Supports", ["Load Case", "Left Support (kN)", "Right Support (kN)"],
+                rxn_rows, label="tab:reactions") + param_table("Deflection Summary (Live Load \\& Total Load)", [
+        (r"Deflection due to Live Load, $\delta_{LL}$", _live_str),
+        (r"Allowable Live Load Deflection ($\Delta_{allow}$)", _allow_live_str),
+        ("Live Load Deflection Check Status", _live_status),
+        (r"Deflection due to Total Load, $\delta_{total}$", _total_str),
+        (r"Allowable Total Deflection ($\Delta_{allow}$)", _allow_total_str),
+        ("Total Load Deflection Check Status", _total_status),
+    ], label="tab:deflection") + r"""
+\vspace{0.6em}
+""" + figure(fig_paths.get('bm_envelope'), 'Bending Moment Envelope (Envelope ULS): Max/min BM along span. X-axis: distance from left support (m). Y-axis: Bending Moment (kN-m).', width=fig_w, label="fig:bm-env") + "\n" + figure(fig_paths.get('sf_envelope'), 'Shear Force Envelope (Envelope ULS): Max/min SF along span. X-axis: distance from left support (m). Y-axis: Shear Force (kN).', width=fig_w, label="fig:sf-env") + "\n" + figure(fig_paths.get('defl_ll'), r'Vertical Deflection D$_y$ (1.0 LL): Maximum deflection along span. Load Case: 1.0 LL, Combination: $D_y$. Nodes shown. Isometric view.', width=fig_w, label="fig:defl-ll") + "\n"
