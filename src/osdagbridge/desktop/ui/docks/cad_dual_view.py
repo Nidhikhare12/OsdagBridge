@@ -5,7 +5,7 @@ Author: Arushi
 """
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QScrollArea, QHBoxLayout, QPushButton, QLabel
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Signal
 from .cad_cross_section import CrossSectionCADWidget
 from .cad_top_view import TopViewCADWidget
 from osdagbridge.core.utils.common import *
@@ -17,6 +17,8 @@ from osdagbridge.desktop.cad.irc5_geometry import (
 
 class BridgeDualCADWidget(QWidget):
     """Split view widget showing both cross-section and top view with individual controls"""
+    # Signal emitted when a CAD parameter is interactively edited (Task I)
+    parameter_edited = Signal(str, float)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -74,6 +76,10 @@ class BridgeDualCADWidget(QWidget):
         # Set equal sizes for both views
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
+        
+        # Connect interactive parameter editing signals (Task I)
+        self.cross_section_widget.parameter_edited.connect(self.parameter_edited.emit)
+        self.top_view_widget.parameter_edited.connect(self.parameter_edited.emit)
         
         layout.addWidget(self.splitter)
     
@@ -155,6 +161,8 @@ class BridgeDualCADWidget(QWidget):
         Args:
             input_dict: Dictionary with keys from common.py (e.g., KEY_SPAN, KEY_CARRIAGEWAY_WIDTH)
         """
+        self.cross_section_widget._last_input_dict = input_dict
+        self.top_view_widget._last_input_dict = input_dict
         
         params = {}
         

@@ -21,6 +21,7 @@ from osdagbridge.core.bridge_types.plate_girder.plot_generator import (
     build_figure_sfd,
     build_figure_bmd,
     build_figure_deflection,
+    build_figure_transverse,
     build_figure_grillage,
     _add_node_number_labels,
     _add_element_number_labels,
@@ -453,6 +454,12 @@ class MplPlotWidget(QWidget):
             # Make sure it fires an update if changed from UI, since grillage might be active
             combo_member.currentTextChanged.connect(lambda text: self._on_grillage_toggled(self._grillage_mode) if self._grillage_mode else None)
 
+        # Connect Analysis Member Type Dropdown (Task III)
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_MEMBER_TYPE
+        combo_member_type = output_dock.output_widget.findChild(QComboBox, KEY_ANALYSIS_MEMBER_TYPE)
+        if combo_member_type is not None:
+            combo_member_type.currentTextChanged.connect(self.update_plot)
+
         # 2. Connect Force Radios
         from osdagbridge.desktop.ui.utils.custom_widgets import CustomRadioButton
         force_rbs = [
@@ -500,6 +507,15 @@ class MplPlotWidget(QWidget):
             return
         self.update_plot()
 
+    def _current_member_type(self) -> str:
+        if self._output_dock is None:
+            return "Longitudinal Members"
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_MEMBER_TYPE
+        combo = self._output_dock.output_widget.findChild(QComboBox, KEY_ANALYSIS_MEMBER_TYPE)
+        if combo and combo.currentText().strip():
+            return combo.currentText().strip()
+        return "Longitudinal Members"
+
     def _current_member(self):
         if self._output_dock is None:
             return "All"
@@ -515,6 +531,7 @@ class MplPlotWidget(QWidget):
         if self._ds_all is None or self._output_dock is None:
             return
 
+        member_type = self._current_member_type()
         loadcase  = self._current_loadcase()
         force_key = self._current_force_key()
         sel_girder= self._current_member()
@@ -536,9 +553,20 @@ class MplPlotWidget(QWidget):
         
         self._summary_data = {} 
 
-        # (Your existing if/elif/else block to build the new figures)
         eng_scale = self._eng_scale
-        if force_key in _SFD_KEYS:
+        if member_type in ("End Diaphragms", "Cross Bracings"):
+            self._fig, self._summary_data = build_figure_transverse(
+                ds,
+                member_type=member_type,
+                selected_member=sel_girder,
+                force_key=force_key,
+                nodes=self._nodes,
+                members=self._members,
+                edge_dist=self._edge_dist,
+                eng_scale=eng_scale,
+                loadcase=loadcase,
+            )
+        elif force_key in _SFD_KEYS:
             self._fig, self._summary_data = build_figure_sfd(
                 ds, force_key, self._nodes, self._members,
                 edge_dist=self._edge_dist, eng_scale=eng_scale,
@@ -559,17 +587,18 @@ class MplPlotWidget(QWidget):
 
         self._attach_figure(self._fig)
         
-        # (Your existing visibility toggles)
-        self._apply_node_visibility()
-        self._apply_node_number_visibility()
-        self._apply_axis_visibility()
-        self._apply_supports_visibility()
-        self._apply_grid_visibility()
-        self._apply_girder_labels_visibility()
-        self._apply_element_number_visibility()
-        self._apply_annotation_visibility()
+        # Visibility toggles for 3D plots
+        if member_type not in ("End Diaphragms", "Cross Bracings"):
+            self._apply_node_visibility()
+            self._apply_node_number_visibility()
+            self._apply_axis_visibility()
+            self._apply_supports_visibility()
+            self._apply_grid_visibility()
+            self._apply_girder_labels_visibility()
+            self._apply_element_number_visibility()
+            self._apply_annotation_visibility()
         
-        # (Your existing HUD logic)
+        # HUD logic
         if self._summary_data:
             self._summary_overlay.update_data(
                 self._summary_data,
@@ -582,30 +611,37 @@ class MplPlotWidget(QWidget):
             self._summary_overlay.hide()
         
         if self._fig:
-            self._fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.92)
+            if member_type in ("End Diaphragms", "Cross Bracings"):
+                self._fig.subplots_adjust(left=0.10, right=0.96, bottom=0.13, top=0.90)
+            else:
+                self._fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.92)
             
             if not self._fig.axes:
                 return
 
             ax = self._fig.axes[0]
-            if old_elev is not None and old_azim is not None:
+            if old_elev is not None and old_azim is not None and hasattr(ax, 'view_init'):
                 ax.view_init(elev=old_elev, azim=old_azim)
 
             title = ax.get_title()
-            ax.set_title("")
+            if member_type not in ("End Diaphragms", "Cross Bracings"):
+                ax.set_title("")
 
             # Preserve the box aspect computed by plot_generator (it now depends on engineering scale),
-            # and only apply camera zoom.
-            if hasattr(ax, 'set_box_aspect'):
+            # and only apply camera zoom for 3D plots.
+            if hasattr(ax, 'get_zlim') and hasattr(ax, 'set_box_aspect'):
                 try:
                     cur_aspect = ax.get_box_aspect()
                 except Exception:
                     cur_aspect = None
                 if cur_aspect is None:
                     cur_aspect = (2.5, 1.2, 1.0)
-                ax.set_box_aspect(aspect=cur_aspect, zoom=self._zoom_scale)
+                try:
+                    ax.set_box_aspect(aspect=cur_aspect, zoom=self._zoom_scale)
+                except Exception:
+                    pass
 
-            # (Keep your existing anti-clipping loop here)
+            # Anti-clipping loop
             for line in ax.lines:
                 line.set_clip_on(False)
             for collection in ax.collections:
@@ -615,7 +651,6 @@ class MplPlotWidget(QWidget):
 
             self._canvas.draw()
 
-            # Removed scale label from subtitle - will add as tooltip instead
             subtitle = f"Load Case/Combination : {loadcase}"
             self._title_overlay.update_text(title, subtitle)
             self._position_title_overlay()
@@ -734,11 +769,14 @@ class MplPlotWidget(QWidget):
             self._apply_element_number_visibility()
             self._summary_overlay.hide()
             
-            if self._fig.axes and hasattr(self._fig.axes[0], 'set_box_aspect'):
-                self._fig.axes[0].set_box_aspect(
-                    aspect=(2.5, 1.2, 1.0),
-                    zoom=self._zoom_scale,
-                )
+            if self._fig.axes and hasattr(self._fig.axes[0], 'get_zlim') and hasattr(self._fig.axes[0], 'set_box_aspect'):
+                try:
+                    self._fig.axes[0].set_box_aspect(
+                        aspect=(2.5, 1.2, 1.0),
+                        zoom=self._zoom_scale,
+                    )
+                except Exception:
+                    pass
             self._canvas.draw()
             self._store_orig_limits()
             QTimer.singleShot(100, self._update_navcube_visibility)
@@ -1030,14 +1068,17 @@ class MplPlotWidget(QWidget):
         ax = self._fig.axes[0]
         
         # Change the optical zoom instantly without touching limits or layout
-        if hasattr(ax, 'set_box_aspect'):
+        if hasattr(ax, 'get_zlim') and hasattr(ax, 'set_box_aspect'):
             try:
                 cur_aspect = ax.get_box_aspect()
             except Exception:
                 cur_aspect = None
             if cur_aspect is None:
                 cur_aspect = (2.5, 1.2, 1.0)
-            ax.set_box_aspect(aspect=cur_aspect, zoom=self._zoom_scale)
+            try:
+                ax.set_box_aspect(aspect=cur_aspect, zoom=self._zoom_scale)
+            except Exception:
+                pass
             
         self._canvas.draw_idle()
 
@@ -1059,7 +1100,7 @@ class MplPlotWidget(QWidget):
         if not self._fig or not self._fig.axes:
             return
         ax = self._fig.axes[0]
-        if hasattr(ax, 'set_box_aspect'):  # 3D
+        if hasattr(ax, 'get_zlim') and hasattr(ax, 'set_box_aspect'):  # 3D
             fit_zoom = 0.82 if self._show_grid else 1.0
             try:
                 cur_aspect = ax.get_box_aspect()
@@ -1067,7 +1108,10 @@ class MplPlotWidget(QWidget):
                 cur_aspect = None
             if cur_aspect is None:
                 cur_aspect = (2.5, 1.2, 1.0)
-            ax.set_box_aspect(aspect=cur_aspect, zoom=fit_zoom)
+            try:
+                ax.set_box_aspect(aspect=cur_aspect, zoom=fit_zoom)
+            except Exception:
+                pass
             ax.autoscale()
         else:  # 2D
             ax.relim()

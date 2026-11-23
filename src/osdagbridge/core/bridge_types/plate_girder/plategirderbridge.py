@@ -3934,6 +3934,15 @@ class PlateGirderBridge:
         nodes, members = self.get_nodes_members()
         return build_figure_deflection(ds, disp_key, nodes, members, edge_dist=self.get_edge_dist())
 
+    def build_figure_transverse(self, ds, member_type: str, selected_member: str, force_key: str):
+        """Build and return a matplotlib Figure for transverse members (Task III)."""
+        from .plot_generator import build_figure_transverse
+        nodes, members = self.get_nodes_members()
+        return build_figure_transverse(
+            ds, member_type, selected_member, force_key,
+            nodes, members, edge_dist=self.get_edge_dist()
+        )
+
     def build_figure_grillage(self):
         """Build and return a matplotlib Figure showing only the bridge grillage mesh."""
         nodes, members = self.get_nodes_members()

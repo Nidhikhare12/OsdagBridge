@@ -264,3 +264,5 @@ src/osdag_map_cache/
 temp_plot.html
 *.html
 tools/
+# Submission ZIP Archive
+OsdagBridge_FOSSEE_Submission.zip

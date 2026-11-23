@@ -1,0 +1,49 @@
+\chapter{Bug Investigation and Defect Triage}
+\label{chap:bug_investigation}
+
+\section{Defect Logging and Triage Philosophy}
+A rigorous defect investigation in structural engineering software requires not only logging symptoms (such as an unhandled exception dialog or an abnormal deflection value), but isolating the exact defect down to the mathematical formula, source code module, and line number. During the comprehensive execution phase of OsdagBridge, two critical code-level defects were uncovered that directly broke the end-to-end design pipeline.
+
+\section{Bug Register Summary}
+Both defects were logged in \texttt{05\_bug\_reports/bug_register.csv} with full triage metadata:
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Triage Summary of Discovered Software Defects.}
+    \label{tab:defect_triage}
+    \begin{tabularx}{\textwidth}{lp{3.5cm}llX}
+        \toprule
+        \textbf{Bug ID} & \textbf{Title} & \textbf{Severity} & \textbf{Priority} & \textbf{Status} \\
+        \midrule
+        \texttt{BUG\_OB\_001} & Missing shear modulus $G_s$ fallback in designer & Critical & P1 & Fixed and Verified \\
+        \texttt{BUG\_OB\_002} & Deck concrete $f_{ck}/f_{ctm}/E_{cm}$ resolution failure & Critical & P1 & Fixed and Verified \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\section{In-Depth Root Cause Analysis}
+
+\subsection{Defect BUG\_OB\_001: Missing Steel Shear Modulus Fallback}
+\textbf{Symptoms}: During standard design execution (\texttt{bridge.design()}) using preset database steel grades such as \texttt{E 350A} or \texttt{E 250}, the design pipeline crashed immediately with:
+\begin{lstlisting}[language=bash]
+ValueError: Gs (shear modulus) is not set for grade 'E 350A'. Populate it in the material database before running the design check.
+\end{lstlisting}
+
+\textbf{Root Cause}: In \texttt{src/osdagbridge/core/bridge_types/plate_girder/designer.py}, \texttt{BridgeConfig.from_plate_girder_bridge()} unconditionally queried \texttt{input_dict[KEY_MATERIAL_GIRDER_G]}. However, the project's SQLite material database \texttt{Intg_osdag.sqlite} stores steel properties in table \texttt{Steel_Grade_Properties} with columns:
+\begin{center}
+\texttt{['Grade', 'Yield Strength', 'Ultimate Tensile Strength', 'Modulus of Elasticity', "Poisson's Ratio", 'Density']}
+\end{center}
+The database deliberately does not contain a dedicated column for $G_s$. Standard engineering practice and isotropic elasticity theory derive shear modulus directly from Young's modulus $E$ and Poisson's ratio $\nu$:
+\begin{equation}
+    G_s = \frac{E_s}{2(1 + \nu)}
+\end{equation}
+Because \texttt{KEY_MATERIAL_GIRDER_G} is only populated when a user chooses "Custom" material, selecting any standard steel grade caused an unhandled exception.
+
+\subsection{Defect BUG\_OB\_002: Concrete Property Resolution in Designer}
+\textbf{Symptoms}: When standard concrete grades (e.g., \texttt{M35}) were selected from the basic inputs dropdown, executing the design check triggered:
+\begin{lstlisting}[language=bash]
+ValueError: 'material.deck.fck' is required but was not found in 'input_dict'.
+\end{lstlisting}
+
+\textbf{Root Cause}: The desktop UI and \texttt{solve_extend_basic_input_dict()} store the selected concrete grade as \texttt{KEY_DECK_CONCRETE_GRADE_BASIC = 'M35'}. While \texttt{plategirderbridge.py} properly resolves the concrete properties dictionary under \texttt{bridge.material_props.concrete_prop}, \texttt{designer.py} expected explicit sub-keys (\texttt{material.deck.fck}, \texttt{material.deck.fctm}, \texttt{material.deck.ecm}) to exist directly in \texttt{input_dict}. Consequently, any standard workflow that did not involve manually overriding the custom deck dialog crashed during design capacity calculations.

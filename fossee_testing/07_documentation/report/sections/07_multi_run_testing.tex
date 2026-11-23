@@ -1,0 +1,23 @@
+\chapter{Multi-Run Testing}
+\label{chap:multi_run_testing}
+
+\section{The Multi-Run Challenge in Desktop CAD/CAE}
+Desktop engineering applications that integrate complex 3D graphics (OpenCASCADE) and finite-element solvers (OpenSeesPy/OspGrillage) often suffer from subtle state contamination across consecutive design runs within a single user session. Common failure modes include:
+\begin{itemize}
+    \item Failure to purge previous grillage nodes and element meshes from memory.
+    \item Lingering AIS (Application Interactive Service) 3D shapes on the CAD canvas.
+    \item Partial updates to \texttt{input\_dict} or \texttt{output\_dict}, leaving keys from a prior run intact.
+\end{itemize}
+
+\section{The 3-Run Alternating Protocol}
+To rigorously evaluate state isolation, a 3-run protocol was formulated:
+\begin{enumerate}
+    \item \textbf{Run 1 (Baseline)}: Span = $20.0\text{ m}$, Girders = 3, Material = E250. Execute design solve $\rightarrow$ Dump dictionary state $S_1$.
+    \item \textbf{Run 2 (Modified)}: Span = $36.0\text{ m}$, Girders = 5, Material = E410. Execute design solve $\rightarrow$ Dump dictionary state $S_2$.
+    \item \textbf{Run 3 (Reverted)}: Span = $20.0\text{ m}$, Girders = 3, Material = E250. Execute design solve $\rightarrow$ Dump dictionary state $S_3$.
+\end{enumerate}
+
+\begin{equation}
+    \Delta(S_1, S_3) = \sum_{k \in S_1 \cup S_3} |S_1[k] - S_3[k]| \equiv 0
+\end{equation}
+Any non-zero difference $\Delta(S_1, S_3)$ indicates state leakage or incomplete reset routines. The automated script \texttt{compare\_dictionaries.py} performs this diff check with customizable numerical tolerances.

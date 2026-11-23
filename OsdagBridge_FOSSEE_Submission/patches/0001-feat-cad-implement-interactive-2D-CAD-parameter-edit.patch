@@ -1,0 +1,825 @@
+From 8bfbe66fb513da7208a0f23fc4ea71c6f60b461b Mon Sep 17 00:00:00 2001
+From: pranshu <snpranshukhtk99@gmail.com>
+Date: Thu, 19 Nov 2026 14:54:33 +0530
+Subject: [PATCH 1/5] feat(cad): implement interactive 2D CAD parameter editing
+ (Task I)
+
+- Add in-place QLineEdit overlay on double-click for editable parameters
+- Support editing Carriageway Width, Girder Spacing, Deck Thickness, and Span Length
+- Keep Overhang, Overall Bridge Width, and Bracing Spacing locked as read-only
+- Validate input using BridgeInputValidator for numeric, zero, negative, and engineering limits
+- Commit on Enter and click-outside; revert on Escape or validation failure
+- Synchronize updated values with input dictionaries, UI dock widgets, and trigger CAD redraw
+---
+ .../desktop/ui/docks/cad_cross_section.py     | 259 +++++++++++++++++-
+ .../desktop/ui/docks/cad_dual_view.py         |  10 +-
+ .../desktop/ui/docks/cad_top_view.py          | 229 +++++++++++++++-
+ src/osdagbridge/desktop/ui/template_page.py   |  40 +++
+ 4 files changed, 513 insertions(+), 25 deletions(-)
+
+diff --git a/src/osdagbridge/desktop/ui/docks/cad_cross_section.py b/src/osdagbridge/desktop/ui/docks/cad_cross_section.py
+index 8798c12..a72a4aa 100644
+--- a/src/osdagbridge/desktop/ui/docks/cad_cross_section.py
++++ b/src/osdagbridge/desktop/ui/docks/cad_cross_section.py
+@@ -5,8 +5,9 @@ Author: Arushi
+ """
+ 
+ import math
+-from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
+-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
++from copy import deepcopy
++from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea, QLineEdit
++from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize, Signal, QEvent
+ from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon, QPixmap
+ from osdagbridge.core.utils.common import *
+ from osdagbridge.desktop.cad.irc5_geometry import (
+@@ -18,6 +19,9 @@ from osdagbridge.desktop.cad.irc5_geometry import (
+ 
+ class CrossSectionCADWidget(QWidget):
+     """Widget for drawing bridge cross-section view"""
++    # Signal emitted when a CAD parameter is interactively edited (Task I)
++    parameter_edited = Signal(str, float)
++
+     # ===== SHARED CAD COLORS =====
+     GIRDER_COLOR = QColor(179, 180, 160) 
+     STIFFENER_COLOR = QColor(210, 210, 205)
+@@ -52,6 +56,12 @@ class CrossSectionCADWidget(QWidget):
+         self.interactive_hover = True
+         self.highlighted_girder_index = -1
+ 
++        # Interactive CAD Parameter Editing (Task I)
++        self.registered_dimension_labels = []
++        self._editor = None
++        self._active_label_info = None
++        self._last_input_dict = {}
++
+         # Scale factor for diagram size (1.0 = normal, <1.0 = smaller)
+         self.scale_factor = 1.0
+ 
+@@ -720,7 +730,184 @@ class CrossSectionCADWidget(QWidget):
+             self.hovered_element = new_hovered_element
+             self.update()
+ 
+-        
++    # ── Interactive Parameter Editing (Task I) ──────────────────────────────────
++
++    def mouseDoubleClickEvent(self, event):
++        """Handle mouse double click to edit editable CAD dimension labels."""
++        pos = event.position() if hasattr(event, 'position') else event.pos()
++        for label_info in getattr(self, "registered_dimension_labels", []):
++            rect = label_info["rect"]
++            if rect.adjusted(-4, -4, 4, 4).contains(pos):
++                if not label_info.get("editable", False):
++                    # Locked parameter (Overhang, Overall Bridge Width, Bracing Spacing): remain read-only
++                    return
++                self._start_in_place_edit(label_info)
++                return
++        super().mouseDoubleClickEvent(event)
++
++    def mousePressEvent(self, event):
++        """Commit edit when clicking outside the editor widget."""
++        if hasattr(self, "_editor") and self._editor is not None and self._editor.isVisible():
++            pos = event.position() if hasattr(event, 'position') else event.pos()
++            if not self._editor.geometry().contains(pos.toPoint()):
++                self._commit_edit()
++                return
++        super().mousePressEvent(event)
++
++    def eventFilter(self, obj, event):
++        """Handle focus loss and Escape key on the overlay editor."""
++        if hasattr(self, "_editor") and obj == self._editor:
++            if event.type() == QEvent.FocusOut:
++                self._commit_edit()
++                return True
++            elif event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
++                self._cancel_edit()
++                return True
++        return super().eventFilter(obj, event)
++
++    def _start_in_place_edit(self, label_info):
++        """Spawn overlay QLineEdit directly over the dimension label."""
++        if hasattr(self, "_editor") and self._editor is not None:
++            self._commit_edit()
++
++        self._active_label_info = label_info
++        rect = label_info["rect"].toRect()
++
++        self._editor = QLineEdit(self)
++        self._editor.setObjectName("cad_in_place_editor")
++        width = max(rect.width() + 14, 85)
++        height = max(rect.height() + 8, 26)
++        center = rect.center()
++        self._editor.setGeometry(int(center.x() - width / 2), int(center.y() - height / 2), int(width), int(height))
++        
++        self._editor.setStyleSheet("""
++            QLineEdit {
++                background-color: #ffffff;
++                color: #111111;
++                border: 2px solid #90AF13;
++                border-radius: 3px;
++                padding: 1px 4px;
++                font-size: 11px;
++                font-weight: bold;
++                selection-background-color: #90AF13;
++                selection-color: #ffffff;
++            }
++        """)
++
++        cur_val = label_info.get("current_val")
++        if cur_val is None:
++            key = label_info["key"]
++            if key == KEY_CARRIAGEWAY_WIDTH:
++                cur_val = self.params.get("carriageway_width", 0) / 1000.0
++            elif key == KEY_TS_GIRDER_SPACING:
++                cur_val = self.params.get("girder_spacing", 0) / 1000.0
++            elif key == KEY_TS_DECK_THICKNESS:
++                cur_val = self.params.get("deck_thickness", 0)
++            elif key == KEY_SPAN:
++                cur_val = self.params.get("span_length", 0) / 1000.0
++            else:
++                cur_val = 0.0
++
++        if label_info.get("unit") == "mm":
++            self._editor.setText(f"{cur_val:.0f}")
++        else:
++            self._editor.setText(f"{cur_val:.2f}")
++
++        self._editor.selectAll()
++        self._editor.show()
++        self._editor.setFocus()
++
++        self._editor.returnPressed.connect(self._commit_edit)
++        self._editor.installEventFilter(self)
++
++    def _commit_edit(self):
++        """Validate input value and emit parameter_edited on success."""
++        if not hasattr(self, "_editor") or self._editor is None:
++            return
++
++        editor = self._editor
++        label_info = getattr(self, "_active_label_info", None)
++        self._editor = None
++        self._active_label_info = None
++
++        text = editor.text().strip()
++        editor.removeEventFilter(self)
++        editor.hide()
++        editor.deleteLater()
++
++        if label_info is None:
++            return
++
++        key = label_info["key"]
++
++        # Validate non-empty
++        if not text:
++            self._show_edit_error("Value cannot be empty.")
++            return
++
++        # Validate numeric
++        try:
++            val = float(text)
++        except ValueError:
++            self._show_edit_error("Value must be a valid number.")
++            return
++
++        # Validate non-zero positive
++        if val <= 0:
++            self._show_edit_error("Value must be greater than zero.")
++            return
++
++        # Engineering validation via BridgeInputValidator
++        from osdagbridge.core.bridge_types.plate_girder.validator import BridgeInputValidator
++        validator = BridgeInputValidator()
++        
++        test_dict = deepcopy(getattr(self, "_last_input_dict", {}))
++        if KEY_CARRIAGEWAY_WIDTH not in test_dict:
++            test_dict[KEY_CARRIAGEWAY_WIDTH] = self.params.get("carriageway_width", 0) / 1000.0
++        if KEY_SPAN not in test_dict:
++            test_dict[KEY_SPAN] = self.params.get("span_length", 0) / 1000.0
++        if KEY_TS_GIRDER_SPACING not in test_dict:
++            test_dict[KEY_TS_GIRDER_SPACING] = self.params.get("girder_spacing", 0) / 1000.0
++        if KEY_TS_DECK_THICKNESS not in test_dict:
++            test_dict[KEY_TS_DECK_THICKNESS] = self.params.get("deck_thickness", 0)
++        if KEY_TS_OVERALL_WIDTH not in test_dict:
++            test_dict[KEY_TS_OVERALL_WIDTH] = self.params.get("num_girders", 4) * (self.params.get("girder_spacing", 2000) / 1000.0)
++
++        test_dict[key] = val
++
++        if key in (KEY_SPAN, KEY_CARRIAGEWAY_WIDTH):
++            err = validator.validate_basic_inputs(key, test_dict)
++        else:
++            err = validator.validate_additional_inputs(key, test_dict)
++
++        if err is not None:
++            corrected, msg = err
++            self._show_edit_error(msg)
++            return
++
++        # Commit edit: emit signal
++        self.parameter_edited.emit(key, val)
++
++    def _cancel_edit(self):
++        """Cancel active in-place editing without committing."""
++        if hasattr(self, "_editor") and self._editor is not None:
++            editor = self._editor
++            self._editor = None
++            self._active_label_info = None
++            editor.removeEventFilter(self)
++            editor.hide()
++            editor.deleteLater()
++
++    def _show_edit_error(self, message: str):
++        """Display validation error message."""
++        from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
++        CustomMessageBox(
++            title="Input Error",
++            text=message,
++            buttons=["OK"],
++            dialogType=MessageBoxType.Warning,
++        ).exec()
++
+     def paintEvent(self, event):
+         # Position buttons on first paint if not done yet
+         if hasattr(self, 'zoom_in_btn') and not hasattr(self, '_buttons_positioned'):
+@@ -729,6 +916,7 @@ class CrossSectionCADWidget(QWidget):
+         # clear hover labels and zones at start of each paint
+         self.hover_labels = []
+         self.cross_section_hover_zones = []
++        self.registered_dimension_labels = []
+         
+         painter = QPainter(self)
+         try:
+@@ -739,9 +927,11 @@ class CrossSectionCADWidget(QWidget):
+             print(" PAINT ERROR:", repr(e))
+         finally:
+             painter.end() 
++
+     def draw_text_with_background(self, painter, x, y, text,
+                                bg_color=QColor(255, 255, 255, 230), 
+-                               text_color=QColor(0, 0, 0), font_size=9, bold=False):
++                               text_color=QColor(0, 0, 0), font_size=9, bold=False,
++                               param_key=None, editable=False, unit="", current_val=None):
+ 
+         # defensive check: font size must be > 0
+         font_size = max(1, font_size)
+@@ -778,8 +968,22 @@ class CrossSectionCADWidget(QWidget):
+         for i, line in enumerate(lines):
+             painter.drawText(int(x), int(first_line_y + i * line_height), line)
+ 
++        if param_key:
++            if not hasattr(self, "registered_dimension_labels"):
++                self.registered_dimension_labels = []
++            self.registered_dimension_labels.append({
++                "rect": bg_rect,
++                "key": param_key,
++                "editable": editable,
++                "unit": unit,
++                "text": text,
++                "current_val": current_val,
++            })
++
++        return bg_rect
++
+     
+-    def draw_dimension_arrow(self, painter, x1, y1, x2, y2, text, horizontal=True, offset=0, text_offset=0, draw_extensions=True, extension_direction='down', extension_end_y=None):
++    def draw_dimension_arrow(self, painter, x1, y1, x2, y2, text, horizontal=True, offset=0, text_offset=0, draw_extensions=True, extension_direction='down', extension_end_y=None, param_key=None, editable=False, unit="", current_val=None):
+         """dimension line with arrows and text with extension lines"""
+         painter.setPen(QPen(QColor(0, 0, 0), 0.8))
+         
+@@ -847,7 +1051,8 @@ class CrossSectionCADWidget(QWidget):
+             text_width = metrics.boundingRect(text).width()
+             
+             self.draw_text_with_background(painter, text_x - text_width/2, text_y, text, 
+-                                        QColor(255, 255, 255, 255), QColor(0, 0, 0), 9, False)
++                                        QColor(255, 255, 255, 255), QColor(0, 0, 0), 9, False,
++                                        param_key=param_key, editable=editable, unit=unit, current_val=current_val)
+         else:
+             top_arrow = [
+                 QPointF(x1, y1),
+@@ -2078,7 +2283,11 @@ class CrossSectionCADWidget(QWidget):
+             QColor(255, 255, 255, 255),
+             QColor(0, 0, 0),
+             9,
+-            False
++            False,
++            param_key=KEY_TS_OVERALL_WIDTH,
++            editable=False,
++            unit="m",
++            current_val=total_width_m,
+         )
+ 
+         # LEVEL 2: Footpath dimensions
+@@ -2124,7 +2333,11 @@ class CrossSectionCADWidget(QWidget):
+             self.draw_dimension_arrow(painter, actual_cw_start, Y_TOP_COMMON, median_start_x, Y_TOP_COMMON,
+                                     label_cw, True, 
+                                     extension_direction='down',
+-                                    extension_end_y=deck_top_y)
++                                    extension_end_y=deck_top_y,
++                                    param_key=KEY_CARRIAGEWAY_WIDTH,
++                                    editable=True,
++                                    unit="m",
++                                    current_val=cw_m)
+             
+             # Median dimension
+             median_m = median_width / 1000
+@@ -2141,7 +2354,11 @@ class CrossSectionCADWidget(QWidget):
+             self.draw_dimension_arrow(painter, median_end_x, Y_TOP_COMMON, actual_cw_end, Y_TOP_COMMON,
+                                     label_cw, True, 
+                                     extension_direction='down',
+-                                    extension_end_y=deck_top_y)
++                                    extension_end_y=deck_top_y,
++                                    param_key=KEY_CARRIAGEWAY_WIDTH,
++                                    editable=True,
++                                    unit="m",
++                                    current_val=cw_m)
+         else:
+             # Single carriageway
+             cw_m = self.params['carriageway_width'] / 1000
+@@ -2153,7 +2370,11 @@ class CrossSectionCADWidget(QWidget):
+             self.draw_dimension_arrow(painter, actual_cw_start, Y_TOP_COMMON, actual_cw_end, Y_TOP_COMMON,
+                                     label_cw, True, 
+                                     extension_direction='down',
+-                                    extension_end_y=deck_top_y)
++                                    extension_end_y=deck_top_y,
++                                    param_key=KEY_CARRIAGEWAY_WIDTH,
++                                    editable=True,
++                                    unit="m",
++                                    current_val=cw_m)
+         
+         # Right footpath dimension
+         if right_railing_present and right_fp_width > 0:
+@@ -2188,7 +2409,11 @@ class CrossSectionCADWidget(QWidget):
+             self.draw_dimension_arrow(painter, deck_left_x, Y_OVERHANG, first_girder_x, Y_OVERHANG,
+                                     label_overhang, True,
+                                     extension_direction='up',
+-                                    extension_end_y=deck_bottom_y)
++                                    extension_end_y=deck_bottom_y,
++                                    param_key=KEY_TS_DECK_OVERHANG,
++                                    editable=False,
++                                    unit="m",
++                                    current_val=overhang_m)
+         
+         # Girder spacing
+         if n > 1 and len(positions) >= 2:
+@@ -2208,7 +2433,11 @@ class CrossSectionCADWidget(QWidget):
+             self.draw_dimension_arrow(painter, x_left, Y_GIRDER_SPACING, x_right, Y_GIRDER_SPACING,
+                                     label_gs, True, 
+                                     extension_direction='up',
+-                                    extension_end_y=base_y)
++                                    extension_end_y=base_y,
++                                    param_key=KEY_TS_GIRDER_SPACING,
++                                    editable=True,
++                                    unit="m",
++                                    current_val=gs_m)
+         
+         # FOOTPATH THICKNESS DIMENSION 
+         fp_t_mm = self.params['footpath_thickness']
+@@ -2286,7 +2515,11 @@ class CrossSectionCADWidget(QWidget):
+             text_y = local_deck_top_y - 8
+             
+             self.draw_text_with_background(painter, text_x, text_y, text,
+-                                        QColor(255, 255, 255, 255), QColor(0, 0, 0), 9, False)
++                                        QColor(255, 255, 255, 255), QColor(0, 0, 0), 9, False,
++                                        param_key=KEY_TS_DECK_THICKNESS,
++                                        editable=True,
++                                        unit="mm",
++                                        current_val=deck_t_mm)
+     def add_cross_section_hover_labels(self, painter, carriageway_start_x, carriageway_end_x,
+                     left_barrier_x, right_barrier_x, deck_top_y, deck_bottom_y,
+                     deck_thick_px, positions, base_y, scale, n, fp_config,
+diff --git a/src/osdagbridge/desktop/ui/docks/cad_dual_view.py b/src/osdagbridge/desktop/ui/docks/cad_dual_view.py
+index 11b5d8f..534e276 100644
+--- a/src/osdagbridge/desktop/ui/docks/cad_dual_view.py
++++ b/src/osdagbridge/desktop/ui/docks/cad_dual_view.py
+@@ -5,7 +5,7 @@ Author: Arushi
+ """
+ 
+ from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QScrollArea, QHBoxLayout, QPushButton, QLabel
+-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve
++from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Signal
+ from .cad_cross_section import CrossSectionCADWidget
+ from .cad_top_view import TopViewCADWidget
+ from osdagbridge.core.utils.common import *
+@@ -17,6 +17,8 @@ from osdagbridge.desktop.cad.irc5_geometry import (
+ 
+ class BridgeDualCADWidget(QWidget):
+     """Split view widget showing both cross-section and top view with individual controls"""
++    # Signal emitted when a CAD parameter is interactively edited (Task I)
++    parameter_edited = Signal(str, float)
+     
+     def __init__(self, parent=None):
+         super().__init__(parent)
+@@ -75,6 +77,10 @@ class BridgeDualCADWidget(QWidget):
+         self.splitter.setStretchFactor(0, 1)
+         self.splitter.setStretchFactor(1, 1)
+         
++        # Connect interactive parameter editing signals (Task I)
++        self.cross_section_widget.parameter_edited.connect(self.parameter_edited.emit)
++        self.top_view_widget.parameter_edited.connect(self.parameter_edited.emit)
++        
+         layout.addWidget(self.splitter)
+     
+     def set_cross_section_visible(self, visible):
+@@ -155,6 +161,8 @@ class BridgeDualCADWidget(QWidget):
+         Args:
+             input_dict: Dictionary with keys from common.py (e.g., KEY_SPAN, KEY_CARRIAGEWAY_WIDTH)
+         """
++        self.cross_section_widget._last_input_dict = input_dict
++        self.top_view_widget._last_input_dict = input_dict
+         
+         params = {}
+         
+diff --git a/src/osdagbridge/desktop/ui/docks/cad_top_view.py b/src/osdagbridge/desktop/ui/docks/cad_top_view.py
+index e606a23..8721d9e 100644
+--- a/src/osdagbridge/desktop/ui/docks/cad_top_view.py
++++ b/src/osdagbridge/desktop/ui/docks/cad_top_view.py
+@@ -5,8 +5,9 @@ Author: Arushi
+ """
+ from osdagbridge.core.utils.common import *
+ import math
+-from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
+-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
++from copy import deepcopy
++from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea, QLineEdit
++from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize, Signal, QEvent
+ from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon
+ from .cad_cross_section import CrossSectionCADWidget
+ 
+@@ -27,6 +28,8 @@ LEADER_TEXT_OFFSET = 25    # leader label distance
+ 
+ class TopViewCADWidget(QWidget):
+     """Widget for drawing bridge top view"""
++    # Signal emitted when a CAD parameter is interactively edited (Task I)
++    parameter_edited = Signal(str, float)
+     
+     def __init__(self, parent=None):
+         super().__init__(parent)
+@@ -38,6 +41,12 @@ class TopViewCADWidget(QWidget):
+         # top view hover tracking 
+         self.top_view_hover_zones = []  # list of (QRectF, element_type)
+         self.hovered_top_view_element = None
++
++        # Interactive CAD Parameter Editing (Task I)
++        self.registered_dimension_labels = []
++        self._editor = None
++        self._active_label_info = None
++        self._last_input_dict = {}
+         
+         # Zoom level for this widget
+         self.zoom_level = 1.0
+@@ -440,7 +449,15 @@ class TopViewCADWidget(QWidget):
+ 
+ 
+     def eventFilter(self, obj, event):
+-        """Filter events to catch viewport resize"""
++        """Filter events to catch viewport resize and in-place editor focus/keys"""
++        if hasattr(self, "_editor") and obj == self._editor:
++            if event.type() == QEvent.FocusOut:
++                self._commit_edit()
++                return True
++            elif event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
++                self._cancel_edit()
++                return True
++
+         if obj == (self.scroll_area.viewport() if self.scroll_area else None):
+             if event.type() == event.Type.Resize:
+                 # Viewport resized - reposition buttons
+@@ -448,6 +465,173 @@ class TopViewCADWidget(QWidget):
+                 self.fit_to_screen()
+         return super().eventFilter(obj, event)
+ 
++    # ── Interactive Parameter Editing (Task I) ──────────────────────────────────
++
++    def mouseDoubleClickEvent(self, event):
++        """Handle mouse double click to edit editable CAD dimension labels."""
++        pos = event.position() if hasattr(event, 'position') else event.pos()
++        for label_info in getattr(self, "registered_dimension_labels", []):
++            rect = label_info["rect"]
++            if rect.adjusted(-4, -4, 4, 4).contains(pos):
++                if not label_info.get("editable", False):
++                    # Locked parameter (Overhang, Overall Bridge Width, Bracing Spacing): remain read-only
++                    return
++                self._start_in_place_edit(label_info)
++                return
++            super().mouseDoubleClickEvent(event)
++
++    def mousePressEvent(self, event):
++        """Commit edit when clicking outside the editor widget."""
++        if hasattr(self, "_editor") and self._editor is not None and self._editor.isVisible():
++            pos = event.position() if hasattr(event, 'position') else event.pos()
++            if not self._editor.geometry().contains(pos.toPoint()):
++                self._commit_edit()
++                return
++        super().mousePressEvent(event)
++
++    def _start_in_place_edit(self, label_info):
++        """Spawn overlay QLineEdit directly over the dimension label."""
++        if hasattr(self, "_editor") and self._editor is not None:
++            self._commit_edit()
++
++        self._active_label_info = label_info
++        rect = label_info["rect"].toRect()
++
++        self._editor = QLineEdit(self)
++        self._editor.setObjectName("cad_in_place_editor")
++        width = max(rect.width() + 14, 85)
++        height = max(rect.height() + 8, 26)
++        center = rect.center()
++        self._editor.setGeometry(int(center.x() - width / 2), int(center.y() - height / 2), int(width), int(height))
++        
++        self._editor.setStyleSheet("""
++            QLineEdit {
++                background-color: #ffffff;
++                color: #111111;
++                border: 2px solid #90AF13;
++                border-radius: 3px;
++                padding: 1px 4px;
++                font-size: 11px;
++                font-weight: bold;
++                selection-background-color: #90AF13;
++                selection-color: #ffffff;
++            }
++        """)
++
++        cur_val = label_info.get("current_val")
++        if cur_val is None:
++            key = label_info["key"]
++            if key == KEY_CARRIAGEWAY_WIDTH:
++                cur_val = self.params.get("carriageway_width", 0) / 1000.0
++            elif key == KEY_TS_GIRDER_SPACING:
++                cur_val = self.params.get("girder_spacing", 0) / 1000.0
++            elif key == KEY_TS_DECK_THICKNESS:
++                cur_val = self.params.get("deck_thickness", 0)
++            elif key == KEY_SPAN:
++                cur_val = self.params.get("span_length", 0) / 1000.0
++            else:
++                cur_val = 0.0
++
++        if label_info.get("unit") == "mm":
++            self._editor.setText(f"{cur_val:.0f}")
++        else:
++            self._editor.setText(f"{cur_val:.2f}")
++
++        self._editor.selectAll()
++        self._editor.show()
++        self._editor.setFocus()
++
++        self._editor.returnPressed.connect(self._commit_edit)
++        self._editor.installEventFilter(self)
++
++    def _commit_edit(self):
++        """Validate input value and emit parameter_edited on success."""
++        if not hasattr(self, "_editor") or self._editor is None:
++            return
++
++        editor = self._editor
++        label_info = getattr(self, "_active_label_info", None)
++        self._editor = None
++        self._active_label_info = None
++
++        text = editor.text().strip()
++        editor.removeEventFilter(self)
++        editor.hide()
++        editor.deleteLater()
++
++        if label_info is None:
++            return
++
++        key = label_info["key"]
++
++        # Validate non-empty
++        if not text:
++            self._show_edit_error("Value cannot be empty.")
++            return
++
++        # Validate numeric
++        try:
++            val = float(text)
++        except ValueError:
++            self._show_edit_error("Value must be a valid number.")
++            return
++
++        # Validate non-zero positive
++        if val <= 0:
++            self._show_edit_error("Value must be greater than zero.")
++            return
++
++        # Engineering validation via BridgeInputValidator
++        from osdagbridge.core.bridge_types.plate_girder.validator import BridgeInputValidator
++        validator = BridgeInputValidator()
++        
++        test_dict = deepcopy(getattr(self, "_last_input_dict", {}))
++        if KEY_CARRIAGEWAY_WIDTH not in test_dict:
++            test_dict[KEY_CARRIAGEWAY_WIDTH] = self.params.get("carriageway_width", 0) / 1000.0
++        if KEY_SPAN not in test_dict:
++            test_dict[KEY_SPAN] = self.params.get("span_length", 0) / 1000.0
++        if KEY_TS_GIRDER_SPACING not in test_dict:
++            test_dict[KEY_TS_GIRDER_SPACING] = self.params.get("girder_spacing", 0) / 1000.0
++        if KEY_TS_DECK_THICKNESS not in test_dict:
++            test_dict[KEY_TS_DECK_THICKNESS] = self.params.get("deck_thickness", 0)
++        if KEY_TS_OVERALL_WIDTH not in test_dict:
++            test_dict[KEY_TS_OVERALL_WIDTH] = self.params.get("num_girders", 4) * (self.params.get("girder_spacing", 2000) / 1000.0)
++
++        test_dict[key] = val
++
++        if key in (KEY_SPAN, KEY_CARRIAGEWAY_WIDTH):
++            err = validator.validate_basic_inputs(key, test_dict)
++        else:
++            err = validator.validate_additional_inputs(key, test_dict)
++
++        if err is not None:
++            corrected, msg = err
++            self._show_edit_error(msg)
++            return
++
++        # Commit edit: emit signal
++        self.parameter_edited.emit(key, val)
++
++    def _cancel_edit(self):
++        """Cancel active in-place editing without committing."""
++        if hasattr(self, "_editor") and self._editor is not None:
++            editor = self._editor
++            self._editor = None
++            self._active_label_info = None
++            editor.removeEventFilter(self)
++            editor.hide()
++            editor.deleteLater()
++
++    def _show_edit_error(self, message: str):
++        """Display validation error message."""
++        from osdagbridge.desktop.ui.dialogs.custom_messagebox import CustomMessageBox, MessageBoxType
++        CustomMessageBox(
++            title="Input Error",
++            text=message,
++            buttons=["OK"],
++            dialogType=MessageBoxType.Warning,
++        ).exec()
++
+     def update_params(self, params: dict):
+         self.params.update(params)
+ 
+@@ -478,8 +662,9 @@ class TopViewCADWidget(QWidget):
+             self.update()
+ 
+     def paintEvent(self, event):
+-        # clear hover zones at start of each paint
++        # clear hover zones and registered labels at start of each paint
+         self.top_view_hover_zones = []
++        self.registered_dimension_labels = []
+         
+         painter = QPainter(self)
+         painter.setRenderHint(QPainter.Antialiasing)
+@@ -489,7 +674,8 @@ class TopViewCADWidget(QWidget):
+         
+     def draw_text_with_background(self, painter, x, y, text,
+                               bg_color=QColor(255, 255, 255, 230), 
+-                              text_color=QColor(0, 0, 0), font_size=9, bold=False):
++                              text_color=QColor(0, 0, 0), font_size=9, bold=False,
++                              param_key=None, editable=False, unit="", current_val=None):
+ 
+         # defensive check: font size must be > 0
+         font_size = max(1, font_size)
+@@ -519,6 +705,20 @@ class TopViewCADWidget(QWidget):
+         painter.setBrush(QBrush(bg_color))
+         painter.drawRect(bg_rect)
+ 
++        # Draw subtle border for editable parameters if specified
++        if param_key is not None:
++            self.registered_dimension_labels.append({
++                "key": param_key,
++                "rect": bg_rect,
++                "editable": editable,
++                "unit": unit,
++                "current_val": current_val,
++            })
++            if editable:
++                painter.setPen(QPen(QColor(144, 175, 19, 120), 1, Qt.DashLine))
++                painter.setBrush(Qt.NoBrush)
++                painter.drawRect(bg_rect)
++
+         # Draw each text line
+         painter.setPen(QPen(text_color, 0.8))
+         first_line_y = y - total_height + metrics.ascent()
+@@ -526,6 +726,8 @@ class TopViewCADWidget(QWidget):
+         for i, line in enumerate(lines):
+             painter.drawText(int(x), int(first_line_y + i * line_height), line)
+ 
++        return bg_rect
++
+     
+     def draw_dimension_arrow(self, painter, x1, y1, x2, y2, text, horizontal=True, offset=0, text_offset=0, draw_extensions=True, extension_direction='down', extension_end_y=None):
+         """dimension line with arrows and text with extension lines"""
+@@ -1282,7 +1484,8 @@ class TopViewCADWidget(QWidget):
+             
+             self.draw_dimension_arrow_with_extensions_up(
+                 painter, x1_brace, dim_y1, x2_brace, dim_y1,
+-                label_cb, last_girder_y
++                label_cb, last_girder_y,
++                param_key=KEY_MP_CB_SPACING, editable=False, unit="m", current_val=cb_spacing_m
+             )
+             dim_y_next = dim_y_base + DIM_STACK_GAP
+         else:
+@@ -1299,7 +1502,8 @@ class TopViewCADWidget(QWidget):
+         
+         self.draw_dimension_arrow_with_extensions_up(
+             painter, x1_span, dim_y2, x2_span, dim_y2,
+-            label_span, last_girder_y
++            label_span, last_girder_y,
++            param_key=KEY_SPAN, editable=True, unit="m", current_val=span_m
+         )
+ 
+         # GIRDER SPACING dimension (always visible)
+@@ -1334,7 +1538,8 @@ class TopViewCADWidget(QWidget):
+                 painter, label_x, label_y,
+                 label_text,
+                 QColor(255, 255, 255, 240),
+-                QColor(0, 0, 0), 9, False
++                QColor(0, 0, 0), 9, False,
++                param_key=KEY_TS_GIRDER_SPACING, editable=True, unit="m", current_val=gs_m
+             )
+ 
+         # CL OF BEARING labels - ALWAYS VISIBLE (moved outside hover condition)
+@@ -1410,7 +1615,8 @@ class TopViewCADWidget(QWidget):
+             self.draw_clean_leader_line(painter, target_x, target_y, label_x, label_y,
+                                     "End Diaphragm", CAD_DARK_GREY, QColor(139, 69, 19))
+ 
+-    def draw_dimension_arrow_with_extensions_up(self, painter, x1, y1, x2, y2, text, girder_y):
++    def draw_dimension_arrow_with_extensions_up(self, painter, x1, y1, x2, y2, text, girder_y,
++                                                param_key=None, editable=False, unit="", current_val=None):
+         """Dimension line with arrows and extension lines going UP to girder level (dimension below)"""
+         painter.setPen(QPen(QColor(0, 0, 0), 1.0))
+         
+@@ -1461,8 +1667,9 @@ class TopViewCADWidget(QWidget):
+         metrics = painter.fontMetrics()
+         text_width = metrics.boundingRect(text).width()
+         
+-        self.draw_text_with_background(painter, text_x - text_width/2, text_y, text, 
+-                                    QColor(255, 255, 255, 240), QColor(0, 0, 0), 9, False)
++        return self.draw_text_with_background(painter, text_x - text_width/2, text_y, text, 
++                                       QColor(255, 255, 255, 240), QColor(0, 0, 0), 9, False,
++                                       param_key=param_key, editable=editable, unit=unit, current_val=current_val)
+ 
+ 
+     def draw_skewed_dimension_arrow(self, painter, x1, y1, x2, y2, text, skew_rad):
+diff --git a/src/osdagbridge/desktop/ui/template_page.py b/src/osdagbridge/desktop/ui/template_page.py
+index 9389434..bb03767 100644
+--- a/src/osdagbridge/desktop/ui/template_page.py
++++ b/src/osdagbridge/desktop/ui/template_page.py
+@@ -350,6 +350,7 @@ class CustomWindow(QWidget):
+         self.cad_comp_widget.setSizePolicy(
+             QSizePolicy.Expanding, QSizePolicy.Expanding
+         )
++        self.cad_comp_widget.parameter_edited.connect(self.on_cad_parameter_edited)
+         self.cad_log_splitter.addWidget(self.cad_comp_widget)
+ 
+         # from osdagbridge.desktop.ui.cad_3d import CAD3DWindow
+@@ -902,6 +903,45 @@ class CustomWindow(QWidget):
+         # Apply state to CAD UI & Update Cad-State
+         self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
+ 
++    def on_cad_parameter_edited(self, key: str, value: float):
++        """
++        Handle interactive 2D CAD dimension parameter edit (Task I).
++        Synchronizes the updated value to input_dict, UI widgets, re-solves geometry,
++        and triggers CAD redraw.
++        """
++        # 1. Update the central input dictionary
++        self.input_dict[key] = value
++
++        # 2. Synchronize main UI widget if this parameter is present in InputDock
++        if hasattr(self, "input_dock") and self.input_dock is not None:
++            w = self.input_dock._w(key)
++            if w is not None:
++                w.blockSignals(True)
++                if isinstance(w, QLineEdit):
++                    text_val = f"{value:.2f}" if isinstance(value, float) and value % 1 != 0 else str(int(value) if isinstance(value, float) and value.is_integer() else value)
++                    w.setText(text_val)
++                    self.input_dock.reset_error_state(w)
++                elif isinstance(w, QComboBox):
++                    w.setCurrentText(str(value))
++                w.blockSignals(False)
++
++        # 3. Re-solve derived geometry (overall bridge width, girder spacing, etc.)
++        try:
++            solve_extend_basic_input_dict(self.input_dict)
++        except Exception:
++            pass
++
++        # 4. Sync additional inputs dialog if already constructed
++        if getattr(self, "_additional_inputs_dialog", None) is not None:
++            try:
++                self._additional_inputs_dialog.set_input_dictionary(self.input_dict)
++                self._additional_inputs_dialog._update_additional_input_cad()
++            except Exception:
++                pass
++
++        # 5. Redraw CAD
++        self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
++
+     #---------------------------------Docking-Icons-Functionality-START----------------------------------------------
+ 
+     def input_dock_toggle(self):
+-- 
+2.52.0.windows.1
+

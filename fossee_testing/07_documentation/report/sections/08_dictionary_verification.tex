@@ -1,0 +1,15 @@
+\chapter{Dictionary Verification}
+\label{chap:dictionary_verification}
+
+\section{Internal Data Contracts}
+In OsdagBridge, decoupled components communicate via structured Python dictionaries following canonical dot-notation keys defined in \texttt{osdagbridge.core.utils.common}. 
+
+\section{Input and Output Dictionary Lifecycle}
+\begin{enumerate}
+    \item \textbf{Initialization}: Upon window instantiation, \texttt{CustomWindow} populates default keys (\texttt{KEY\_SPAN}, \texttt{KEY\_CARRIAGEWAY\_WIDTH}, etc.).
+    \item \textbf{Dialog Staging}: The Additional Inputs dialog creates a copy (\texttt{working\_input\_dict}) to allow modal user edits and cancellation without mutating the active state prematurely.
+    \item \textbf{Persistence (\texttt{.osi})}: When saving a project, the complete state is serialized to JSON format with an \texttt{.osi} extension.
+    \item \textbf{Output Population}: Upon successful grillage analysis and design verification, \texttt{output\_dict} receives computed sectional properties, forces, and limit-state ratios.
+\end{enumerate}
+
+Testing verifies that serialization and deserialization are lossless and that missing keys in hand-edited \texttt{.osi} files are caught by \texttt{validate\_osi\_inputs()} before causing application exceptions.

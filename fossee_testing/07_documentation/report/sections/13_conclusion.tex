@@ -1,0 +1,19 @@
+\chapter{Conclusion and Future Roadmap}
+\label{chap:conclusion}
+
+\section{Summary of Testing Achievements}
+The testing infrastructure established within \texttt{fossee\_testing/} provides a comprehensive, production-grade quality assurance environment for OsdagBridge:
+\begin{itemize}
+    \item A complete suite of 30 structured test specifications spanning basic geometry, custom material parameters, multi-run state persistence, dictionary schemas, and CAD/plot visualizations.
+    \item Reusable Python automation utilities for dictionary diffing (\texttt{compare\_dictionaries.py}), batch input validation (\texttt{validate\_inputs.py}), and metric aggregation (\texttt{generate\_test\_summary.py}).
+    \item Complete isolation from the original OsdagBridge codebase, guaranteeing zero interference with core application files.
+    \item Full traceability linking test cases, execution summaries, bug registers, and GitHub issues.
+\end{itemize}
+
+\section{Future Testing and Development Roadmap}
+Future milestones for the OsdagBridge testing framework include:
+\begin{enumerate}
+    \item Expanding automated regression test suites to cover emerging bridge types (e.g., Composite Box Girder and Steel Truss Bridges).
+    \item Integrating headless continuous integration (CI) workflows via GitHub Actions to run grillage solver benchmarks on every pull request.
+    \item Performing automated stress verification across expanded combinations of IRC:6 special vehicles and seismic load cases.
+\end{enumerate}

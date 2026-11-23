@@ -1,0 +1,31 @@
+\chapter{Environment and Setup}
+\label{chap:environment_setup}
+
+\section{Operating System and Execution Environment}
+Testing and validation are conducted in a controlled environment to ensure repeatability and isolate dependencies:
+\begin{itemize}
+    \item \textbf{Host Operating System}: Microsoft Windows 11 64-bit
+    \item \textbf{Python Runtime}: Python 3.12 (64-bit) managed via Conda / virtual environment
+    \item \textbf{Primary Libraries}:
+    \begin{itemize}
+        \item Graphical User Interface: \texttt{PySide6} (Qt 6.x)
+        \item 3D CAD Modeling: \texttt{pythonocc-core} (OpenCASCADE Technology 7.x)
+        \item Finite Element Modeling: \texttt{openseespy}, \texttt{ospgrillage}
+        \item Numerical Computing: \texttt{numpy}, \texttt{scipy}, \texttt{matplotlib}
+        \item Testing Frameworks: \texttt{pytest}, \texttt{flake8}
+    \end{itemize}
+\end{itemize}
+
+\section{Workspace Isolation (\texttt{fossee\_testing})}
+To guarantee zero contamination of the original OsdagBridge repository, all testing documentation, test case matrices, execution summaries, bug registers, and automation scripts are isolated within the \texttt{fossee\_testing/} root directory:
+\begin{lstlisting}[language=bash, caption={Execution entry points within OsdagBridge}]
+# To launch desktop GUI:
+./run_desktop.bat
+
+# To execute test automation tools:
+cd fossee_testing/06_automation_scripts
+python compare_dictionaries.py --help
+python validate_inputs.py --help
+python generate_test_summary.py
+\end{lstlisting}
+Existing core application files, package configurations, and conda recipes remain completely untouched.

@@ -1,0 +1,49 @@
+\chapter{Suggested Code-Level Fixes and Verifications}
+\label{chap:suggested_fixes}
+
+\section{Fix Formulation Standards}
+To maintain professional software engineering standards, fixes proposed and validated in this testing campaign adhere strictly to non-invasive principles:
+\begin{itemize}
+    \item \textbf{Backward Compatibility}: Existing public APIs, database schemas, and dictionary contracts are preserved without alteration.
+    \item \textbf{Engineering Defensiveness}: Automatic mathematical fallbacks based on IS 800:2007 and IRC:24 isotropic elasticity theory ensure robust execution across standard database grades and custom overrides.
+    \item \textbf{Regression Protection}: Dedicated automated pytest tests are established to prevent defect recurrence.
+\end{itemize}
+
+\section{Unified Diff Patches}
+
+\subsection{Patch for Defect BUG\_OB\_001 and BUG\_OB\_002}
+The listing below shows the exact code-level modifications applied to \texttt{src/osdagbridge/core/bridge_types/plate_girder/designer.py}:
+
+\begin{lstlisting}[language=Python, caption={Code Patch for Gs fallback and standard concrete property resolution}]
+--- a/src/osdagbridge/core/bridge_types/plate_girder/designer.py
++++ b/src/osdagbridge/core/bridge_types/plate_girder/designer.py
+@@ -311,7 +311,10 @@ class BridgeConfig:
+         else:
+             raw_Gs = input_dict.get(KEY_MATERIAL_GIRDER_G)
+             if raw_Gs is None:
+-                raise ValueError(
+-                    f"Gs (shear modulus) is not set for grade '{girder_grade}'. "
+-                    f"Populate it in the material database before running the design check."
+-                )
++                # Fallback to isotropic elasticity: Gs = Es / [2 * (1 + nu)]
++                raw_Gs = raw_Es / (2.0 * (1.0 + raw_nu))
+@@ -341,6 +344,14 @@ class BridgeConfig:
+         deck_ecm  = _to_float(input_dict.get(KEY_MATERIAL_DECK_ECM),  "deck.ecm")
+ 
++        # Fallback to bridge.material_props.concrete_prop for standard grades
++        if (deck_fck is None or deck_fctm is None or deck_ecm is None) and hasattr(bridge, "material_props"):
++            cprop = getattr(bridge.material_props, "concrete_prop", {})
++            if isinstance(cprop, dict):
++                deck_fck  = deck_fck  if deck_fck  is not None else _to_float(cprop.get("fck"),  "deck.fck")
++                deck_fctm = deck_fctm if deck_fctm is not None else _to_float(cprop.get("fctm"), "deck.fctm")
++                deck_ecm  = deck_ecm  if deck_ecm  is not None else _to_float(cprop.get("Ecm"),  "deck.ecm")
+\end{lstlisting}
+
+\section{Automated Verification Evidence}
+The implemented fixes were verified through regression test functions in \texttt{tests/unit/test_designer.py}:
+\begin{itemize}
+    \item \texttt{test_shear_modulus_fallback_regression()}: Confirms that for standard grade \texttt{E 350A}, $G_s = 76923.08\text{ MPa}$ is correctly derived ($70000 \le G_s \le 85000\text{ MPa}$) without raising \texttt{ValueError}.
+    \item \texttt{test_standard_concrete_properties_resolution_regression()}: Confirms that for standard grade \texttt{M35}, $f_{ck} = 35.0\text{ MPa}$, $f_{ctm} = 2.8\text{ MPa}$, and $E_{cm} = 31000\text{ MPa}$ are correctly populated from \texttt{material_props.concrete_prop}.
+\end{itemize}
+
+Both tests pass with zero errors across the continuous integration suite.

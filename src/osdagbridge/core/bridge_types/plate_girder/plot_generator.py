@@ -1679,3 +1679,345 @@ def capture_report_figures(ds_all, nodes, members, edge_dist=0.0, eng_scale=1.0)
 
     _log.info("capture_report_figures: %d plot(s) captured", len(data))
     return data
+
+
+# =============================================================================
+# TRANSVERSE MEMBER PLOTTING (Task III)
+# =============================================================================
+
+def _find_transverse_lines(nodes: dict, members: dict, z_tol: float = 1e-3) -> list[dict]:
+    """
+    Find and group transverse beam elements into ordered continuous chains across the bridge.
+    Returns:
+        list of dicts sorted by x-station from start (x=0) to end (x=L):
+        [
+            {
+                "x": float,
+                "elements": [int, ...],  # ordered along increasing z
+                "nodes": [int, ...],     # ordered along increasing z
+                "z_coords": [float, ...],
+                "stations": [float, ...], # distance along line from start (s=0 to s=L_line)
+            },
+            ...
+        ]
+    """
+    from collections import defaultdict
+    import math
+
+    # Identify elements with non-zero transverse span
+    trans_elems = []
+    for e, (n1, n2) in members.items():
+        if n1 in nodes and n2 in nodes:
+            if abs(nodes[n1][2] - nodes[n2][2]) > z_tol:
+                trans_elems.append(e)
+
+    if not trans_elems:
+        return []
+
+    # Group elements into lines sharing the same x position (within tolerance)
+    chains_by_x = defaultdict(list)
+    for e in trans_elems:
+        n1, n2 = members[e]
+        x_mid = round((nodes[n1][0] + nodes[n2][0]) / 2.0, 2)
+        chains_by_x[x_mid].append(e)
+
+    sorted_x = sorted(chains_by_x.keys())
+    result_lines = []
+
+    for x_val in sorted_x:
+        elems = chains_by_x[x_val]
+        # Sort along increasing z
+        elems.sort(key=lambda e: min(nodes[members[e][0]][2], nodes[members[e][1]][2]))
+
+        # Reconstruct continuous chain of nodes and elements
+        ordered_elems = []
+        ordered_nodes = []
+        for e in elems:
+            n1, n2 = members[e]
+            if nodes[n1][2] > nodes[n2][2]:
+                n1, n2 = n2, n1  # Orient so n1 has lower z
+
+            if not ordered_nodes:
+                ordered_nodes.extend([n1, n2])
+                ordered_elems.append(e)
+            else:
+                if n1 == ordered_nodes[-1]:
+                    ordered_nodes.append(n2)
+                    ordered_elems.append(e)
+                elif n2 == ordered_nodes[0]:
+                    ordered_nodes.insert(0, n1)
+                    ordered_elems.insert(0, e)
+                else:
+                    ordered_nodes.extend([n1, n2])
+                    ordered_elems.append(e)
+
+        # Compute cumulative stations along the transverse chain
+        stations = [0.0]
+        for i in range(len(ordered_nodes) - 1):
+            na, nb = ordered_nodes[i], ordered_nodes[i + 1]
+            c1, c2 = nodes[na], nodes[nb]
+            seg_len = math.sqrt((c2[0] - c1[0])**2 + (c2[1] - c1[1])**2 + (c2[2] - c1[2])**2)
+            stations.append(stations[-1] + seg_len)
+
+        z_coords = [nodes[n][2] for n in ordered_nodes]
+
+        result_lines.append({
+            "x": x_val,
+            "elements": ordered_elems,
+            "nodes": ordered_nodes,
+            "z_coords": z_coords,
+            "stations": stations,
+        })
+
+    return result_lines
+
+
+def build_figure_transverse(
+    ds,
+    member_type: str,
+    selected_member: str,
+    force_key: str,
+    nodes: dict,
+    members: dict,
+    edge_dist: float = 0.0,
+    eng_scale: float = 1.0,
+    loadcase: str = "",
+) -> tuple[Figure, dict]:
+    """
+    Build a 2-D matplotlib Figure plotting forces, moments, or displacements
+    for transverse members (End Diaphragms or Cross Bracings) per Task III.
+
+    X-axis: Distance along transverse member (m)
+    Y-axis: Result value with appropriate engineering units (kN, kNm, mm)
+    """
+    import numpy as np
+
+    lines = _find_transverse_lines(nodes, members)
+    if not lines:
+        fig = Figure(figsize=(10, 5), dpi=110, facecolor="white")
+        ax = fig.add_subplot(111)
+        ax.text(0.5, 0.5, "No transverse members found in model", ha="center", va="center")
+        return fig, {}
+
+    # Identify End Diaphragms (first and last lines) vs Cross Bracings (intermediate lines)
+    if len(lines) >= 2:
+        ed_lines = [lines[0], lines[-1]]
+        cb_lines = lines[1:-1] if len(lines) > 2 else lines
+    else:
+        ed_lines = lines
+        cb_lines = lines
+
+    # Filter target lines based on member_type and selected_member
+    target_lines = []
+    if member_type == "End Diaphragms":
+        if "1" in selected_member or "Start" in selected_member:
+            target_lines = [("End Diaphragm 1 (Start)", ed_lines[0])]
+        elif "2" in selected_member or "End" in selected_member:
+            target_lines = [("End Diaphragm 2 (End)", ed_lines[-1])]
+        else:
+            target_lines = [
+                ("End Diaphragm 1 (Start)", ed_lines[0]),
+                ("End Diaphragm 2 (End)", ed_lines[-1]),
+            ]
+    else:  # "Cross Bracings"
+        if selected_member == "All" or not cb_lines:
+            target_lines = [
+                (f"Cross Bracing {i+1} (x = {line['x']:.2f} m)", line)
+                for i, line in enumerate(cb_lines)
+            ]
+        else:
+            matched = None
+            for i, line in enumerate(cb_lines):
+                name = f"Cross Bracing {i+1}"
+                if name.lower() in selected_member.lower() or f"{line['x']:.2f}" in selected_member:
+                    matched = (f"{name} (x = {line['x']:.2f} m)", line)
+                    break
+            if matched:
+                target_lines = [matched]
+            else:
+                target_lines = [(f"Cross Bracing 1 (x = {cb_lines[0]['x']:.2f} m)", cb_lines[0])]
+
+    # Determine component details
+    is_disp = force_key in DISP_MAP or force_key in ("Dx", "Dy", "Dz")
+    disp_name = FORCE_DISPLAY.get(force_key, DISP_DISPLAY.get(force_key, force_key))
+    if is_disp:
+        unit = "mm"
+    elif force_key.startswith("F") or force_key.startswith("V"):
+        unit = "kN"
+    else:
+        unit = "kNm"
+
+    fig = Figure(figsize=(10, 5), dpi=110, facecolor="white")
+    ax = fig.add_subplot(111, facecolor="white")
+
+    palette = [
+        "#1565C0", "#E65100", "#2E7D32", "#6A1B9A", "#C2185B",
+        "#00838F", "#D84315", "#455A64", "#00695C", "#283593"
+    ]
+
+    all_vals_global = []
+    all_stations_global = []
+    summary_data = {}
+
+    # Identify girder z-stations across the bridge for vertical indicator lines
+    girders_dict = _find_girders(nodes, members)
+    girder_z_vals = sorted(girders_dict.keys())
+    girder_labels = [f"G{i+1}" for i in range(len(girder_z_vals))]
+
+    # Plot each target line
+    for idx, (line_label, line_data) in enumerate(target_lines):
+        color = palette[idx % len(palette)]
+        elems = line_data["elements"]
+        line_nodes = line_data["nodes"]
+        stations = line_data["stations"]
+
+        plot_s = []
+        plot_v = []
+
+        if is_disp:
+            # Displacements at nodes
+            comp_map = {"Dx": "x", "Dy": "y", "Dz": "z", "dx": "x", "dy": "y", "dz": "z"}
+            target_comp = comp_map.get(force_key, "y")
+            actual_comp = None
+            if "displacements" in ds:
+                for c in ds["displacements"].coords["Component"].values:
+                    if str(c).lower() == target_comp.lower():
+                        actual_comp = c
+                        break
+
+            for s_val, n_id in zip(stations, line_nodes):
+                val = 0.0
+                if actual_comp is not None:
+                    try:
+                        val = float(ds["displacements"].sel(Node=n_id, Component=actual_comp).values)
+                        if target_comp in ("y", "dy"):
+                            val = -val  # Standard downward sag
+                        val = val * 1000.0  # m to mm
+                    except Exception:
+                        val = 0.0
+                plot_s.append(s_val)
+                plot_v.append(val)
+        else:
+            # Forces / Moments at elements
+            comp_pair = FORCE_MAP.get(force_key, ("Vy_i", "Vy_j"))
+            ci_name, cj_name = comp_pair
+
+            actual_ci = None
+            actual_cj = None
+            if "forces" in ds:
+                comps = [str(c) for c in ds["forces"].coords["Component"].values]
+                for c in comps:
+                    if c.lower() == ci_name.lower():
+                        actual_ci = c
+                    if c.lower() == cj_name.lower():
+                        actual_cj = c
+
+            for i_e, e_id in enumerate(elems):
+                s_start = stations[i_e]
+                s_end = stations[i_e + 1]
+
+                v_i = 0.0
+                v_j = 0.0
+                if "forces" in ds and actual_ci is not None and actual_cj is not None:
+                    try:
+                        v_i = float(ds["forces"].sel(Element=e_id, Component=actual_ci).values) / 1000.0
+                        v_j = float(ds["forces"].sel(Element=e_id, Component=actual_cj).values) / 1000.0
+                    except Exception:
+                        pass
+
+                plot_s.extend([s_start, s_end])
+                plot_v.extend([v_i, v_j])
+
+        if not plot_s:
+            continue
+
+        plot_s = np.array(plot_s)
+        plot_v = np.array(plot_v)
+
+        all_vals_global.extend(plot_v.tolist())
+        all_stations_global.extend(plot_s.tolist())
+
+        if len(plot_v) > 0:
+            summary_data[line_label] = {
+                "max": float(np.max(plot_v)),
+                "min": float(np.min(plot_v)),
+            }
+
+        # Render line and fill
+        ax.plot(
+            plot_s, plot_v,
+            color=color, linewidth=2.0, marker="o", markersize=3.5,
+            label=line_label if len(target_lines) > 1 else f"{disp_name} ({unit})"
+        )
+        if len(target_lines) == 1:
+            ax.fill_between(plot_s, 0, plot_v, color=color, alpha=0.20)
+
+    # Add zero baseline
+    ax.axhline(0, color="#388E3C", linewidth=1.2, linestyle="-", alpha=0.8, label="Baseline (0)")
+
+    # Draw girder indicator vertical lines across the transverse width
+    if lines:
+        first_line = lines[0]
+        s_max = first_line["stations"][-1] if first_line["stations"] else 1.0
+        z_min = first_line["z_coords"][0]
+        z_span = first_line["z_coords"][-1] - z_min or 1.0
+
+        for g_idx, gz in enumerate(girder_z_vals):
+            s_girder = ((gz - z_min) / z_span) * s_max
+            ax.axvline(s_girder, color="#9E9E9E", linestyle=":", linewidth=1.1, alpha=0.8)
+            g_lbl = girder_labels[g_idx] if g_idx < len(girder_labels) else f"G{g_idx+1}"
+            ax.text(s_girder, 0.98, f" {g_lbl}", transform=ax.get_xaxis_transform(),
+                    fontsize=8.5, fontweight="bold", color="#555555", va="top")
+
+    # Annotate Max and Min peaks if data present
+    if all_vals_global:
+        max_idx = int(np.argmax(all_vals_global))
+        min_idx = int(np.argmin(all_vals_global))
+        max_v = all_vals_global[max_idx]
+        max_s = all_stations_global[max_idx]
+        min_v = all_vals_global[min_idx]
+        min_s = all_stations_global[min_idx]
+
+        if len(target_lines) == 1:
+            summary_data = {
+                selected_member: {
+                    "max": float(max_v),
+                    "min": float(min_v),
+                }
+            }
+
+        # Add visual callout for Max & Min on single-member views
+        if len(target_lines) == 1:
+            ax.scatter([max_s], [max_v], color="#D32F2F", s=45, zorder=5)
+            ax.annotate(
+                f"Max: {max_v:.2f} {unit}",
+                xy=(max_s, max_v),
+                xytext=(max_s, max_v + (max_v * 0.15 if max_v != 0 else 0.5)),
+                arrowprops=dict(arrowstyle="->", color="#D32F2F", lw=1.0),
+                fontsize=8.5, fontweight="bold", color="#D32F2F",
+                ha="center", bbox=dict(boxstyle="round,pad=0.2", facecolor="#FFEBEE", edgecolor="#D32F2F", alpha=0.85)
+            )
+            if abs(min_v - max_v) > 1e-3:
+                ax.scatter([min_s], [min_v], color="#1976D2", s=45, zorder=5)
+                ax.annotate(
+                    f"Min: {min_v:.2f} {unit}",
+                    xy=(min_s, min_v),
+                    xytext=(min_s, min_v - (abs(min_v) * 0.15 if min_v != 0 else 0.5)),
+                    arrowprops=dict(arrowstyle="->", color="#1976D2", lw=1.0),
+                    fontsize=8.5, fontweight="bold", color="#1976D2",
+                    ha="center", bbox=dict(boxstyle="round,pad=0.2", facecolor="#E3F2FD", edgecolor="#1976D2", alpha=0.85)
+                )
+
+    # Axis styling and labels
+    ax.set_xlabel("Transverse Distance along Member (m)", fontsize=10, fontweight="bold", labelpad=8)
+    ax.set_ylabel(f"{disp_name} ({unit})", fontsize=10, fontweight="bold", labelpad=8)
+    ax.grid(True, linestyle="--", linewidth=0.6, alpha=0.6, color="#CCCCCC")
+
+    plot_title = f"{member_type}: {selected_member} — {disp_name}"
+    ax.set_title(plot_title, fontsize=11, fontweight="bold", pad=12)
+
+    if len(target_lines) > 1 or len(ax.get_legend_handles_labels()[0]) > 1:
+        ax.legend(loc="best", fontsize=8.5, framealpha=0.9)
+
+    fig.subplots_adjust(left=0.10, right=0.96, bottom=0.13, top=0.90)
+    return fig, summary_data

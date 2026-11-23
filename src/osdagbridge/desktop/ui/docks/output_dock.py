@@ -857,17 +857,88 @@ class OutputDock(QWidget):
             combo_design.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
             combo_design.blockSignals(False)
 
-        # 2. Update Analysis Member dropdown
-        from osdagbridge.core.utils.common import KEY_ANALYSIS_MEMBER
+        # 2. Update Analysis Member Type & Member dropdowns (Task III)
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_MEMBER, KEY_ANALYSIS_MEMBER_TYPE
+        combo_type = self._w(KEY_ANALYSIS_MEMBER_TYPE)
+        if combo_type is not None:
+            combo_type.blockSignals(True)
+            if combo_type.count() == 0:
+                combo_type.addItems(["Longitudinal Members", "End Diaphragms", "Cross Bracings"])
+            combo_type.blockSignals(False)
+            if not getattr(combo_type, "_connected_type", False):
+                combo_type._connected_type = True
+                combo_type.currentTextChanged.connect(self._on_analysis_member_type_changed)
+
+        self._populate_analysis_members()
+
+    def _on_analysis_member_type_changed(self, text: str):
+        """Called when user switches between Longitudinal Members, End Diaphragms, and Cross Bracings."""
+        self._populate_analysis_members()
+
+    def _get_cross_bracing_stations(self) -> list[float]:
+        """Find the x-stations of intermediate cross bracing lines."""
+        if not hasattr(self.backend, "get_nodes_members"):
+            return []
+        try:
+            nodes, members = self.backend.get_nodes_members()
+            trans_x = set()
+            for e, (n1, n2) in members.items():
+                if abs(nodes[n1][2] - nodes[n2][2]) > 1e-3:
+                    x_mid = (nodes[n1][0] + nodes[n2][0]) / 2.0
+                    trans_x.add(round(x_mid, 2))
+            sorted_x = sorted(trans_x)
+            if len(sorted_x) > 2:
+                # Exclude start_edge (first) and end_edge (last)
+                return sorted_x[1:-1]
+            return []
+        except Exception:
+            return []
+
+    def _populate_analysis_members(self):
+        """Populate the analysis.member combobox based on the active member type."""
+        from osdagbridge.core.utils.common import KEY_ANALYSIS_MEMBER, KEY_ANALYSIS_MEMBER_TYPE
         combo_analysis = self._w(KEY_ANALYSIS_MEMBER)
-        if combo_analysis is not None:
-            combo_analysis.blockSignals(True)
-            combo_analysis.clear()
-            combo_analysis.addItems(["All"] + items)
-            combo_analysis.setCurrentIndex(0)
-            combo_analysis.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-            combo_analysis.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
-            combo_analysis.blockSignals(False)
+        if combo_analysis is None or not self.backend or not hasattr(self.backend, "input_dict"):
+            return
+
+        combo_type = self._w(KEY_ANALYSIS_MEMBER_TYPE)
+        member_type = combo_type.currentText() if combo_type else "Longitudinal Members"
+        n_girders = int(self.backend.input_dict.get(KEY_TS_NO_OF_GIRDERS, 1))
+
+        combo_analysis.blockSignals(True)
+        combo_analysis.clear()
+
+        if member_type == "Longitudinal Members":
+            items = ["All"] + [f"G{g}" for g in range(1, n_girders + 1)]
+            combo_analysis.addItems(items)
+        elif member_type == "End Diaphragms":
+            items = ["All", "End Diaphragm 1 (Start)", "End Diaphragm 2 (End)"]
+            if n_girders > 1:
+                for i in range(1, n_girders):
+                    items.append(f"ED 1 - Bay G{i}-G{i+1}")
+                for i in range(1, n_girders):
+                    items.append(f"ED 2 - Bay G{i}-G{i+1}")
+            combo_analysis.addItems(items)
+        elif member_type == "Cross Bracings":
+            cb_items = ["All"]
+            cb_stations = self._get_cross_bracing_stations()
+            if cb_stations:
+                for idx, x_pos in enumerate(cb_stations, start=1):
+                    cb_items.append(f"Cross Bracing {idx} (x = {x_pos:.2f} m)")
+            else:
+                cb_items.extend(["Cross Bracing 1", "Cross Bracing 2"])
+            if n_girders > 1:
+                for i in range(1, n_girders):
+                    cb_items.append(f"Bay G{i}-G{i+1}")
+            combo_analysis.addItems(cb_items)
+
+        combo_analysis.setCurrentIndex(0)
+        combo_analysis.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        combo_analysis.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        combo_analysis.blockSignals(False)
+
+        # Notify connected plot widget of member selection update
+        combo_analysis.currentTextChanged.emit(combo_analysis.currentText())
    
     def connect_design_dropdowns(self):
         """Connect Member and Load Case dropdowns to refresh DCR bars on change."""
