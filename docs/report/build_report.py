@@ -336,7 +336,8 @@ def build():
                   "(no Windows/Revit available).",
               ]),
               table(boq_rows(), [24, 72, 26, 12, 12, 22], font=7.6),
-              P("Table – BOQ produced from samples/osdagbridge_super_sub_skew0.ifc (two supports).", CAP),
+              P("Table – BOQ read from the exported IFC of the straight sample bridge (two supports); "
+                "regenerate with scripts/substructure/export_sample_ifc.py and ifc_boq.py.", CAP),
               fig("ifc_reimport_substructure.png",
                   "Figure 5 – Substructure storeys of the IFC file re-tessellated by IfcOpenShell.", 150)]
 
@@ -406,8 +407,9 @@ def build():
                   "    substructure_ifc.py          new IFC writer\n"
                   "    bridge_cad_extraction.py, bridge_ifc_generator.py, bridge_geometry_mapper.py (modified)\n"
                   "tests/integration/{test_substructure.py, sample_params.py}\n"
-                  "scripts/substructure/{render_substructure.py, render_ifc.py, ifc_boq.py, detailing_checks.py}\n"
-                  "samples/  example .ifc files (0° and 10° skew), BOQ csv, detailing-check csv\n"
+                  "scripts/substructure/{export_sample_ifc.py, render_substructure.py, render_ifc.py,\n"
+                  "                      ifc_boq.py, detailing_checks.py}\n"
+                  "samples/  BOQ csv and detailing-check csv (sample .ifc files are generated, not committed)\n"
                   "SUBSTRUCTURE_README.md", CODE),
               P("Video demonstration", H2),
               P('A silent screen recording of the GUI workflow (design, 3D CAD with semi-transparent concrete '

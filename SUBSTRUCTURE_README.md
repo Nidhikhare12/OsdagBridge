@@ -78,6 +78,7 @@ Design a plate-girder bridge → 3D CAD shows super- and substructure →
 Tests and tools (from the repo root):
 ```bash
 PYTHONPATH=src:tests/integration pytest tests/integration/test_substructure.py -q
+python scripts/substructure/export_sample_ifc.py samples 0 10   # writes samples/*.ifc (not committed)
 python scripts/substructure/ifc_boq.py samples/osdagbridge_super_sub_skew0.ifc samples/boq.csv
 python scripts/substructure/render_substructure.py docs/images [skew]
 python scripts/substructure/render_ifc.py samples/osdagbridge_super_sub_skew10.ifc out.png
