@@ -22,6 +22,11 @@ DOCUMENT_CLASS_OPTIONS = "12pt,a4paper"
 PAPER_SIZE = "a4paper"
 PAGE_MARGIN = "1in"
 DOCUMENT_STRETCH = 1.15
+# Explicit header/footer geometry guarantees a clear band above the footer.
+GEOMETRY_OPTIONS = (
+    f"{PAPER_SIZE}, margin={PAGE_MARGIN}, "
+    "headheight=14pt, headsep=12pt, footskip=28pt"
+)
 
 # Minimum number of baseline skips that must remain before a long table or a
 # section heading.  This is the page-bottom threshold that keeps content from
@@ -59,6 +64,9 @@ LATEX_CAPTION_SETTINGS = (
 )
 
 LATEX_SECTION_SETTINGS = (
+    r"\titleformat{\chapter}[block]{\normalfont\Large\bfseries\color{osdagGreen}}"
+    r"{\thechapter}{1em}{}[\vspace{2pt}{\color{osdagGreen}\titlerule[1pt]}]" "\n"
+    r"\titlespacing*{\chapter}{0pt}{0pt}{12pt}" "\n"
     r"\titleformat{\section}{\Large\bfseries\color{osdagGreen}}"
     r"{\thesection}{1em}{}" "\n"
     r"\titlespacing*{\section}{0pt}{12pt}{6pt}" "\n"
@@ -87,7 +95,10 @@ LATEX_TABLE_SETTINGS = (
     r"\setlength{\LTpost}{" + LT_POST + "}" "\n"
     r"\setlength{\arrayrulewidth}{" + ARRAY_RULE_WIDTH + "}" "\n"
     r"\setlength{\extrarowheight}{" + EXTRA_ROW_HEIGHT + "}" "\n"
-    r"\arrayrulecolor{tableRule}"
+    r"\arrayrulecolor{tableRule}" "\n"
+    r"\setlength{\LTcapwidth}{\textwidth}" "\n"
+    r"\setlength{\hfuzz}{2pt}" "\n"
+    r"\setlength{\emergencystretch}{2em}"
 )
 
 # Header/footer theme shared by every page style in report_generator.preamble.
@@ -151,6 +162,42 @@ _LONGTABLE_RE = re.compile(
 _HEADER_RULE_RE = re.compile(r"^\s*\\(?:hline|toprule)\b")
 _FOLLOW_RULE_RE = re.compile(r"^\s*\\(?:hline|midrule|bottomrule)\b")
 _HEADER_END_RE = re.compile(r"\\\\\s*(?:\[[^\]]*\])?\s*$")
+_COL_SPEC_RE = re.compile(r"\\begin\{longtable\}\{(.*?)\}\s*\n", re.DOTALL)
+
+
+def _count_columns(col_spec: str) -> int:
+    """Count top-level columns, ignoring braces inside p{...}/C{...} etc."""
+    depth = 0
+    top = []
+    for ch in col_spec:
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth = max(0, depth - 1)
+        elif depth == 0:
+            top.append(ch)
+    return sum(1 for ch in top if ch in "lcrpmbXLCR")
+
+
+def _extract_caption(body: str) -> str:
+    """Return the balanced-brace argument of the first \\caption{...}."""
+    idx = body.find(r"\caption{")
+    if idx < 0:
+        return ""
+    i = idx + len(r"\caption{")
+    depth = 1
+    out = []
+    while i < len(body) and depth > 0:
+        ch = body[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        out.append(ch)
+        i += 1
+    return "".join(out)
 
 
 def _repeat_longtable_headers(tex: str) -> str:
@@ -203,6 +250,10 @@ def _repeat_longtable_headers(tex: str) -> str:
 
         first_header = "".join(_shade(header))
         repeat = "".join(_shade(header))
+
+        # NOTE: a "(continued)" caption was tried (as in competing forks) but
+        # longtable emits an orphan continuation header when a table starts at
+        # a page boundary, so we keep only the repeated column header row.
         fixed_body = (
             "".join(lines[:first_rule])
             + first_header

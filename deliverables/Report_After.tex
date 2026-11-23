@@ -1,7 +1,7 @@
 \documentclass[12pt,a4paper]{report}
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[a4paper, margin=1in, headheight=14pt, headsep=12pt, footskip=28pt]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -31,6 +31,8 @@
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
 \usepackage{titlesec}
+\titleformat{\chapter}[block]{\normalfont\Large\bfseries\color{osdagGreen}}{\thechapter}{1em}{}[\vspace{2pt}{\color{osdagGreen}\titlerule[1pt]}]
+\titlespacing*{\chapter}{0pt}{0pt}{12pt}
 \titleformat{\section}{\Large\bfseries\color{osdagGreen}}{\thesection}{1em}{}
 \titlespacing*{\section}{0pt}{12pt}{6pt}
 \titleformat{\subsection}{\large\bfseries\color{osdagGreen}}{\thesubsection}{1em}{}
@@ -51,6 +53,9 @@
 \setlength{\arrayrulewidth}{0.5pt}
 \setlength{\extrarowheight}{0.6pt}
 \arrayrulecolor{tableRule}
+\setlength{\LTcapwidth}{\textwidth}
+\setlength{\hfuzz}{2pt}
+\setlength{\emergencystretch}{2em}
 
 % Prevent tables from overflowing into the footer box.  The threshold is
 % defined once in styles.PAGE_BOTTOM_THRESHOLD_LINES.
@@ -2067,7 +2072,7 @@ End Diaphragm --- Shear & \multicolumn{4}{c|}{Rolled / Welded section --- design
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\linewidth]{/tmp/tmp3119r28i/images/ur_summary.png}
+\includegraphics[width=0.92\linewidth]{/tmp/tmpe5xpw2ic/images/ur_summary.png}
 \caption{Utilization Ratio (UR) of primary bridge elements. Bars above the red dashed line ($\mathrm{UR}>1.0$) fail the check.}
 \label{fig:ur-summary}
 \end{figure}
@@ -2197,7 +2202,7 @@ This section presents CAD-generated views of the designed bridge and its compone
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\linewidth]{/tmp/tmp3119r28i/images/material_quantities.png}
+\includegraphics[width=0.92\linewidth]{/tmp/tmpe5xpw2ic/images/material_quantities.png}
 \caption{Material quantity summary from the Bill of Materials: structural steel tonnage by component, concrete volume and reinforcement weight.}
 \label{fig:material-quantities}
 \end{figure}

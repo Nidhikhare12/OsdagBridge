@@ -162,7 +162,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
         r"\documentclass[" + styles.DOCUMENT_CLASS_OPTIONS + r"]{report}" + r"""
 
 % Packages
-\usepackage[a4paper, margin=""" + styles.PAGE_MARGIN + r"""]{geometry}
+\usepackage[""" + styles.GEOMETRY_OPTIONS + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
