@@ -97,33 +97,14 @@ jobs:
           echo "status=pass" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
-      - name: Build baseline PDF from upstream for comparison
-        id: baseline
-        if: steps.build.outputs.status == 'pass'
-        run: |
-          set -o pipefail
-          # deliverables/ is git-ignored, so generate the baseline from the
-          # original commit using this repo's own full git history (no network).
-          mkdir -p /tmp/baseline
-          git archive d74f56d | tar -x -C /tmp/baseline
-          mkdir -p /tmp/baseline/scripts
-          cp scripts/benchmark_report.py /tmp/baseline/scripts/
-          cp -r scripts/tex /tmp/baseline/scripts/
-          (cd /tmp/baseline && \
-             TEXINPUTS="/tmp/baseline/scripts/tex:${TEXINPUTS:-}" \
-             PYTHONPATH=src python scripts/benchmark_report.py \
-             /tmp/baseline_out 1 > /tmp/baseline_build.log 2>&1)
-          test -f /tmp/baseline_out/bench.pdf
-          echo "status=pass" >> "$GITHUB_OUTPUT"
-        continue-on-error: true
-
       - name: Build before/after comparison thumbnail
         id: compare
-        if: steps.build.outputs.status == 'pass' && steps.baseline.outputs.status == 'pass'
+        # submission/ is tracked, so the baseline PDF is always available in CI.
+        if: steps.build.outputs.status == 'pass' && hashFiles('submission/Report_Before.pdf') != ''
         run: |
           set -o pipefail
           python scripts/make_ci_comparison.py \
-            /tmp/baseline_out/bench.pdf ci_out/CI_Report.pdf 11 ci_out/comparison.png
+            submission/Report_Before.pdf ci_out/CI_Report.pdf 11 ci_out/comparison.png
           echo "status=pass" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
