@@ -15,6 +15,7 @@ __all__ = [
     "SectionDimsDTO",
     "ISectionDimsDTO",
     "ShearStudParamsDTO",
+    "SubstructureParamsDTO",
     "GirderSegmentDTO",
     "BridgeParametersDTO",
 ]
@@ -269,6 +270,56 @@ class ShearStudParamsDTO:
 
 
 @dataclass
+class SubstructureParamsDTO:
+    """Parameters of the bridge substructure (piers, pile caps, piles).
+
+    All lengths in millimetres. Defaults follow the Task C specification:
+    circular pier 800 dia x 3000 high, hammerhead pier cap 3000/1200 x 600
+    deep (length auto-matched to the deck width), rectangular pile cap
+    2200 x 1200 x 600 and a 2 x 2 group of 400 dia x 5000 long piles at
+    600 c/c, with a visible rebar cage (16 mm main @ 150, 8 mm ties @
+    200, 40 mm cover).
+    """
+
+    # --- Master switch ---
+    enable_substructure: bool = True
+
+    # --- Pier (circular column) ---
+    pier_diameter: float = 800.0
+    pier_height: float = 3000.0
+
+    # --- Pier cap (hammerhead, trapezoidal) ---
+    pier_cap_top_width: float = 3000.0      # longitudinal width at top
+    pier_cap_bottom_width: float = 1200.0   # longitudinal width at bottom
+    pier_cap_depth: float = 600.0           # vertical depth
+    pier_cap_length: float = 0.0            # <= 0 -> match deck width
+
+    # --- Pile cap (rectangular prism) ---
+    pile_cap_length: float = 2200.0         # along X (longitudinal)
+    pile_cap_width: float = 1200.0          # along Y (transverse)
+    pile_cap_depth: float = 600.0           # along Z (vertical)
+
+    # --- Piles (circular, nx x ny grid) ---
+    n_piles_x: int = 2
+    n_piles_y: int = 2                      # 2 x 2 = 4 piles per cap
+    pile_diameter: float = 400.0
+    pile_length: float = 5000.0
+    pile_spacing_x: float = 600.0           # c/c along X
+    pile_spacing_y: float = 600.0           # c/c along Y
+
+    # --- Reinforcement (pier + pile cap) ---
+    rebar_main_diameter: float = 16.0
+    rebar_spacing_longitudinal: float = 150.0
+    rebar_transverse_diameter: float = 8.0
+    rebar_spacing_transverse: float = 200.0
+    rebar_cover: float = 40.0
+    rebar_grade: str = "Fe 500"
+
+    # --- Display ---
+    concrete_transparency: float = 0.35     # 0 opaque .. 1 invisible
+
+
+@dataclass
 class GirderSegmentDTO:
     length: float
     D: float
@@ -396,5 +447,12 @@ class BridgeParametersDTO:
     girder_segments: list[GirderSegmentDTO] = field(default_factory=list)
     girder_segments_dict: dict[int, list[GirderSegmentDTO]] = field(default_factory=dict)
     stiffeners_dict: dict[int, dict] = field(default_factory=dict)
+
+    # --- Substructure (piers / pier caps / pile caps / piles) ---
+    # Optional so every existing BridgeParametersDTO(...) construction
+    # keeps working unchanged; defaults live in SubstructureParamsDTO.
+    substructure_params: SubstructureParamsDTO = field(
+        default_factory=SubstructureParamsDTO
+    )
 
 

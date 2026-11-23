@@ -65,6 +65,22 @@ class BridgeGeometryMapper:
             Position=self.create_axis2placement_2d(),
             XDim=float(width), YDim=float(height)
         )
+
+    def create_circle_profile(self, radius):
+        """Solid circular profile (piers, piles, rebar bars)."""
+        return self.file.createIfcCircleProfileDef(
+            ProfileType="AREA", ProfileName=None,
+            Position=self.create_axis2placement_2d(),
+            Radius=float(radius)
+        )
+
+    def create_circle_hollow_profile(self, radius, wall_thickness):
+        """Annular (ring) profile — used for the pier transverse ties."""
+        return self.file.createIfcCircleHollowProfileDef(
+            ProfileType="AREA", ProfileName=None,
+            Position=self.create_axis2placement_2d(),
+            Radius=float(radius), WallThickness=float(wall_thickness)
+        )
         
     def create_l_shape_profile(self, depth, width, thickness):
         return self.file.createIfcLShapeProfileDef(

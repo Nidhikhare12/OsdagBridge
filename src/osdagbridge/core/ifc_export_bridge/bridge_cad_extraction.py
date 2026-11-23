@@ -40,6 +40,46 @@ from osdagbridge.desktop.cad.irc5_geometry import (
     MedianGeometry,
     RailingGeometry
 )
+# Substructure placement math (pure Python, no OCC) — shared with the
+# pythonOCC builders so the IFC entities match the CAD solids exactly.
+from osdagbridge.core.bridge_components.sub_structure.pier.geometry import (
+    bar_ring_radius,
+    longitudinal_bar_angles,
+    longitudinal_bar_count,
+    tie_levels,
+    bearing_level_z,
+)
+from osdagbridge.core.bridge_components.sub_structure.pier_cap.geometry import (
+    auto_pier_cap_length,
+    trapezoid_profile_points,
+)
+from osdagbridge.core.bridge_components.foundation.pile_cap.geometry import (
+    main_bar_positions,
+    transverse_bar_positions,
+    main_bar_z,
+    transverse_bar_z,
+)
+from osdagbridge.core.bridge_components.foundation.pile.geometry import (
+    pile_positions,
+)
+from osdagbridge.core.bridge_components.sub_structure.pier.properties import (
+    PierParams,
+    pier_concrete_volume,
+    pier_steel_volume,
+)
+from osdagbridge.core.bridge_components.sub_structure.pier_cap.properties import (
+    PierCapParams,
+    pier_cap_concrete_volume,
+)
+from osdagbridge.core.bridge_components.foundation.pile_cap.properties import (
+    PileCapParams,
+    pile_cap_concrete_volume,
+    pile_cap_steel_volume,
+)
+from osdagbridge.core.bridge_components.foundation.pile.properties import (
+    PileParams,
+    pile_group_volume,
+)
 
 class ExtractedObject:
     """A generic mock object to hold geometric parameters for the GeometryMapper."""
@@ -125,7 +165,8 @@ class PlateGirderIFCExtractor:
             "cross_bracings": self._extract_cross_bracings(n_girders, spacing),
             "deck_slab": self._extract_deck_slab(total_width),
             "crash_barriers": self._extract_safety_components(total_width, actual_base_width, actual_railing_width),
-            "supports": self._extract_supports(n_girders, spacing)
+            "supports": self._extract_supports(n_girders, spacing),
+            "substructure": self._extract_substructure(total_width, n_girders, spacing)
         }
 
     def _solve_girder_layout(self, total_width):
@@ -492,3 +533,240 @@ class PlateGirderIFCExtractor:
                 uDir=[0,1,0], wDir=[0,0,1], ifc_name=f"Cylindrical Support {i+1}"))
                 
         return {"supports_tri": [s for s in supports if s._class_name == "StiffenerPlate"], "supports_cyl": [s for s in supports if s._class_name == "CircularSolid"]}
+
+    # ------------------------------------------------------------------
+    # SUBSTRUCTURE (piers / pier caps / pile caps / piles / rebar)
+    # ------------------------------------------------------------------
+
+    def _extract_substructure(self, total_deck_width, n_girders, girder_spacing):
+        """
+        Reconstructs the substructure assembly parametrically, mirroring
+        STEP 12 of PlateGirderCADGenerator.generate() so the IFC entities
+        coincide with the pythonOCC solids in the 3D CAD view.
+
+        Two support lines are placed at the span ends (X = 0 and
+        X = span_length_L), each carrying the vertical stack:
+            pier cap -> pier column -> pile cap -> 2x2 pile group,
+        with rebar cages inside the pier and the pile cap.
+
+        Bearing level: like every other extracted component (girders,
+        stiffeners, supports), the uniform base section is used, i.e.
+        z_bearing = -(D/2 + T_fb) measured from girder mid-height.
+        """
+        sub = getattr(self.cad, "substructure_params", None)
+
+        def _p(name, default):
+            """Substructure param resolution: DTO sub-params first, then
+            the CAD generator's flat attributes, then the default."""
+            if sub is not None and getattr(sub, name, None) is not None:
+                return getattr(sub, name)
+            return getattr(self.cad, name, default)
+
+        enabled = bool(_p("enable_substructure", True))
+        if not enabled:
+            return []
+
+        # --- Resolve parameters -------------------------------------------
+        pier_diameter = float(_p("pier_diameter", 800.0))
+        pier_height = float(_p("pier_height", 3000.0))
+        cap_top_width = float(_p("pier_cap_top_width", 3000.0))
+        cap_bottom_width = float(_p("pier_cap_bottom_width", 1200.0))
+        cap_depth = float(_p("pier_cap_depth", 600.0))
+        cap_length = float(_p("pier_cap_length", 0.0))
+        pc_length = float(_p("pile_cap_length", 2200.0))
+        pc_width = float(_p("pile_cap_width", 1200.0))
+        pc_depth = float(_p("pile_cap_depth", 600.0))
+        n_piles_x = int(_p("n_piles_x", 2))
+        n_piles_y = int(_p("n_piles_y", 2))
+        pile_diameter = float(_p("pile_diameter", 400.0))
+        pile_length = float(_p("pile_length", 5000.0))
+        pile_spacing_x = float(_p("pile_spacing_x", 600.0))
+        pile_spacing_y = float(_p("pile_spacing_y", 600.0))
+        rebar_main_dia = float(_p("rebar_main_diameter", 16.0))
+        rebar_spacing_long = float(_p("rebar_spacing_longitudinal", 150.0))
+        rebar_trans_dia = float(_p("rebar_transverse_diameter", 8.0))
+        rebar_spacing_trans = float(_p("rebar_spacing_transverse", 200.0))
+        rebar_cover = float(_p("rebar_cover", 40.0))
+
+        # --- Vertical stack levels (same arithmetic as cad_generator) ----
+        # Uniform base section here (like every other extracted component);
+        # the CAD generator instead uses its end girder segments, which for
+        # a non-haunched design give the same value.
+        z_bearing = bearing_level_z(self.cad.girder_section_d,
+                                    self.cad.girder_section_tf_b)
+        z_cap_bottom = z_bearing - cap_depth   # pier cap soffit
+        z_pier_bottom = z_cap_bottom - pier_height
+        z_pc_bottom = z_pier_bottom - pc_depth  # pile cap soffit
+        z_pile_tip = z_pc_bottom - pile_length
+
+        # --- Pier cap transverse length -----------------------------------
+        if cap_length <= 0:
+            cap_length = auto_pier_cap_length(
+                n_girders, girder_spacing, total_deck_width
+            )
+
+        # --- Param objects for the shared quantity helpers ----------------
+        pier_p = PierParams(
+            pier_diameter=pier_diameter, pier_height=pier_height,
+            rebar_main_diameter=rebar_main_dia,
+            rebar_spacing_longitudinal=rebar_spacing_long,
+            rebar_transverse_diameter=rebar_trans_dia,
+            rebar_spacing_transverse=rebar_spacing_trans,
+            rebar_cover=rebar_cover,
+        )
+        cap_p = PierCapParams(
+            top_width=cap_top_width, bottom_width=cap_bottom_width,
+            depth=cap_depth, length=cap_length,
+        )
+        pc_p = PileCapParams(
+            length=pc_length, width=pc_width, depth=pc_depth,
+            rebar_main_diameter=rebar_main_dia,
+            rebar_spacing_longitudinal=rebar_spacing_long,
+            rebar_transverse_diameter=rebar_trans_dia,
+            rebar_spacing_transverse=rebar_spacing_trans,
+            rebar_cover=rebar_cover,
+        )
+        pile_p = PileParams(
+            n_piles_x=n_piles_x, n_piles_y=n_piles_y,
+            pile_diameter=pile_diameter, pile_length=pile_length,
+            pile_spacing_x=pile_spacing_x, pile_spacing_y=pile_spacing_y,
+        )
+
+        m3 = 1.0e-9  # mm^3 -> m^3 for BOQ-friendly metadata
+        items = []
+
+        for idx, x_support in enumerate([0.0, self.cad.span_length_L], start=1):
+            tag = str(idx)
+
+            # --- Pier cap (trapezoidal hammerhead, extruded along +Y) ----
+            pts_uv = trapezoid_profile_points(cap_top_width, cap_bottom_width, cap_depth)
+            items.append(ExtractedObject(
+                "PierCapSolid", points=pts_uv, length=cap_length,
+                origin=[x_support, -cap_length / 2.0, z_bearing],
+                uDir=[0, 1, 0], wDir=[1, 0, 0],
+                role="PierCap",
+                top_width=cap_top_width, bottom_width=cap_bottom_width,
+                depth=cap_depth, cap_length=cap_length,
+                concrete_volume=pier_cap_concrete_volume(cap_p) * m3,
+                ifc_name=f"Pier Cap {tag}",
+            ))
+
+            # --- Pier column (circular, extruded along +Z from base) -----
+            items.append(ExtractedObject(
+                "PierColumn", r=pier_diameter / 2.0, H=pier_height,
+                origin=[x_support, 0.0, z_pier_bottom],
+                uDir=[0, 0, 1], wDir=[1, 0, 0],
+                role="Pier",
+                diameter=pier_diameter, height=pier_height,
+                concrete_volume=pier_concrete_volume(pier_p) * m3,
+                ifc_name=f"Pier {tag}",
+            ))
+
+            # --- Pile cap (rectangular prism, extruded along +Z) ---------
+            items.append(ExtractedObject(
+                "PileCapSolid", length=pc_length, width=pc_width, depth=pc_depth,
+                origin=[x_support, 0.0, z_pc_bottom],
+                uDir=[0, 0, 1], wDir=[1, 0, 0],
+                role="PileCap",
+                n_piles=n_piles_x * n_piles_y,
+                concrete_volume=pile_cap_concrete_volume(pc_p) * m3,
+                ifc_name=f"Pile Cap {tag}",
+            ))
+
+            # --- Pile group (2x2 default, extruded along +Z) -------------
+            for p_idx, (dx, dy) in enumerate(pile_positions(
+                    n_piles_x, n_piles_y, pile_spacing_x, pile_spacing_y), start=1):
+                items.append(ExtractedObject(
+                    "PileSolid", r=pile_diameter / 2.0, H=pile_length,
+                    origin=[x_support + dx, dy, z_pile_tip],
+                    uDir=[0, 0, 1], wDir=[1, 0, 0],
+                    role="Pile",
+                    diameter=pile_diameter, length=pile_length,
+                    concrete_volume=pile_group_volume(pile_p) * m3
+                    / max(1, n_piles_x * n_piles_y),
+                    ifc_name=f"Pile {tag}-{p_idx}",
+                ))
+
+            # --- Pier reinforcement cage ----------------------------------
+            bars = []
+            ring_r = bar_ring_radius(pier_diameter, rebar_cover, rebar_main_dia)
+            n_bars = longitudinal_bar_count(pier_diameter, rebar_cover,
+                                            rebar_spacing_long)
+            bar_len = max(0.0, pier_height - 2.0 * rebar_cover)
+            z_bar_bottom = z_pier_bottom + rebar_cover
+
+            for angle in longitudinal_bar_angles(n_bars):
+                bars.append({
+                    "kind": "bar",
+                    "origin": [x_support + ring_r * math.cos(angle),
+                               ring_r * math.sin(angle),
+                               z_bar_bottom],
+                    "dir": [0, 0, 1], "x_dir": [1, 0, 0],
+                    "length": bar_len, "diameter": rebar_main_dia,
+                })
+
+            for z_off in tie_levels(pier_height, rebar_cover, rebar_spacing_trans):
+                # IfcCircleHollowProfileDef measures the wall INWARD from
+                # Radius, so Radius must be the OUTER radius of the tie
+                # annulus (centreline ring_r + half the tie bar diameter)
+                # to match the pythonOCC tie ring in the CAD view.
+                bars.append({
+                    "kind": "tie",
+                    "origin": [x_support, 0.0, z_pier_bottom + z_off],
+                    "dir": [0, 0, 1], "x_dir": [1, 0, 0],
+                    "length": rebar_trans_dia,
+                    "radius": ring_r + rebar_trans_dia / 2.0,
+                    "wall": rebar_trans_dia,
+                })
+
+            items.append(ExtractedObject(
+                "RebarAssembly", role="Rebar", parent=f"Pier {tag}",
+                bars=bars, bar_count=n_bars,
+                tie_count=len(tie_levels(pier_height, rebar_cover, rebar_spacing_trans)),
+                main_diameter=rebar_main_dia, transverse_diameter=rebar_trans_dia,
+                main_spacing=rebar_spacing_long, transverse_spacing=rebar_spacing_trans,
+                cover=rebar_cover,
+                steel_volume=pier_steel_volume(pier_p) * m3,
+                ifc_name=f"Pier {tag} Reinforcement",
+            ))
+
+            # --- Pile cap reinforcement mat --------------------------------
+            main_len = max(0.0, pc_length - 2.0 * rebar_cover)
+            trans_len = max(0.0, pc_width - 2.0 * rebar_cover)
+            z_main = z_pc_bottom + main_bar_z(pc_depth, rebar_cover, rebar_main_dia)
+            z_trans = z_pc_bottom + transverse_bar_z(
+                pc_depth, rebar_cover, rebar_main_dia, rebar_trans_dia)
+
+            bars = []
+            n_main = 0
+            for dy in main_bar_positions(pc_width, rebar_cover, rebar_spacing_long):
+                bars.append({
+                    "kind": "bar",
+                    "origin": [x_support - main_len / 2.0, dy, z_main],
+                    "dir": [1, 0, 0], "x_dir": [0, 1, 0],
+                    "length": main_len, "diameter": rebar_main_dia,
+                })
+                n_main += 1
+
+            n_trans = 0
+            for dx in transverse_bar_positions(pc_length, rebar_cover, rebar_spacing_trans):
+                bars.append({
+                    "kind": "bar",
+                    "origin": [x_support + dx, -trans_len / 2.0, z_trans],
+                    "dir": [0, 1, 0], "x_dir": [1, 0, 0],
+                    "length": trans_len, "diameter": rebar_trans_dia,
+                })
+                n_trans += 1
+
+            items.append(ExtractedObject(
+                "RebarAssembly", role="Rebar", parent=f"Pile Cap {tag}",
+                bars=bars, bar_count=n_main + n_trans,
+                main_count=n_main, transverse_count=n_trans,
+                main_diameter=rebar_main_dia, transverse_diameter=rebar_trans_dia,
+                main_spacing=rebar_spacing_long, transverse_spacing=rebar_spacing_trans,
+                cover=rebar_cover,
+                steel_volume=pile_cap_steel_volume(pc_p) * m3,
+                ifc_name=f"Pile Cap {tag} Reinforcement",
+            ))
+
+        return items
