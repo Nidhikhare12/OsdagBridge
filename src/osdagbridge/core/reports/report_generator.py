@@ -103,7 +103,7 @@
 #                                                          else → CustomMessageBox("Report Saved")
 #==============================================================================
 
-import os, shutil, logging, datetime, tempfile, subprocess
+import os, shutil, logging, datetime, tempfile, subprocess, re
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
 
@@ -115,10 +115,26 @@ from osdagbridge.core.utils.common import (
     KEY_TL_HIGHEST_MAX_TEMP,
     KEY_TL_LOWEST_MIN_TEMP,
     KEY_TL_TEMP_FALL,
-    KEY_TL_TEMP_RISE
+    KEY_TL_TEMP_RISE,
+    KEY_WL_BASIC_WIND_SPEED,
+    KEY_WL_HOURLY_MEAN_WIND,
+    KEY_WL_HOURLY_WIND_PRESSURE,
+    KEY_WL_TRANSVERSE_WIND_FORCE,
+    KEY_WL_LONGITUDINAL_WIND_FORCE,
+    KEY_WL_VERTICAL_WIND_FORCE,
+    KEY_SL_ZONE_FACTOR,
+    KEY_SL_SPECTRAL_COEFF,
+    KEY_SL_HORIZONTAL_COEFF,
+    KEY_SL_VERTICAL_COEFF
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from .report_formatting import (
+    REPORT_PAGE_GEOMETRY_OPTIONS,
+    REPORT_TABLE_STYLE_LATEX,
+    REPORT_COLOR_STYLE_LATEX,
+    REPORT_HEADER_FOOTER_METRICS_LATEX,
+)
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -147,16 +163,23 @@ logger = logging.getLogger(__name__)
 # PREAMBLE
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     pn = _tex(project_name)
     jn = _tex(job_number)
     rd = _tex(report_date)
     rv = _tex(report_version)
+
     return r"""
 \documentclass[12pt,a4paper]{report}
 
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
+% ============================================================
+% PACKAGES
+% ============================================================
+
+% Page geometry: reserve sufficient space for header and footer.
+\usepackage[""" + REPORT_PAGE_GEOMETRY_OPTIONS + r"""]{geometry}
+
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -170,19 +193,10 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{setspace}
 \usepackage{enumitem}
 \usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
 \usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
 \usepackage{titlesec}
 \usepackage{titletoc}
 \usepackage{lastpage}
@@ -190,86 +204,178 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{etoolbox}
 \usepackage{needspace}
 
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+% ============================================================
+% CAPTION FORMATTING
+% ============================================================
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+\captionsetup{
+    labelfont=bf,
+    justification=raggedright,
+    singlelinecheck=false,
+    format=plain
+}
 
-\definecolor{osdagGreen}{HTML}{91B014}
+% ============================================================
+% TABLE FORMATTING
+% ============================================================
 
+""" + REPORT_TABLE_STYLE_LATEX + r"""
+
+% ============================================================
+% REPORT COLOURS
+% ============================================================
+
+""" + REPORT_COLOR_STYLE_LATEX + r"""
+
+% ============================================================
+% SOFTWARE-DEFAULT VALUE INDICATOR
+% ============================================================
+
+\newbool{hasSDonPage}
+\boolfalse{hasSDonPage}
+
+\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
+
+\newcommand{\sdstar}{\textsuperscript{*}}
+\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
+
+% Reset the indicator after each page has been shipped out.
+\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
+
+% ============================================================
+% HEADER AND FOOTER FORMATTING
+% ============================================================
+
+""" + REPORT_HEADER_FOOTER_METRICS_LATEX + r"""
+
+% Main page style.
 \fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
-\pagestyle{main}
-\setstretch{1.15}
+    \fancyhf{}
 
-% Custom Commands
+    \fancyhead[L]{\parbox[t]{0.48\headwidth}{\raggedright\footnotesize\textbf{""" + pn + r"""}\\Job: """ + jn + r""" }}
+    \fancyhead[R]{\parbox[t]{0.48\headwidth}{\raggedleft\footnotesize """ + rd + r"""\\Version: """ + rv + r""" }}
+
+    \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+    \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+
+    \renewcommand{\headrule}{
+        \color{osdagGreen}
+        \hrule width\headwidth height 1pt
+        \vspace{2pt}
+    }
+
+    % Reserve the same vertical space on every page.
+    % The software-default note appears only when required.
+    \renewcommand{\footrule}{
+        \hbox to \headwidth{
+            \textcolor{black}{
+                \footnotesize
+                \ifbool{hasSDonPage}{
+                    \textit{* Software default value}
+                }{
+                    \strut
+                }
+            }
+            \hfil
+        }
+        \vspace{2pt}
+        \color{osdagGreen}
+        \hrule width\headwidth height 1pt
+        \vspace{4pt}
+    }
+}
+
+% Plain style: used by chapter-opening pages.
+\fancypagestyle{plain}{
+    \fancyhf{}
+
+    \fancyhead[L]{\parbox[t]{0.48\headwidth}{\raggedright\footnotesize\textbf{""" + pn + r"""}\\Job: """ + jn + r""" }}
+    \fancyhead[R]{\parbox[t]{0.48\headwidth}{\raggedleft\footnotesize """ + rd + r"""\\Version: """ + rv + r""" }}
+
+    \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+    \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+
+    \renewcommand{\headrule}{
+        \color{osdagGreen}
+        \hrule width\headwidth height 1pt
+        \vspace{2pt}
+    }
+
+    \renewcommand{\footrule}{
+        \hbox to \headwidth{
+            \textcolor{black}{
+                \footnotesize
+                \ifbool{hasSDonPage}{
+                    \textit{* Software default value}
+                }{
+                    \strut
+                }
+            }
+            \hfil
+        }
+        \vspace{2pt}
+        \color{osdagGreen}
+        \hrule width\headwidth height 1pt
+        \vspace{4pt}
+    }
+}
+
+% Title page style.
+\fancypagestyle{firstpage}{
+    \fancyhf{}
+
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+
+    \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
+    \fancyfoot[R]{Cover}
+
+    \renewcommand{\footrule}{
+        \color{osdagGreen}
+        \hrule width\headwidth height 1pt
+        \vspace{4pt}
+    }
+}
+
+\pagestyle{main}
+
+% ============================================================
+% GENERAL PAGE FORMATTING
+% ============================================================
+
+\setstretch{1.15}
+\raggedbottom
+
+% ============================================================
+% CUSTOM COMMANDS
+% ============================================================
+
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
 \newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
+
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 \newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
 
-% Software-default asterisk
-\newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
+% ============================================================
+% DOCUMENT METADATA
+% ============================================================
 
-\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
+\title{
+    \Large\textbf{OsdagBridge}
+    \\
+    \normalsize Open Source Software for Steel Girder Bridge Design
+    \\
+    \vspace{2cm}
+    \large Design Report
+}
+
 \author{}
 \date{}
 
@@ -370,7 +476,6 @@ def toc_section():
   {\hspace*{-3.2em}}
   {\hfill\contentspage}
 
-\newpage
 \renewcommand{\contentsname}{\centering\Large\bfseries Table of Contents}
 \tableofcontents
 """
@@ -593,8 +698,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return r"\ReportPassText{PASS}"
+                return r"\ReportFailText{FAIL}"
         except (TypeError, ValueError):
             pass
         return ""
@@ -745,6 +850,24 @@ def build_report_payload(request, input_dict, output_dict):
             if not input_dict.get(_tkey) and output_dict.get(_tkey):
                 input_dict[_tkey] = output_dict[_tkey]
 
+        # Bring stored wind/seismic calculation outputs into the report input
+        # snapshot. Some backend stages write computed values to output_dict.
+        _calculated_load_keys = (
+            KEY_WL_BASIC_WIND_SPEED,
+            KEY_WL_HOURLY_MEAN_WIND,
+            KEY_WL_HOURLY_WIND_PRESSURE,
+            KEY_WL_TRANSVERSE_WIND_FORCE,
+            KEY_WL_LONGITUDINAL_WIND_FORCE,
+            KEY_WL_VERTICAL_WIND_FORCE,
+            KEY_SL_ZONE_FACTOR,
+            KEY_SL_SPECTRAL_COEFF,
+            KEY_SL_HORIZONTAL_COEFF,
+            KEY_SL_VERTICAL_COEFF,
+        )
+        for _load_key in _calculated_load_keys:
+            if input_dict.get(_load_key) in (None, "") and output_dict.get(_load_key) not in (None, ""):
+                input_dict[_load_key] = output_dict[_load_key]
+
         # If still missing, compute from whatever temperature inputs are available.
         if not input_dict.get(KEY_TL_BRIDGE_TEMP_MIN):
             try:
@@ -868,13 +991,24 @@ def generate_report(payload, request):
             tmp_images = os.path.join(tmp_dir, 'images')
             os.makedirs(tmp_images, exist_ok=True)
             fig_paths = {}
+
+            # Copy path-backed CAD/report figures first. The old implementation
+            # only handled figure_data bytes and silently dropped payload.figures.
+            for attr, source_path in vars(payload.figures).items():
+                if source_path and os.path.isfile(os.fspath(source_path)):
+                    extension = os.path.splitext(os.fspath(source_path))[1] or ".png"
+                    destination = os.path.join(tmp_images, attr + extension)
+                    shutil.copy2(os.fspath(source_path), destination)
+                    fig_paths[attr] = destination.replace("\\", "/")
+
+            # Byte-backed figures override path-backed figures with the same key.
             for attr, img_bytes in list(payload.figure_data.items()):
                 if img_bytes:
                     p = os.path.join(tmp_images, attr + '.png')
                     with open(p, 'wb') as fh:
                         fh.write(img_bytes)
-                    fig_paths[attr] = p.replace('\\', '/')
-            payload.figure_data.clear()  # bytes no longer needed — free RAM now
+                    fig_paths[attr] = p.replace("\\", "/")
+            payload.figure_data.clear()
 
             # ── Write title-page logos into tmp_dir/assets (auto-deleted) ──
             # Nothing is left next to the PDF. Latex paths are relative to tmp_dir.
@@ -906,9 +1040,11 @@ def generate_report(payload, request):
             doc_parts = []
             doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
             doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
+            doc_parts.append(r"\clearpage\setcounter{page}{1}")
 
             if payload.options.include_toc:
                 doc_parts.append(toc_section())
+                doc_parts.append(r"\clearpage")
 
             # Chapter inclusion is driven by the canonical section keys
             # selected in the report-options dialog (TOC). The first three
@@ -940,7 +1076,12 @@ def generate_report(payload, request):
             doc_parts.append(r"\end{document}")
 
             full_tex = "\n".join(doc_parts)
-
+            # Chapter-generated chart PNGs are temporary assets outside tmp_dir;
+            # retain them through both TeX passes, then remove them below.
+            chart_temp_paths = re.findall(
+                r"\\detokenize\{([^{}]*osdagbridge_ch(?:5_ur|7_materials)_[^{}]*\.png)\}",
+                full_tex,
+            )
 
             # NOTE: longtable header repetition is handled per-table in each
             # chapter file (e.g. \endfirsthead / \endhead).  No automatic
@@ -953,7 +1094,9 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            # Compile twice for TOC and references
+            # Compile twice for TOC and references. A PDF emitted alongside a
+            # fatal TeX error must not be reported as a successful report.
+            compile_ok = True
             for _ in range(2):
                 try:
                     kwargs = {
@@ -970,13 +1113,26 @@ def generate_report(payload, request):
                         [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
                         **kwargs
                     )
+                    if res.returncode != 0:
+                        compile_ok = False
+                        logger.error("LaTeX compilation pass %s failed with code %s", _ + 1, res.returncode)
                 except Exception as exc:
-                    logger.warning(f"pdflatex run failed: {exc}")
+                    compile_ok = False
+                    logger.exception("pdflatex run failed: %s", exc)
 
             if os.path.exists(tmp_tex):
                 shutil.copy2(tmp_tex, tex_path)
-            if os.path.exists(tmp_pdf):
+            if compile_ok and os.path.exists(tmp_pdf):
                 shutil.copy2(tmp_pdf, pdf_path)
+            elif os.path.exists(tmp_pdf):
+                logger.error("A PDF was emitted, but at least one LaTeX pass failed; it will not be published as final.")
+
+            for chart_path in chart_temp_paths:
+                try:
+                    if os.path.isfile(chart_path):
+                        os.remove(chart_path)
+                except OSError:
+                    logger.warning("Could not remove temporary report chart: %s", chart_path)
 
         if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)

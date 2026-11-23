@@ -1,1 +1,1 @@
-"""bridge_components package."""
+"""Pier cap package."""

@@ -984,10 +984,25 @@ class PlateGirderBridge:
 
         payload = build_report_payload(request, report_inputs, output_dict)
 
+        # Export any available CAD views and attach the resulting paths to the
+        # report payload. Previously _export_cad_figures() existed but was never
+        # called, so Chapter 6 always received an empty figure map.
+        try:
+            cad_paths = self._export_cad_figures(cad_generator)
+            for figure_name, figure_path in (cad_paths or {}).items():
+                if hasattr(payload.figures, figure_name):
+                    setattr(payload.figures, figure_name, figure_path)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("CAD figure export skipped: %s", exc)
+
         # Collect figure bytes into payload.figure_data — no disk writes here
         figure_data = {}
         if isinstance(cad_generator, dict):
             figure_data.update(cad_generator.get('figure_data', {}))
+            for figure_name, figure_path in (cad_generator.get("figure_paths", {}) or {}).items():
+                if hasattr(payload.figures, figure_name):
+                    setattr(payload.figures, figure_name, figure_path)
 
         payload.figure_data = figure_data  # handed off; generate_report clears it after writing
 
@@ -2664,9 +2679,12 @@ class PlateGirderBridge:
                 self.output_dict[make_pair_key(k, pair_id)] = None
 
         # 4. Sizing and Geometry
-        D = float(_gv(self.input_dict, KEY_MP_GIRDER_DEPTH))
-        h = D * 0.85  # Default depth ratio
-        s = float(self.input_dict[KEY_TS_GIRDER_SPACING])
+        # Input-form girder depth is stored in mm, while girder spacing is
+        # stored in metres. Convert depth before combining the dimensions.
+        D_mm = float(_gv(self.input_dict, KEY_MP_GIRDER_DEPTH))
+        D_m = D_mm / 1000.0
+        h = D_m * 0.85  # Default depth ratio, in metres
+        s = float(self.input_dict[KEY_TS_GIRDER_SPACING])  # metres
 
         # 5. Process design results and queries
         forces_dict = {"pairs": {}}

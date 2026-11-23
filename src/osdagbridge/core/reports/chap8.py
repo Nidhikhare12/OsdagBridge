@@ -23,22 +23,22 @@ def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
                 upper = line.upper()
                 if 'WARNING' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
+                        rf'\ReportInfoText{{{escaped}}}\\')
                 elif 'ERROR' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
+                        rf'\ReportWarningText{{{escaped}}}\\')
                 elif 'INFO' in upper:
                     lines_tex.append(
-                        rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
+                        rf'\ReportBrandText{{{escaped}}}\\')
                 else:
                     continue  # skip lines without a known level — Osdag patter
 
     mode = str(input_dict.get(KEY_DESIGN_MODE, 'Optimized')).strip().lower()
     is_custom = mode in {'custom', 'customized'}
-    return _ch8_assumptions(is_custom)
+    return _ch8_assumptions(is_custom, input_dict)
 
 
-def _ch8_assumptions(is_custom: bool) -> str:
+def _ch8_assumptions(is_custom: bool, input_dict: dict | None = None) -> str:
     assumptions = [
         r"""
 \chapter{Standards \& Assumptions}
@@ -56,10 +56,10 @@ form the basis of all design calculations in this software.
 \vspace{0.5cm}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{\ReportCompactTablePadding}
 \begin{table}[H]
 \caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabular}{|c|c|p{10.8cm}|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
@@ -67,7 +67,7 @@ IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath d
 \hline
 IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\ 
 \hline
-IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\ 
+IRC 22 & 2014 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\ 
 \hline
 IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\ 
 \hline
@@ -77,12 +77,13 @@ IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \hline
 \end{tabular}
 \end{table}
+\endgroup
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{\ReportCompactTablePadding}
 \begin{table}[H]
 \caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabular}{|c|c|p{10.8cm}|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
@@ -98,8 +99,9 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \hline
 \end{tabular}
 \end{table}
+\endgroup
 
-\clearpage
+\ReportTopicBreak
 \section{Analysis and Design Assumptions of This Version}
 \label{sec:assumptions}
 
@@ -109,14 +111,15 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
     \item All girders are modelled as simply supported; continuous spans are not currently supported.
     \item A 3D grillage model (OSPGrillage) is used for load distribution. Grillage members carry composite section properties after the construction stage.
     \item The transverse member forces are computed using an approximate 2D frame analogy. For irregular or skewed geometries, a 3D FEM is recommended.
-    \item Fixed bearing stiffness is modelled as $k = 1{,}000{,}000 \,\text{kN/m}$ (virtually rigid); free/expansion bearing as $k = 100 \, \text{kN/m}$.
-    \item Construction stage sequence analysis is approximate. Detailed staged analysis should be performed for long-term deflection checks.
+    \item Fixed bearing stiffness is modelled as $k = 1{,}000{,}000 \,\text{kN/m}$ (virtually rigid).
+    \item Free/expansion bearing stiffness is modelled as $k = 100 \, \text{kN/m}$.
+    \item Construction stage sequence analysis is approximate. Detailed staged analysis\linebreak should be performed for long-term deflection checks.
 \end{itemize}
 
 \textbf{Composite Action}
 
 \begin{itemize}
-    \item Full shear connection is assumed at ULS with headed stud connectors designed per IRC 22:2015 Cl.606.
+    \item Full shear connection is assumed at ULS with headed stud connectors designed per IRC 22:2014 Cl.606.
     \item Short-term composite section properties (modular ratio $n = E_s/E_{cm}$) are used for ULS checks.
     \item Long-term composite section properties (with creep-adjusted modular ratio) are used for SLS deflection and crack-width checks.
     \item Pre-composite stage: the steel girder alone resists all construction loads prior to concrete gaining strength.
@@ -126,7 +129,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 
     if not is_custom:
         assumptions.append(r"""
-\textbf{Material Properties (IRC 22:2015 Annex III)}
+\textbf{Material Properties (IRC 22:2014 Annex III)}
 
 \begin{itemize}
 \item Steel: $E_s = 200{,}000 \, \text{MPa}, \ G_s = 80{,}000 \, \text{MPa}, \ \nu = 0.30, \ \alpha = 11.7 \times 10^{-6}/^\circ\mathrm{C}$ (grade-independent).
@@ -134,7 +137,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \item Default reinforcement grade: Fe500.
 \end{itemize}
 
-\textbf{Partial Safety Factors (IRC 22:2015 Cl.601.4)}
+\textbf{Partial Safety Factors (IRC 22:2014 Cl.601.4)}
 
 \begin{itemize}
 \item $\gamma_{m0}$ (steel yield, ULS) = 1.10
@@ -147,16 +150,16 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \textbf{Loading}
 
 \begin{itemize}
-\item Dead load densities per IRC 6:2017 Cl.203: structural steel $78.5 \ \text{kN/m}^3$, concrete $25.0 \ \text{kN/m}^3$, bituminous wearing course $24.0 \ \text{kN/m}^3$.
+\item Dead load unit weights per IRC 6:2017 Cl.203: structural steel $__STEEL_DENSITY__ \ \text{kN/m}^3$, concrete $__CONCRETE_DENSITY__ \ \text{kN/m}^3$, and wearing course $__WEARING_DENSITY__ \ \text{kN/m}^3$ (project input values).
 \item Multi-lane live load reduction factors per IRC 6:2017 Cl.204.4 Table 6A: 1st lane = 1.0, 2nd lane = 0.8, 3rd lane onwards = 0.4.
-\item Impact factor (dynamic load allowance) computed from span per IRC 6:2017 Cl.208.2/208.3.
+\item Impact factor (dynamic load allowance) computed from span; see IRC 6:2017, Clauses 208.2 and 208.3.
 \item Wind load applied as transverse, longitudinal, and vertical components per IRC 6:2017 Cl.209.3.3--209.3.5.
 \end{itemize}
 
 \textbf{Serviceability Limits}
 
 \begin{itemize}
-\item Deflection limits (IRC 22:2015 Cl.604.3.2): live load + impact $\leq L/800$; total $\leq L/600$.
+\item Deflection limits (IRC 22:2014 Cl.604.3.2): live load + impact $\leq L/800$; total $\leq L/600$.
 \item SLS stress limits: concrete $\sigma_c \leq 0.48 f_{ck}$; rebar $\sigma_s \leq 0.80 f_{yk}$; steel $f_e \leq 0.9 f_y$.
 \item Permissible crack width: $w_k \leq 0.3 \ \text{mm}$ (bridge deck, exposure class XS2/XD2 per IRC 112:2020 Cl.12.3.2).
 \end{itemize}
@@ -164,7 +167,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \textbf{Fatigue}
 
 \begin{itemize}
-\item Reference fatigue life: $N_{sc} = 2 \times 10^6$ cycles (IRC 22:2015 Cl.605).
+\item Reference fatigue life: $N_{sc} = 2 \times 10^6$ cycles (IRC 22:2014 Cl.605).
 \item Constant stress range is assumed. A thickness correction factor $\mu_r$ is applied for plate thickness $> 25 \ \text{mm}$.
 \end{itemize}
 
@@ -176,6 +179,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 """)
 
     assumptions.append(r"""
+\ReportTopicBreak
 \section{Known Limitations of This Version}
 \label{sec:limitations}
 
@@ -190,6 +194,15 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \end{itemize}
 """)
 
-    return "\n".join(assumptions)
+    rendered = "\n".join(assumptions)
+    values = input_dict or {}
+    for token, key in (
+        ("__STEEL_DENSITY__", "material.girder.density"),
+        ("__CONCRETE_DENSITY__", "material.deck.density"),
+        ("__WEARING_DENSITY__", "typical_section.wearing_course.density"),
+    ):
+        value = values.get(key)
+        rendered = rendered.replace(token, str(value) if value not in (None, "") else "not supplied")
+    return rendered
 
 
