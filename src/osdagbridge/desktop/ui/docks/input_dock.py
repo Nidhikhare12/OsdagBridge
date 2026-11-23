@@ -663,7 +663,11 @@ class InputDock(QWidget):
         # Footpath toggle changes overall bridge width — force defaults re-solve
         # on next Additional Inputs open so the dict has the new geometry.
         self.is_require_field_changed = True
-        self.parent.notify_additional_inputs_footpath(value)
+        # Guard: not every host window implements this hook (raised an
+        # AttributeError in the plate-girder window when Footpath was changed).
+        notify = getattr(self.parent, "notify_additional_inputs_footpath", None)
+        if callable(notify):
+            notify(value)
 
     def _on_include_median_changed(self, value=None):
         # Median toggle also changes overall bridge width and the Median sub-tab's

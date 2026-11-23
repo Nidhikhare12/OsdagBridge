@@ -47,6 +47,10 @@ from osdagbridge.core.bridge_components.super_structure.median.builder import (
 from osdagbridge.core.bridge_components.super_structure.cross_bracing.builder import (
     build_cross_bracings
 )
+# Substructure (pier cap, pier, pile cap, piles, pedestals + reinforcement)
+from osdagbridge.core.bridge_components.sub_structure.substructure_builder import (
+    SubstructureParams, build_substructure, girder_soffit_z, run_detailing_checks
+)
 
 from osdagbridge.core.bridge_types.plate_girder.dto import (
     BridgeParametersDTO,
@@ -60,7 +64,15 @@ KEY_CAD_DECK = "Deck"
 KEY_CAD_CRASH_BARRIER = "Crash Barrier"
 KEY_CAD_RAILING = "Railing"
 KEY_CAD_MEDIAN = "Median"
+KEY_CAD_SUBSTRUCTURE = "Substructure"
+KEY_CAD_REINFORCEMENT = "Reinforcement"
 KEY_MODULE_PG = "Plate Girder"
+
+# Display settings for substructure concrete (semi-transparent so the
+# reinforcement cage inside is visible) and rebar (opaque steel).
+SUBSTRUCTURE_CONCRETE_OPACITY = 0.35
+SUBSTRUCTURE_CONCRETE_TRANSPARENCY = 1.0 - SUBSTRUCTURE_CONCRETE_OPACITY
+SUBSTRUCTURE_CONCRETE_KEYS = ("pier_caps", "pedestals", "piers", "pile_caps", "piles")
 
 
 # CAD GENERATOR CLASS
@@ -315,7 +327,15 @@ class PlateGirderCADGenerator:
             "flange_width": design_params.end_diaphragm_dims.flange_width,
             "web_thickness": design_params.end_diaphragm_dims.web_thickness,
             "flange_thickness": design_params.end_diaphragm_dims.flange_thickness,
-        }   
+        }
+
+        # SUBSTRUCTURE PARAMETERS
+        # Routed from the DTO; when absent the defaults hardcoded in each
+        # substructure builder.py are used (via SubstructureParams()).
+        self.include_substructure = getattr(design_params, "include_substructure", True)
+        self.substructure_params = (
+            getattr(design_params, "substructure_params", None) or SubstructureParams()
+        )
 
     def get_girder_depth_at(self, girder_idx, x):
         """
@@ -908,6 +928,16 @@ class PlateGirderCADGenerator:
         
         supports = supports_tri + supports_cyl
 
+        # STEP 12: BUILD SUBSTRUCTURE (pier cap, pier, pile cap, piles, rebar)
+
+        substructure = self._build_substructure(
+            total_deck_width=deck_out["total_deck_width"],
+            girder_y_positions=[
+                (i * self.girder_spacing) - (total_width / 2)
+                for i in range(self.num_girders)
+            ],
+        )
+
         # RETURN ALL GENERATED COMPONENTS
         
         return {
@@ -956,8 +986,67 @@ class PlateGirderCADGenerator:
             "median_w_beams": median_w_beams,
             
             # Railings
-            "railings": railings
+            "railings": railings,
+
+            # Substructure (concrete solids, one compound per support line)
+            "pier_caps": substructure.get("pier_caps", []),
+            "pedestals": substructure.get("pedestals", []),
+            "piers": substructure.get("piers", []),
+            "pile_caps": substructure.get("pile_caps", []),
+            "piles": substructure.get("piles", []),
+            # Substructure reinforcement (opaque steel cylinders / tori)
+            "substructure_rebars": substructure.get("substructure_rebars", []),
+            # Pure-data layout (support frames, dimensions, bar paths) -
+            # consumed by the IFC exporter and BOQ helpers, not displayed.
+            "substructure_layout": substructure.get("substructure_layout", []),
+            # Detailing checks (IS 456 / IRC 112 / IS 2911 / IRC 78)
+            "substructure_checks": substructure.get("substructure_checks", []),
         }
+
+    def _soffit_z(self):
+        """Lowest girder soffit Z at either bearing (handles segmented girders)."""
+        segs = [self.girder_segments[0], self.girder_segments[-1]] if self.girder_segments else [None]
+        for g_segs in (self.girder_segments_dict or {}).values():
+            if g_segs:
+                segs += [g_segs[0], g_segs[-1]]
+        return min(
+            girder_soffit_z(self.girder_section_d, self.girder_section_tf, s,
+                            self.girder_section_tf_b) for s in segs
+        )
+
+    def _build_substructure(self, *, total_deck_width, girder_y_positions):
+        """
+        Build the substructure under both support lines.
+
+        Geometry is created by the component builders in
+        core/bridge_components/{sub_structure,foundation}/*/builder.py and
+        assembled by sub_structure/substructure_builder.py.
+        """
+        if not getattr(self, "include_substructure", True):
+            return {}
+        out = build_substructure(
+            self.substructure_params,
+            span_length=self.span_length_L,
+            soffit_z=self._soffit_z(),
+            deck_width=total_deck_width,
+            girder_y_positions=girder_y_positions,
+            skew_angle=self.skew_angle,
+        )
+        # Detailing checks on the modelled reinforcement - logged, never blocking
+        # (shown in the application's Log dock through bridge_logger)
+        from osdagbridge.core.utils.logger import bridge_logger
+        checks = run_detailing_checks(self.substructure_params, out["substructure_layout"],
+                                      getattr(self, "concrete_grade", "M35"))
+        n_warn = sum(c["status"] == "WARN" for c in checks)
+        bridge_logger.info(f"Substructure detailing checks: {len(checks) - n_warn} PASS, {n_warn} WARN")
+        for c in checks:
+            if c["status"] == "WARN":
+                bridge_logger.warning(
+                    f"Substructure check - {c['component']}: {c['check']} ({c['reference']}): "
+                    f"required {c['required']}, provided {c['provided']}"
+                    + (f". {c['note']}" if c["note"] else ""))
+        out["substructure_checks"] = checks
+        return out
 
     def create3Dcad(self):
         """
@@ -1013,7 +1102,8 @@ class PlateGirderCADGenerator:
         # Collect shapes from model_data, excluding support geometry from export.
         shapes = []
         for key, v in self.model_data.items():
-            if key in {"supports", "supports_tri", "supports_cyl"}:
+            if key in {"supports", "supports_tri", "supports_cyl", "substructure_layout",
+                       "substructure_checks"}:
                 continue
             shapes.extend(_flatten(v))
 
@@ -1063,6 +1153,8 @@ class PlateGirderCADGenerator:
         BRACING_COLOR = Quantity_Color(60/255, 60/255, 60/255, Quantity_TOC_RGB)
         RAILING_COLOR = Quantity_Color(120/255, 120/255, 120/255, Quantity_TOC_RGB)
         MEDIAN_COLOR = Quantity_Color(120/255, 120/255, 120/255, Quantity_TOC_RGB)
+        SUBSTRUCTURE_CONCRETE_COLOR = Quantity_Color(150/255, 150/255, 145/255, Quantity_TOC_RGB)
+        REBAR_COLOR = Quantity_Color(150/255, 75/255, 40/255, Quantity_TOC_RGB)
 
         self.component = component  
         
@@ -1100,6 +1192,21 @@ class PlateGirderCADGenerator:
             label = [KEY_CAD_MEDIAN, hover_dict.get(KEY_CAD_MEDIAN)]
             shapes = self.model_data["median_barriers"]
             osdag_display_shape(self.display, shapes, color=MEDIAN_COLOR, update=True, label=label, canvas=self.cad_widget)
+
+        elif self.component == KEY_CAD_SUBSTRUCTURE:
+            # Concrete: semi-transparent so the reinforcement is visible
+            label = [KEY_CAD_SUBSTRUCTURE, KEY_CAD_SUBSTRUCTURE]
+            for key in SUBSTRUCTURE_CONCRETE_KEYS:
+                for shp in self.model_data.get(key, []):
+                    osdag_display_shape(self.display, shp, color=SUBSTRUCTURE_CONCRETE_COLOR,
+                                        transparency=SUBSTRUCTURE_CONCRETE_TRANSPARENCY,
+                                        update=True, label=label, canvas=self.cad_widget)
+
+        elif self.component == KEY_CAD_REINFORCEMENT:
+            label = [KEY_CAD_REINFORCEMENT, KEY_CAD_REINFORCEMENT]
+            for shp in self.model_data.get("substructure_rebars", []):
+                osdag_display_shape(self.display, shp, color=REBAR_COLOR, update=True,
+                                    label=label, canvas=self.cad_widget)
 
 
 def osdag_display_shape(display, shapes, material=None, texture=None, color=None, transparency=None, update=False, label=[], canvas=None):

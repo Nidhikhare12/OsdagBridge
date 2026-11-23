@@ -55,7 +55,11 @@ except ImportError:
 
 # CAD generator
 from osdagbridge.core.bridge_types.plate_girder.cad_generator import (
-    PlateGirderCADGenerator
+    PlateGirderCADGenerator,
+    SUBSTRUCTURE_CONCRETE_TRANSPARENCY,
+)
+from osdagbridge.core.bridge_components.sub_structure.substructure_builder import (
+    SubstructureParams,
 )
 from osdagbridge.core.bridge_types.plate_girder import results_data
 
@@ -191,6 +195,10 @@ class CAD3DWindow(QWidget):
             available.add("Railing")
         if getattr(design_params, "enable_median", False):
             available.add("Median")
+        if self.generator.model_data.get("piers"):
+            available.add("Substructure")
+        if self.generator.model_data.get("substructure_rebars"):
+            available.add("Reinforcement")
         self.component_selector.set_available_components(available)
 
         # Render on display
@@ -467,6 +475,53 @@ class CAD3DWindow(QWidget):
             BARRIER_COLOR
         )
 
+        # SUBSTRUCTURE
+        # Concrete is drawn semi-transparent (opacity SUBSTRUCTURE_CONCRETE_OPACITY)
+        # so the opaque steel reinforcement cage inside stays visible.
+        sub = getattr(params, "substructure_params", None) or SubstructureParams()
+        CONCRETE_COLOR = Quantity_Color(150/255, 150/255, 145/255, Quantity_TOC_RGB)
+        REBAR_COLOR = Quantity_Color(150/255, 75/255, 40/255, Quantity_TOC_RGB)
+        rb = sub.rebar
+        cap_len = (f"{sub.pier_cap_length:.0f} mm" if sub.pier_cap_length
+                   else "deck width")
+        substructure_items = [
+            ("pier_caps", "Pier Cap",
+             f"Pier Cap ({sub.pier_cap_style.lower()})\nTop / Bottom Width: {sub.pier_cap_top_width:.0f} / "
+             f"{sub.pier_cap_bottom_width:.0f} mm\nDepth: {sub.pier_cap_depth:.0f} mm\n"
+             f"Length: {cap_len}\nConcrete Grade: {params.concrete_grade}"),
+            ("pedestals", "Pedestal",
+             f"Bearing Pedestal\n{sub.pedestal_length:.0f} x {sub.pedestal_width:.0f} x "
+             f"{sub.pedestal_height:.0f} mm\nConcrete Grade: {params.concrete_grade}"),
+            ("piers", "Pier",
+             f"Pier (circular)\nDiameter: {sub.pier_diameter:.0f} mm\nHeight: {sub.pier_height:.0f} mm\n"
+             f"Concrete Grade: {params.concrete_grade}"),
+            ("pile_caps", "Pile Cap",
+             f"Pile Cap\n{sub.pile_cap_width:.0f} x {sub.pile_cap_length:.0f} x "
+             f"{sub.pile_cap_depth:.0f} mm\nConcrete Grade: {params.concrete_grade}"),
+            ("piles", "Pile",
+             f"Pile ({sub.n_piles_x} x {sub.n_piles_y} group)\nDiameter: {sub.pile_diameter:.0f} mm\n"
+             f"Length: {sub.pile_length:.0f} mm\nSpacing: {sub.pile_spacing:.0f} mm c/c"),
+        ]
+        checks = cad_data.get("substructure_checks", [])
+        if checks:
+            n_warn = sum(c["status"] == "WARN" for c in checks)
+            summary = f"\nDetailing checks: {len(checks) - n_warn} pass, {n_warn} warn (see Log)"
+            substructure_items = [(k, a, lbl + summary) for k, a, lbl in substructure_items]
+        for data_key, ais_key, label in substructure_items:
+            display_and_register(
+                cad_data.get(data_key, []), ais_key, label, CONCRETE_COLOR,
+                transparency=SUBSTRUCTURE_CONCRETE_TRANSPARENCY,
+            )
+
+        display_and_register(
+            cad_data.get("substructure_rebars", []),
+            "Substructure Rebar",
+            f"Reinforcement\nMain: {rb.main_dia:.0f} mm @ {rb.main_spacing:.0f} mm c/c\n"
+            f"Ties / Stirrups: {rb.tie_dia:.0f} mm @ {rb.tie_spacing:.0f} mm c/c\n"
+            f"Clear Cover: {rb.cover:.0f} mm",
+            REBAR_COLOR,
+        )
+
         # Nodes and grillage overlays
         node_positions = self._render_nodes()
         self._render_grillage(node_positions)
@@ -695,7 +750,7 @@ class CAD3DWindow(QWidget):
             Keys that should be VISIBLE after this call.
             Base keys  — show structural geometry:
                 "Girder", "Deck", "Cross Bracing", "Crash Barrier",
-                "Median", "Railing"
+                "Median", "Railing", "Substructure", "Reinforcement"
             Toolbar-overlay keys (checkbox-independent, never erased here):
                 "Grillage"     — edge lines between nodes
                 "Node"         — sphere markers at each node
@@ -716,6 +771,8 @@ class CAD3DWindow(QWidget):
             "Crash Barrier": ["Crash Barrier", "Crash Barrier W-Beam"],
             "Median":        ["Median", "Median W-Beam"],
             "Railing":       ["Railing"],
+            "Substructure":  ["Pier Cap", "Pedestal", "Pier", "Pile Cap", "Pile"],
+            "Reinforcement": ["Substructure Rebar"],
             "Grillage":      ["Grillage"],
             "Node":          ["Node"],
         }
@@ -1209,6 +1266,8 @@ class BridgeComponentCheckbox(QWidget):
         ("Crash Barrier", "Crash Barrier"),
         ("Median",        "Median"),
         ("Railing",       "Railing"),
+        ("Substructure",  "Substructure"),
+        ("Reinforcement", "Reinforcement"),
         ("Grillage view", "Grillage"),
         ("Node",          "Node"),
         ("Node Numbers",  "NodeNumbers"),
@@ -1216,7 +1275,7 @@ class BridgeComponentCheckbox(QWidget):
     OVERLAY_KEYS = {"Grillage", "Node", "NodeNumbers"}
     # Base components that are only present in some designs. Their checkboxes
     # are hidden when the component is not part of the current design.
-    OPTIONAL_KEYS = {"Railing", "Median"}
+    OPTIONAL_KEYS = {"Railing", "Median", "Substructure", "Reinforcement"}
 
     def __init__(self, parent: CAD3DWindow):
         super().__init__(parent)
