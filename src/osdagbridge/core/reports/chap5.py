@@ -1053,7 +1053,11 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         _row522(r"Girder --- Deflection",         _dcr_row({13, 14}, fallback_unit="mm")),
         _row522(r"Girder --- Stress",             _dcr_row({11}, fallback_unit="MPa")),
         _row522(r"Girder --- Fatigue",            _dcr_row({8, 9}, fallback_unit="MPa")),
-        _row522(r"Transverse Shear (slab)",       _dcr_row({16})),
+        # Check id 16 was retired from the girder DCR engine and moved to the
+        # deck designer; source this row from deck_design_results instead so
+        # the summary cell is not permanently empty.
+        _row522(r"Transverse Shear (slab)",
+                _deck_row(KEY_DD_SHEAR_VED, KEY_DD_SHEAR_VRDC, "kN/m")),
         _row522(r"Crack Width (slab)",            _crack_cells),
         _row522(r"Deck --- Flexure (sagging)",    _deck_row(KEY_DD_M_ULS_SAG, KEY_DD_MU_BOT, "kN-m/m")),
         _row522(r"Deck --- Flexure (hogging)",    _deck_row(KEY_DD_M_ULS_HOG, KEY_DD_MU_TOP, "kN-m/m")),

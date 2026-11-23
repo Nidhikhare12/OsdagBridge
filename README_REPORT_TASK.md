@@ -16,6 +16,7 @@ Repo: https://github.com/danish9661/OsdagBridge
 | Screenshots | `deliverables/gui_window.png`, `deliverables/gui_after_design.png`, `deliverables/gui_after_report.png`, `deliverables/live_preview.png` |
 | Demo video | `deliverables/Demo_Video.mp4`, `deliverables/Demo_Video_1080p.mp4` (1920×1080, 75 s) |
 | Real-time capture | `deliverables/Demo_Live_X11_1080p.mp4` (34 s, Xvfb/x11grab, live analysis log) |
+| Data notes | `docs/REPORT_DATA_NOTES.md` — explanation of empty cells and fixed rows |
 | Benchmarks | `docs/BENCHMARK.md`, `docs/PERFORMANCE_DETAIL.md`, `docs/OPTIMIZATION_NOTES.md`, `docs/PDF_VIDEO_REVIEW.md` |
 | Speed | First export **1.90 s**; identical repeat export / preview **0.0002 s** (SHA-256 payload cache) |
 | ZIP | `OsdagBridge_Report_Task_Deliverables.zip` |

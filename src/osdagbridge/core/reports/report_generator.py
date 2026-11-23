@@ -483,10 +483,22 @@ class ReportDataBridge:
         member    "diagonal" or "chord"
         force_type "tension" or "compression"
         """
-        from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+        # Local extraction avoids importing results_data -> OpenSeesPy (~0.8 s)
+        # just to read two dictionary keys.
         try:
-            raw = self._cb_pair_designs()[pair][member][force_type]
-            return _extract_osdag_summary(raw or {})
+            raw = self._cb_pair_designs()[pair][member][force_type] or {}
+            if not isinstance(raw, dict):
+                return {}
+            return {
+                "efficiency": (raw.get("Member.efficiency")
+                               if raw.get("Member.efficiency") is not None
+                               else raw.get("Optimum.UR")),
+                "capacity_kN": (raw.get("Member.tension_capacity")
+                                if raw.get("Member.tension_capacity") is not None
+                                else raw.get("Design.Strength")),
+                "section": (raw.get("section_size.designation")
+                            or raw.get("Optimum.Designation")),
+            }
         except (KeyError, TypeError):
             return {}
 

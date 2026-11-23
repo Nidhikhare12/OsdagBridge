@@ -10,7 +10,8 @@
 \usepackage{tabularx}
 \usepackage{float}
 \usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
+\usepackage[hidelinks,linktoc=all]{hyperref}
+\hypersetup{pdftitle={OsdagBridge Design Report --- Full Design Verification Bridge},pdfauthor={OsdagBridge / FOSSEE},pdfsubject={Steel girder bridge design report},pdfkeywords={OsdagBridge,IRC 22,IS 800,design report}}
 \usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
@@ -2111,7 +2112,7 @@ Girder --- Stress & SLS\_\allowbreak{}RARE\_\allowbreak{}1:\allowbreak{} 1.0DL +
 \hline
 Girder --- Fatigue & SLS\_\allowbreak{}FREQUENT\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.5WL & 208.56 MPa & 92.49 MPa & \textcolor{red}{2.25} \\[6pt]
 \hline
-Transverse Shear (slab) & --- & --- & --- & --- \\[6pt]
+Transverse Shear (slab) & Basic ULS: 1.35DL + 1.5LL & 77.01 kN/m & 110.76 kN/m & 0.70 \\[6pt]
 \hline
 Crack Width (slab) & SLS\_\allowbreak{}FREQUENT\_\allowbreak{}1:\allowbreak{} 1.0DL + 1.2DW + 0.75LL + 0.5WL & 0.207 mm & 0.300 mm & 0.69 \\[6pt]
 \hline
@@ -2140,7 +2141,7 @@ End Diaphragm --- Shear & --- & --- & --- & --- \\[6pt]
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\linewidth]{/tmp/tmpva8zn6dr/images/ur_summary.png}
+\includegraphics[width=0.92\linewidth]{/tmp/tmpsztsms_t/images/ur_summary.png}
 \caption{Utilization Ratio (UR) of primary bridge elements. Bars above the red dashed line ($\mathrm{UR}>1.0$) fail the check.}
 \label{fig:ur-summary}
 \end{figure}
@@ -2156,82 +2157,26 @@ This section presents CAD-generated views of the designed bridge and its compone
 \section{Bridge Configuration and Layout}
 \label{sec:bridge-layout}
 
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.97\textwidth}{
-\textit{[ PLACEHOLDER:  Overall 3D Bridge Superstructure ]}
-}}
-\caption{Overall 3D Bridge Superstructure}
-\label{fig:bridge-3d}
-\end{figure}
 
 
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.97\textwidth}{
-\textit{[ PLACEHOLDER:  Typical Cross Section ]}
-}}
-\caption{Typical Cross Section}
-\label{fig:cross-section}
-\end{figure}
 
 
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.97\textwidth}{
-\textit{[ PLACEHOLDER:  Top View ]}
-}}
-\caption{Top View}
-\label{fig:top-view}
-\end{figure}
 
 
 \needspace{8\baselineskip}
 \section{Plate Girder --- Detailed Views}
 \label{sec:girder-views}
 
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.97\textwidth}{
-\textit{[ PLACEHOLDER:  3D View of Plate Girders ]}
-}}
-\caption{3D View of Plate Girders}
-\label{fig:girder-3d}
-\end{figure}
 
 
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.97\textwidth}{
-\textit{[ PLACEHOLDER:  Cross Section of Plate Girder ]}
-}}
-\caption{Cross Section of Plate Girder}
-\label{fig:girder-xsec}
-\end{figure}
 
 
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.97\textwidth}{
-\textit{[ PLACEHOLDER:  Side View of Girder ]}
-}}
-\caption{Side View of Girder}
-\label{fig:girder-side}
-\end{figure}
 
 
 \needspace{8\baselineskip}
 \section{Cross Bracing Detail}
 \label{sec:bracing-detail}
 
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.97\textwidth}{
-\textit{[ PLACEHOLDER:  Cross Bracing Layout ]}
-}}
-\caption{Cross Bracing Layout}
-\label{fig:cb-layout}
-\end{figure}
 
 
 \noindent
@@ -2261,14 +2206,6 @@ This section presents CAD-generated views of the designed bridge and its compone
 \section{End Diaphragm Detail}
 \label{sec:diaphragm-detail}
 
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.97\textwidth}{
-\textit{[ PLACEHOLDER:  End Diaphragm Layout ]}
-}}
-\caption{End Diaphragm Layout}
-\label{fig:ed-layout}
-\end{figure}
 
 
 \noindent
@@ -2334,7 +2271,7 @@ This section presents CAD-generated views of the designed bridge and its compone
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\linewidth]{/tmp/tmpva8zn6dr/images/material_quantities.png}
+\includegraphics[width=0.92\linewidth]{/tmp/tmpsztsms_t/images/material_quantities.png}
 \caption{Material quantity summary from the Bill of Materials: structural steel tonnage by component, concrete volume and reinforcement weight.}
 \label{fig:material-quantities}
 \end{figure}
