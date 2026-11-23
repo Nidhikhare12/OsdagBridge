@@ -645,7 +645,7 @@ class CustomWindow(QWidget):
         # Redefine additional input defaults if required fields changed
         # Solve bridge layout so the dict has computed values before Design or Additional Inputs
         if self.input_dock.is_require_field_changed:
-            solve_extend_basic_input_dict(self.input_dict)
+            self._solve_layout()
             self.input_dock.is_require_field_changed = False
 
         print("\n@@input_dictionary_after (common_design_func):\n")
@@ -748,7 +748,9 @@ class CustomWindow(QWidget):
                     loadcases = self.backend.get_available_loadcases()
                     nodes, members = self.backend.get_nodes_members()
                     edge_dist = self.backend.get_edge_dist()
-                    self.plots_widget.setup(ds_all, loadcases, nodes, members, edge_dist=edge_dist)
+                    member_groups = self.backend.get_member_groups()
+                    self.plots_widget.setup(ds_all, loadcases, nodes, members, edge_dist=edge_dist,
+                                            member_groups=member_groups)
                     self.plots_widget.link_output_dock(self.output_dock)
 
                     # Render 3D cad using the parameters from Backend
@@ -787,14 +789,21 @@ class CustomWindow(QWidget):
         # Connect to input dock's value changed signals
         # This will update the CAD whenever any input field changes
         if hasattr(self.input_dock, 'input_value_changed'):
-            self.input_dock.input_value_changed.connect(self.update_cad_from_inputs)        
+            self.input_dock.input_value_changed.connect(self.update_cad_from_inputs)
+
+        # Reverse direction: double-click a dimension label in the 2D CAD to edit
+        # it in place; the controller validates and pushes it to the inputs.
+        from osdagbridge.desktop.ui.utils.cad_parameter_sync import CADParameterSync
+        self.cad_parameter_sync = CADParameterSync(self)
+        self.cad_comp_widget.enable_label_editing(guard=self.cad_parameter_sync.can_edit)
+        self.cad_comp_widget.parameter_edit_requested.connect(self.cad_parameter_sync.apply)
             
     # Function for saving input dictionary into an OSI file
     def saveOSI_inputs(self):
         # Populate additional input defaults so they appear in the saved file
         # even if the user never opened the Additional Inputs dialog.
         try:
-            solve_extend_basic_input_dict(self.input_dict)
+            self._solve_layout()
         except Exception:
             pass
 
@@ -864,7 +873,9 @@ class CustomWindow(QWidget):
 
             # Refresh 2D CAD to reflect loaded values
             try:
-                solve_extend_basic_input_dict(self.input_dict)
+                if getattr(self, "cad_parameter_sync", None) is not None:
+                    self.cad_parameter_sync.clear_pinned()
+                self._solve_layout()
                 self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
             except Exception:
                 pass
@@ -882,6 +893,14 @@ class CustomWindow(QWidget):
                 dialogType=MessageBoxType.Warning
             ).exec()
 
+    def _solve_layout(self):
+        """Solve the bridge layout, keeping a user-set girder spacing / deck thickness."""
+        sync = getattr(self, "cad_parameter_sync", None)
+        if sync is None:
+            solve_extend_basic_input_dict(self.input_dict)
+        else:
+            sync.solve_layout()
+
     def update_cad_from_inputs(self):
         """
         Collect inputs from InputDock and update 2D-CAD
@@ -893,7 +912,7 @@ class CustomWindow(QWidget):
         # derived layout values (girders/spacing/overhang/overall width) on-demand.
         if self.input_dock.is_require_field_changed:
             try:
-                solve_extend_basic_input_dict(self.input_dict)
+                self._solve_layout()
                 self.input_dock.is_require_field_changed = False
             except Exception:
                 # If solver fails mid-edit, keep raw values for best-effort redraw.

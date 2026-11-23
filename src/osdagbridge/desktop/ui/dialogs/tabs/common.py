@@ -173,6 +173,10 @@ def get_lineedit_style():
         QLineEdit:hover {
             border: 1px solid #5d5d5d;
         }
+        QLineEdit[error='true'] {
+            border: 1.5px solid #FF0000;
+            background-color: #fff5f5;
+        }
     """
 
 

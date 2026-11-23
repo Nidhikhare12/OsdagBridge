@@ -16,12 +16,14 @@ from PySide6.QtCore import Qt, QEvent, QTimer
 
 from navcube import NavCubeOverlay, NavCubeStyle
 from osdagbridge.desktop.ui.utils.mpl_widget_navcube_sync import MatplotlibNavCubeSync
+from osdagbridge.core.utils.common import VALUE_ANALYSIS_MEMBER_TRANSVERSE
 
 from osdagbridge.core.bridge_types.plate_girder.plot_generator import (
     build_figure_sfd,
     build_figure_bmd,
     build_figure_deflection,
     build_figure_grillage,
+    build_figure_transverse,
     _add_node_number_labels,
     _add_element_number_labels,
     FORCE_MAP,
@@ -136,13 +138,13 @@ class SummaryOverlay(QFrame):
         self.text_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         layout.addWidget(self.text_label)
 
-    def update_data(self, summary_data, unit=""):
+    def update_data(self, summary_data, unit="", header="Girder"):
         title = "Extreme Values Summary"
         if unit:
             title += f" ({unit})"
         hud_text = f"<b>{title}</b><br>" + "-" * 38 + "<br>"
 
-        h_girder = "Girder".ljust(8).replace(" ", "&nbsp;")
+        h_girder = header.ljust(8).replace(" ", "&nbsp;")
         h_max = "Max".rjust(10).replace(" ", "&nbsp;")
         h_min = "Min".rjust(12).replace(" ", "&nbsp;")
         
@@ -407,12 +409,15 @@ class MplPlotWidget(QWidget):
                     pass
 
     def setup(self, ds_all, loadcases: list, nodes: dict, members: dict,
-              edge_dist: float = 0.0):
+              edge_dist: float = 0.0, member_groups: dict | None = None):
         self._ds_all    = ds_all
         self._loadcases = list(loadcases)
         self._nodes     = nodes
         self._members   = members
         self._edge_dist = edge_dist
+        # ospgrillage groups (start_edge / end_edge / transverse_slab) used by
+        # results_data to separate end diaphragms from cross-bracings.
+        self._member_groups = member_groups or {}
 
         if hasattr(self, '_fig') and self._fig.axes:
             ax = self._fig.axes[0]
@@ -525,6 +530,7 @@ class MplPlotWidget(QWidget):
         ds = self._ds_all.sel(Loadcase=loadcase)
         
         old_elev, old_azim = None, None
+        old_view_kind = getattr(self._fig, "_view_kind", "longitudinal") if getattr(self, "_fig", None) else None
         if hasattr(self, '_fig') and self._fig and self._fig.axes:
             old_ax = self._fig.axes[0]
             if hasattr(old_ax, 'elev'):
@@ -538,7 +544,15 @@ class MplPlotWidget(QWidget):
 
         # (Your existing if/elif/else block to build the new figures)
         eng_scale = self._eng_scale
-        if force_key in _SFD_KEYS:
+        is_transverse = sel_girder == VALUE_ANALYSIS_MEMBER_TRANSVERSE
+        if is_transverse:
+            # Transverse members: data mapped & extracted via results_data.py
+            self._fig, self._summary_data = build_figure_transverse(
+                ds, force_key, self._nodes, self._members,
+                edge_dist=self._edge_dist, eng_scale=eng_scale,
+                member_groups=getattr(self, "_member_groups", None),
+            )
+        elif force_key in _SFD_KEYS:
             self._fig, self._summary_data = build_figure_sfd(
                 ds, force_key, self._nodes, self._members,
                 edge_dist=self._edge_dist, eng_scale=eng_scale,
@@ -574,6 +588,7 @@ class MplPlotWidget(QWidget):
             self._summary_overlay.update_data(
                 self._summary_data,
                 unit=self._value_unit_for_force_key(force_key),
+                header="Member" if is_transverse else "Girder",
             )
             if self._is_summary_checked:
                 self._summary_overlay.show()
@@ -588,7 +603,11 @@ class MplPlotWidget(QWidget):
                 return
 
             ax = self._fig.axes[0]
-            if old_elev is not None and old_azim is not None:
+            # Keep the user's camera between plots of the same family only:
+            # transverse diagrams use their own default (an elevation view
+            # along the span would show them edge-on).
+            new_view_kind = getattr(self._fig, "_view_kind", "longitudinal")
+            if old_elev is not None and old_azim is not None and old_view_kind == new_view_kind:
                 ax.view_init(elev=old_elev, azim=old_azim)
 
             title = ax.get_title()
@@ -716,7 +735,9 @@ class MplPlotWidget(QWidget):
                 old_azim = self._fig.axes[0].azim
             plt.close(self._fig)
             sel_girder = self._current_member()
-            self._fig = build_figure_grillage(self._nodes, self._members, edge_dist=self._edge_dist, selected_girder=sel_girder)
+            self._fig = build_figure_grillage(self._nodes, self._members, edge_dist=self._edge_dist,
+                                              selected_girder=sel_girder,
+                                              member_groups=getattr(self, "_member_groups", None))
             self._attach_figure(self._fig)
             if self._fig.axes and old_elev is not None and old_azim is not None:
                 self._fig.axes[0].view_init(elev=old_elev, azim=old_azim)

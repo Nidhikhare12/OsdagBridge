@@ -511,7 +511,7 @@ def _add_element_number_labels(ax, nodes, members, visible: bool = False):
 # GRILLAGE PLOT
 # =============================================================================
 
-def build_figure_grillage(nodes, members, edge_dist=0.0, selected_girder="All"):
+def build_figure_grillage(nodes, members, edge_dist=0.0, selected_girder="All", member_groups=None):
     """
     Build a 3-D matplotlib figure showing only the bridge grillage mesh.
 
@@ -540,9 +540,24 @@ def build_figure_grillage(nodes, members, edge_dist=0.0, selected_girder="All"):
     girder_items = list(girders.items())
     n_girders = len(girder_items)
 
+    # "Transverse Members" selection: full grillage, transverse members highlighted.
+    from osdagbridge.core.utils.common import VALUE_ANALYSIS_MEMBER_TRANSVERSE
+    highlight_transverse = selected_girder == VALUE_ANALYSIS_MEMBER_TRANSVERSE
+    if highlight_transverse:
+        selected_girder = "All"
+
     bg_nodes, bg_members = _get_bg_nodes_members(nodes, members, edge_dist, selected_girder, girder_items)
 
     _add_grillage_background(ax, bg_nodes, bg_members, show_transverse=True, include_end_transverse=True)
+
+    if highlight_transverse:
+        from .results_data import build_transverse_lines
+        for ln in build_transverse_lines(nodes, members, edge_dist, member_groups):
+            color = _TRANSVERSE_STYLE[ln["kind"]][0]
+            for t in ln["elements"]:
+                n1, n2 = members[t]
+                ax.plot([nodes[n1][0], nodes[n2][0]], [nodes[n1][2], nodes[n2][2]], [0, 0],
+                        color=color, linewidth=2.6, zorder=5)
     _add_coordinate_triad(ax, nodes)
     
     base_color = "#388E3C"
@@ -1679,3 +1694,207 @@ def capture_report_figures(ds_all, nodes, members, edge_dist=0.0, eng_scale=1.0)
 
     _log.info("capture_report_figures: %d plot(s) captured", len(data))
     return data
+
+
+# =============================================================================
+# TRANSVERSE MEMBER PLOT (end diaphragms + intermediate cross-bracings)
+# =============================================================================
+
+# Default camera for transverse plots: the diagrams lie in planes across the
+# deck width, so the front-elevation view used for girders would show them
+# edge-on.
+TRANSVERSE_VIEW_ELEV = 24
+TRANSVERSE_VIEW_AZIM = -62
+
+_TRANSVERSE_STYLE = {
+    # kind: (line colour, fill colour, legend label)
+    "end_diaphragm": ("#6D4C41", "#BCAAA4", "End Diaphragm (ED)"),
+    "cross_bracing": ("#00838F", "#80DEEA", "Intermediate Cross Bracing (CB)"),
+}
+
+
+def build_figure_transverse(ds, result_key, nodes, members, edge_dist=0.0, eng_scale=1.0,
+                            member_groups=None):
+    """
+    3-D diagram of a force / displacement component along every transverse
+    member line (end diaphragms and intermediate cross-bracings).
+
+    Data comes from ``results_data.extract_transverse_results`` which maps the
+    transverse element tags (separately from the longitudinal girders) and
+    reads their end forces / nodal displacements for the selected load case.
+
+    Returns
+    -------
+    fig          : matplotlib.figure.Figure
+    summary_data : dict  — {line name (ED1, CB1, ...): {"max": float, "min": float}}
+    """
+    from .results_data import extract_transverse_results
+
+    v_scale = _value_plot_scale(eng_scale)
+    is_disp = result_key in DISP_MAP
+    if is_disp:
+        unit, label = "mm", DISP_DISPLAY.get(result_key, result_key)
+        sign = 1.0
+    else:
+        unit = "kNm" if result_key.startswith("M") else "kN"
+        # results_data rotates forces into member local axes, so the girder
+        # labels (F_x axial, V_y/V_z shear, T_x torsion, M_y/M_z bending) apply.
+        label = FORCE_DISPLAY.get(result_key, result_key)
+        sign = -1.0 if result_key.startswith("M") else 1.0   # moments drawn like the BMD
+
+    lines = extract_transverse_results(ds, result_key, nodes, members,
+                                       edge_dist=edge_dist, groups=member_groups)
+
+    fig = Figure(figsize=(14, 6), dpi=110, facecolor="white")
+    ax = fig.add_subplot(111, projection="3d", facecolor="white")
+
+    all_xs = [coord[0] for coord in nodes.values()]
+    all_zs = [coord[2] for coord in nodes.values()]
+    x_min, x_max = min(all_xs), max(all_xs)
+    z_min, z_max = min(all_zs), max(all_zs)
+    x_range = (x_max - x_min) or 1.0
+    z_range = (z_max - z_min) or 1.0
+    ax.set_xlim(x_min - 0.03 * x_range, x_max + 0.03 * x_range)
+    ax.set_ylim(z_min - 0.05 * z_range, z_max + 0.05 * z_range)
+
+    # Faint girder grid for orientation (no transverse lines: those are the data).
+    _add_grillage_background(
+        ax, nodes, members,
+        show_transverse=False,
+        include_edge_longitudinals=False,
+        include_end_transverse=False,
+        show_inner_nodes=False,
+    )
+
+    girders = _find_girders(nodes, members)
+    girder_items = list(girders.items())
+    n_girders = len(girder_items)
+    for i, (z_val, elems) in enumerate(girder_items):
+        if edge_dist > 0 and (i == 0 or i == n_girders - 1):
+            continue
+        g_name = f"G{i}" if edge_dist > 0 else f"G{i + 1}"
+        x0 = nodes[members[elems[0]][0]][0]
+        ax.text(x0 - x_range * 0.02, float(z_val), 0, g_name, color="black", fontsize=11,
+                ha="right", va="center", zorder=90, gid="girder_labels")
+
+    summary_data = {}
+    scatter_objs, scatter_data = [], {}
+    global_vmin, global_vmax = 0.0, 0.0
+    extreme = {"max": None, "min": None}     # (value, x, z, plot_z, line name)
+
+    # Name every end diaphragm, but thin out cross-bracing labels so they stay legible.
+    cb_lines = [ln for ln in lines if ln["kind"] == "cross_bracing"]
+    stride = max(1, int(np.ceil(len(cb_lines) / 6)))
+    labelled = {ln["name"] for ln in lines if ln["kind"] == "end_diaphragm"}
+    labelled |= {ln["name"] for k, ln in enumerate(cb_lines) if k % stride == 0 or k == len(cb_lines) - 1}
+
+    for ln in lines:
+        line_color, fill_color, _ = _TRANSVERSE_STYLE[ln["kind"]]
+        pts_x, pts_z, pts_v, pts_info = [], [], [], []
+
+        for seg in ln["segments"]:
+            (xa, za), (xb, zb) = seg["points"]
+            va, vb = seg["values"]
+            pa, pb = sign * va * v_scale, sign * vb * v_scale
+            global_vmin = min(global_vmin, pa, pb)
+            global_vmax = max(global_vmax, pa, pb)
+
+            # Member baseline + filled diagram between baseline and values.
+            ax.plot([xa, xb], [za, zb], [0, 0], color=line_color, linewidth=1.4, alpha=0.6, zorder=3)
+            ax.plot_surface(
+                np.array([[xa, xb], [xa, xb]]),
+                np.array([[za, zb], [za, zb]]),
+                np.array([[0.0, 0.0], [pa, pb]]),
+                color=fill_color, alpha=0.35, linewidth=0, antialiased=False, zorder=2,
+            )
+            ax.plot([xa, xb], [za, zb], [pa, pb], color=line_color, linewidth=2.0, zorder=4)
+            for xi, zi, pi in ((xa, za, pa), (xb, zb, pb)):
+                ax.plot([xi, xi], [zi, zi], [0, pi], color=line_color, linewidth=0.9, alpha=0.6, zorder=3)
+
+            for (xi, zi), vi, pi, node in (((xa, za), va, pa, seg["nodes"][0]),
+                                           ((xb, zb), vb, pb, seg["nodes"][1])):
+                pts_x.append(xi); pts_z.append(zi); pts_v.append(pi)
+                pts_info.append((ln["name"], seg["element"], node, vi))
+                for key, better in (("max", lambda a, b: a > b), ("min", lambda a, b: a < b)):
+                    if extreme[key] is None or better(vi, extreme[key][0]):
+                        extreme[key] = (vi, xi, zi, pi, ln["name"])
+
+                ax.text(xi, zi, pi, f" {vi:.2f}", color="#455A64", fontsize=6.5, zorder=6,
+                        gid="all_vals", visible=False,   # shown via the "All values" toggle
+                        bbox=dict(boxstyle="round,pad=0.1", facecolor="white", alpha=0.7, edgecolor="none"))
+
+        if pts_x:
+            sc = ax.scatter(pts_x, pts_z, pts_v, color=line_color, s=16, zorder=5, depthshade=False)
+            scatter_objs.append(sc)
+            scatter_data[id(sc)] = pts_info
+            if ln["name"] in labelled:
+                first = ln["segments"][0]["points"][0]
+                ax.text(first[0], first[1] - z_range * 0.08, 0, ln["name"], color=line_color,
+                        fontsize=8, fontweight="bold", ha="center", va="top", zorder=80,
+                        gid="girder_labels")
+
+        summary_data[ln["name"]] = {"max": float(ln["max"]), "min": float(ln["min"])}
+
+    # Global extremes, toggled by the existing Max / Min checkboxes.
+    for key, gid, color in (("max", "max_line", "#FF4136"), ("min", "min_line", "#0074D9")):
+        if extreme[key] is None:
+            continue
+        val, xi, zi, pi, name = extreme[key]
+        ax.plot([xi], [zi], [pi], marker="o", markersize=8, color="black",
+                markeredgecolor="white", markeredgewidth=1.4, linestyle="None", zorder=10, gid=gid)
+        ax.text(xi, zi, pi, f"  {name}: {val:.2f} {unit}", color="black", fontsize=8,
+                fontweight="bold", zorder=11, gid=gid,
+                ha="left", va="bottom" if key == "max" else "top",
+                bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.85, edgecolor=color))
+
+    if not lines:
+        ax.text((x_min + x_max) / 2, (z_min + z_max) / 2, 0, "No transverse members in the model",
+                ha="center", va="center", fontsize=12, color="#B71C1C")
+
+    if _MPLCURSORS and scatter_objs:
+        cursor = mplcursors.cursor(scatter_objs, hover=True)
+        fig._custom_cursor = cursor
+
+        @cursor.connect("add")
+        def on_add(sel, _data=scatter_data, _lbl=label, _unit=unit):
+            name, ele, node, val = _data[id(sel.artist)][sel.index]
+            sel.annotation.set_text(f"{name}  |  Element {ele}\nNode {node}\n{_lbl}: {val:.3f} {_unit}")
+            sel.annotation.get_bbox_patch().set(fc="white", alpha=0.9, edgecolor="#BBBBBB")
+
+    # Legend for the two transverse member types present.
+    from matplotlib.lines import Line2D
+    kinds_present = [k for k in _TRANSVERSE_STYLE if any(ln["kind"] == k for ln in lines)]
+    if kinds_present:
+        handles = [Line2D([0], [0], color=_TRANSVERSE_STYLE[k][0], linewidth=2.5,
+                          label=_TRANSVERSE_STYLE[k][2]) for k in kinds_present]
+        ax.legend(handles=handles, loc="upper right", fontsize=8, frameon=True, framealpha=0.9)
+
+    _add_supports(ax, nodes, members, edge_dist=edge_dist, selected_girder="All")
+    _add_node_number_labels(ax, nodes)
+    _add_element_number_labels(ax, nodes, members)
+
+    ax.set_xlabel("Span Length (m)", fontsize=10, labelpad=8)
+    ax.set_ylabel("Bridge Width (m)", fontsize=10, labelpad=8)
+    ax.set_zlabel(f"{label} ({unit})", fontsize=10, labelpad=8)
+    _set_value_axis_tick_formatter(ax, v_scale, value_sign=sign)
+    zmin, zmax = min(0.0, global_vmin), max(0.0, global_vmax)
+    pad = max(1e-6, 0.08 * max(1e-9, zmax - zmin))
+    ax.set_zlim(zmin - pad, zmax + pad)
+    ax.set_box_aspect([x_range, max(z_range * 2.2, x_range * 0.45), (x_range * 0.32) * max(v_scale, 1e-6)])
+
+    kind_title = "Displacement" if is_disp else ("Moment" if unit == "kNm" else "Force")
+    axes_note = "" if is_disp else "  [member local axes]"
+    ax.set_title(f"Transverse Members {kind_title}  —  {label} ({unit}){axes_note}",
+                 fontsize=12, fontweight="bold", pad=12)
+    fig._eng_scale = v_scale
+    fig._view_kind = "transverse"
+    ax.view_init(elev=TRANSVERSE_VIEW_ELEV, azim=TRANSVERSE_VIEW_AZIM)
+    for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+        pane.fill = False
+        pane.set_edgecolor("#555555")
+        pane.set_linewidth(1.5)
+        pane.set_alpha(1.0)
+    ax.grid(True, linestyle="--", linewidth=0.4, alpha=0.5)
+    _add_coordinate_triad(ax, nodes, eng_scale=v_scale)
+    ax.set_axis_off()
+    return fig, summary_data
