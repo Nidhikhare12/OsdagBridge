@@ -25,11 +25,55 @@ def _tex(value):
     return s
 
 
+def _clean_number(val):
+    """Remove floating-point noise (21.099999999999998 -> 21.1).
+
+    Only numbers with more than 4 decimals are touched; strings that are
+    already formatted (e.g. '5575915.69', '2.3444') are returned unchanged.
+    """
+    if isinstance(val, bool) or val is None:
+        return val
+    if isinstance(val, (int, float)):
+        num = float(val)
+    elif isinstance(val, str):
+        txt = val.strip()
+        try:
+            num = float(txt)
+        except ValueError:
+            return val
+        if "." not in txt or len(txt.split(".")[1]) <= 4:
+            return val
+    else:
+        return val
+    out = f"{num:.4f}".rstrip("0").rstrip(".")
+    return out if out not in ("", "-0") else "0"
+
+
 def _render_value(source_dict, key, unit=""):
     val = source_dict.get(key)
     if val in ("", None):
         return ""
-    return _tex(val) + unit
+    return _tex(_clean_number(val)) + unit
+
+
+def _dim_mm(source_dict, key, unit=" mm"):
+    """Girder dimension in mm.
+
+    The designer converts girder dimensions mm -> m before the analysis
+    (PlateGirderBridge._convert_girder_dims_mm_to_m), so the input dict holds
+    metres at report time.  Values <= 5 can only be metres (no bridge plate is
+    thinner than 5 mm, none wider than 5 m) and are converted back to mm.
+    """
+    val = source_dict.get(key)
+    if val in ("", None):
+        return ""
+    try:
+        num = float(val)
+    except (TypeError, ValueError):
+        return _tex(val) + unit
+    if abs(num) <= 5.0:
+        num *= 1000.0
+    return _tex(_clean_number(round(num, 2))) + unit
 
 
 def get_girder_entries(input_dict):
@@ -73,43 +117,14 @@ def get_girder_entries(input_dict):
     return entries
 
 
-def _fig_or_placeholder(path, caption, width=r'0.9\textwidth'):
-    """Embed figure if path is provided (file already copied to assets), else show placeholder box.
-    path is the relative path as pdflatex will see it (e.g. 'assets/plan.png').
-    """
-    if path:
-        p = path.replace('\\', '/')
-        return (r'\begin{figure}[H]' + '\n'
-                r'\centering' + '\n'
-                r'\includegraphics[width=' + width + ']{' + p + '}\n'
-                r'\caption*{' + caption + '}\n'
-                r'\end{figure}')
-    return (r'\begin{figure}[H]' + '\n'
-            r'\centering' + '\n'
-            r'\fbox{\parbox{0.97\textwidth}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
-            r'}}' + '\n'
-            r'\caption*{' + caption + '}\n'
-            r'\end{figure}')
-
-def _fig_embed(path, caption, width=r'\textwidth', height=None):
-    """Embed a real figure when path is provided (already copied); otherwise use an fbox placeholder."""
-    if path:
-        p = path.replace('\\', '/')
-        opts = 'width=' + width
-        if height:
-            opts += ',height=' + height + ',keepaspectratio'
-        return (r'\begin{figure}[H]' + '\n'
-                r'\vspace{-0.5em}' + '\n'
-                r'\centering' + '\n'
-                r'\includegraphics[' + opts + ']{' + p + '}\n'
-                r'\vspace{0.5em}' + '\n'
-                r'\caption*{\small ' + caption + '}\n'
-                r'\vspace{-0.5em}' + '\n'
-                r'\end{figure}')
-    # fbox placeholder — matches template exactly
-    return (r'\noindent\fbox{\parbox{0.97\textwidth}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
-            r'}}')
+def _fig_or_placeholder(path, caption, width=None):
+    """Figure (or styled placeholder).  Kept for backward compatibility; the
+    implementation lives in latex_tables.figure and styles.FIGURE."""
+    from osdagbridge.core.reports.latex_tables import figure
+    return figure(path, caption, width=width, numbered=False)
 
 
+def _fig_embed(path, caption, width=None, height=None):
+    """Embed a real figure when *path* is given, otherwise a placeholder box."""
+    from osdagbridge.core.reports.latex_tables import figure
+    return figure(path, caption, width=width, height=height, numbered=False)

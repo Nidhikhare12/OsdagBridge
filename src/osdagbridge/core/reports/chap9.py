@@ -1,8 +1,9 @@
+from osdagbridge.core.reports import styles as S
+
+
 def references():
     return r"""
-\chapter*{References}
-\addcontentsline{toc}{chapter}{References}
-
+""" + S.front_heading("References") + r"""
 
 \begin{enumerate}
 

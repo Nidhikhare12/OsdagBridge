@@ -1,7 +1,20 @@
+from osdagbridge.core.reports.latex_tables import longtable
 from osdagbridge.core.reports.report_utils import _tex
 
 
 def ch1_project_info(m):
+    def _row(label, value):
+        return r"\cellcolor{osdagGreenLight}\textbf{" + label + r"} & " + value + r" \\" + "\n\\hline"
+
+    rows = "\n".join([
+        _row("Project Name", _tex(m.project_name)),
+        _row("Project Location", _tex(m.project_location)),
+        _row("Designer", _tex(m.designer)),
+        _row("Reviewer", _tex(m.reviewer)),
+        _row("Organization", _tex(m.company)),
+        _row("Client", _tex(m.client)),
+        _row("Software Version", "OsdagBridge"),
+    ])
     return r"""
 \chapter{Project Information}
 
@@ -10,24 +23,7 @@ This section records all project metadata as entered by the designer.
 \section{Project and Design Team Details}
 \label{sec:project-details}
 
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
-\hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
-\hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
-\hline
-\textbf{Designer} & """ + _tex(m.designer) + r""" \\
-\hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
-\hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
-\hline
-\textbf{Client} & """ + _tex(m.client) + r""" \\
-\hline
-\textbf{Software Version} & OsdagBridge \\
-\hline
-\end{tabular}
-
+""" + longtable("param_value", None, None, rows) + r"""
 
 \section{Applicable Codes and Standards}
 \label{sec:codes}
@@ -44,5 +40,3 @@ This section records all project metadata as entered by the designer.
 \item Indian Standard (IS) 6006: Steel Bearings
 \end{itemize}
 """
-
-

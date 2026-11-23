@@ -118,7 +118,11 @@ from osdagbridge.core.utils.common import (
     KEY_TL_TEMP_RISE
 )
 
+from osdagbridge.core.reports import styles as S
 from osdagbridge.core.reports.report_utils import _tex
+from osdagbridge.core.reports.latex_tables import column_spec
+from osdagbridge.core.reports.charts import build_report_charts
+from osdagbridge.core.reports.quantities import end_diaphragm_quantities
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -133,166 +137,46 @@ from .chap9 import references
 logger = logging.getLogger(__name__)
 
 # --- TEMPLATES START ---
-
-
-# =============================================================================
-# LaTeX template sections for OsdagBridge Design Report
-# Matches the LaTeX template used in the OsdagBridge desktop application.
-# Color: osdagGreen = #91B014
-# =============================================================================
-
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PREAMBLE
-# ═══════════════════════════════════════════════════════════════════════════════
+# The LaTeX preamble, header/footer, TOC and heading styles are generated in
+# styles.py (single source of truth).  Only data-dependent pieces (title page
+# content) are assembled here.
 
 def preamble(project_name, job_number, report_date, report_version='Rev 0'):
-    pn = _tex(project_name)
-    jn = _tex(job_number)
-    rd = _tex(report_date)
-    rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
+    return S.build_preamble(_tex(project_name), _tex(job_number),
+                            _tex(report_date), _tex(report_version))
 
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{tabularx}
-\usepackage{float}
-\usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
-\usepackage{setspace}
-\usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
-\usepackage{subcaption}
-\usepackage{multirow}
-\usepackage{colortbl}
-\usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
-\usepackage{titlesec}
-\usepackage{titletoc}
-\usepackage{lastpage}
-\usepackage{makecell}
-\usepackage{etoolbox}
-\usepackage{needspace}
-
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
-
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
-
-\fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
-\pagestyle{main}
-\setstretch{1.15}
-
-% Custom Commands
-\newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
-\newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
-
-% Software-default asterisk
-\newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
-
-\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
-\author{}
-\date{}
-
-\begin{document}
-"""
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# TITLE PAGE
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def title_page(m, osdag_logo, org_logo):
+    """Cover page.  NOTE: the ``titlepage`` environment is deliberately NOT
+    used — it resets the page counter, which made the cover and the table of
+    contents both show "Page 1"."""
     if osdag_logo:
         lhs = r'\includegraphics[width=\linewidth,keepaspectratio]{' + osdag_logo.replace('\\', '/') + r'}'
     else:
         lhs = r'\textit{(Osdag Logo)}'
-
     if org_logo:
         rhs = r'\includegraphics[width=\linewidth,height=2.2cm,keepaspectratio]{' + org_logo.replace('\\', '/') + r'}'
     else:
         rhs = r''
 
-    logos_tex = r"""\noindent
+    def _row(label, value):
+        return (r'\cellcolor{osdagGreenLight}\textbf{' + label + r'} & ' + value + r' \\' + '\n' + r'\hline' + '\n')
+
+    rows = (_row('Project Name', _tex(m.project_name))
+            + _row('Project Location', _tex(m.project_location))
+            + _row('Author / Designer', _tex(m.designer))
+            + _row('Reviewer', _tex(m.reviewer))
+            + _row('Organization', _tex(m.company))
+            + _row('Client Name and Organization', _tex(m.client))
+            + _row('Job Number', _tex(m.job_number))
+            + _row('Date', _tex(m.report_date))
+            + _row('Report Version', _tex(m.subtitle) if m.subtitle else ''))
+
+    return r"""
+\thispagestyle{firstpage}
+\begin{center}
+\vspace*{0.8cm}
+\noindent
 \begin{minipage}[c]{0.6\textwidth}
 \raggedright
 """ + lhs + r"""
@@ -302,78 +186,24 @@ def title_page(m, osdag_logo, org_logo):
 \raggedleft
 """ + rhs + r"""
 \end{minipage}
-\\[1cm]
+
+\vspace{1.6cm}
+{\fontsize{34}{40}\selectfont\bfseries\color{osdagGreenDark} OsdagBridge}\\[0.35cm]
+{\large Open Source Software for Steel Girder Bridge Design}\\[0.6cm]
+{\color{osdagGreen}\rule{0.55\textwidth}{1.4pt}}\\[0.9cm]
+{\Large Design Report}\\[1.6cm]
+\arrayrulecolor{ruleGrey}
+\renewcommand{\arraystretch}{1.55}
+\begin{tabular}{""" + column_spec([("L", 0.30), ("L", 0.70)]) + r"""}
+\hline
+""" + rows + r"""\end{tabular}
+\end{center}
+\clearpage
 """
 
-    return r"""
-\begin{titlepage}
-\thispagestyle{firstpage}
-\centering
-\vspace*{1.5cm}
-""" + logos_tex + r"""
-{\Huge \textbf{OsdagBridge}}\\[0.3cm]
-{\large Open Source Software for Steel Girder Bridge Design}\\[1.5cm]
-{\Large Design Report}\\[1.5cm]
-\begin{tabular}{|L{4cm}|L{10cm}|}
-\hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
-\hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
-\hline
-\textbf{Author / Designer} & """ + _tex(m.designer) + r""" \\
-\hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
-\hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
-\hline
-\textbf{Client Name and Organization} & """ + _tex(m.client) + r""" \\
-\hline
-\textbf{Job Number} & """ + _tex(m.job_number) + r""" \\
-\hline
-\textbf{Date} & """ + _tex(m.report_date) + r""" \\
-\hline
-\textbf{Report Version} & """ + (_tex(m.subtitle) if m.subtitle else '') + r""" \\
-\hline
-\end{tabular}
-\end{titlepage}
-"""
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# TOC
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def toc_section():
-    return r"""
-% Chapter / TOC Formatting
-\titleformat{\chapter}[block]
-  {\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{0pt}{10pt}
-\setcounter{tocdepth}{2}
-
-% TOC styling using titletoc
-\titlecontents{chapter}[1.5em]
-  {\normalfont\vspace{2pt}}
-  {\contentslabel{1.5em}}
-  {\hspace*{-1.5em}}
-  {\hfill\contentspage}
-
-\titlecontents{section}[3.8em]
-  {\normalfont}
-  {\contentslabel{2.3em}}
-  {\hspace*{-2.3em}}
-  {\hfill\contentspage}
-
-\titlecontents{subsection}[7.0em]
-  {\normalfont}
-  {\contentslabel{3.2em}}
-  {\hspace*{-3.2em}}
-  {\hfill\contentspage}
-
-\newpage
-\renewcommand{\contentsname}{\centering\Large\bfseries Table of Contents}
-\tableofcontents
-"""
+    return S.toc_tex()
 
 
 # =============================================================================
@@ -454,10 +284,35 @@ class ReportDataBridge:
 
 
 
-    def __init__(self, output_dict: dict, input_dict: dict, payload: "ReportPayload"):
+    def __init__(self, output_dict: dict, input_dict: dict, payload: "ReportPayload",
+                 component: str = "cb"):
+        """component: 'cb' (cross bracing) or 'ed' (end diaphragm).  The same
+        accessors (get_cb_*) serve both; only the source dictionaries and the
+        section-property key prefix differ."""
         self.output_dict = output_dict
         self.input_dict = input_dict
         self.payload = payload
+        self.component = component
+        if component == "ed":
+            self.forces_key = "end_diaphragm_forces_dict"
+            self.designs_key = "end_diaphragm_design_results"
+            self.sp_prefix = "transverse_member_design.ed.section_properties"
+            self.diag_group = "end_diaphragm"
+        else:
+            self.forces_key = "crossbracing_forces_dict"
+            self.designs_key = "crossbracing_design_results"
+            self.sp_prefix = "transverse_member_design.cb.section_properties"
+            self.diag_group = "bracing"
+
+    def section_prop(self, pair: str, member: str, prop: str):
+        """Section property (e.g. 'A', 'rv') of a designed member, or None."""
+        pid = pair.replace("-", "")
+        groups = [self.diag_group] if member == "diagonal" else ["bottom_chord", "top_chord"]
+        for g in groups:
+            v = self.output_dict.get(f"{self.sp_prefix}.{g}.{pid}.{prop}")
+            if v is not None:
+                return v
+        return None
 
 
     # =====================================================================
@@ -466,11 +321,11 @@ class ReportDataBridge:
 
     def _cb_forces_dict(self) -> dict:
         """Internal: return crossbracing_forces_dict from output_dict."""
-        return self.output_dict.get("crossbracing_forces_dict", {})
+        return self.output_dict.get(self.forces_key, {}) or {}
 
     def _cb_pair_designs(self) -> dict:
         """Internal: return crossbracing_design_results from output_dict."""
-        return self.output_dict.get("crossbracing_design_results", {})
+        return self.output_dict.get(self.designs_key, {}) or {}
 
     def _cb_osdag(self, pair: str, member: str, force_type: str) -> dict:
         """
@@ -593,8 +448,8 @@ class ReportDataBridge:
             if val is not None:
                 ur = float(val)
                 if ur <= 1.0:
-                    return r"\textcolor{black}{PASS}"
-                return r"\textcolor{red}{FAIL}"
+                    return r"\passtxt{}"
+                return r"\failtxt{}"
         except (TypeError, ValueError):
             pass
         return ""
@@ -617,6 +472,18 @@ class ReportDataBridge:
     def get_cb_effective_length(self, member: str) -> str:
         """Effective length KL in mm from geometry."""
         try:
+            if self.component == "ed":
+                # Mirrors PlateGirderBridge._design_end_diaphragm_members:
+                # chord = girder spacing, diagonal = sqrt(s^2 + (0.85 D)^2)
+                import math
+                from osdagbridge.core.utils.common import KEY_TS_GIRDER_SPACING, KEY_MP_GIRDER_DEPTH
+                s_m = float(self.input_dict.get(KEY_TS_GIRDER_SPACING))
+                depth = float(self.input_dict.get(f"{KEY_MP_GIRDER_DEPTH}.G1.M1")
+                              or self.input_dict.get(KEY_MP_GIRDER_DEPTH))
+                if depth > 20.0:
+                    depth /= 1000.0
+                L_m = math.hypot(s_m, 0.85 * depth) if member == "diagonal" else s_m
+                return f"{L_m * 1000:.0f}"
             geom = self.get_cb_geometry()
             if member == "diagonal":
                 L_m = geom.get("diagonal_length_m", 0)
@@ -898,10 +765,17 @@ def generate_report(payload, request):
             # Compute and inject quantities for Chapter 7
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
+            payload.inputs.update(end_diaphragm_quantities(payload.inputs, payload.output_dict))
 
-            # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
-            bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
+            # ── Data bridges: cross bracing and end diaphragm ──
+            bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload, component="cb")
+            ed_bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload, component="ed")
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
+
+            # ── Charts (UR + material quantities): auto-saved to tmp images ──
+            chart_paths, ur_data = build_report_charts(
+                tmp_images, payload.output_dict, payload.inputs, bridge, ed_bridge)
+            fig_paths.update(chart_paths)
 
             doc_parts = []
             doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
@@ -915,7 +789,7 @@ def generate_report(payload, request):
             # chapters are locked in the UI, so they are always present.
             secs = payload.options.sections
 
-            doc_parts.append(executive_summary(payload.inputs, payload.output_dict, fig_paths))
+            doc_parts.append(executive_summary(payload.inputs, payload.output_dict, fig_paths, ur_data))
             doc_parts.append(ch1_project_info(payload.metadata))
             doc_parts.append(ch2_input_parameters(payload.metadata, payload.inputs, payload.output_dict))
 
@@ -924,15 +798,14 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, ed_bridge, fig_paths))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, fig_paths))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
-        
 
             doc_parts.append(ch8_design_log(payload.log_entries, payload.inputs))
 
@@ -977,6 +850,11 @@ def generate_report(payload, request):
                 shutil.copy2(tmp_tex, tex_path)
             if os.path.exists(tmp_pdf):
                 shutil.copy2(tmp_pdf, pdf_path)
+            else:
+                # keep the LaTeX log next to the .tex so compile errors can be diagnosed
+                tmp_log = os.path.join(tmp_dir, request.file_stem + '.log')
+                if os.path.exists(tmp_log):
+                    shutil.copy2(tmp_log, os.path.join(request.output_dir, request.file_stem + '.log'))
 
         if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)
