@@ -467,6 +467,48 @@ class CAD3DWindow(QWidget):
             BARRIER_COLOR
         )
 
+        # SUBSTRUCTURE (piers, pier caps, pile caps, piles) AND REBAR
+        def _as_compound(shapes):
+            if not shapes:
+                return None
+            if not isinstance(shapes, (list, tuple)):
+                return shapes
+            if len(shapes) == 1:
+                return shapes[0]
+            from OCC.Core.BRep import BRep_Builder
+            from OCC.Core.TopoDS import TopoDS_Compound
+            _b = BRep_Builder()
+            _c = TopoDS_Compound()
+            _b.MakeCompound(_c)
+            for _s in shapes:
+                _b.Add(_c, _s)
+            return _c
+
+        SUBSTRUCTURE_COLOR = Quantity_Color(150/255, 150/255, 145/255, Quantity_TOC_RGB)
+        REBAR_COLOR = Quantity_Color(170/255, 40/255, 30/255, Quantity_TOC_RGB)
+        try:
+            sub_shape = _as_compound(cad_data.get("substructure_concrete"))
+            if sub_shape is not None:
+                display_and_register(
+                    sub_shape,
+                    "Substructure Concrete",
+                    "Substructure\nPiers, pier caps, pile caps and piles",
+                    SUBSTRUCTURE_COLOR,
+                    transparency=0.65,
+                )
+            rebar_shape = _as_compound(cad_data.get("substructure_rebar"))
+            if rebar_shape is not None:
+                display_and_register(
+                    rebar_shape,
+                    "Substructure Rebar",
+                    "Reinforcement",
+                    REBAR_COLOR,
+                    selectable=False,
+                )
+        except Exception as exc:
+            print("Substructure display failed:", repr(exc))
+
+
         # Nodes and grillage overlays
         node_positions = self._render_nodes()
         self._render_grillage(node_positions)
@@ -716,6 +758,8 @@ class CAD3DWindow(QWidget):
             "Crash Barrier": ["Crash Barrier", "Crash Barrier W-Beam"],
             "Median":        ["Median", "Median W-Beam"],
             "Railing":       ["Railing"],
+            "Substructure":  ["Substructure Concrete"],
+            "Rebar":         ["Substructure Rebar"],
             "Grillage":      ["Grillage"],
             "Node":          ["Node"],
         }
@@ -1209,6 +1253,8 @@ class BridgeComponentCheckbox(QWidget):
         ("Crash Barrier", "Crash Barrier"),
         ("Median",        "Median"),
         ("Railing",       "Railing"),
+        ("Substructure", "Substructure"),
+        ("Rebar",        "Rebar"),
         ("Grillage view", "Grillage"),
         ("Node",          "Node"),
         ("Node Numbers",  "NodeNumbers"),
