@@ -1552,6 +1552,229 @@ def build_figure_deflection(ds, disp_key, nodes, members, edge_dist=0.0, eng_sca
     return fig, summary_data
 
 
+
+
+def build_figure_transverse(ds, result_key, nodes, members,
+                            transverse_members, eng_scale=1.0):
+    """
+    Plot force or displacement diagrams on transverse bridge members.
+
+    OpenSees bridge coordinates are [X, Y, Z], where X is the span,
+    Y is vertical elevation, and Z is bridge width.  The plot therefore
+    uses X and Z for the undeformed bridge plane and the selected result
+    component as the diagram height.
+    """
+    fig = Figure(figsize=(14, 6), dpi=110, facecolor="white")
+    ax = fig.add_subplot(111, projection="3d", facecolor="white")
+
+    scale = _value_plot_scale(eng_scale)
+    tags = sorted({
+        int(tag) for tag in (transverse_members or [])
+        if int(tag) in members
+    })
+
+    def show_message(message):
+        ax.text2D(
+            0.5, 0.5, message, transform=ax.transAxes,
+            ha="center", va="center",
+        )
+        ax.set_title("Transverse Members", fontsize=12, fontweight="bold")
+        return fig, {}
+
+    if not tags:
+        return show_message("No transverse member elements are available for plotting.")
+
+    def find_component(dataset, requested):
+        if "Component" not in dataset.coords:
+            return None
+        for component in dataset.coords["Component"].values:
+            if str(component).lower() == str(requested).lower():
+                return component
+        return None
+
+    def scalar_value(data_array):
+        """Return one finite scalar, or None for missing/ambiguous results."""
+        values = np.asarray(data_array.values).squeeze()
+        if values.size != 1:
+            return None
+        value = float(values.reshape(-1)[0])
+        return value if np.isfinite(value) else None
+
+    is_displacement = result_key in DISP_MAP
+    values_for_summary = []
+    plotted = 0
+
+    if is_displacement:
+        dataset = ds.get("displacements")
+        if dataset is None:
+            return show_message("Displacement results are unavailable.")
+
+        requested = DISP_MAP[result_key]
+        component_map = {"dx": "x", "dy": "y", "dz": "z"}
+        target = component_map.get(str(requested).lower(), str(requested))
+        actual_component = find_component(dataset, target)
+        if actual_component is None:
+            return show_message(f"Displacement component {target} is unavailable.")
+
+        node_values = {}
+        if "Node" not in dataset.coords:
+            return show_message("Displacement results do not contain node coordinates.")
+
+        for node_id in dataset.coords["Node"].values:
+            try:
+                value = scalar_value(
+                    dataset.sel(Node=node_id, Component=actual_component)
+                )
+            except (KeyError, ValueError, TypeError):
+                value = None
+
+            if value is None:
+                continue
+
+            # Convert metres to millimetres. Keep the established sign
+            # convention for vertical/transverse displacement components.
+            if str(actual_component).lower() in ("y", "z"):
+                value = -value
+            node_values[int(node_id)] = value * 1000.0
+
+        label = DISP_DISPLAY.get(result_key, result_key)
+        unit = "mm"
+        colour = "#6A1B9A"
+
+        for element in tags:
+            n1, n2 = members[element]
+            if n1 not in nodes or n2 not in nodes:
+                continue
+            if n1 not in node_values or n2 not in node_values:
+                continue
+
+            x1, _y1, z1 = nodes[n1]
+            x2, _y2, z2 = nodes[n2]
+            v1, v2 = node_values[n1], node_values[n2]
+
+            # Bridge plan is X (span) by Z (width); Y is vertical elevation.
+            ax.plot([x1, x2], [z1, z2], [0, 0],
+                    color="#9E9E9E", linewidth=1.0, alpha=0.6)
+            ax.plot([x1, x2], [z1, z2],
+                    [v1 * scale, v2 * scale],
+                    color=colour, linewidth=2.0, marker="o",
+                    markersize=3,
+                    label="Transverse displacement" if plotted == 0 else None)
+
+            values_for_summary.extend([v1, v2])
+            plotted += 1
+
+    else:
+        dataset = ds.get("forces")
+        if dataset is None:
+            return show_message("Force results are unavailable.")
+        if result_key not in FORCE_MAP:
+            return show_message(f"Unsupported result component: {result_key}")
+
+        force_i, force_j = FORCE_MAP[result_key]
+        comp_i = find_component(dataset, force_i)
+        comp_j = find_component(dataset, force_j)
+        if comp_i is None or comp_j is None:
+            return show_message(
+                f"Force components {force_i}/{force_j} are unavailable."
+            )
+
+        label = FORCE_DISPLAY.get(result_key, result_key)
+        unit = "kN" if result_key.startswith("F") else "kN·m"
+        colour = "#1565C0"
+
+        for element in tags:
+            n1, n2 = members[element]
+            if n1 not in nodes or n2 not in nodes:
+                continue
+            try:
+                raw_i = scalar_value(
+                    dataset.sel(Element=element, Component=comp_i)
+                )
+                raw_j = scalar_value(
+                    dataset.sel(Element=element, Component=comp_j)
+                )
+            except (KeyError, ValueError, TypeError):
+                continue
+
+            if raw_i is None or raw_j is None:
+                continue
+
+            # OpenSees element end forces are in N / N·m; display kN / kN·m.
+            v1, v2 = raw_i / 1000.0, raw_j / 1000.0
+            x1, _y1, z1 = nodes[n1]
+            x2, _y2, z2 = nodes[n2]
+
+            ax.plot([x1, x2], [z1, z2], [0, 0],
+                    color="#9E9E9E", linewidth=1.0, alpha=0.6)
+            ax.plot([x1, x2], [z1, z2],
+                    [v1 * scale, v2 * scale],
+                    color=colour, linewidth=2.0, marker="o",
+                    markersize=3,
+                    label="Transverse force" if plotted == 0 else None)
+
+            values_for_summary.extend([v1, v2])
+            plotted += 1
+
+    if plotted == 0:
+        return show_message(
+            "No finite transverse result values were found for this component."
+        )
+
+    # Use X and Z for the actual bridge plan.  The previous implementation
+    # incorrectly used node Y (elevation) as the width coordinate.
+    all_x = [
+        nodes[n][0] for e in tags for n in members[e] if n in nodes
+    ]
+    all_z = [
+        nodes[n][2] for e in tags for n in members[e] if n in nodes
+    ]
+    x_range = max(all_x) - min(all_x) if all_x else 1.0
+    z_range = max(all_z) - min(all_z) if all_z else 1.0
+    x_range = max(x_range, 1.0)
+    z_range = max(z_range, 1.0)
+
+    x_pad = max(x_range * 0.08, 0.5)
+    z_pad = max(z_range * 0.08, 0.5)
+    ax.set_xlim(min(all_x) - x_pad, max(all_x) + x_pad)
+    ax.set_ylim(min(all_z) - z_pad, max(all_z) + z_pad)
+
+    scaled_values = np.asarray(values_for_summary, dtype=float) * scale
+    low = min(0.0, float(np.min(scaled_values)))
+    high = max(0.0, float(np.max(scaled_values)))
+    value_span = high - low
+    value_pad = max(value_span * 0.08, 0.1)
+    ax.set_zlim(low - value_pad, high + value_pad)
+
+    ax.set_xlabel("Span Length (m)", fontsize=10, fontweight="bold", labelpad=8)
+    ax.set_ylabel("Bridge Width (m)", fontsize=10, fontweight="bold", labelpad=8)
+    ax.set_zlabel(f"{label} ({unit})", fontsize=10, fontweight="bold", labelpad=8)
+    ax.set_title(
+        f"Transverse Members — {label} ({unit})",
+        fontsize=12, fontweight="bold", pad=12,
+    )
+    _set_value_axis_tick_formatter(ax, scale)
+    ax.set_box_aspect((x_range, z_range, max(value_span, 1.0) * 0.35))
+    ax.view_init(elev=DEFAULT_ELEV, azim=DEFAULT_AZIM)
+    ax.grid(True, linestyle="--", linewidth=0.4, alpha=0.5)
+    ax.legend(loc="upper right", fontsize=8)
+
+    for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+        pane.fill = False
+        pane.set_edgecolor("#777777")
+        pane.set_alpha(0.8)
+
+    summary = {
+        "Transverse": {
+            "max": float(max(values_for_summary)),
+            "min": float(min(values_for_summary)),
+        }
+    }
+    fig._eng_scale = scale
+    return fig, summary
+
+
+
 def figure_to_bytes(fig, fmt="png", dpi=150):
     """Convenience helper — render a matplotlib figure to raw bytes."""
     buf = io.BytesIO()

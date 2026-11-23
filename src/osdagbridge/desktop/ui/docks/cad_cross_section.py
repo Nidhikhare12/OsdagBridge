@@ -5,9 +5,9 @@ Author: Arushi
 """
 
 import math
-from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
-from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon, QPixmap
+from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea, QLineEdit
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize, Signal
+from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon, QPixmap, QDoubleValidator
 from osdagbridge.core.utils.common import *
 from osdagbridge.desktop.cad.irc5_geometry import (
     CrashBarrierGeometry,
@@ -17,6 +17,7 @@ from osdagbridge.desktop.cad.irc5_geometry import (
 
 
 class CrossSectionCADWidget(QWidget):
+    dimension_edited = Signal(str, float)
     """Widget for drawing bridge cross-section view"""
     # ===== SHARED CAD COLORS =====
     GIRDER_COLOR = QColor(179, 180, 160) 
@@ -49,7 +50,12 @@ class CrossSectionCADWidget(QWidget):
         self.hovered_label_index = -1
         self.hovered_element = None  # Track hovered element for highlighting
         self.cross_section_hover_zones = []  # Store hover zones as (QRectF, element_type)
+        self.dimension_edit_zones = []
         self.interactive_hover = True
+
+        # Temporary editor for editable CAD dimensions
+        self._dimension_editor = None
+        self._active_edit_key = None
         self.highlighted_girder_index = -1
 
         # Scale factor for diagram size (1.0 = normal, <1.0 = smaller)
@@ -692,6 +698,92 @@ class CrossSectionCADWidget(QWidget):
 
         self.update_params(params)
 
+    def mouseDoubleClickEvent(self, event):
+        """Open an inline editor for an editable dimension label."""
+        pos = event.position() if hasattr(event, "position") else event.pos()
+        print(f"[CAD HIT TEST] click={pos}, zones={self.dimension_edit_zones}", flush=True)
+
+        for rect, edit_key in self.dimension_edit_zones:
+            if rect.contains(pos):
+                print(f"[CAD HIT] MATCHED: {edit_key}", flush=True)
+                self.open_dimension_editor(rect, edit_key)
+                event.accept()
+                return
+
+        super().mouseDoubleClickEvent(event)
+
+    def open_dimension_editor(self, rect, edit_key):
+        """Create a temporary numeric editor over a dimension label."""
+        if self._dimension_editor is not None:
+            self._dimension_editor.deleteLater()
+
+        param_map = {
+            KEY_CARRIAGEWAY_WIDTH: ("carriageway_width", 1000, 2),
+            KEY_TS_GIRDER_SPACING: ("girder_spacing", 1000, 2),
+            KEY_TS_DECK_THICKNESS: ("deck_thickness", 1, 0),
+        }
+
+        if edit_key not in param_map:
+            return
+
+        param_name, divisor, decimals = param_map[edit_key]
+        current_value = float(self.params[param_name]) / divisor
+
+        editor = QLineEdit(self)
+        editor.setGeometry(rect.toRect().adjusted(-3, -3, 3, 3))
+        editor.setAlignment(Qt.AlignCenter)
+        editor.setValidator(QDoubleValidator(0.001, 100000.0, decimals, editor))
+        editor.setText(f"{current_value:.{decimals}f}")
+        editor.setStyleSheet(
+            "QLineEdit { background: white; color: black; "
+            "border: 1px solid #2878D0; padding: 2px; }"
+        )
+
+        self._dimension_editor = editor
+        self._active_edit_key = edit_key
+        editor.returnPressed.connect(self.commit_dimension_edit)
+        editor.editingFinished.connect(self.commit_dimension_edit)
+        editor.show()
+        editor.setFocus()
+        editor.selectAll()
+        print(f"[CAD EDITOR] SHOWN: {edit_key}, value={editor.text()}", flush=True)
+
+    def commit_dimension_edit(self):
+        """Validate and emit the edited dimension in millimetres."""
+        print("[CAD COMMIT] Function triggered", flush=True)
+
+        editor = self._dimension_editor
+        edit_key = self._active_edit_key
+
+        if editor is None or edit_key is None:
+            return
+
+        text = editor.text().strip()
+        state, _, _ = editor.validator().validate(text, 0)
+        print(f"[CAD COMMIT] text={text!r}, validator_state={state}", flush=True)
+
+        if not text or state != QDoubleValidator.Acceptable:
+            self._dimension_editor = None
+            self._active_edit_key = None
+            editor.deleteLater()
+            self.setFocus()
+            return
+
+        divisor = 1000 if edit_key in (
+            KEY_CARRIAGEWAY_WIDTH,
+            KEY_TS_GIRDER_SPACING,
+        ) else 1
+
+        value_mm = float(text) * divisor
+
+        self._dimension_editor = None
+        self._active_edit_key = None
+        editor.deleteLater()
+        self.setFocus()
+
+        print(f"[CAD COMMIT] Emitting: {edit_key} = {value_mm}", flush=True)
+        self.dimension_edited.emit(edit_key, value_mm)
+
     def mouseMoveEvent(self, event):
         """Handle mouse hover for both labels and structural elements"""
         if not getattr(self, 'interactive_hover', True):
@@ -729,6 +821,7 @@ class CrossSectionCADWidget(QWidget):
         # clear hover labels and zones at start of each paint
         self.hover_labels = []
         self.cross_section_hover_zones = []
+        self.dimension_edit_zones = []
         
         painter = QPainter(self)
         try:
@@ -779,7 +872,7 @@ class CrossSectionCADWidget(QWidget):
             painter.drawText(int(x), int(first_line_y + i * line_height), line)
 
     
-    def draw_dimension_arrow(self, painter, x1, y1, x2, y2, text, horizontal=True, offset=0, text_offset=0, draw_extensions=True, extension_direction='down', extension_end_y=None):
+    def draw_dimension_arrow(self, painter, x1, y1, x2, y2, text, horizontal=True, offset=0, text_offset=0, draw_extensions=True, extension_direction='down', extension_end_y=None, edit_key=None):
         """dimension line with arrows and text with extension lines"""
         painter.setPen(QPen(QColor(0, 0, 0), 0.8))
         
@@ -845,6 +938,19 @@ class CrossSectionCADWidget(QWidget):
             font = QFont('Arial', 9, QFont.Normal)
             metrics = painter.fontMetrics()
             text_width = metrics.boundingRect(text).width()
+            if edit_key:
+                lines = text.split('\n')
+                line_height = metrics.height()
+                max_width = max(metrics.boundingRect(line).width() for line in lines)
+                total_height = line_height * len(lines)
+                padding = 2
+                rect = QRectF(
+                    text_x - text_width / 2 - padding,
+                    text_y - total_height - padding,
+                    max_width + 2 * padding,
+                    total_height + 2 * padding,
+                )
+                self.dimension_edit_zones.append((rect, edit_key))
             
             self.draw_text_with_background(painter, text_x - text_width/2, text_y, text, 
                                         QColor(255, 255, 255, 255), QColor(0, 0, 0), 9, False)
@@ -2124,7 +2230,8 @@ class CrossSectionCADWidget(QWidget):
             self.draw_dimension_arrow(painter, actual_cw_start, Y_TOP_COMMON, median_start_x, Y_TOP_COMMON,
                                     label_cw, True, 
                                     extension_direction='down',
-                                    extension_end_y=deck_top_y)
+                                    extension_end_y=deck_top_y,
+                                        edit_key=KEY_CARRIAGEWAY_WIDTH)
             
             # Median dimension
             median_m = median_width / 1000
@@ -2141,7 +2248,8 @@ class CrossSectionCADWidget(QWidget):
             self.draw_dimension_arrow(painter, median_end_x, Y_TOP_COMMON, actual_cw_end, Y_TOP_COMMON,
                                     label_cw, True, 
                                     extension_direction='down',
-                                    extension_end_y=deck_top_y)
+                                    extension_end_y=deck_top_y,
+                                        edit_key=KEY_CARRIAGEWAY_WIDTH)
         else:
             # Single carriageway
             cw_m = self.params['carriageway_width'] / 1000
@@ -2153,7 +2261,8 @@ class CrossSectionCADWidget(QWidget):
             self.draw_dimension_arrow(painter, actual_cw_start, Y_TOP_COMMON, actual_cw_end, Y_TOP_COMMON,
                                     label_cw, True, 
                                     extension_direction='down',
-                                    extension_end_y=deck_top_y)
+                                    extension_end_y=deck_top_y,
+                                        edit_key=KEY_CARRIAGEWAY_WIDTH)
         
         # Right footpath dimension
         if right_railing_present and right_fp_width > 0:
@@ -2208,7 +2317,8 @@ class CrossSectionCADWidget(QWidget):
             self.draw_dimension_arrow(painter, x_left, Y_GIRDER_SPACING, x_right, Y_GIRDER_SPACING,
                                     label_gs, True, 
                                     extension_direction='up',
-                                    extension_end_y=base_y)
+                                    extension_end_y=base_y,
+                                        edit_key=KEY_TS_GIRDER_SPACING)
         
         # FOOTPATH THICKNESS DIMENSION 
         fp_t_mm = self.params['footpath_thickness']
@@ -2284,6 +2394,11 @@ class CrossSectionCADWidget(QWidget):
             text_width = metrics.boundingRect(text).width()
             text_x = deck_center_x - text_width / 2
             text_y = local_deck_top_y - 8
+            self.dimension_edit_zones.append((
+                QRectF(text_x - 2, text_y - metrics.height() - 2,
+                       text_width + 4, metrics.height() + 4),
+                KEY_TS_DECK_THICKNESS,
+            ))
             
             self.draw_text_with_background(painter, text_x, text_y, text,
                                         QColor(255, 255, 255, 255), QColor(0, 0, 0), 9, False)

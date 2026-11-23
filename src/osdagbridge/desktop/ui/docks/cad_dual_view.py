@@ -5,7 +5,7 @@ Author: Arushi
 """
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QScrollArea, QHBoxLayout, QPushButton, QLabel
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Signal
 from .cad_cross_section import CrossSectionCADWidget
 from .cad_top_view import TopViewCADWidget
 from osdagbridge.core.utils.common import *
@@ -16,6 +16,7 @@ from osdagbridge.desktop.cad.irc5_geometry import (
 )
 
 class BridgeDualCADWidget(QWidget):
+    dimension_edited = Signal(str, float)
     """Split view widget showing both cross-section and top view with individual controls"""
     
     def __init__(self, parent=None):
@@ -61,6 +62,12 @@ class BridgeDualCADWidget(QWidget):
         
         # Create top view scroll area
         self.top_view_widget = TopViewCADWidget(self)
+        self.cross_section_widget.dimension_edited.connect(
+            self.dimension_edited.emit
+        )
+        self.top_view_widget.dimension_edited.connect(
+            self.dimension_edited.emit
+        )
         # self.top_view_widget.setMinimumSize(800, 600)
         
         self.top_scroll = QScrollArea()

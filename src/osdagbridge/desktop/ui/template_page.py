@@ -1,4 +1,5 @@
 import os, yaml
+import copy
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QMenuBar, QSplitter, QSizePolicy, QPushButton, QLineEdit, QComboBox, QFileDialog,
@@ -119,6 +120,7 @@ class CustomWindow(QWidget):
         # Source for all input values.
         # Initialised from BASIC_INPUT_DICT; updated live as the user edits fields.
         self.input_dict = dict(BASIC_INPUT_DICT)
+        self._cad_layout_changed_field = None
 
         # AdditionalInputs dialog 
         self._additional_inputs_dialog: AdditionalInputs | None = None
@@ -645,8 +647,7 @@ class CustomWindow(QWidget):
         # Redefine additional input defaults if required fields changed
         # Solve bridge layout so the dict has computed values before Design or Additional Inputs
         if self.input_dock.is_require_field_changed:
-            solve_extend_basic_input_dict(self.input_dict)
-            self.input_dock.is_require_field_changed = False
+            self.solve_current_bridge_layout()
 
         print("\n@@input_dictionary_after (common_design_func):\n")
         pprint(self.input_dict)
@@ -748,7 +749,13 @@ class CustomWindow(QWidget):
                     loadcases = self.backend.get_available_loadcases()
                     nodes, members = self.backend.get_nodes_members()
                     edge_dist = self.backend.get_edge_dist()
-                    self.plots_widget.setup(ds_all, loadcases, nodes, members, edge_dist=edge_dist)
+                    result_data = getattr(self.backend, "result_data", {}) or {}
+                    transverse_members = result_data.get("transverse_plot_members", [])
+                    self.plots_widget.setup(
+                        ds_all, loadcases, nodes, members,
+                        edge_dist=edge_dist,
+                        transverse_members=transverse_members,
+                    )
                     self.plots_widget.link_output_dock(self.output_dock)
 
                     # Render 3D cad using the parameters from Backend
@@ -782,10 +789,104 @@ class CustomWindow(QWidget):
 
     #-------Common-Design-Save-Additional-Inputs-Functionality-END---------
 
+    def handle_cad_dimension_edit(self, edit_key: str, value_mm: float):
+        print(f"[CAD EDIT] Handler received: {edit_key} = {value_mm}", flush=True)
+        """Synchronize an edited CAD dimension with the main input dictionary."""
+
+        unit_map = {
+            KEY_SPAN: 1000,
+            KEY_CARRIAGEWAY_WIDTH: 1000,
+            KEY_TS_GIRDER_SPACING: 1000,
+            KEY_TS_DECK_THICKNESS: 1,
+        }
+
+        if edit_key not in unit_map:
+            return
+
+        previous_dict = copy.deepcopy(self.input_dict)
+        previous_layout_mode = self._cad_layout_changed_field
+
+        try:
+            value = float(value_mm) / unit_map[edit_key]
+
+            if value <= 0:
+                raise ValueError("Value must be greater than zero.")
+
+            self.input_dict[edit_key] = str(value)
+
+            if edit_key == KEY_TS_GIRDER_SPACING:
+                carriageway_width = self.input_dict.get(KEY_CARRIAGEWAY_WIDTH)
+                span = self.input_dict.get(KEY_SPAN)
+                print("[CAD SOLVER GUARD]", {
+                    "carriageway_width": repr(carriageway_width),
+                    "span": repr(span),
+                    "girder_spacing": repr(self.input_dict.get(KEY_TS_GIRDER_SPACING)),
+                }, flush=True)
+
+                # Regenerate the layout only when required inputs are available.
+                if (
+                    carriageway_width not in (None, "")
+                    and span not in (None, "")
+                ):
+                    solve_extend_basic_input_dict(
+                        self.input_dict,
+                        changed_field="spacing"
+                    )
+
+                # Keep the edited spacing as the active CAD layout change.
+                self._cad_layout_changed_field = "spacing"
+
+            widget = self.input_dock._w(edit_key)
+
+            if isinstance(widget, QLineEdit):
+                widget.blockSignals(True)
+                widget.setText(str(value))
+                widget.blockSignals(False)
+
+            self.input_dock.is_require_field_changed = False
+            self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
+
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            self.input_dict.clear()
+            self.input_dict.update(previous_dict)
+            self._cad_layout_changed_field = previous_layout_mode
+
+            widget = self.input_dock._w(edit_key)
+
+            if isinstance(widget, QLineEdit):
+                widget.blockSignals(True)
+                widget.setText(str(previous_dict.get(edit_key, "")))
+                widget.blockSignals(False)
+
+            self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
+
+            CustomMessageBox(
+                title="Invalid CAD Dimension",
+                text=f"The edited dimension could not be applied: {exc}",
+                dialogType=MessageBoxType.Warning
+            ).exec()
+
+    def solve_current_bridge_layout(self):
+        """Solve the bridge layout while preserving a manual CAD spacing edit."""
+
+        changed_field = self._cad_layout_changed_field or "girders"
+
+        solve_extend_basic_input_dict(
+            self.input_dict,
+            changed_field=changed_field
+        )
+
+        self.input_dock.is_require_field_changed = False
+
     def setup_cad_connections(self):
         """Connect input dock field changes to CAD widget for real-time updates"""
         # Connect to input dock's value changed signals
         # This will update the CAD whenever any input field changes
+        self.cad_comp_widget.dimension_edited.connect(
+            self.handle_cad_dimension_edit
+        )
         if hasattr(self.input_dock, 'input_value_changed'):
             self.input_dock.input_value_changed.connect(self.update_cad_from_inputs)        
             
@@ -794,9 +895,14 @@ class CustomWindow(QWidget):
         # Populate additional input defaults so they appear in the saved file
         # even if the user never opened the Additional Inputs dialog.
         try:
-            solve_extend_basic_input_dict(self.input_dict)
-        except Exception:
-            pass
+            self.solve_current_bridge_layout()
+        except Exception as exc:
+            CustomMessageBox(
+                title="Invalid Bridge Layout",
+                text=str(exc),
+                dialogType=MessageBoxType.Warning
+            ).exec()
+            return
 
         default_dir = os.path.join(get_documents_folder(), "inputs.osi")
         filePath, _ = QFileDialog.getSaveFileName(self,
@@ -864,7 +970,8 @@ class CustomWindow(QWidget):
 
             # Refresh 2D CAD to reflect loaded values
             try:
-                solve_extend_basic_input_dict(self.input_dict)
+                self._cad_layout_changed_field = None
+                self.solve_current_bridge_layout()
                 self.cad_comp_widget.update_from_osdag_inputs(self.input_dict)
             except Exception:
                 pass
@@ -893,8 +1000,7 @@ class CustomWindow(QWidget):
         # derived layout values (girders/spacing/overhang/overall width) on-demand.
         if self.input_dock.is_require_field_changed:
             try:
-                solve_extend_basic_input_dict(self.input_dict)
-                self.input_dock.is_require_field_changed = False
+                self.solve_current_bridge_layout()
             except Exception:
                 # If solver fails mid-edit, keep raw values for best-effort redraw.
                 pass
@@ -1010,7 +1116,9 @@ class CustomWindow(QWidget):
 
 
     def plots_view_toggle(self):
+        print("DIAG: plots_view_toggle ENTERED", flush=True)
         self.plots_view_active = not self.plots_view_active
+        print("DIAG: plots_view_active =", self.plots_view_active, flush=True)
 
         if self.plots_view_active:
             # Plots is mutually exclusive — deactivate 3D CAD & update icon

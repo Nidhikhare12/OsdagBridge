@@ -5,9 +5,9 @@ Author: Arushi
 """
 from osdagbridge.core.utils.common import *
 import math
-from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
-from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon
+from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea, QLineEdit
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize, Signal
+from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon, QDoubleValidator
 from .cad_cross_section import CrossSectionCADWidget
 
 # ---- CAD Grey Palette ----
@@ -26,6 +26,7 @@ LEADER_TEXT_OFFSET = 25    # leader label distance
 
 
 class TopViewCADWidget(QWidget):
+    dimension_edited = Signal(str, float)
     """Widget for drawing bridge top view"""
     
     def __init__(self, parent=None):
@@ -38,6 +39,9 @@ class TopViewCADWidget(QWidget):
         # top view hover tracking 
         self.top_view_hover_zones = []  # list of (QRectF, element_type)
         self.hovered_top_view_element = None
+        self.dimension_edit_zones = []
+        self._dimension_editor = None
+        self._active_edit_key = None
         
         # Zoom level for this widget
         self.zoom_level = 1.0
@@ -462,6 +466,61 @@ class TopViewCADWidget(QWidget):
         self.zoom_reset() # Auto-fit height on parameter change
         self.update()
     
+    def mouseDoubleClickEvent(self, event):
+        """Open an inline editor for the Span Length dimension."""
+        pos = event.position() if hasattr(event, "position") else event.pos()
+        for rect, edit_key in self.dimension_edit_zones:
+            if rect.contains(pos) and edit_key == KEY_SPAN:
+                self.open_dimension_editor(rect, edit_key)
+                event.accept()
+                return
+        super().mouseDoubleClickEvent(event)
+
+    def open_dimension_editor(self, rect, edit_key):
+        """Create a temporary editor over the Span Length label."""
+        if self._dimension_editor is not None:
+            self._dimension_editor.deleteLater()
+        if edit_key != KEY_SPAN:
+            return
+        current_value = float(self.params["span_length"]) / 1000
+        editor = QLineEdit(self)
+        editor.setGeometry(rect.toRect().adjusted(-3, -3, 3, 3))
+        editor.setAlignment(Qt.AlignCenter)
+        editor.setValidator(QDoubleValidator(0.001, 100000.0, 1, editor))
+        editor.setText(f"{current_value:.1f}")
+        editor.setStyleSheet(
+            "QLineEdit { background: white; color: black; "
+            "border: 1px solid #2878D0; padding: 2px; }"
+        )
+        self._dimension_editor = editor
+        self._active_edit_key = edit_key
+        editor.returnPressed.connect(self.commit_dimension_edit)
+        editor.editingFinished.connect(self.commit_dimension_edit)
+        editor.show()
+        editor.setFocus()
+        editor.selectAll()
+
+    def commit_dimension_edit(self):
+        """Validate and emit the edited span in millimetres."""
+        editor = self._dimension_editor
+        edit_key = self._active_edit_key
+        if editor is None or edit_key is None:
+            return
+        text = editor.text().strip()
+        _, state, _ = editor.validator().validate(text, 0)
+        if not text or state != QDoubleValidator.Acceptable:
+            self._dimension_editor = None
+            self._active_edit_key = None
+            editor.deleteLater()
+            self.setFocus()
+            return
+        value_mm = float(text) * 1000
+        self._dimension_editor = None
+        self._active_edit_key = None
+        editor.deleteLater()
+        self.setFocus()
+        self.dimension_edited.emit(edit_key, value_mm)
+
     def mouseMoveEvent(self, event):
         """Handle mouse hover for top view"""
         pos = event.position() if hasattr(event, 'position') else event.pos()
@@ -480,6 +539,7 @@ class TopViewCADWidget(QWidget):
     def paintEvent(self, event):
         # clear hover zones at start of each paint
         self.top_view_hover_zones = []
+        self.dimension_edit_zones = []
         
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -592,6 +652,17 @@ class TopViewCADWidget(QWidget):
             
             self.draw_text_with_background(painter, text_x - text_width/2, text_y, text, 
                                         QColor(255, 255, 255, 240), QColor(0, 0, 0), 9, False)
+
+        if edit_key is not None:
+            self.dimension_edit_zones.append((
+                QRectF(
+                    text_x - text_width / 2 - 3,
+                    text_y - metrics.height() - 3,
+                    text_width + 6,
+                    metrics.height() + 6
+                ),
+                edit_key
+            ))
         else:
             top_arrow = [
                 QPointF(x1, y1),
@@ -1299,7 +1370,7 @@ class TopViewCADWidget(QWidget):
         
         self.draw_dimension_arrow_with_extensions_up(
             painter, x1_span, dim_y2, x2_span, dim_y2,
-            label_span, last_girder_y
+            label_span, last_girder_y, edit_key=KEY_SPAN
         )
 
         # GIRDER SPACING dimension (always visible)
@@ -1410,7 +1481,7 @@ class TopViewCADWidget(QWidget):
             self.draw_clean_leader_line(painter, target_x, target_y, label_x, label_y,
                                     "End Diaphragm", CAD_DARK_GREY, QColor(139, 69, 19))
 
-    def draw_dimension_arrow_with_extensions_up(self, painter, x1, y1, x2, y2, text, girder_y):
+    def draw_dimension_arrow_with_extensions_up(self, painter, x1, y1, x2, y2, text, girder_y, edit_key=None):
         """Dimension line with arrows and extension lines going UP to girder level (dimension below)"""
         painter.setPen(QPen(QColor(0, 0, 0), 1.0))
         
@@ -1568,7 +1639,7 @@ class TopViewCADWidget(QWidget):
         border, and returns PNG bytes. Nothing is shown on screen.
         """
         from PySide6.QtCore import QBuffer, QIODevice
-        from PySide6.QtGui import QPixmap
+        from PySide6.QtGui import QPixmap, QDoubleValidator
 
         # Size the canvas and fit the drawing to it (no scroll area attached).
         self.scroll_area = None

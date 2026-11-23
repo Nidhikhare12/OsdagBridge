@@ -316,7 +316,7 @@ class BridgeInputValidator:
             v = self._to_float(inputs.get(key))
             if v is None: return 0.0, "Wearing course density must be a numeric value."
             if v < 0.0:   return 0.0, "Wearing course density is outside the practical range allowed in the software."
-            if v > 10.0:  return 10.0, "Wearing course density is outside the practical range allowed in the software."
+            if v > 30.0: return 30.0, "Wearing course density is outside the practical range allowed in the software."
 
         elif key == KEY_WC_THICKNESS:
             v = self._to_float(inputs.get(key))
