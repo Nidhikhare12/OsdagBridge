@@ -130,7 +130,7 @@ PYTHONPATH=src python scripts/benchmark_detailed.py 4
 \end{verbatim}
 
 \section{Empty cells in report tables}
-Some cells appear as `---' or `N.A.' because the report renders only data the design backend produced. The sample/demo PDFs use a small representative payload, so many canonical keys are absent. Even in the full design, cross-bracing connection results were `None` for the 3--6~kN sample forces, rolled/welded end-diaphragm design is not implemented, and stiffener checks only run in `Custom` mode. Table 5.22's retired DCR check id~16 was remapped to `deck_design_results`, so Transverse Shear (slab) now shows 77.01/110.76~kN/m, UR~0.70. Full explanation: `docs/REPORT_DATA_NOTES.md`.
+Some cells appear as `---' or `N.A.' because the report renders only data the design backend produced. The sample/demo PDFs use a small representative payload, so many canonical keys are absent. Even in the full design, cross-bracing connection results were `None` for the 3--6~kN sample forces, rolled/welded end-diaphragm design is not implemented, and stiffener checks only run in `Custom` mode. Table 5.22's retired DCR check id~16 was remapped to \texttt{deck\_design\_results}, so Transverse Shear (slab) now shows 77.01/110.76~kN/m, UR~0.70. Full explanation: \path{docs/REPORT_DATA_NOTES.md}.
 
 \section{Critical assessment}
 \begin{longtable}{p{0.26\linewidth}p{0.66\linewidth}}
