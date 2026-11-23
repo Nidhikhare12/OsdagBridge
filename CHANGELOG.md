@@ -24,6 +24,7 @@
   optimization notes, PDF/video review, data notes.
 
 ### Changed
+- `deliverables/`, `*.zip` and Python/LaTeX build artefacts are now git-ignored; CI publishes the exported PDF publicly instead.
 - First export reduced from ~2.85 s to ~1.90 s (no lazy OpenSeesPy import in
   report path, no `tight_layout`, no empty placeholder figures).
 - Retired DCR check id 16 remapped to `deck_design_results` so the

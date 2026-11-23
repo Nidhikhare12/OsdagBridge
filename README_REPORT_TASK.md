@@ -1,3 +1,6 @@
+
+> **Note:** `deliverables/` and `*.zip` are intentionally **git-ignored**. They are generated locally (see the reproduction commands) and/or published by CI to the public `ci-reports` branch. Upload the PDFs/ZIP separately with your submission; they are not part of the git diff.
+
 # OsdagBridge Report Generator — submission checklist
 
 [![Report generator CI](https://github.com/danish9661/OsdagBridge/actions/workflows/report-ci.yml/badge.svg?branch=report-generator-enhancements)](https://github.com/danish9661/OsdagBridge/actions/workflows/report-ci.yml)
@@ -7,7 +10,7 @@ Repo: https://github.com/danish9661/OsdagBridge
 
 ## Deliverables
 
-| Requirement | Location |
+| Requirement | Local path (git-ignored — upload separately) |
 |---|---|
 | Generated reports (before / after) | `deliverables/Report_Before.pdf`, `deliverables/Report_After.pdf` |
 | Technical changes document | `deliverables/Technical_Report.pdf`, `docs/REPORT_ENHANCEMENTS.md` |

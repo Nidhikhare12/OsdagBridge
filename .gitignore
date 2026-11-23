@@ -302,3 +302,6 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# Local-only PR draft (given to the user, never committed)
+PR_MESSAGE.md

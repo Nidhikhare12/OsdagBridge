@@ -1,3 +1,6 @@
+
+> **Note:** `deliverables/` and `*.zip` are intentionally **git-ignored**. They are generated locally (see the reproduction commands) and/or published by CI to the public `ci-reports` branch. Upload the PDFs/ZIP separately with your submission; they are not part of the git diff.
+
 # PDF and video quality review (final refinement loop)
 
 ## 1. Report PDF (`deliverables/Report_After.pdf`)

@@ -1,3 +1,6 @@
+
+> **Note:** `deliverables/` and `*.zip` are intentionally **git-ignored**. They are generated locally (see the reproduction commands) and/or published by CI to the public `ci-reports` branch. Upload the PDFs/ZIP separately with your submission; they are not part of the git diff.
+
 # Detailed performance, formatting and cross-application verification
 
 ## 1. GPU availability — why it is not used
