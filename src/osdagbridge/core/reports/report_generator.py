@@ -103,9 +103,14 @@
 #                                                          else → CustomMessageBox("Report Saved")
 #==============================================================================
 
-import os, shutil, logging, datetime, tempfile, subprocess
+import os, shutil, logging, datetime, tempfile, subprocess, hashlib, json
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
+
+# In-process cache so an identical preview/export is effectively instant.
+# Bump the version whenever layout/chart code changes.
+REPORT_CACHE_VERSION = "2026-11-22-v1"
+_REPORT_CACHE: dict = {}
 
 from osdagbridge.core.utils.common import (
     KEY_DESIGN_MODE,
@@ -119,6 +124,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from . import styles
 from .executive_summary import executive_summary
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
@@ -152,11 +158,11 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     jn = _tex(job_number)
     rd = _tex(report_date)
     rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
+    return (
+        r"\documentclass[" + styles.DOCUMENT_CLASS_OPTIONS + r"]{report}" + r"""
 
 % Packages
-\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[""" + styles.GEOMETRY_OPTIONS + r"""]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -165,7 +171,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{tabularx}
 \usepackage{float}
 \usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
+\usepackage[hidelinks,linktoc=all]{hyperref}
+\hypersetup{pdftitle={OsdagBridge Design Report --- """ + pn + r"""},pdfauthor={OsdagBridge / FOSSEE},pdfsubject={Steel girder bridge design report},pdfkeywords={OsdagBridge,IRC 22,IS 800,design report}}
 \usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
@@ -177,6 +184,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
     singlelinecheck=false,
     format=plain
 }
+""" + styles.LATEX_CAPTION_SETTINGS + r"""
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{colortbl}
@@ -184,6 +192,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \setlength{\LTleft}{\fill}
 \setlength{\LTright}{\fill}
 \usepackage{titlesec}
+""" + styles.LATEX_SECTION_SETTINGS + r"""
 \usepackage{titletoc}
 \usepackage{lastpage}
 \usepackage{makecell}
@@ -192,21 +201,15 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
+% Table layout and spacing -- all values come from the central style module.
+""" + styles.LATEX_TABLE_SETTINGS + r"""
 
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
+% Prevent tables from overflowing into the footer box.  The threshold is
+% defined once in styles.PAGE_BOTTOM_THRESHOLD_LINES.
+\BeforeBeginEnvironment{table}{\needspace{""" + str(styles.PAGE_BOTTOM_THRESHOLD_LINES) + r"""\baselineskip}}
+\BeforeBeginEnvironment{longtable}{\needspace{""" + str(styles.PAGE_BOTTOM_THRESHOLD_LINES) + r"""\baselineskip}}
 
-\definecolor{osdagGreen}{HTML}{91B014}
+""" + styles.LATEX_COLOR_DEFINITIONS + r"""
 
 \fancypagestyle{main}{
   \fancyhf{}
@@ -252,7 +255,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{""" + str(styles.DOCUMENT_STRETCH) + r"""}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
@@ -275,6 +278,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 
 \begin{document}
 """
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -479,10 +483,22 @@ class ReportDataBridge:
         member    "diagonal" or "chord"
         force_type "tension" or "compression"
         """
-        from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+        # Local extraction avoids importing results_data -> OpenSeesPy (~0.8 s)
+        # just to read two dictionary keys.
         try:
-            raw = self._cb_pair_designs()[pair][member][force_type]
-            return _extract_osdag_summary(raw or {})
+            raw = self._cb_pair_designs()[pair][member][force_type] or {}
+            if not isinstance(raw, dict):
+                return {}
+            return {
+                "efficiency": (raw.get("Member.efficiency")
+                               if raw.get("Member.efficiency") is not None
+                               else raw.get("Optimum.UR")),
+                "capacity_kN": (raw.get("Member.tension_capacity")
+                                if raw.get("Member.tension_capacity") is not None
+                                else raw.get("Design.Strength")),
+                "section": (raw.get("section_size.designation")
+                            or raw.get("Optimum.Designation")),
+            }
         except (KeyError, TypeError):
             return {}
 
@@ -833,11 +849,42 @@ _FIGURE_MAP = [
     ('defl_ll',               'defl_ll.png'),
 ]
 
+def _report_cache_key(payload, request) -> str:
+    blob = json.dumps({
+        "inputs": payload.inputs,
+        "outputs": payload.output_dict,
+        "sections": request.options.sections,
+        "options": request.options.__dict__,
+        "metadata": request.metadata.__dict__,
+    }, default=str, sort_keys=True)
+    return hashlib.sha256(
+        (REPORT_CACHE_VERSION + blob).encode("utf-8")).hexdigest()
+
+
 def generate_report(payload, request):
     # type: (ReportPayload, ReportRequest) -> ReportResult
     """Compile the full OsdagBridge Design Report to PDF (+ .tex source)."""
     tex_path = None
     try:
+        os.makedirs(request.output_dir, exist_ok=True)
+        pdf_path = os.path.join(request.output_dir, request.file_stem + '.pdf')
+        tex_path = os.path.join(request.output_dir, request.file_stem + '.tex')
+
+        # generate_report() enriches payload.inputs with BOQ quantities, so the
+        # key must be captured on the payload at first use and reused.
+        cache_key = getattr(payload, '_report_cache_key', None)
+        if cache_key is None:
+            cache_key = _report_cache_key(payload, request)
+            payload._report_cache_key = cache_key
+        cached = _REPORT_CACHE.get(cache_key)
+        if cached:
+            with open(pdf_path, 'wb') as fh:
+                fh.write(cached[0])
+            with open(tex_path, 'wb') as fh:
+                fh.write(cached[1])
+            logger.info("Report served from cache (instant preview)")
+            return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
+
         # Use OsdagLatexEnv to discover the bundled pdflatex path
         compiler = 'pdflatex'
         try:
@@ -924,11 +971,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, tmp_images))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, tmp_images))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -939,13 +986,11 @@ def generate_report(payload, request):
             doc_parts.append(references())
             doc_parts.append(r"\end{document}")
 
-            full_tex = "\n".join(doc_parts)
-
-
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
+            # One central pass applies the global style rules (repeating
+            # longtable headers and keeping headings off the footer margin)
+            # to every chapter, including legacy chapters that still emit
+            # raw LaTeX strings.
+            full_tex = styles.apply_global_styles("\n".join(doc_parts))
 
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
@@ -953,23 +998,44 @@ def generate_report(payload, request):
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            # Compile twice for TOC and references
-            for _ in range(2):
+            # Compile twice for TOC and references.  Expose the bundled
+            # minimal .sty compatibility files to pdflatex so a bare TeX
+            # installation is enough to build the report.
+            compile_env = os.environ.copy()
+            bundled_sty = os.path.abspath(os.path.join(
+                os.path.dirname(__file__), '..', '..', '..', '..', 'scripts', 'tex'))
+            if os.path.isdir(bundled_sty):
+                old_inputs = compile_env.get('TEXINPUTS', '')
+                compile_env['TEXINPUTS'] = bundled_sty + os.pathsep + old_inputs
+
+            for pass_no in (1, 2):
                 try:
                     kwargs = {
                         'cwd': tmp_dir,
                         'stdout': subprocess.PIPE,
                         'stderr': subprocess.PIPE,
                         'check': False,
-                        'env': os.environ.copy()
+                        'env': compile_env
                     }
                     if os.name == 'nt':
                         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
-                    res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
-                        **kwargs
-                    )
+
+                    # Pass 1 only resolves aux/TOC/labels, so skip PDF output.
+                    # Pass 2 writes the final PDF.  This is materially faster
+                    # than producing the PDF twice.
+                    args = [compiler, '-interaction=nonstopmode',
+                            '-no-shell-escape']
+                    if pass_no == 1:
+                        args.append('-draftmode')
+                    args.append(request.file_stem + '.tex')
+
+                    res = subprocess.run(args, **kwargs)
+                    if res.returncode != 0:
+                        # TeX often exits 1 for harmless overfull-box notices;
+                        # the PDF-existence check below is the real verdict.
+                        logger.debug(
+                            "pdflatex pass %d exited with %d",
+                            pass_no, res.returncode)
                 except Exception as exc:
                     logger.warning(f"pdflatex run failed: {exc}")
 
@@ -980,6 +1046,11 @@ def generate_report(payload, request):
 
         if os.path.exists(pdf_path):
             logger.info("Report generated: %s", pdf_path)
+            with open(pdf_path, 'rb') as fh:
+                pdf_bytes = fh.read()
+            with open(tex_path, 'rb') as fh:
+                tex_bytes = fh.read()
+            _REPORT_CACHE[cache_key] = (pdf_bytes, tex_bytes)
             return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
 
         logger.error("pdflatex ran but no PDF was produced.")

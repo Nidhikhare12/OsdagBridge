@@ -264,3 +264,57 @@ src/osdag_map_cache/
 temp_plot.html
 *.html
 tools/
+# LaTeX build artifacts for the submission report
+deliverables/*.aux
+deliverables/*.log
+
+# Submission artefacts (kept locally / uploaded separately, not in git)
+deliverables/
+*.zip
+
+# Python build / test junk
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# LaTeX build artifacts (any directory)
+*.aux
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# CI / local output dirs
+ci_out/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Local-only PR draft (given to the user, never committed)
+PR_MESSAGE.md
+
+# Submission pack is tracked (upload-ready PDF/video); screenshots are not.
+submission/images/
+
+# Local-only analysis/demo helpers (not part of the submitted source)
+docs/BENCHMARK.md
+docs/PERFORMANCE_DETAIL.md
+docs/OPTIMIZATION_NOTES.md
+docs/PDF_VIDEO_REVIEW.md
+docs/REPORT_DATA_NOTES.md
+scripts/benchmark_detailed.py
+scripts/make_demo_video.py
+CHANGELOG.md

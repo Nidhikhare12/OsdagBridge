@@ -1,0 +1,239 @@
+name: Report generator CI
+
+on:
+  push:
+    # Never re-trigger CI when the workflow publishes to ci-reports itself.
+    branches-ignore: ["ci-reports"]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: "0 2 * * *"   # nightly at 02:00 UTC to catch dependency regressions
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: report-ci-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    name: Tests + report build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so the baseline commit is available locally
+
+      - name: Set up Python (with pip cache)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy scipy matplotlib pytest pillow
+
+      - name: Install LaTeX and PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-extra \
+            texlive-fonts-recommended poppler-utils
+
+      - name: Run unit tests
+        id: tests
+        run: |
+          set -o pipefail
+          PYTHONPATH=src python -m pytest tests/unit -q 2>&1 | tee pytest.log
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Build sample report
+        id: build
+        run: |
+          set -o pipefail
+          python scripts/generate_sample_reports.py ci_out CI_Report 2>&1 | tee build.log
+          test -f ci_out/CI_Report.pdf
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Verify structure, metadata and font embedding
+        id: verify
+        if: steps.build.outputs.status == 'pass'
+        run: |
+          set -o pipefail
+          ENDHEAD=$(grep -c '\\endhead' ci_out/CI_Report.tex)
+          PAGES=$(pdfinfo ci_out/CI_Report.pdf | awk '/^Pages:/{print $2}')
+          TITLE=$(pdfinfo ci_out/CI_Report.pdf | awk -F': *' '/^Title:/{print $2}')
+          UR=$(grep -c 'fig:ur-summary' ci_out/CI_Report.tex)
+          MAT=$(grep -c 'fig:material-quantities' ci_out/CI_Report.tex)
+          # Font-embedding validation: every font must be embedded (emb=yes).
+          NOTEMB=$(pdffonts ci_out/CI_Report.pdf | awk 'NR>2 && $4=="no"' | wc -l)
+          ENCRYPTED=$(pdfinfo ci_out/CI_Report.pdf | awk '/^Encrypted:/{print $2}')
+          pdftoppm -f 1 -l 1 -r 90 -png -singlefile ci_out/CI_Report.pdf ci_out/preview
+          echo "endhead=$ENDHEAD" >> "$GITHUB_OUTPUT"
+          echo "pages=$PAGES" >> "$GITHUB_OUTPUT"
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+          echo "ur=$UR" >> "$GITHUB_OUTPUT"
+          echo "mat=$MAT" >> "$GITHUB_OUTPUT"
+          echo "notemb=$NOTEMB" >> "$GITHUB_OUTPUT"
+          test "$ENDHEAD" -ge 40
+          test "$UR" -ge 1
+          test "$MAT" -ge 1
+          test -n "$TITLE"
+          test "$NOTEMB" -eq 0
+          test "$ENCRYPTED" = "no"
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Build before/after comparison thumbnail
+        id: compare
+        # submission/ is tracked, so the baseline PDF is always available in CI.
+        if: steps.build.outputs.status == 'pass' && hashFiles('submission/Report_Before.pdf') != ''
+        run: |
+          set -o pipefail
+          python scripts/make_ci_comparison.py \
+            submission/Report_Before.pdf ci_out/CI_Report.pdf 11 ci_out/comparison.png
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-report
+          path: |
+            ci_out/CI_Report.pdf
+            ci_out/CI_Report.tex
+            ci_out/preview.png
+            ci_out/comparison.png
+            pytest.log
+            build.log
+          if-no-files-found: warn
+
+      - name: Publish PDF + previews to public ci-reports branch
+        id: publish
+        if: steps.build.outputs.status == 'pass'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ github.run_id }}
+        run: |
+          set -e
+          DEST=/tmp/ci-reports
+          rm -rf "$DEST"
+          git clone --depth 1 --branch ci-reports \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "$DEST" 2>/dev/null \
+            || { git init -q "$DEST"; git -C "$DEST" checkout -q -b ci-reports; }
+          mkdir -p "$DEST/runs/$RUN"
+          cp ci_out/CI_Report.pdf ci_out/CI_Report.tex ci_out/preview.png "$DEST/runs/$RUN/"
+          if [ -f ci_out/comparison.png ]; then cp ci_out/comparison.png "$DEST/runs/$RUN/"; fi
+          git -C "$DEST" add runs
+          git -C "$DEST" -c user.name=ci-bot -c user.email=ci@users.noreply.github.com \
+            commit -q -m "CI report run $RUN" || true
+          git -C "$DEST" push -q \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" ci-reports
+          BASE="https://github.com/${REPO}/blob/ci-reports/runs/$RUN"
+          RAW="https://raw.githubusercontent.com/${REPO}/ci-reports/runs/$RUN"
+          echo "pdf_url=$BASE/CI_Report.pdf" >> "$GITHUB_OUTPUT"
+          echo "tex_url=$BASE/CI_Report.tex" >> "$GITHUB_OUTPUT"
+          echo "preview_url=$RAW/preview.png" >> "$GITHUB_OUTPUT"
+          # Only publish the URL when the file actually exists; otherwise the
+          # PR comment embeds a broken image (as happened before).
+          if [ -f "$DEST/runs/$RUN/comparison.png" ]; then
+            echo "comparison_url=$RAW/comparison.png" >> "$GITHUB_OUTPUT"
+          fi
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "## Report generator CI"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Unit tests | ${{ steps.tests.outputs.status || 'fail' }} |"
+            echo "| Sample PDF build | ${{ steps.build.outputs.status || 'fail' }} |"
+            echo "| Structure + metadata + font embedding | ${{ steps.verify.outputs.status || 'fail' }} |"
+            echo "| Repeating headers (\\endhead) | ${{ steps.verify.outputs.endhead || 'n/a' }} |"
+            echo "| PDF pages | ${{ steps.verify.outputs.pages || 'n/a' }} |"
+            echo "| PDF title | ${{ steps.verify.outputs.title || 'n/a' }} |"
+            echo "| Non-embedded fonts | ${{ steps.verify.outputs.notemb || 'n/a' }} |"
+            echo "| UR chart | ${{ steps.verify.outputs.ur || 'n/a' }} |"
+            echo "| Material chart | ${{ steps.verify.outputs.mat || 'n/a' }} |"
+            echo ""
+            if [ -n "${{ steps.publish.outputs.pdf_url }}" ]; then
+              echo "### View the exported PDF"
+              echo ""
+              echo "- [Open CI_Report.pdf](${{ steps.publish.outputs.pdf_url }}) (renders in browser)"
+              echo "- [LaTeX source](${{ steps.publish.outputs.tex_url }})"
+              echo "- Artifact \`ci-report\` also contains PDF + TeX + logs."
+              echo ""
+              echo "![page 1 preview](${{ steps.publish.outputs.preview_url }})"
+              echo ""
+              if [ -n "${{ steps.publish.outputs.comparison_url }}" ]; then
+                echo "### Before / after (load tables, page 11)"
+                echo ""
+                echo "![before after](${{ steps.publish.outputs.comparison_url }})"
+              fi
+            else
+              echo "Artifact: \`ci-report\` (PDF + TeX + logs)."
+            fi
+            echo ""
+            echo "<details><summary>pytest output</summary>"
+            echo ""
+            echo '```'
+            tail -n 20 pytest.log 2>/dev/null || echo "no pytest log"
+            echo '```'
+            echo "</details>"
+          } > pr_summary.md
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$PR" --body-file pr_summary.md
+
+      - name: Open or update nightly issue on failure
+        if: always() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.tests.outputs.status }}" = "pass" ] && \
+             [ "${{ steps.build.outputs.status }}" = "pass" ] && \
+             [ "${{ steps.verify.outputs.status }}" = "pass" ]; then
+            echo "Nightly run healthy; no issue needed."
+            exit 0
+          fi
+          gh label create nightly-ci --color B60205 --description "Nightly report CI failure" 2>/dev/null || true
+          EXISTING=$(gh issue list --label nightly-ci --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body-file pr_summary.md
+          else
+            gh issue create --title "Nightly report CI failed ($(date -u +%F))" \
+              --label nightly-ci --body-file pr_summary.md
+          fi
+
+      - name: Fail if any check failed
+        if: always()
+        run: |
+          if [ "${{ steps.tests.outputs.status }}" != "pass" ] || \
+             [ "${{ steps.build.outputs.status }}" != "pass" ] || \
+             [ "${{ steps.verify.outputs.status }}" != "pass" ]; then
+            echo "One or more checks failed."
+            exit 1
+          fi

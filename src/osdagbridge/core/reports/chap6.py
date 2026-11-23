@@ -1,3 +1,6 @@
+from osdagbridge.core.reports import styles
+
+
 def ch6_drawings(fig_paths):
     """Chapter 6 – Drawings and Visualizations.
 
@@ -22,26 +25,24 @@ def ch6_drawings(fig_paths):
     """
 
     def _sec_fig(path, title, label=None):
-        """Figure block: image first, numbered below. Placeholder if no path."""
+        """Figure block: image first, numbered below.
+
+        A missing asset is omitted entirely rather than replaced by a large
+        empty fbox — placeholders were the single biggest source of wasted
+        pages (and pdflatex time) in reports generated without a CAD session.
+        """
         label_tex = (r'\label{' + label + '}\n') if label else ''
         if path:
             p = path.replace('\\', '/')
             return (r'\begin{figure}[H]' + '\n'
                     r'\centering' + '\n'
-                    r'\vspace{4pt}' + '\n'
+                    + styles.FIGURE_SKIP + '\n'
                     r'\includegraphics[width=0.85\textwidth]{' + p + '}\n'
                     r'\caption{' + title + '}\n'
                     + label_tex
                     + r'\end{figure}' + '\n'
                     )
-        return (r'\begin{figure}[H]' + '\n'
-                r'\centering' + '\n'
-                r'\fbox{\parbox{0.97\textwidth}{' + '\n'
-                r'\textit{[ PLACEHOLDER: ' + ' ' + title + r' ]}' + '\n'
-                r'}}' + '\n'
-                r'\caption{' + title + '}\n'
-                + label_tex
-                + r'\end{figure}' + '\n')
+        return ''
 
     sup3d  = _sec_fig(fig_paths.get('final_geometry'),   'Overall 3D Bridge Superstructure',   'fig:bridge-3d')
     cs     = _sec_fig(fig_paths.get('cross_section'),     'Typical Cross Section',              'fig:cross-section')
