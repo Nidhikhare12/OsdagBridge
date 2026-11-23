@@ -52,6 +52,10 @@ from osdagbridge.core.bridge_types.plate_girder.dto import (
     BridgeParametersDTO,
 )
 
+from osdagbridge.core.bridge_components.sub_structure.assembly import (
+    build_bridge_substructure, group_parts
+)
+
 # Component keys for CAD organization
 KEY_CAD_GIRDER = "Girder"
 KEY_CAD_STIFFENER = "Stiffener"
@@ -60,6 +64,8 @@ KEY_CAD_DECK = "Deck"
 KEY_CAD_CRASH_BARRIER = "Crash Barrier"
 KEY_CAD_RAILING = "Railing"
 KEY_CAD_MEDIAN = "Median"
+KEY_CAD_SUBSTRUCTURE = "Substructure"
+KEY_CAD_REBAR = "Rebar"
 KEY_MODULE_PG = "Plate Girder"
 
 
@@ -908,6 +914,15 @@ class PlateGirderCADGenerator:
         
         supports = supports_tri + supports_cyl
 
+        # STEP 12: BUILD SUBSTRUCTURE (pier caps, piers, pile caps, piles, rebar)
+        substructure_parts = build_bridge_substructure(
+            span_length_L=self.span_length_L,
+            deck_width=deck_out["total_deck_width"],
+            girder_depth=self.girder_section_d,
+            bottom_flange_t=self.girder_section_tf_b,
+        )
+        substructure_shapes = group_parts(substructure_parts)
+
         # RETURN ALL GENERATED COMPONENTS
         
         return {
@@ -956,7 +971,12 @@ class PlateGirderCADGenerator:
             "median_w_beams": median_w_beams,
             
             # Railings
-            "railings": railings
+            "railings": railings,
+
+            # Substructure
+            "substructure_concrete": substructure_shapes["substructure_concrete"],
+            "substructure_rebar": substructure_shapes["substructure_rebar"],
+            "substructure_parts": substructure_parts
         }
 
     def create3Dcad(self):
@@ -1100,6 +1120,19 @@ class PlateGirderCADGenerator:
             label = [KEY_CAD_MEDIAN, hover_dict.get(KEY_CAD_MEDIAN)]
             shapes = self.model_data["median_barriers"]
             osdag_display_shape(self.display, shapes, color=MEDIAN_COLOR, update=True, label=label, canvas=self.cad_widget)
+
+        elif self.component == "Substructure":
+            label = [KEY_CAD_SUBSTRUCTURE, "Substructure"]
+            shapes = self.model_data["substructure_concrete"]
+            CONCRETE_COLOR = Quantity_Color(190/255, 190/255, 190/255, Quantity_TOC_RGB)
+            # concrete: opacity 0.35  ->  transparency 0.65
+            osdag_display_shape(self.display, shapes, color=CONCRETE_COLOR, transparency=0.65, update=True, label=label, canvas=self.cad_widget)
+
+        elif self.component == "Rebar":
+            label = [KEY_CAD_REBAR, "Rebar"]
+            shapes = self.model_data["substructure_rebar"]
+            STEEL_COLOR = Quantity_Color(75/255, 90/255, 115/255, Quantity_TOC_RGB)
+            osdag_display_shape(self.display, shapes, color=STEEL_COLOR, update=True, label=label, canvas=self.cad_widget)
 
 
 def osdag_display_shape(display, shapes, material=None, texture=None, color=None, transparency=None, update=False, label=[], canvas=None):
