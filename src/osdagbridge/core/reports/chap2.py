@@ -1,5 +1,6 @@
 # Chapter 2: Input Parameters — exact LaTeX template match
 
+import math
 
 from osdagbridge.core.utils.common import (
     KEY_CARRIAGEWAY_WIDTH,
@@ -62,6 +63,7 @@ from osdagbridge.core.utils.common import (
     KEY_TS_DECK_OVERHANG,
     KEY_TS_DECK_THICKNESS,
     KEY_TS_FOOTPATH_WIDTH,
+    KEY_TS_NO_OF_FOOTPATHS,
     KEY_TS_GIRDER_SPACING,
     KEY_TS_NO_OF_GIRDERS,
     KEY_TS_OVERALL_WIDTH,
@@ -78,6 +80,9 @@ from osdagbridge.core.reports.report_utils import (
 )
 
 def ch2_input_parameters(m, input_dict, output_dict=None):
+    from osdagbridge.core.reports.report_generator import normalize_geometry_inputs
+    input_dict = normalize_geometry_inputs(input_dict)
+
     girder_entries = get_girder_entries(input_dict)
     n_girders = len(girder_entries)
     # Median row only shown when the user included a median
@@ -88,6 +93,50 @@ def ch2_input_parameters(m, input_dict, output_dict=None):
                       + r""" \\[6pt]
 \hline
 """)
+
+    # Footpath configuration & physical existence check for Table 2.4
+    raw_fp = input_dict.get(KEY_FOOTPATH)
+    fp_cfg = str(raw_fp).strip() if raw_fp is not None else ""
+    is_fp_configured = fp_cfg.lower() not in ("none", "", "0", "no", "false")
+
+    raw_count = input_dict.get(KEY_TS_NO_OF_FOOTPATHS)
+    if raw_count is None:
+        raw_count = input_dict.get("no_of_footpaths")
+    try:
+        n_fp = int(raw_count) if raw_count is not None and str(raw_count).strip() != "" else None
+    except (ValueError, TypeError):
+        n_fp = None
+
+    has_valid_footpath = is_fp_configured and (n_fp is not None and n_fp > 0)
+
+    if not has_valid_footpath:
+        fp_width_display = "N/A"
+    else:
+        raw_w = input_dict.get(KEY_TS_FOOTPATH_WIDTH)
+        if raw_w in (None, "") or str(raw_w).strip() == "":
+            raw_w = input_dict.get("footpath_width")
+        w_val = None
+        if raw_w not in (None, "") and str(raw_w).strip() != "":
+            s_val = str(raw_w).strip()
+            if s_val.lower().endswith("m"):
+                s_val = s_val[:-1].strip()
+            try:
+                parsed_w = float(s_val)
+                if parsed_w > 0 and math.isfinite(parsed_w):
+                    w_val = parsed_w
+            except (ValueError, TypeError):
+                w_val = None
+
+        if w_val is not None:
+            w_str = str(raw_w).strip()
+            if not w_str.lower().endswith("m"):
+                w_str = f"{_tex(w_str)} m"
+            else:
+                w_str = _tex(w_str)
+            fp_width_display = f"{w_str} (IRC 5 Cl. 104.3.6 min: 1.5 m)"
+        else:
+            fp_width_display = "N/A (width not available)"
+
     return r"""
 \chapter{Input Parameters}
 
@@ -186,7 +235,7 @@ Where the user has modified additional inputs, those values are reported here. W
 \hline
 \textnormal{Deck Thickness (mm)} & """ + (_render_value(input_dict, KEY_TS_DECK_THICKNESS, ' mm')) + r""" \\[6pt]
 \hline
-\textnormal{Footpath Width (m)} & """ + (_render_value(input_dict, KEY_TS_FOOTPATH_WIDTH, ' m')) + r""" (IRC 5 Cl. 104.3.6 min: 1.5 m) \\[6pt]
+\textnormal{Footpath Width (m)} & """ + fp_width_display + r""" \\[6pt]
 \hline
 \textnormal{No. of Traffic Lanes} & """ + (_render_value(input_dict, KEY_WC_LD_LANE_TABLE_COUNT)) + r""" (per IRC 5 Cl. 104.3.1) \\[6pt]
 \hline

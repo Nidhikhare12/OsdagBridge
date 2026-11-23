@@ -638,12 +638,102 @@ def _format_project_location(pl_data):
     
     return str(pl_data)
 
+
+# ---------------------------------------------------------------------------
+# Geometry Normalization Helper
+# ---------------------------------------------------------------------------
+
+def normalize_geometry_inputs(input_dict: dict) -> dict:
+    """
+    Normalize legacy/un-namespaced geometry keys to canonical namespaced keys.
+
+    Supported mappings:
+      - carriage_way_width / carriageway_width -> KEY_CARRIAGEWAY_WIDTH
+      - footpath -> KEY_FOOTPATH
+      - structure_type -> KEY_STRUCTURE_TYPE
+      - include_median -> KEY_INCLUDE_MEDIAN
+      - skew_angle -> KEY_SKEW_ANGLE
+
+    Rules:
+      1. Canonical namespaced keys always take precedence when explicitly populated.
+      2. Do not overwrite valid canonical values.
+      3. Treat only None and empty strings ("") as missing; numeric 0 / 0.0 is valid.
+      4. Fall back to software defaults from defaults.py / common.py where appropriate.
+      5. Preserve the original input_dict by returning a normalized copy.
+      6. Do not fabricate carriageway width if neither canonical nor legacy value exists.
+      7. Ensure the normalized dictionary is consistently passed to all report chapter functions.
+    """
+    from osdagbridge.core.utils.common import (
+        KEY_CARRIAGEWAY_WIDTH,
+        KEY_FOOTPATH,
+        KEY_STRUCTURE_TYPE,
+        KEY_INCLUDE_MEDIAN,
+        KEY_SKEW_ANGLE,
+        SKEW_ANGLE_DEFAULT,
+    )
+    from osdagbridge.core.bridge_types.plate_girder.defaults import BASIC_INPUT_DICT
+
+    norm = dict(input_dict) if input_dict else {}
+
+    def _is_missing(val) -> bool:
+        return val is None or val == "" or (isinstance(val, str) and val.strip() == "")
+
+    # 1. Carriageway Width: canonical takes precedence, alias fallback, no fabrication
+    if _is_missing(norm.get(KEY_CARRIAGEWAY_WIDTH)):
+        for alias in ("carriage_way_width", "carriageway_width"):
+            alias_val = norm.get(alias)
+            if not _is_missing(alias_val):
+                norm[KEY_CARRIAGEWAY_WIDTH] = alias_val
+                break
+
+    # 2. Footpath: canonical takes precedence, alias fallback, default fallback
+    if _is_missing(norm.get(KEY_FOOTPATH)):
+        alias_val = norm.get("footpath")
+        if not _is_missing(alias_val):
+            norm[KEY_FOOTPATH] = alias_val
+        else:
+            default_fp = BASIC_INPUT_DICT.get(KEY_FOOTPATH)
+            if default_fp is not None:
+                norm[KEY_FOOTPATH] = default_fp
+
+    # 3. Structure Type: canonical takes precedence, alias fallback, default fallback
+    if _is_missing(norm.get(KEY_STRUCTURE_TYPE)):
+        alias_val = norm.get("structure_type")
+        if not _is_missing(alias_val):
+            norm[KEY_STRUCTURE_TYPE] = alias_val
+        else:
+            default_st = BASIC_INPUT_DICT.get(KEY_STRUCTURE_TYPE)
+            if default_st is not None:
+                norm[KEY_STRUCTURE_TYPE] = default_st
+
+    # 4. Include Median: canonical takes precedence, alias fallback, default fallback
+    if _is_missing(norm.get(KEY_INCLUDE_MEDIAN)):
+        alias_val = norm.get("include_median")
+        if not _is_missing(alias_val):
+            norm[KEY_INCLUDE_MEDIAN] = alias_val
+        else:
+            default_im = BASIC_INPUT_DICT.get(KEY_INCLUDE_MEDIAN)
+            if default_im is not None:
+                norm[KEY_INCLUDE_MEDIAN] = default_im
+
+    # 5. Skew Angle: canonical takes precedence, alias fallback, default fallback
+    if _is_missing(norm.get(KEY_SKEW_ANGLE)):
+        alias_val = norm.get("skew_angle")
+        if not _is_missing(alias_val):
+            norm[KEY_SKEW_ANGLE] = alias_val
+        else:
+            norm[KEY_SKEW_ANGLE] = SKEW_ANGLE_DEFAULT
+
+    return norm
+
+
 # ---------------------------------------------------------------------------
 # Public builder helper (unchanged signature)
 # ---------------------------------------------------------------------------
 
 def build_report_payload(request, input_dict, output_dict):
     try:
+        input_dict = normalize_geometry_inputs(input_dict)
         rd  = request.metadata.report_date or datetime.date.today().isoformat()
         lp  = request.metadata.logo_path
         raw_pl = request.metadata.project_location or input_dict.get('project.location') or ''
@@ -854,6 +944,9 @@ def generate_report(payload, request):
             if org_logo_src:
                 shutil.copy2(org_logo_src, os.path.join(tmp_assets, 'org_logo.png'))
                 org_logo_latex = 'assets/org_logo.png'
+
+            # Ensure payload inputs are normalized to canonical keys
+            payload.inputs = normalize_geometry_inputs(payload.inputs)
 
             # Compute and inject quantities for Chapter 7
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
