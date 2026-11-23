@@ -146,6 +146,21 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
+\endfirsthead
+
+\multicolumn{1}{c}{\small\bfseries Table \thetable\ --- Continued from previous page} \\[4pt]
+\hline
+\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
+\hline
+\endhead
+
+\hline
+\multicolumn{1}{r}{\footnotesize\textit{Continued on next page\ldots}} \\
+\endfoot
+
+\hline
+\endlastfoot
+
  & """ + '' + r""" & """ + '' + r""" \\[6pt]
 \hline
  & """ + '' + r""" & """ + '' + r""" \\[6pt]
@@ -160,6 +175,21 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
+\endfirsthead
+
+\multicolumn{2}{c}{\small\bfseries Table \thetable\ --- Continued from previous page} \\[4pt]
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{2}{r}{\footnotesize\textit{Continued on next page\ldots}} \\
+\endfoot
+
+\hline
+\endlastfoot
+
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]

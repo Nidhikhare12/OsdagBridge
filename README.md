@@ -173,3 +173,33 @@ OsdagBridge is part of the Osdag project, promoting open-source tools for steel 
 
 This project is licensed under the MIT License.  
 See the `LICENSE` file for full details.
+
+## Report generator enhancements (FOSSEE OsdagBridge Winter Internship 2026)
+
+The report-generation implementation has been refactored around
+`src/osdagbridge/core/reports/styles.py`, which owns the shared LaTeX geometry,
+header/footer layout, typography, table spacing, brand colors, and reusable
+longtable formatting. Chapter tables use repeated first-page/continuation
+headers. Chapters 2, 4, 5, 7 and 8 include longtable structures; Chapter 3 uses
+the shared `format_longtable` helper for load tables.
+
+Dynamic chart generation is in `src/osdagbridge/core/reports/charts.py`.
+Utilization charts use available design demand/capacity or reported efficiency
+values and a UR=1.0 limit. Quantity charts only render when the corresponding
+BOM fields are present. Missing end-diaphragm quantities and missing design
+results are not estimated or copied from other components. Chapter 3 vehicle
+and footway live-load reporting is separated; values that cannot be derived
+from the selected vehicle, span, lane, or GUI inputs are shown as unavailable
+rather than silently substituted with assumed values.
+
+The repository contains the original `reports/Report_Before.pdf`, its TeX
+source, and baseline screenshots. A new `Report_After.pdf` is intentionally not
+included: this archive contains no captured live bridge-design session/output
+that can be used to create a genuine after-report. Creating one from guessed or
+fabricated structural results would be misleading. Generate the after-report
+from the OsdagBridge GUI after running a valid bridge design; the enhanced
+report generator will consume that run's real inputs and outputs.
+
+See `reports/Technical_Changes_Document.pdf` for the implementation summary
+and verification results. The focused regression tests are in
+`tests/unit/test_report_enhancements.py`.
