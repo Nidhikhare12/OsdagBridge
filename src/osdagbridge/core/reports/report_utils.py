@@ -25,10 +25,14 @@ def _tex(value):
     return s
 
 
+NOT_AVAILABLE = 'N/A'
+
+
 def _render_value(source_dict, key, unit=""):
+    """Value plus unit, or N/A when the design data has no value (never an empty cell)."""
     val = source_dict.get(key)
     if val in ("", None):
-        return ""
+        return NOT_AVAILABLE
     return _tex(val) + unit
 
 

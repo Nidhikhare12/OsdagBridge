@@ -293,9 +293,9 @@ This section summarizes all loads applied to the bridge and the load combination
 \hline
 \textnormal{Vertical Seismic Coefficient, Av} & """ + (_render_value(input_dict, KEY_SL_VERTICAL_COEFF)) + r""" \\[\ReportRowGap]
 \hline
-\textnormal{Horizontal Seismic Force (longitudinal)} & """ + '' + r""" kN \\[\ReportRowGap]
+\textnormal{Horizontal Seismic Force, longitudinal (kN)} & N/A \\[\ReportRowGap]
 \hline
-\textnormal{Horizontal Seismic Force (transverse)} & """ + '' + r""" kN \\[\ReportRowGap]
+\textnormal{Horizontal Seismic Force, transverse (kN)} & N/A \\[\ReportRowGap]
 \hline
 \end{longtable}
 

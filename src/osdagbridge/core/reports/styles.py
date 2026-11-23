@@ -17,6 +17,28 @@ CHART = {"pass": "#" + PALETTE["reportPass"], "fail": "#" + PALETTE["reportFail"
          "dpi": 160, "font_size": 10}
 FIGURE_WIDTH = r"0.94\textwidth"
 
+# Symbols that design check names and messages may contain (e.g. "Leg ≤ H_limit").
+# pdfLaTeX stops with "Unicode character not set up" on any of these, so map them
+# once here rather than escaping in every chapter.
+UNICODE_SYMBOLS = {
+    "≤": r"\ensuremath{\le}", "≥": r"\ensuremath{\ge}", "≠": r"\ensuremath{\neq}",
+    "≈": r"\ensuremath{\approx}", "±": r"\ensuremath{\pm}", "·": r"\ensuremath{\cdot}",
+    "→": r"\ensuremath{\rightarrow}", "←": r"\ensuremath{\leftarrow}", "√": r"\ensuremath{\surd}",
+    "∞": r"\ensuremath{\infty}", "−": r"\ensuremath{-}", "…": r"\ldots{}",
+    "α": r"\ensuremath{\alpha}", "β": r"\ensuremath{\beta}", "γ": r"\ensuremath{\gamma}",
+    "δ": r"\ensuremath{\delta}", "Δ": r"\ensuremath{\Delta}", "ε": r"\ensuremath{\varepsilon}",
+    "η": r"\ensuremath{\eta}", "θ": r"\ensuremath{\theta}", "λ": r"\ensuremath{\lambda}",
+    "μ": r"\ensuremath{\mu}", "ρ": r"\ensuremath{\rho}", "σ": r"\ensuremath{\sigma}",
+    "Σ": r"\ensuremath{\Sigma}", "τ": r"\ensuremath{\tau}", "φ": r"\ensuremath{\phi}",
+    "ϕ": r"\ensuremath{\phi}", "χ": r"\ensuremath{\chi}", "ψ": r"\ensuremath{\psi}",
+    "ω": r"\ensuremath{\omega}", "✓": r"\ensuremath{\checkmark}", "✗": r"\ensuremath{\times}",
+}
+
+
+def unicode_declarations():
+    return "\n".join(r"\DeclareUnicodeCharacter{%04X}{%s}" % (ord(ch), tex)
+                     for ch, tex in UNICODE_SYMBOLS.items())
+
 
 def report_section(function):
     """Apply the shared body style at each chapter entry point."""
@@ -24,6 +46,74 @@ def report_section(function):
     def render(*args, **kwargs):
         return r"\ReportSectionStyle" + "\n" + function(*args, **kwargs)
     return render
+
+
+def _column_count(spec):
+    """Number of columns in a tabular/longtable column specification."""
+    count, i = 0, 0
+    while i < len(spec):
+        ch = spec[i]
+        if ch in '>@<!':                      # >{..} <{..} @{..} !{..}: no column
+            i = _skip_group(spec, i + 1)
+            continue
+        if ch in 'LCRpmb':                    # width columns take one {..} argument
+            count += 1
+            i = _skip_group(spec, i + 1)
+            continue
+        if ch in 'lcrX':
+            count += 1
+        i += 1
+    return count
+
+
+def _skip_group(spec, i):
+    """Index just after the balanced {..} group starting at spec[i]."""
+    if i >= len(spec) or spec[i] != '{':
+        return i
+    depth = 0
+    for j in range(i, len(spec)):
+        depth += {'{': 1, '}': -1}.get(spec[j], 0)
+        if depth == 0:
+            return j + 1
+    return len(spec)
+
+
+def continued_tables(tex):
+    """Add page-break notices and a closing rule to every longtable.
+
+    The continuation head gets "Table N continued from previous page" (or an
+    unnumbered notice when the table has no caption); every page except the
+    last gets a closing rule and "Continued on next page". The rule is drawn
+    one rule-width higher, so it overlaps a row's own \\hline instead of
+    doubling it.
+    """
+    out, pos = [], 0
+    begin = r'\begin{longtable}'
+    while True:
+        start = tex.find(begin, pos)
+        if start < 0:
+            out.append(tex[pos:])
+            return ''.join(out)
+        spec_open = start + len(begin)
+        spec_close = _skip_group(tex, spec_open)
+        end = tex.find(r'\end{longtable}', spec_close)
+        first = tex.find(r'\endfirsthead', spec_close, end)
+        head = tex.find(r'\endhead', spec_close, end)
+        if end < 0 or first < 0 or head < 0 or r'\endfoot' in tex[spec_close:end]:
+            out.append(tex[pos:spec_close])
+            pos = spec_close
+            continue
+        n = _column_count(tex[spec_open + 1:spec_close - 1])
+        notice_from = (r'\ReportContinuedFromNumbered' if r'\caption' in tex[spec_close:first]
+                       else r'\ReportContinuedFrom')
+        head_start = first + len(r'\endfirsthead')
+        head_end = head + len(r'\endhead')
+        out.append(tex[pos:head_start])
+        out.append('\n\\multicolumn{%d}{@{}l}{%s}\\\\' % (n, notice_from))
+        out.append(tex[head_start:head_end])
+        out.append('\n\\noalign{\\vskip-\\arrayrulewidth}\\hline\n'
+                   '\\multicolumn{%d}{@{}r@{}}{\\ReportContinuedOn}\\\\\n\\endfoot\n\\endlastfoot' % n)
+        pos = head_end
 
 
 def preamble(project_name, job_number, report_date, report_version='Rev 0'):
@@ -88,7 +178,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \BeforeBeginEnvironment{table}{\Needspace{7\baselineskip}}
 \BeforeBeginEnvironment{longtable}{\Needspace{7\baselineskip}}
 
-""" + colours + r"""
+""" + colours + "\n" + unicode_declarations() + r"""
 \newcommand{\ReportSectionStyle}{\small\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}}
 \newcommand{\ReportCompactTable}{\setlength{\tabcolsep}{2pt}}
 \newcommand{\ReportCaptionStyle}{\setlength{\abovecaptionskip}{2pt}\setlength{\belowcaptionskip}{2pt}}
@@ -110,6 +200,10 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 % Check status labels
 \newcommand{\ReportPass}{PASS}
 \newcommand{\ReportFail}{\textcolor{reportFail}{FAIL}}
+% Page-break notices for long tables (added to every longtable by continued_tables)
+\newcommand{\ReportContinuedFromNumbered}{\ReportFootnoteFont\textit{\tablename~\thetable{} continued from previous page}}
+\newcommand{\ReportContinuedFrom}{\ReportFootnoteFont\textit{Continued from previous page}}
+\newcommand{\ReportContinuedOn}{\ReportFootnoteFont\textit{Continued on next page}}
 \newcommand{\ReportSmallFont}{\small}
 \newcommand{\ReportFootnoteFont}{\footnotesize}
 \newcommand{\ReportNormalFont}{\normalsize}

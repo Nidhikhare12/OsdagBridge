@@ -140,7 +140,7 @@ from osdagbridge.core.utils.common import (
     KEY_UTIL_SHEAR
 )
 
-from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries
+from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girder_entries, NOT_AVAILABLE as NA
 
 if TYPE_CHECKING:
     pass
@@ -388,11 +388,11 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{Intermediate Stiffener Checks}\\
 \hline
-\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endhead
 
@@ -466,8 +466,8 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
         _allow_total_mm = _span_m * 1000.0 / 600.0
     except (TypeError, ValueError):
         _allow_live_mm = _allow_total_mm = None
-    _allow_live_str  = (f"L/800 = {_allow_live_mm:.1f} mm")  if _allow_live_mm  is not None else ""
-    _allow_total_str = (f"L/600 = {_allow_total_mm:.1f} mm") if _allow_total_mm is not None else ""
+    _allow_live_str  = (f"L/800 = {_allow_live_mm:.1f} mm")  if _allow_live_mm  is not None else NA
+    _allow_total_str = (f"L/600 = {_allow_total_mm:.1f} mm") if _allow_total_mm is not None else NA
 
     # The report has no live _deflections_cache (it builds a ReportDataBridge from
     # output_dict only). design() persists the same per-girder cache values that
@@ -481,12 +481,12 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
         t510_rows.append(
             r"\makecell{" + lbl + r"""} & Live Load Deflection, $\delta_{LL}$ (mm) & """
             + _allow_live_str + r""" & """
-            + _dfmt(_live_mm,  nd=3) + r""" & """
+            + (_dfmt(_live_mm,  nd=3) or NA) + r""" & """
             + _defl_status(_live_mm,  _allow_live_mm) + r""" \\[\ReportRowGap]
 \cline{2-5}
  & Total Load Deflection, $\delta_{total}$ (mm) & """
             + _allow_total_str + r""" & """
-            + _dfmt(_total_mm, nd=3) + r""" & """
+            + (_dfmt(_total_mm, nd=3) or NA) + r""" & """
             + _defl_status(_total_mm, _allow_total_mm) + r""" \\[\ReportRowGap]
 \hline"""
         )
@@ -499,7 +499,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     # Both live in the nested output_dict["design_results"] dict, not as flat keys.
     def _mpa(v):
         s = _dfmt(v, nd=2)
-        return (s + " MPa") if s else ""
+        return (s + " MPa") if s else NA
 
     def _stress_status(actual, allow):
         try:
@@ -545,7 +545,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
             r"\makecell{" + lbl + r"""} & """
             + _mpa(_g.get("demand")) + r""" & """
             + _mpa(_g.get("capacity")) + r""" & """
-            + _dfmt(_g.get("ur"), nd=2) + r""" & """
+            + (_dfmt(_g.get("ur"), nd=2) or NA) + r""" & """
             + _fat_status(_g.get("status")) + r""" \\[\ReportRowGap]
 \hline"""
         )
@@ -560,7 +560,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
     def _with_unit(value, unit):
         s = _dfmt(value, nd=2)
         if not s:
-            return ""
+            return NA
         return (s + " " + unit) if unit and str(unit) not in ("-", "–") else s
 
     g_summary_rows = []
@@ -568,7 +568,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
         g_data = _pg_summary.get(f"G{_gi}", {}) or {}
         checks = g_data.get("checks") or []
         if not checks:
-            g_summary_rows.append(lbl + r""" &  &  &  &  &  &  \\[\ReportRowGap]
+            g_summary_rows.append(lbl + r""" & N/A & N/A & N/A & N/A & N/A & N/A \\[\ReportRowGap]
 \hline""")
             continue
 
@@ -591,7 +591,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
             lbl + r""" & """ + _tex(str(ctrl_lc)) + r""" & """ + _tex(str(ctrl.get("name", "")))
             + r""" & """ + _with_unit(ctrl.get("demand"),   ctrl.get("demand_unit"))
             + r""" & """ + _with_unit(ctrl.get("capacity"), ctrl.get("capacity_unit"))
-            + r""" & """ + _dfmt(ctrl.get("dcr"), nd=3)
+            + r""" & """ + (_dfmt(ctrl.get("dcr"), nd=3) or NA)
             + r""" & """ + _fat_status(ctrl.get("status")) + r""" \\[\ReportRowGap]
 \hline"""
         )
@@ -604,7 +604,7 @@ def ch5_design_checks(checks_data, bridge, fig_paths=None) -> str:
 
     def _kn(v):
         s = _dfmt(v, nd=2)
-        return (s + " kN") if s else ""
+        return (s + " kN") if s else NA
 
     t514_content = (
         r"Design Resistance, $Q_u$ & \ReportFootnoteFont\makecell{$Q_u=\min(Q_{u,s},\,Q_{u,c})$\\[\ReportCellLineGap]$Q_{u,s}=\dfrac{0.8\,f_u\,(\pi d^2/4)}{\gamma_v}$\\[\ReportCellLineGap]$Q_{u,c}=\dfrac{0.29\,\alpha\,d^2\sqrt{f_{ck}\,E_{cm}}}{\gamma_v}$} & "
@@ -621,7 +621,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     # is no larger than that criterion's required spacing (denser = safe).
     def _mm(v):
         s = _dfmt(v, nd=1)
-        return (s + " mm") if s else ""
+        return (s + " mm") if s else NA
 
     _sc_prov     = _dr_sc.get("stud_spacing_provided_mm")
     _sc_prov_str = _mm(_sc_prov)
@@ -643,11 +643,11 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     # All single bridge values in design_results; stud diameter from input_dict.
     def _cm2m(v):
         s = _dfmt(v, nd=2)
-        return (s + r" cm$^2$/m") if s else ""
+        return (s + r" cm$^2$/m") if s else NA
 
     def _knm(v):
         s = _dfmt(v, nd=2)
-        return (s + " kN/m") if s else ""
+        return (s + " kN/m") if s else NA
 
     _ts_vl  = _dr_sc.get(KEY_SD_TS_VL)
     _ts_vrd = _dr_sc.get(KEY_SD_TS_VRD)
@@ -708,7 +708,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     if not pairs:
         # fallback: one placeholder row
         cb_forces_rows.append(
-            r"""Between Girders & Diagonal &  &  &  &  \\[\ReportRowGap]
+            r"""Between Girders & Diagonal & N/A & N/A & N/A & N/A \\[\ReportRowGap]
 \hline"""
         )
     else:
@@ -732,9 +732,9 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
                 rv_cm = bridge.output_dict.get(f"{pfx}.rv")
 
                 # Convert Area: cm² -> mm²
-                area_str = f"{float(area_cm2) * 100:.1f}" if area_cm2 is not None else ""
+                area_str = f"{float(area_cm2) * 100:.1f}" if area_cm2 is not None else NA
                 # Convert rv: cm -> mm
-                rmin_str = f"{float(rv_cm) * 10:.1f}" if rv_cm is not None else ""
+                rmin_str = f"{float(rv_cm) * 10:.1f}" if rv_cm is not None else NA
                 cb_forces_rows.append(
                     r"\makecell{" + _tex(pair) + r"} & "
                     + label + r" & " + conn_type + r" & " + section
@@ -754,7 +754,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     cb_slenderness_rows = []
     if not pairs:
         cb_slenderness_rows.append(
-            r"""Between Girders & Diagonal & C &  &  &  ---  \\[\ReportRowGap]
+            r"""Between Girders & Diagonal & C & N/A & N/A & ---  \\[\ReportRowGap]
 \hline"""
         )
     else:
@@ -880,7 +880,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     def _vu_522(v, unit):
         s = _dfmt(v, nd=2)
         if not s:
-            return ""
+            return NA
         u = (unit or "").strip()
         return (s + " " + u) if u else s
 
@@ -888,7 +888,7 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         try:
             f = float(v)
         except (TypeError, ValueError):
-            return ""
+            return NA
         s = f"{f:.2f}"
         return (r"\textcolor{reportFail}{" + s + "}") if f > 1.0 else s
 
@@ -1112,11 +1112,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3cm}|C{3.5cm}|C{2.5cm}|>{\centering\arraybackslash}p{4.0cm}|}
 \caption{\textbf{Girder Section Classification}}\\
 \hline
-\textbf{} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[\ReportRowGap]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Element} & \textbf{Slenderness Ratio} & \textbf{Class Limit} & \textbf{Classification} \\[\ReportRowGap]
 \hline
 \endhead
 
@@ -1160,11 +1160,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{\textbf{Interaction Checks (M-V and M-N)}}\\
 \hline
-\textbf{} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Check} & \textbf{Condition} & \textbf{Value} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endhead
 
@@ -1208,11 +1208,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{4.2cm}|C{1.8cm}|}
 \caption{\textbf{End Panel Stiffener Checks}}\\
 \hline
-\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Check} & \textbf{Required} & \textbf{Provided} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endhead
 
@@ -1224,11 +1224,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.5cm}|}
 \caption{\textbf{Serviceability -- Deflection Checks}}\\
 \hline
-\textbf{} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Check} & \textbf{Allowable} & \textbf{Actual} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endhead
 
@@ -1240,11 +1240,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|L{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.5cm}|}
 \caption{\textbf{Serviceability -- Maximum Stress Limitation}}\\
 \hline
-\textbf{} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Element} & \textbf{Allowable Stress} & \textbf{Actual Stress} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endhead
 
@@ -1255,11 +1255,11 @@ This section presents all structural design checks performed by OsdagBridge. For
 \begin{longtable}{|C{2.5cm}|C{3.5cm}|C{3.5cm}|>{\centering\arraybackslash}p{3.5cm}|C{2.5cm}|}
 \caption{\textbf{Serviceability -- Fatigue Assessment}}\\
 \hline
-\textbf{} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endfirsthead
 \hline
-\textbf{} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[\ReportRowGap]
+\textbf{Girder} & \textbf{Stress Range, $\Delta\sigma$ (MPa)} & \textbf{Fatigue Limit, $f_{fd}$ (MPa)} & \textbf{Utilization Ratio} & \textbf{Status} \\[\ReportRowGap]
 \hline
 \endhead
 

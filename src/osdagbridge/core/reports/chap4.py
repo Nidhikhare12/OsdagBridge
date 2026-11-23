@@ -52,6 +52,15 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         for lc in all_lcs
     ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \\[\ReportRowGap]"
 
+    # Reactions at Supports: the governing ULS / SLS envelopes and the unfactored
+    # dead load, taken from the same analysis reactions as the table above.
+    reaction_cases = [lc for lc in ('Envelope ULS', 'Envelope SLS', '1.0 DL') if lc in rxn_summary]
+    reaction_body = ("\n\\hline\n").join(
+        _tex(lc) + r" & " + _fmt(rxn_summary[lc].get('left_kN')) + r" & "
+        + _fmt(rxn_summary[lc].get('right_kN')) + r" \\[\ReportRowGap]"
+        for lc in reaction_cases
+    ) if reaction_cases else r"\multicolumn{3}{|c|}{Not available from the analysis} \\[\ReportRowGap]"
+
     _span_m         = float(bridge.input_dict.get(KEY_SPAN, 0) or 0)
     _allow_live_mm  = _span_m * 1000.0 / 800.0
     _allow_total_mm = _span_m * 1000.0 / 600.0
@@ -155,11 +164,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \endhead
 
- & """ + '' + r""" & """ + '' + r""" \\[\ReportRowGap]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[\ReportRowGap]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[\ReportRowGap]
+""" + reaction_body + r"""
 \hline
 \end{longtable}
 

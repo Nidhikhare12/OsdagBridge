@@ -276,14 +276,18 @@ def test_vehicle_table_follows_brief_layout():
     assert rows['Class 70R (Wheeled)']['impact'] == pytest.approx(1.1)  # IRC 6 Cl. 208.3
     assert rows['Class AA (Tracked)']['total_kN'] is None             # no definition in the code
     assert rows['Class SV']['braking'] is False                       # follows its own checkbox
-    assert rows['Class Fatigue']['braking'] is False and rows['Class Fatigue']['eccentricity'] is None
+    assert rows['Class SV']['braking_kN'] is None and rows['Class SV']['eccentricity'] is None
+    assert rows['Class Fatigue']['braking']                           # app rule: selected => considered
     assert rows['Class A']['braking'] and rows['Class A']['eccentricity'] == 1.2
+    assert rows['Class A']['braking_kN'] == pytest.approx(0.2 * 543.474)  # IRC 6 Cl. 211.2
+    assert rows['Class AA (Tracked)']['braking_kN'] is None           # no vehicle load, no value
     assert rows['Crane']['total_kN'] == 250 and rows['Crane']['impact'] == pytest.approx(1.2)
+    assert rows['Crane']['braking_kN'] == pytest.approx(50.0)
     tex = ch3_loads(inputs)
     table = tex.split('Vehicle Live Loads (LL)')[1].split(r'\end{longtable}')[0]
     for heading in ('Total Load', 'Impact Factor', 'Braking Load', 'Considered?', 'Value (kN)', 'Eccentricity (m)'):
         assert heading in table
-    assert 'Class A & 543.5 & 1.269 & Yes & N/A & 1.20' in table
+    assert 'Class A & 543.5 & 1.269 & Yes & 108.7 & 1.20' in table
     assert re.search(r'Class SV & 3776\.\d & N/A & No & -- & --', table)
 
 
@@ -331,3 +335,138 @@ def test_bracing_results_with_live_text_entries():
     assert member_ur('unexpected') is None
     outputs = {'crossbracing_design_results': results}
     assert utilization_values(outputs)['Cross\nbracing'] == pytest.approx(.4)
+
+
+def test_every_longtable_gets_page_break_notices(tmp_path, monkeypatch, metadata):
+    from osdagbridge.core.reports.styles import continued_tables, _column_count
+    assert _column_count(r'|L{5.5cm}|>{\centering\arraybackslash}p{4.2cm}|c|C{1.8cm}|') == 4
+    numbered = (r'\begin{longtable}{|l|c|}' '\n' r'\caption{\textbf{T}}\\' '\n' r'\hline' '\n'
+                r'\textbf{A} & \textbf{B} \\ \hline' '\n' r'\endfirsthead' '\n' r'\hline' '\n'
+                r'\textbf{A} & \textbf{B} \\ \hline' '\n' r'\endhead' '\n' r'1 & 2 \\ \hline' '\n'
+                r'\end{longtable}')
+    out = continued_tables(numbered)
+    assert r'\multicolumn{2}{@{}l}{\ReportContinuedFromNumbered}' in out
+    assert r'\multicolumn{2}{@{}r@{}}{\ReportContinuedOn}' in out
+    assert out.index(r'\endhead') < out.index(r'\endfoot') < out.index(r'\endlastfoot') < out.index('1 & 2')
+    assert continued_tables(out) == out                    # applying twice changes nothing
+    assert r'\ReportContinuedFrom}' in continued_tables(numbered.replace(r'\caption{\textbf{T}}\\', ''))
+    # Every table in a generated report gets the notices from the shared preamble.
+    options = report.ReportOptions(['loads', 'analysis', 'design_checks'], True, False, True)
+    payload = report.ReportPayload(metadata, options, {}, {}, [], report.ReportFigures())
+    request = report.ReportRequest(metadata, options, str(tmp_path), 'Notices')
+    monkeypatch.setattr(report.subprocess, 'run', lambda *a, **k: SimpleNamespace(returncode=1, stdout=b'', stderr=b''))
+    tex = Path(report.generate_report(payload, request).tex_path).read_text(encoding='utf-8')
+    tables = tex.count(r'\begin{longtable}')
+    assert tables and tex.count(r'\endfoot') == tables == tex.count(r'\endlastfoot')
+    assert r'\newcommand{\ReportContinuedOn}' in tex
+    assert_headers(tex)
+
+
+def test_boq_respects_cross_bracing_chord_configuration():
+    import copy
+    import json
+    from osdagbridge.core.boq.boq_generator import calculate_material_quantities
+    if not (VALIDATION / 'outputs.json').exists():
+        pytest.skip('validation snapshot not present')
+    inputs = json.loads((VALIDATION / 'inputs.json').read_text(encoding='utf-8'))
+    outputs = json.loads((VALIDATION / 'outputs.json').read_text(encoding='utf-8'))
+    both = calculate_material_quantities(inputs, outputs)
+    assert float(both['bracing_top_wt_total']) > 0 and float(both['bracing_bot_wt_total']) > 0
+    for flag in ('top_chord', 'bottom_chord'):
+        for as_text in (False, 'No'):
+            data = copy.deepcopy(outputs)
+            data['crossbracing_forces_dict'][flag] = as_text
+            data['crossbracing_forces_dict']['geometry'][flag] = as_text
+            q = calculate_material_quantities(inputs, data)
+            key = 'bracing_top_wt_total' if flag == 'top_chord' else 'bracing_bot_wt_total'
+            other = 'bracing_bot_wt_total' if flag == 'top_chord' else 'bracing_top_wt_total'
+            assert q[key] == '0.00' and q[other] == both[other]
+            assert q['bracing_diag_wt_total'] == both['bracing_diag_wt_total']
+
+
+def test_missing_values_render_as_na_not_blank():
+    from osdagbridge.core.reports.report_utils import _render_value
+    assert _render_value({'k': None}, 'k', ' m/s') == 'N/A'
+    assert _render_value({}, 'k') == 'N/A'
+    assert _render_value({'k': 39}, 'k', ' m/s') == '39 m/s'
+    row_end = re.compile(r'\\\\(\[[^\]]*\])?\s*$')
+    for tex in (ch3_loads({}),):
+        for line in tex.splitlines():
+            if '&' not in line or not row_end.search(line) or 'multicolumn' in line:
+                continue
+            cells = [c.strip() for c in row_end.sub('', line).split('&')]
+            assert all(cells[1:]), f'empty cell: {line}'
+
+
+def test_reactions_table_uses_analysis_envelopes():
+    from osdagbridge.core.reports.chap4 import ch4_analysis
+    asum = {'load_cases': {}, 'reactions': {
+        'Envelope ULS': {'left_kN': -1255.531, 'right_kN': 1195.819},
+        'Envelope SLS': {'left_kN': -1191.369, 'right_kN': 1131.657},
+        '1.0 DL': {'left_kN': -739.046, 'right_kN': 738.368}}}
+    bridge = SimpleNamespace(input_dict={keys.KEY_SPAN: 20}, output_dict={})
+    table = ch4_analysis(asum, {}, bridge, 20).split('Reactions at Supports')[1].split(r'\end{longtable}')[0]
+    assert 'Envelope ULS & -1255.531 & 1195.819' in table
+    assert '1.0 DL & -739.046 & 738.368' in table
+    empty = ch4_analysis({}, {}, bridge, 20).split('Reactions at Supports')[1].split(r'\end{longtable}')[0]
+    assert 'Not available from the analysis' in empty
+
+
+def test_boq_end_diaphragm_steel_from_design_sections():
+    import copy
+    import json
+    from osdagbridge.core.boq.boq_generator import calculate_material_quantities
+    from osdagbridge.core.reports.plots import material_values
+    if not (VALIDATION / 'outputs.json').exists():
+        pytest.skip('validation snapshot not present')
+    inputs = json.loads((VALIDATION / 'inputs.json').read_text(encoding='utf-8'))
+    outputs = json.loads((VALIDATION / 'outputs.json').read_text(encoding='utf-8'))
+    q = calculate_material_quantities(inputs, outputs)
+    # 4 bays x 2 supports; per frame 2 diagonals + 2 chords of the designed 19.1 cm2 section.
+    geometry = outputs['crossbracing_forces_dict']['geometry']
+    s, h = geometry['girder_spacing_m'], geometry['brace_height_m']
+    per_frame = 19.1e-4 * (2 * (s ** 2 + h ** 2) ** 0.5 + 2 * s)
+    assert q['end_diaphragms_qty'] == '8'
+    assert float(q['end_diaphragms_vol_total']) == pytest.approx(8 * per_frame, abs=0.005)  # printed to 2 dp
+    assert float(q['end_diaphragms_wt_total']) == pytest.approx(8 * per_frame * 7.85, abs=0.01)
+    assert material_values(q)['End diaphragms'] == pytest.approx(float(q['end_diaphragms_wt_total']))
+    assert r'\placeholder' not in q['end_diaphragms_vol_formula']
+
+    no_chords = copy.deepcopy(outputs)
+    for key in list(no_chords):
+        if key.startswith('member_properties.end_diaphragm_details.top_chord.'):
+            no_chords[key] = 'No'
+    fewer = calculate_material_quantities(inputs, no_chords)
+    assert float(fewer['end_diaphragms_wt_total']) < float(q['end_diaphragms_wt_total'])
+
+    rolled = copy.deepcopy(outputs)
+    for key in list(rolled):
+        if key.startswith('member_properties.end_diaphragm_details.type.'):
+            rolled[key] = 'Rolled Section'
+    assert calculate_material_quantities(inputs, rolled)['end_diaphragms_wt_total'] == 'N.A.'
+
+
+def test_design_symbols_in_check_names_are_typesettable():
+    # Real designs name checks like "Int.Stiff: Leg ≤ H_limit"; pdfLaTeX fails on
+    # any Unicode symbol that is not declared, so the preamble maps them all.
+    from osdagbridge.core.reports.styles import UNICODE_SYMBOLS, preamble
+    head = preamble('P', '', '2026-01-01')
+    for symbol in ('≤', '≥', 'σ', 'τ', '→', '−'):
+        assert symbol in UNICODE_SYMBOLS
+        assert r'\DeclareUnicodeCharacter{%04X}' % ord(symbol) in head
+
+
+def test_chapter5_shows_na_for_girders_without_results():
+    # A real 30 m skewed design returned per-girder results for G1 only; the
+    # other girders' deflection, fatigue and summary cells must not be blank.
+    inputs = {keys.KEY_TS_NO_OF_GIRDERS: 4, keys.KEY_SPAN: 30}
+    outputs = {'design_results': {'per_girder': {'G1': {'checks': [
+        {'name': 'Moment', 'dcr': 0.5, 'demand': 100, 'capacity': 200, 'unit': 'kNm', 'lc': 'BASIC_1'}]}}}}
+    tex = ch5_design_checks([], report.ReportDataBridge({}, inputs, outputs))
+    row_end = re.compile(r'\\\\(\[[^\]]*\])?\s*(\\cline\{[^}]*\})?\s*$')
+    for caption in ('Deflection Checks', 'Fatigue Assessment', 'Girder Design Summary'):
+        body = tex.split(caption, 1)[1].split(r'\endhead', 1)[1].split(r'\end{longtable}', 1)[0]
+        for line in body.splitlines():
+            if '&' in line and row_end.search(line):
+                cells = [c.strip() for c in row_end.sub('', line).split('&')]
+                assert all(cells[1:]), f'{caption}: empty cell in {line}'

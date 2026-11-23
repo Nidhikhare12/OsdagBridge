@@ -121,7 +121,7 @@ from osdagbridge.core.utils.common import (
 from osdagbridge.core.reports.report_utils import _tex
 from .executive_summary import executive_summary
 from .plots import save_plots, osdag_summary
-from .styles import preamble, toc_section
+from .styles import preamble, toc_section, continued_tables
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
 from .chap3 import ch3_loads
@@ -786,7 +786,8 @@ def generate_report(payload, request):
             doc_parts.append(references())
             doc_parts.append(r"\end{document}")
 
-            full_tex = "\n".join(doc_parts)
+            # Every longtable gets the shared page-break notices from styles.py.
+            full_tex = continued_tables("\n".join(doc_parts))
 
 
             # Each chapter emits explicit first-page and continuation headers.

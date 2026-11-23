@@ -129,8 +129,8 @@ def material_values(quantities):
     return {
         'Girders': number(quantities.get('steel_girders_wt_total')),
         'Cross bracing': bracing_total,
-        # The current BOQ does not calculate this value. Accept it when supplied;
-        # never substitute cross-bracing quantities for an end diaphragm.
+        # From the BOQ's end-diaphragm rows (bracing-type end diaphragms); N/A
+        # otherwise. Never substitute cross-bracing quantities for it.
         'End diaphragms': number(quantities.get('end_diaphragms_wt_total')),
         'Concrete': number(quantities.get('concrete_deck_vol_total')),
         'Reinforcement': number(quantities.get('rebar_deck_wt_total')),
@@ -160,9 +160,11 @@ def _bars(ax, values, ylabel, threshold=False):
             continue
         color = CHART['fail'] if threshold and val > 1 else CHART['pass'] if threshold else CHART['neutral']
         ax.bar(i, val, color=color, width=.55)
-        ax.text(i, val + highest * .025, f'{val:.3g}', ha='center', fontsize=CHART['font_size'])
+        # White backing keeps a label readable where it crosses the UR = 1.0 line.
+        ax.text(i, val + highest * .025, f'{val:.3g}', ha='center', fontsize=CHART['font_size'], zorder=4,
+                bbox={'facecolor': 'white', 'edgecolor': 'none', 'pad': 1.0})
     if threshold:
-        ax.axhline(1.0, color=CHART['fail'], linestyle='--', label='UR = 1.0')
+        ax.axhline(1.0, color=CHART['fail'], linestyle='--', label='UR = 1.0', zorder=3)
         ax.legend(loc='upper right', fontsize=CHART['font_size'])
 
 

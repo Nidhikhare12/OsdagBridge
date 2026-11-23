@@ -66,7 +66,9 @@ def _special_vehicle_kN():
 
 
 # (input key, label, total-load function or None when no definition exists,
-#  IRC 6 impact clause, braking rule). Order follows the Loading tab.
+#  IRC 6 impact clause, braking rule). Order follows the Loading tab. Braking
+#  follows the app's own rule (Additional Inputs summary): a vehicle's braking
+#  load is considered when the vehicle is selected; Class SV has its own opt-in.
 IRC_VEHICLES = (
     (KEY_LL_IRC_CLASS_A, 'Class A', lambda: _sum_wheel_loads_kN(_irc().cl_204_1_ClassA_vehicle), '208.2', 'live'),
     (KEY_LL_IRC_70R_WHEELED, 'Class 70R (Wheeled)', lambda: _sum_wheel_loads_kN(_irc().cl_204_1_Class70R_vehicle_wheel), '208.3', 'live'),
@@ -75,7 +77,7 @@ IRC_VEHICLES = (
     (KEY_LL_IRC_AA_TRACKED, 'Class AA (Tracked)', None, '208.3', 'live'),
     (KEY_LL_IRC_CLASS_SV, 'Class SV', _special_vehicle_kN, None, 'sv'),
     (KEY_LL_IRC_70R_BOGIE, 'Class 70R (Bogie)', None, '208.3', 'live'),
-    (KEY_LL_IRC_CLASS_FATIGUE, 'Class Fatigue', lambda: _sum_wheel_loads_kN(_irc().cl_204_6_fatigue_load), None, 'fatigue'),
+    (KEY_LL_IRC_CLASS_FATIGUE, 'Class Fatigue', lambda: _sum_wheel_loads_kN(_irc().cl_204_6_fatigue_load), None, 'live'),
 )
 
 
@@ -104,17 +106,27 @@ def impact_factor(inputs, clause):
     return 1.0 + im
 
 
+BRAKING_FRACTION = 0.20  # IRC 6 Cl. 211.2: 20 % of the first train load in one lane
+
+
+def braking_force(total_kN):
+    """Braking force of one vehicle (first train) per IRC 6 Cl. 211.2."""
+    return None if total_kN is None else BRAKING_FRACTION * total_kN
+
+
 def vehicle_rows(inputs):
-    """One dict per selected vehicle: name, total_kN, impact, braking, eccentricity."""
+    """One dict per selected vehicle: name, total_kN, impact, braking, braking_kN, eccentricity."""
     eccentricity = _number(inputs.get(KEY_LL_ECCENTRICITY))
     sv_braking = selected(inputs.get(KEY_BL_IRC_CLASS_SV))
     rows = []
     for key, label, total, clause, rule in IRC_VEHICLES:
         if not selected(inputs.get(key)):
             continue
-        braking = {'live': True, 'sv': sv_braking, 'fatigue': False}[rule]
-        rows.append({'name': label, 'total_kN': _safe_total(total), 'impact': impact_factor(inputs, clause),
-                     'braking': braking, 'eccentricity': eccentricity if braking else None})
+        braking = {'live': True, 'sv': sv_braking}[rule]
+        total_kN = _safe_total(total)
+        rows.append({'name': label, 'total_kN': total_kN, 'impact': impact_factor(inputs, clause),
+                     'braking': braking, 'braking_kN': braking_force(total_kN) if braking else None,
+                     'eccentricity': eccentricity if braking else None})
     for vehicle in inputs.get(KEY_LL_CUSTOM_VEHICLES) or []:
         if isinstance(vehicle, str):
             vehicle = {'name': vehicle}
@@ -122,10 +134,10 @@ def vehicle_rows(inputs):
             continue
         loads = [_number(v) for v in vehicle.get('axle_loads') or []]
         im = _number(vehicle.get('impact_factor'))
-        rows.append({'name': str(vehicle['name']),
-                     'total_kN': sum(loads) if loads and None not in loads else None,
+        total_kN = sum(loads) if loads and None not in loads else None
+        rows.append({'name': str(vehicle['name']), 'total_kN': total_kN,
                      'impact': 1.0 + im if im is not None else None,
-                     'braking': True, 'eccentricity': eccentricity})
+                     'braking': True, 'braking_kN': braking_force(total_kN), 'eccentricity': eccentricity})
     return rows
 
 
@@ -145,7 +157,7 @@ def _vehicle_table(rows):
         body = '\n'.join(
             ' & '.join([_tex(r['name']), _fmt(r['total_kN'], 1), _fmt(r['impact'], 3),
                         'Yes' if r['braking'] else 'No',
-                        NOT_AVAILABLE if r['braking'] else '--',
+                        _fmt(r['braking_kN'], 1) if r['braking'] else '--',
                         _fmt(r['eccentricity'], 2) if r['braking'] else '--']) + r' \\' + '\n' + r'\hline'
             for r in rows)
     else:
@@ -177,10 +189,13 @@ def _vehicle_notes(inputs, rows):
         'factor is defined for that vehicle in the current code.'
         + (f' The grillage analysis applies {grillage:.3f} (Cl. 208.3) to all vehicle '
            'load cases.' if grillage else ''),
-        'Braking: the Class SV option and eccentricity come from the Loading tab; '
-        'the fatigue vehicle is used only for fatigue checks. Braking force values are '
-        'not available because the current analysis does not apply braking load.',
-        'Centrifugal force: N/A, not supplied by the current analysis.',
+        'Braking: considered for every selected vehicle, except Class SV, which has its own '
+        'option in the Loading tab. Value is 20% of the vehicle load (IRC 6 Cl. 211.2, first '
+        'train in one lane), acting at the eccentricity from top of deck given in the Loading '
+        'tab (IRC 6 Cl. 211.3: 1.2 m). The current grillage analysis does not include a '
+        'braking load case.',
+        'Centrifugal force (IRC 6 Cl. 212): not applicable; the inputs define a straight '
+        'bridge with no horizontal curvature.',
         'Live-load analysis cases place Class A and Class 70R (Wheeled) vehicles per '
         'IRC 6 Table 6; other selected vehicles are listed as selected.',
     ]
