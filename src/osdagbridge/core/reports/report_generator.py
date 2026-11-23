@@ -148,6 +148,7 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from osdagbridge.core.reports import styles as report_styles
+from osdagbridge.core.reports.longtable_fix import add_repeating_headers
 
 
 def preamble(project_name, job_number, report_date, report_version='Rev 0'):
@@ -936,6 +937,7 @@ def generate_report(payload, request):
             doc_parts.append(r"\end{document}")
 
             full_tex = "\n".join(doc_parts)
+            full_tex = add_repeating_headers(full_tex)
 
 
             # NOTE: longtable header repetition is handled per-table in each
