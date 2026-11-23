@@ -1,5 +1,7 @@
 # OsdagBridge Report Generator — submission checklist
 
+[![Report generator CI](https://github.com/danish9661/OsdagBridge/actions/workflows/report-ci.yml/badge.svg?branch=report-generator-enhancements)](https://github.com/danish9661/OsdagBridge/actions/workflows/report-ci.yml)
+
 Branch: `report-generator-enhancements`
 Repo: https://github.com/danish9661/OsdagBridge
 

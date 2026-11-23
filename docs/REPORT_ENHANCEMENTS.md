@@ -254,5 +254,9 @@ caption was trialled but rejected because longtable emits an orphan
 continuation header when a table starts at a page boundary.
 
 `.github/workflows/report-ci.yml` runs on every push and PR, executes the unit
-tests and a sample report build, verifies header/chart counts, posts a results
-table to the PR conversation and uploads the PDF/TeX/logs as an artifact.
+tests and a sample report build, verifies header/chart counts and PDF metadata,
+posts a results table to the PR conversation and uploads the PDF/TeX/logs as an
+artifact. It also **publishes the PDF and a page-1 preview PNG to a public
+`ci-reports` branch** (`runs/<run_id>/`), so the PR comment contains a
+browser-viewable PDF link and an embedded preview image — reviewers can check
+the exported PDF without downloading anything.
