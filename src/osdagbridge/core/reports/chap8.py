@@ -59,7 +59,7 @@ form the basis of all design calculations in this software.
 \setlength{\tabcolsep}{3.5pt}
 \begin{table}[H]
 \caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabular}{|c|c|p{13\colunit}|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
 \hline
@@ -82,7 +82,7 @@ IRC SP 114 & 2018 & Seismic Design of Road Bridges \\
 \setlength{\tabcolsep}{3.5pt}
 \begin{table}[H]
 \caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
+\begin{tabular}{|c|c|p{13\colunit}|}
 \hline
 \textbf{Code} & \textbf{Year} & \textbf{Scope} \\
 \hline
