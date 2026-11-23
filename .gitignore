@@ -306,8 +306,8 @@ Thumbs.db
 # Local-only PR draft (given to the user, never committed)
 PR_MESSAGE.md
 
-# Local submission pack (uploaded separately)
-submission/
+# Submission pack is tracked (upload-ready PDF/video); screenshots are not.
+submission/images/
 
 # Local-only analysis/demo helpers (not part of the submitted source)
 docs/BENCHMARK.md
