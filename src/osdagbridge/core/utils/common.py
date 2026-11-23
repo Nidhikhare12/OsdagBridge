@@ -45,6 +45,18 @@ TYPE_ALL_CUSTOM = "all_custom"   # combo [All, Custom] where Custom opens popup 
 
 # ========== Type of Fields End ==========================================================
 
+# ========== Custom-value fields (Additional Inputs validation) ==========================
+# Selector option that makes a user-entered value mandatory.
+VALUE_CUSTOM = "Custom"
+# Object-name suffixes used by composite widgets (UIBuilder TYPE_MODE_LINE / labels).
+KEY_SUFFIX_MODE = ".mode"
+KEY_SUFFIX_VALUE = ".value"
+KEY_SUFFIX_LABEL = "_label"
+# Schema attribute on a combobox field_def listing the input keys that must be
+# filled when the combobox is set to VALUE_CUSTOM.
+SCHEMA_ATTR_CUSTOM_FIELDS = "custom_fields"
+# ========================================================================================
+
 # Keys for inputs (consistent dot notation for object names)
 KEY_MODULE = "Module"
 KEY_STRUCTURE_TYPE = "structure.type"
@@ -132,6 +144,8 @@ KEY_SECTION_OUTPUT_STEELDESIGN = "section.output.superstructure.steeldesign"
 
 # ── Output field keys ─────────────────────────────────────────────────────────
 KEY_ANALYSIS_MEMBER           = "analysis.member"
+# Analysis "Member" dropdown entry that plots end diaphragms + intermediate cross-bracings
+VALUE_ANALYSIS_MEMBER_TRANSVERSE = "Transverse Members"
 KEY_ANALYSIS_LOAD_COMBINATION = "analysis.load_combination"
 KEY_ANALYSIS_FORCES           = "analysis.forces"
 KEY_ANALYSIS_DISPLAY_OPTIONS  = "analysis.display_options"
