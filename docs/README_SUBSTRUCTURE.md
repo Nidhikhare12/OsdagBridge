@@ -174,8 +174,11 @@ python -m osdagbridge.desktop
    blue and is visible *through* the pier/pile-cap concrete. Hover a member
    to see its dimensions.
 
-Substructure parameters can currently be changed through `SubstructureParamsDTO`
-in code; dedicated UI input fields are not yet wired to these values:
+Substructure dimensions are parameterised in code through
+`SubstructureParamsDTO` (`src/osdagbridge/core/bridge_types/plate_girder/dto.py`).
+The desktop build currently applies those default values and exposes a
+**Substructure** visibility toggle; per-dimension GUI input fields are outside
+this task's scope:
 
 ```python
 from osdagbridge.core.bridge_types.plate_girder.dto import SubstructureParamsDTO
@@ -285,8 +288,8 @@ geometry helpers.
 
 * Revit import test — not performed; Revit is unavailable on this Linux
   workstation.
-* Dedicated UI input fields for substructure dimensions — not wired yet;
-  parameters are changed through `SubstructureParamsDTO` in code (see §4).
+* Per-dimension GUI inputs — outside this task's scope; dimensions are
+  parameterised through `SubstructureParamsDTO` in code (see §4).
 * CAD/IFC bearing-elevation agreement for haunched or non-uniform end-girder
   segments — not yet tested (see the report).
 
