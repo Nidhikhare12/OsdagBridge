@@ -1,0 +1,134 @@
+name: Report generator CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: report-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    name: Tests + report build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy scipy matplotlib pytest
+
+      - name: Install LaTeX and PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-extra \
+            texlive-fonts-recommended poppler-utils
+
+      - name: Run unit tests
+        id: tests
+        run: |
+          set -o pipefail
+          PYTHONPATH=src python -m pytest tests/unit -q 2>&1 | tee pytest.log
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Build sample report
+        id: build
+        run: |
+          set -o pipefail
+          python scripts/generate_sample_reports.py ci_out CI_Report 2>&1 | tee build.log
+          test -f ci_out/CI_Report.pdf
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Verify report structure
+        id: verify
+        if: steps.build.outputs.status == 'pass'
+        run: |
+          set -o pipefail
+          ENDHEAD=$(grep -c '\\endhead' ci_out/CI_Report.tex)
+          PAGES=$(pdfinfo ci_out/CI_Report.pdf | awk '/^Pages:/{print $2}')
+          UR=$(grep -c 'fig:ur-summary' ci_out/CI_Report.tex)
+          MAT=$(grep -c 'fig:material-quantities' ci_out/CI_Report.tex)
+          echo "endhead=$ENDHEAD" >> "$GITHUB_OUTPUT"
+          echo "pages=$PAGES" >> "$GITHUB_OUTPUT"
+          echo "ur=$UR" >> "$GITHUB_OUTPUT"
+          echo "mat=$MAT" >> "$GITHUB_OUTPUT"
+          test "$ENDHEAD" -ge 40
+          test "$UR" -ge 1
+          test "$MAT" -ge 1
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Write PR summary
+        if: always()
+        run: |
+          {
+            echo "## Report generator CI"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Unit tests | ${{ steps.tests.outputs.status || 'fail' }} |"
+            echo "| Sample PDF build | ${{ steps.build.outputs.status || 'fail' }} |"
+            echo "| Structure verification | ${{ steps.verify.outputs.status || 'fail' }} |"
+            echo "| Repeating headers (\\endhead) | ${{ steps.verify.outputs.endhead || 'n/a' }} |"
+            echo "| PDF pages | ${{ steps.verify.outputs.pages || 'n/a' }} |"
+            echo "| UR chart | ${{ steps.verify.outputs.ur || 'n/a' }} |"
+            echo "| Material chart | ${{ steps.verify.outputs.mat || 'n/a' }} |"
+            echo ""
+            echo "Artifact: \`ci-report\` (PDF + TeX + logs)."
+            echo ""
+            echo "<details><summary>pytest output</summary>"
+            echo ""
+            echo '```'
+            tail -n 20 pytest.log 2>/dev/null || echo "no pytest log"
+            echo '```'
+            echo "</details>"
+          } > pr_summary.md
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$PR" --body-file pr_summary.md
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-report
+          path: |
+            ci_out/CI_Report.pdf
+            ci_out/CI_Report.tex
+            pytest.log
+            build.log
+            pr_summary.md
+          if-no-files-found: warn
+
+      - name: Fail if any check failed
+        if: always()
+        run: |
+          if [ "${{ steps.tests.outputs.status }}" != "pass" ] || \
+             [ "${{ steps.build.outputs.status }}" != "pass" ] || \
+             [ "${{ steps.verify.outputs.status }}" != "pass" ]; then
+            echo "One or more checks failed."
+            exit 1
+          fi

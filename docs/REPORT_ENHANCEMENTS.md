@@ -242,3 +242,17 @@ top of the page.
 * `\needspace` guards keep headings and tables clear of the footer margin.
 * "Software default value" asterisk legend remains correctly triggered by
   `\sdstar{}` in the footer.
+
+
+## Competitive review and CI
+
+A scan of 100 public forks and the upstream PR list showed most submissions
+lack videos, real-solver verification and CI. Techniques adopted from the
+strongest forks/PRs: explicit head/foot geometry, chapter title rules,
+`\emergencystretch`/`\hfuzz`, and a GitHub Actions workflow. A "(continued)"
+caption was trialled but rejected because longtable emits an orphan
+continuation header when a table starts at a page boundary.
+
+`.github/workflows/report-ci.yml` runs on every push and PR, executes the unit
+tests and a sample report build, verifies header/chart counts, posts a results
+table to the PR conversation and uploads the PDF/TeX/logs as an artifact.

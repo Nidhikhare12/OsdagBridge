@@ -72,6 +72,7 @@ Real UI buttons & \path{gui\_real\_ui\_test.py} clicks the actual Design and Gen
 Real solver run & Real OpenSees analysis + IRC 22 design, 4 girders / 30\,m, 997 output keys; \path{Report\_Real\_Design.pdf} (52 pages). \\
 Page 30 / G4 & G4 rows end well clear of the footer; continued header repeated. \\
 Cross-app opens & MuPDF clean exit 0; LibreOffice Draw round-trip 47 pages with identical page-11 text; pypdf/PyMuPDF parse all pages. \\
+CI & \path{.github/workflows/report-ci.yml} runs tests + sample build on every push/PR, posts a results table to the PR and uploads PDF/TeX/logs as an artifact. \\
 Live preview & After generation, page 1 is rendered with \texttt{pdftoppm} and shown instantly in an in-app Qt dialog; widget grab saved as \path{live\_preview.png} and visually verified. \\
 Video & Polished \textbf{1920×1080} 75\,s demo plus a 34\,s real-time 1920×1080 X11/Xvfb capture (black lead-in trimmed; garbled OCC-viewport slides replaced with clean text cards) showing the live OpenSees grillage analysis: dead/live/wind/thermal/seismic load cases, ULS/SLS combinations and design checks — which is why it takes ~40\,s. \\
 \bottomrule
