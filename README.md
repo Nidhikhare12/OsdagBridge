@@ -10,10 +10,10 @@
 > tests, a real-GUI + real-OpenSees verification suite, CI with PR reporting,
 > and a 1080p demo video.
 >
-> - Submission checklist and deliverables: [`README_REPORT_TASK.md`](README_REPORT_TASK.md)
+> - Task summary and verification: [`README_REPORT_TASK.md`](README_REPORT_TASK.md)
 > - Technical changes: [`docs/REPORT_ENHANCEMENTS.md`](docs/REPORT_ENHANCEMENTS.md)
 > - Generate a sample report: `python scripts/generate_sample_reports.py deliverables Report_After`
-> - Upload pack (local, git-ignored): `submission/` (`OsdagBridge_Submission.pdf` + `Demo_Video_1080p.mp4`)
+> - Generated documents: `submission/` (before/after reports, technical report, demo videos)
 > - CI-published PDFs: https://github.com/danish9661/OsdagBridge/tree/ci-reports
 >
 > ---

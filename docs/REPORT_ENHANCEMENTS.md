@@ -1,5 +1,4 @@
 
-> **Note:** `deliverables/` and `*.zip` are intentionally **git-ignored**. They are generated locally (see the reproduction commands) and/or published by CI to the public `ci-reports` branch. Upload the PDFs/ZIP separately with your submission; they are not part of the git diff.
 
 # OsdagBridge LaTeX Report Generator — Refactoring & Enhancements
 
@@ -247,14 +246,12 @@ top of the page.
   `\sdstar{}` in the footer.
 
 
-## Competitive review and CI
+## CI
 
-A scan of 100 public forks and the upstream PR list showed most submissions
-lack videos, real-solver verification and CI. Techniques adopted from the
-strongest forks/PRs: explicit head/foot geometry, chapter title rules,
-`\emergencystretch`/`\hfuzz`, and a GitHub Actions workflow. A "(continued)"
-caption was trialled but rejected because longtable emits an orphan
-continuation header when a table starts at a page boundary.
+Formatting fixes were complemented with explicit head/foot geometry, chapter
+title rules and `\emergencystretch`/`\hfuzz`. A "(continued)" caption was
+trialled but rejected because longtable emits an orphan continuation header
+when a table starts at a page boundary.
 
 `.github/workflows/report-ci.yml` runs on every push and PR, executes the unit
 tests and a sample report build, verifies header/chart counts and PDF metadata,
@@ -267,12 +264,3 @@ side-by-side thumbnail** (load tables, page 11), runs a **font-embedding /
 encryption validation** (`pdffonts`, all fonts must be embedded), and a
 **nightly cron** (`0 2 * * *`) that opens or updates a `nightly-ci` issue on
 failure to catch dependency regressions.
-
-
-### Local submission pack
-
-A clean, git-ignored folder `submission/` contains the files to upload:
-`Report_Before.pdf`, `Report_After.pdf`, `Technical_Report.pdf`,
-`Demo_Video_1080p.mp4`, plus supporting `Report_Real_Design.pdf` and
-`Demo_Live_X11_1080p.mp4`. The full artefact set remains in `deliverables/`;
-CI publishes built PDFs to the public `ci-reports` branch.
