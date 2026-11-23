@@ -1,3 +1,4 @@
+from . import styles
 # ═══════════════════════════════════════════════════════════════════════════════
 # EXECUTIVE SUMMARY
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -160,8 +161,12 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     ur_cells = ' & '.join([ur] * n_cols)
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
-    table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
-              r'\vspace{0.4em}' + '\n'
+    # Table 1 is a plain tabular with a hand-written title (no float), so LaTeX
+    # will not keep them together on its own. Needspace + nopagebreak below do.
+    table1_title = r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}'
+    table1 = (r'\Needspace{9\baselineskip}' + '\n'
+              + table1_title + '\n\n'
+              r'\nopagebreak\vspace{0.4em}\nopagebreak' + '\n'
               r'\noindent' + '\n'
               r'\begin{tabular}{' + col_spec + '}\n'
               r'\hline' + '\n'
@@ -247,6 +252,5 @@ Deck design pass
 \end{itemize}
 
 % Restore numbered chapter format
-\titleformat{\chapter}[block]{\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{-30pt}{10pt}
+""" + styles.chapter_heading() + r"""
 """

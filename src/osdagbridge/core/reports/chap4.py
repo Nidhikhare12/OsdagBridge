@@ -6,6 +6,7 @@ from osdagbridge.core.utils.common import (
     KEY_SD_DEFL_TOTAL,
 )
 from osdagbridge.core.reports.report_utils import _tex, _fig_embed
+from osdagbridge.core.reports import styles
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -73,18 +74,18 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "---"
     _allow_live_str  = f"L/800 = {_allow_live_mm:.1f} mm"
     _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
-    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
-    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
+    _live_status     = styles.status_or_dash(None if _live_mm  is None else _live_mm  <= _allow_live_mm)
+    _total_status    = styles.status_or_dash(None if _total_mm is None else _total_mm <= _allow_total_mm)
     return r"""
-\chapter{Analysis Results}
+""" + styles.chapter_title(r"Analysis Results") + r"""
 
 A grillage model was used for structural analysis. The deck is idealized as a grid of elastic beam elements --- longitudinal members represent the composite steel girders with effective slab, and transverse members represent the slab or cross frames. This section summarizes the critical output from that analysis.
 
 \vspace{1em}
 \begingroup
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
+""" + styles.table_padding(styles.TABCOLSEP_ANALYSIS) + r"""
+\renewcommand{\arraystretch}{""" + styles.ANALYSIS_ARRAY_STRETCH + r"""}
 
 \begin{longtable}{|
 >{\centering\arraybackslash}p{3.1cm}|
@@ -146,6 +147,11 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
 \hline
+\endfirsthead
+\hline
+\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]
+\hline
+\endhead
  & """ + '' + r""" & """ + '' + r""" \\[6pt]
 \hline
  & """ + '' + r""" & """ + '' + r""" \\[6pt]
@@ -160,6 +166,11 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \hline
 \textbf{parameter} & \textbf{value} \\
 \hline
+\endfirsthead
+\hline
+\textbf{parameter} & \textbf{value} \\
+\hline
+\endhead
 \textnormal{Deflection due to Live Load, $\delta_{LL}$} & """ + _live_str + r""" \\[6pt]
 \hline
 \textnormal{Allowable Live Load Deflection ($\Delta_{allow}$)} & """ + _allow_live_str + r""" \\[6pt]
