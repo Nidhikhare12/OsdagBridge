@@ -6,7 +6,8 @@ fonts, colors, margins, paddings or table widths anywhere else.
 
 # ---------------- Document / page ----------------
 DOCUMENT_CLASS_OPTIONS = "12pt,a4paper"
-GEOMETRY = "a4paper, margin=1in"
+GEOMETRY = ("a4paper, top=1in, bottom=1.15in, left=1in, right=1in, "
+            "headheight=15pt, headsep=0.3in, footskip=0.5in")
 LINE_STRETCH = "1.15"
 
 # ---------------- Colors (name -> HTML hex) ----------------
