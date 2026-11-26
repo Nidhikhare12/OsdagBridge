@@ -3,6 +3,7 @@
 # Extracted from report_generator.py — DO NOT add business logic here.
 # =============================================================================
 
+from osdagbridge.core.reports import styles as report_styles
 from osdagbridge.core.utils.common import (
     KEY_CB_LOAD,
     KEY_LL_CUSTOM_VEHICLES,
@@ -54,6 +55,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex, _render_value
+from osdagbridge.core.reports.live_load_tables import live_load_tables
 
 def ch3_loads(input_dict):
     # Live load vehicle names mapping
@@ -272,7 +274,7 @@ def ch3_loads(input_dict):
 This section summarizes all loads applied to the bridge and the load combinations considered for analysis and design.
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}""" + report_styles.STD_PARAM_TABLE + r"""
 \caption{\textbf{Dead Load -- Self Weight}}
 \hline
 \textbf{parameter} & \textbf{value} \\
@@ -286,7 +288,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}""" + report_styles.STD_PARAM_TABLE + r"""
 \caption{\textbf{Dead Load for Surfacing (DW)}}
 \hline
 \textbf{parameter} & \textbf{value} \\
@@ -300,23 +302,10 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
-\caption{\textbf{Live Loads (LL)}}
-\hline
-\textbf{parameter} & \textbf{value} \\
-\hline
-\textnormal{Vehicles Considered} & """ + _tex(vehicles_str) + r""" \\[6pt]
-\hline
-\textnormal{Impact Factor (IRC 6)} & """ + _tex(impact_factor_str) + r""" \\[6pt]
-\hline
-\textnormal{Braking Load (IRC 6)} & """ + _tex(braking_force_str) + r""" \\[6pt]
-\hline
-\textnormal{Footpath Live Load (if applicable)} & """ + (_render_value(input_dict, KEY_LL_FOOTPATH_PRESSURE_VALUE, ' kN/m\\textsuperscript{2}')) + r""" \\[6pt]
-\hline
-\end{longtable}
+""" + live_load_tables(input_dict) + r"""
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}""" + report_styles.STD_PARAM_TABLE + r"""
 \caption{\textbf{Wind Load (WL) --- per IRC 6}}
 \hline
 \textbf{parameter} & \textbf{value} \\
@@ -340,7 +329,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}""" + report_styles.STD_PARAM_TABLE + r"""
 \caption{\textbf{Earthquake Load (EL) --- per IRC 6}}
 \hline
 \textbf{parameter} & \textbf{value} \\
@@ -366,7 +355,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \end{longtable}
 
 \vspace{1em}
-\begin{longtable}{|L{5.5cm}|p{10.0cm}|}
+\begin{longtable}""" + report_styles.STD_PARAM_TABLE + r"""
 \caption{\textbf{Temperature Load (TL) --- per IRC 6}}
 \hline
 \textbf{parameter} & \textbf{value} \\
