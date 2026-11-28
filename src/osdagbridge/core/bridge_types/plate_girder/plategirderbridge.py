@@ -3813,7 +3813,7 @@ class PlateGirderBridge:
     Per run optimised design analysis function.
     Takes after most of the functions from customized design but not all
     """          
-    def optimized_design(self, run: int) -> dict:
+    def optimized_design(self, run: int) -> tuple[dict, dict]:
         bridge_logger.analysis_start()
 
         # Log memory at the start of every design so per-iteration growth is visible.
@@ -3862,8 +3862,8 @@ class PlateGirderBridge:
             self.memory.clear_intermediate_results()
             self.result_data = self.grillage_model.get_result_data()
             
-            optimised_dict = self.optimize_girder_dimensions(self.optimisation_bounds, run)
-            return optimised_dict
+            optimised_dict, design_results = self.optimize_girder_dimensions(self.optimisation_bounds, run)
+            return optimised_dict, design_results
             """
             # Stage 5: Girder Design Checks
             self._run_stage("5", self._run_dcr_checks)
@@ -3876,7 +3876,7 @@ class PlateGirderBridge:
             bridge_logger.analysis_failed(str(e))
             raise
 
-    def optimised_design_deck_slab(self):
+    def optimised_design_deck_slab(self, design_results: dict = {}) -> float:
         
         rebar_grade = str(self.input_dict[KEY_DS_REINF_MATERIAL]).strip()
         
@@ -3893,7 +3893,7 @@ class PlateGirderBridge:
         while status is False and deck_thk <= 500:
             verdict, _ = deckdesign.design_deck_slab(
                 inp, fck=fck, fctm=fctm, fy=fy, Ecm=Ecm, Es=Es,
-                design_results=None,
+                design_results=design_results,
                 bf_top_mm=resolve_girder_value(self.input_dict, KEY_MP_GIRDER_TOP_FLANGE_WIDTH) * 1000.0,
                 stud_height_mm=float(self.input_dict[KEY_DS_STUD_HEIGHT]),
                 deck_thk = deck_thk,
@@ -3926,9 +3926,9 @@ class PlateGirderBridge:
         self.optimisation_bounds = self._resolve_optimized_bounds_to_mm()
 
         for i in range(number_of_runs):
-            optimised_dict = self.optimized_design(run = i)
+            optimised_dict, design_results = self.optimized_design(run = i)
             self.input_dict.update(optimised_dict)
-            self.input_dict[KEY_TS_DECK_THICKNESS] = self.optimised_design_deck_slab()
+            self.input_dict[KEY_TS_DECK_THICKNESS] = self.optimised_design_deck_slab(design_results)
             self.input_dict[KEY_DESIGN_MODE] = 'Custom' # set design mode  to custom after first run is over
             self.set_input(self.input_dict)
         

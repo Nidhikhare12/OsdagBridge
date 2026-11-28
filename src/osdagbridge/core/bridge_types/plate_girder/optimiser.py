@@ -230,7 +230,7 @@ def adjust_demands(demand:DemandEnvelope, config: BridgeConfig, girder_section: 
     Iz_girder = girder_section.Iz_steel # in mm^2
     I_comp_girder = girder_props[KEY_COMP_I]     # second moment of inertia along strong axis of composite section in mm^2
     
-    demand.M_girder_sw_kNm *= (area / area_original)
+    demand.M_girder_sw_kNm *= (area / (area_original * 0.97))
     demand.M_construction_kNm -= config.geometry.span * config.geometry.span * (area_original - area) * DEFAULT_STEEL_DENSITY / 8
     # demand.Mu_kNm = demand.Mu_kNm - config.geometry.cross_bracing_spacing_m * config.geometry.cross_bracing_spacing_m * (area_original - area) * DEFAULT_STEEL_DENSITY / 8
     # demand.Mx_kNm *= (area / area_original)
@@ -259,12 +259,11 @@ def objective_function(g_demand: DemandEnvelope, g_config:BridgeConfig, x: np.nd
     # calculate the capacity and evaluate utility
     capacity_calculator = IRC22CapacityCalculator(config)
     if capacity_calculator.classify_section()['governing_class'] == 'Slender':
-        print("Slender")
         return float(np.inf)
     
     capacity = capacity_calculator.compute_all( Vu_kN=demand.Vu_kN, stress_range_MPa=demand.stress_range_MPa,
                 M_sls_kNm=demand.M_sls_kNm, V_sls_kN=demand.V_sls_kN, Vr_kN=demand.Vr_kN,)
-    capacity.stud_detailing_ok = True   # to bypass the stud detailing checks for now
+    capacity.stud_detailing_ok = True   # bypass the stud detailing checks for now
 
     # run DCR checks
     engine = DCREngine(demand, capacity)
@@ -275,6 +274,36 @@ def objective_function(g_demand: DemandEnvelope, g_config:BridgeConfig, x: np.nd
 
     g_area = (D - tf_top - tf_bot) * tw + bf_top * tf_top + bf_bot * tf_bot
     return g_area
+
+# Function to find the utility of the final girder
+# Used to eventually obtain the controlling girder of the configuration
+
+def get_dcr(g_demand: DemandEnvelope, g_config:BridgeConfig, x: np.ndarray):
+    
+    D, bf_top, bf_bot, tf_top, tf_bot, tw = x[0], x[1], x[2], x[3], x[4], x[5]
+    # s_stiffener, t_stiffener = x[6], x[7]   # stiffner spacing and thickness of stiffener plate
+    
+    # build the girder section
+    girder_section = SteelSection(D, bf_top, tf_top, bf_bot, tf_bot, tw)
+    # stiffener = StiffenerConfig(c_mm = s_stiffener, tq_mm= t_stiffener, shear_method= 'post_critical')
+    
+    # g_config.stiffener = stiffener
+    demand = replace(g_demand)  # copy of demand object
+    config = replace(g_config)  # copy of config object
+    adjust_demands(demand, config, girder_section)
+    config.section = girder_section
+    
+    # calculate the capacity and evaluate utility
+    capacity_calculator = IRC22CapacityCalculator(config)
+    
+    capacity = capacity_calculator.compute_all( Vu_kN=demand.Vu_kN, stress_range_MPa=demand.stress_range_MPa,
+                M_sls_kNm=demand.M_sls_kNm, V_sls_kN=demand.V_sls_kN, Vr_kN=demand.Vr_kN,)
+    capacity.stud_detailing_ok = True   # bypass the stud detailing checks for now
+
+    # run DCR checks
+    engine = DCREngine(demand, capacity)
+    
+    return engine.max_dcr(), capacity.VL_N_per_mm, capacity.beff_mm
 
 
 def optimise_girder_dimensions(pgb: PlateGirderBridge, bounds: dict, run: int):
@@ -290,6 +319,10 @@ def optimise_girder_dimensions(pgb: PlateGirderBridge, bounds: dict, run: int):
     
     per_girder_demands, per_girder_per_lc = _extract_demands_from_result_data( config, deflections_cache, result_data)
     result_dict: dict = {}
+    
+    max_dcr_val = 0.0
+    design_long_shear = 0.0     # design longitudinal shear per unit length
+    design_beff_mm = 0.0        # design beff_mm 
     
     from osdagbridge.core.bridge_types.plate_girder.pso import PSO
     for idx, (g_name, g_demand) in enumerate(per_girder_demands.items()):
@@ -343,6 +376,13 @@ def optimise_girder_dimensions(pgb: PlateGirderBridge, bounds: dict, run: int):
         if best_f == np.inf:
             print(f"No optimal solution found for {g_name}")
             best_x = initial_vector
+        dcr_val, long_shear, beff_mm = get_dcr(g_demand, g_config, best_x)
+        
+        if dcr_val > max_dcr_val:
+            max_dcr_val = dcr_val
+            design_long_shear = long_shear
+            design_beff_mm = beff_mm           
+            
         update_dict(idx, result_dict, best_x, bounds, lower_bound_vector, upper_bound_vector)
         
-    return result_dict
+    return result_dict, {"VL_N_per_mm": design_long_shear, "beff_mm": design_beff_mm}
